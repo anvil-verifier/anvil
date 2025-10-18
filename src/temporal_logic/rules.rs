@@ -1896,6 +1896,44 @@ pub proof fn leads_to_by_borrowing_inv<T>(spec: TempPred<T>, p: TempPred<T>, q: 
     }
 }
 
+// Derive p ~> q from []p ~> q with the assumption that p is preserved unless q happens
+// pre:
+//      spec |= []p ~> q
+//      spec |= [](p /\ next => p' \/ q')
+//      spec |= []next
+// post:
+//      spec |= p ~> q
+//
+// This lemma is useful if we want to show that given []p ~> q, q will eventually hold
+// even if []p doesn't hold, as long as p is preserved until q happens.
+// A concrete usage is to reason about a pair of concurrent components A and B, where
+// (1) A guarantees []p ~> q, and (2) B makes p hold at some point and keeps p until q holds.
+// Note that we formalize "p is preserved until q happens" using [](p /\ next => p' \/ q'):
+// if p holds now, then for any possible next state, either p or q holds.
+pub proof fn strengthen_leads_to_with_until<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(p).leads_to(q)),
+        spec.entails(always(p.and(next).implies(later(p).or(later(q))))),
+        spec.entails(always(next)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        implies_apply(ex, spec, always(next));
+        implies_apply(ex, spec, always(p.and(next).implies(later(p).or(later(q)))));
+        always_p_or_eventually_q(ex, next, p, q);
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p, always(p).or(eventually(q)));
+            if always(p).satisfied_by(ex.suffix(i)) {
+                implies_apply(ex, spec, always(p).leads_to(q));
+                implies_apply(ex.suffix(i), always(p), eventually(q));
+            } else {
+
+            }
+        }
+    }
+}
+
 // Get a new leads-to condition with an until condition.
 // pre:
 //      spec |= p1 ~> q1
