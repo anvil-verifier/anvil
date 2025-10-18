@@ -77,6 +77,7 @@ ensures
             }
         }
         let vrs_list = objects_to_vrs_list(resp_objs)->0;
+        assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0));
         let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
         assert forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) implies  {
             let key = vrs.object_ref();
@@ -105,8 +106,31 @@ ensures
                 assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
             }
         }
-        // TODO: add DS lemma to prove it
-        assume(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime));
+        assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
+            assume(false);
+            let valid_obj_filter = |o: DynamicObjectView| {
+                &&& obj.kind == VReplicaSetView::kind()
+                &&& VReplicaSetView::unmarshal(o) is Ok
+                &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
+            };
+            let weakened_obj_filter = |o: DynamicObjectView| {
+                &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
+            };
+            assert(filter_obj_keys_managed_by_vd(vd, s_prime) == s.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+            assert(managed_vrs_list == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0)) by {
+                commutativity_of_seq_map_and_filter(resp_objs, weakened_obj_filter, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0);
+            }
+            // map_values(unmarshal).map_values(object_ref) ==> map_values(object_ref)
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+            // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
+            assert(resp_objs.filter(weakened_obj_filter) == s.resources().values().to_seq().filter(valid_obj_filter));
+            // s.to_seq().to_set() ==> s
+            assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set()
+                == s.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+            // .values().map(val_to_key) ==> .dom() (keys)
+            assert(s.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
+                == s.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
+        }
     }
     return resp_msg;
 }
