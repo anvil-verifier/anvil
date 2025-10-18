@@ -106,6 +106,9 @@ ensures
                 assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
             }
         }
+        // expand to 
+        // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
         assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
             assume(false);
             let valid_obj_filter = |o: DynamicObjectView| {
