@@ -44,12 +44,6 @@ ensures
     }; 
     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
     assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd.object_ref(), controller_id, resp_msg, s_prime)) by {
-        assert(vd.metadata.namespace is Some);
-        assert(req.kind == VReplicaSetView::kind());
-        assert(req.namespace == vd.metadata.namespace->0);
-        assert(resp_msg.content.is_list_response());
-        assert(resp_msg.content.get_list_response() == handle_list_request(req, s.api_server));
-        assert(resp_msg.content.get_list_response().res is Ok);
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
         assert forall |o| #[trigger] resp_objs.contains(o) implies {
@@ -65,9 +59,6 @@ ensures
                 lemma_values_finite(s.resources());
                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
             }
-            assert(list_req_filter(o));
-            assert(s.resources().contains_key(o.object_ref()));
-            assert(s.resources()[o.object_ref()] == o);
         }
         assert(objects_to_vrs_list(resp_objs) is Some) by {
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
@@ -110,11 +101,7 @@ ensures
             let i = choose |i| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
             assert(resp_objs.contains(resp_objs[i])); // trigger
             assert(VReplicaSetView::unmarshal(resp_objs[i])->Ok_0 == vrs);
-            assert(resp_objs[i].metadata == vrs.metadata);
-            // assert(resp_objs[i].object_ref() == key);
-            assert(valid_owned_vrs(vrs, vd));
             assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
-                // each_object_in_etcd_has_at_most_one_controller_owner
                 assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
             }
         }
