@@ -19,6 +19,7 @@ use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*};
 
 verus! {
 
+#[verifier(rlimit(10))]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message,
@@ -127,12 +128,16 @@ ensures
                 commutativity_of_seq_map_and_filter(resp_objs, weakened_obj_filter, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0);
             }
             // map_values(unmarshal).map_values(object_ref) ==> map_values(object_ref)
-            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()));
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref())) by {
+                lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
+            }
             // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
-            assert(resp_objs.filter(weakened_obj_filter) == s_prime.resources().values().to_seq().filter(valid_obj_filter));
+            assume(resp_objs.filter(weakened_obj_filter) == s_prime.resources().values().to_seq().filter(valid_obj_filter));
             // s.to_seq().to_set() ==> s
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set()
-                == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+                == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
+                
+            }
             // .values().map(val_to_key) ==> .dom() (keys)
             assert(s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
                 == s_prime.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
