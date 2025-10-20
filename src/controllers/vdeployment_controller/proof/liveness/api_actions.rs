@@ -110,29 +110,31 @@ ensures
         // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
         assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
-            assume(false);
             let valid_obj_filter = |o: DynamicObjectView| {
-                &&& obj.kind == VReplicaSetView::kind()
+                &&& o.kind == VReplicaSetView::kind()
                 &&& VReplicaSetView::unmarshal(o) is Ok
                 &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
             };
             let weakened_obj_filter = |o: DynamicObjectView| {
                 &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
             };
-            assert(filter_obj_keys_managed_by_vd(vd, s_prime) == s.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+            assert(filter_obj_keys_managed_by_vd(vd, s_prime) == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
+                assert(forall |k: ObjectRef| #[trigger] s_prime.resources().contains_key(k) ==>
+                    valid_owned_obj_key(vd, s_prime)(k) == valid_obj_filter(s_prime.resources()[k]));
+            }
             assert(managed_vrs_list == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0)) by {
                 commutativity_of_seq_map_and_filter(resp_objs, weakened_obj_filter, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0);
             }
             // map_values(unmarshal).map_values(object_ref) ==> map_values(object_ref)
-            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()));
             // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
-            assert(resp_objs.filter(weakened_obj_filter) == s.resources().values().to_seq().filter(valid_obj_filter));
+            assert(resp_objs.filter(weakened_obj_filter) == s_prime.resources().values().to_seq().filter(valid_obj_filter));
             // s.to_seq().to_set() ==> s
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set()
-                == s.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
+                == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref()));
             // .values().map(val_to_key) ==> .dom() (keys)
-            assert(s.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
-                == s.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
+            assert(s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
+                == s_prime.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
         }
     }
     return resp_msg;
