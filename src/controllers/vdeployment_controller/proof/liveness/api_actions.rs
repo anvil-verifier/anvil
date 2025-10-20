@@ -15,7 +15,7 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
-use crate::vstd_ext::{seq_lib::*, set_lib::*};
+use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*};
 
 verus! {
 
@@ -121,6 +121,7 @@ ensures
             assert(filter_obj_keys_managed_by_vd(vd, s_prime) == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                 assert(forall |k: ObjectRef| #[trigger] s_prime.resources().contains_key(k) ==>
                     valid_owned_obj_key(vd, s_prime)(k) == valid_obj_filter(s_prime.resources()[k]));
+                lemma_equiv_filters_on_keys_and_values_implies_equiv_results(s_prime.resources(), valid_owned_obj_key(vd, s_prime), valid_obj_filter, |o: DynamicObjectView| o.object_ref());
             }
             assert(managed_vrs_list == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0)) by {
                 commutativity_of_seq_map_and_filter(resp_objs, weakened_obj_filter, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0);
