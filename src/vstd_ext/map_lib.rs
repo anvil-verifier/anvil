@@ -47,4 +47,12 @@ pub proof fn injective_finite_map_implies_dom_len_is_equal_to_values_len<K, V>(m
     }
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_equiv_filters_on_keys_and_values_implies_equiv_results<K, V>(m: Map<K, V>, f: spec_fn(K) -> bool, g: spec_fn(V) -> bool, v_k_map: spec_fn(V) -> K)
+requires
+    forall |k: K| #[trigger] m.contains_key(k) ==> f(k) == g(m[k]),
+    forall |v: V| #[trigger] m.values().contains(v) ==> #[trigger] m.contains_key(v_k_map(v)) && m[v_k_map(v)] == v,
+ensures
+    m.dom().filter(f) == m.values().filter(g).map(v_k_map),
+{}
 }
