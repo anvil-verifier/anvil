@@ -136,14 +136,25 @@ ensures
                 }
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
-            // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
-            assert(s_prime.resources().values().filter(list_req_filter).to_seq().filter(weakened_obj_filter) == s_prime.resources().values().to_seq().filter(valid_obj_filter)) by {
-                // == s.r().v().to_seq().f().f()
-                assert(false); // ALERT: order not preserved
-            }
             // s.to_seq().to_set() ==> s
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
+                // s.r().v().finite()
+                injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
+                assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_set()
+                    == s_prime.resources().values().to_seq().filter(valid_obj_filter).map_values((|o: DynamicObjectView| o.object_ref())).to_set()) by {
+                    // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
+                    // .m().to_set() == .to_set().m() to get rid of the map
+                    resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
+                    s_prime.resources().values().to_seq().filter(valid_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
+                    // lhs & rhs: .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
+                    lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
+                    lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
+                    lemma_filter_to_set_eq_to_set_filter(s_prime.resources().values().to_seq(), valid_obj_filter);
+                    lemma_to_seq_to_set_equal(s_prime.resources().values());
+                    // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
+                    assert(s_prime.resources().values().filter(list_req_filter).filter(weakened_obj_filter) == s_prime.resources().values().filter(valid_obj_filter));
+                }
                 assert(s_prime.resources().values().to_seq().filter(valid_obj_filter).map_values((|o: DynamicObjectView| o.object_ref())).to_set()
                     == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                     // the order of seq isn't guaranteed, so we can only move to_set forwards
@@ -151,8 +162,6 @@ ensures
                     s_prime.resources().values().to_seq().filter(valid_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
                     // == s.r().v().to_seq().to_set().f().map()
                     lemma_filter_to_set_eq_to_set_filter(s_prime.resources().values().to_seq(), valid_obj_filter);
-                    // s.r().v().finite()
-                    injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
                     // == s.r().v().f().map()
                     lemma_to_seq_to_set_equal(s_prime.resources().values());
                 }
