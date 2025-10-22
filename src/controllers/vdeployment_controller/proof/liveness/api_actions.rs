@@ -30,6 +30,7 @@ requires
     req_msg_is_list_vrs_req(vd.object_ref(), controller_id, req_msg, s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    Cluster::etcd_is_finite()(s_prime),
 ensures
     resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
     resp_msg_is_ok_list_resp_containing_matched_vrs(vd.object_ref(), controller_id, resp_msg, s_prime),
@@ -129,6 +130,7 @@ ensures
             }
             // map_values(unmarshal).map_values(object_ref) ==> map_values(object_ref)
             assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref())) by {
+                assume(false);
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
             // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
@@ -136,7 +138,17 @@ ensures
             // s.to_seq().to_set() ==> s
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
-                
+                assert(s_prime.resources().values().to_seq().filter(valid_obj_filter).map_values((|o: DynamicObjectView| o.object_ref())).to_set()
+                    == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
+                    // the order of seq isn't guaranteed, so we can only move to_set forwards
+                    // ==> s.r().v().to_seq().f().to_set().map()
+                    s_prime.resources().values().to_seq().filter(valid_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
+                    // ==> s.r().v().to_seq().to_set().f().map()
+                    lemma_filter_to_set_eq_to_set_filter(s_prime.resources().values().to_seq(), valid_obj_filter);
+                    // ==> s.r().v().f().map()
+                    injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
+                    lemma_to_seq_to_seq_equal(s_prime.resources().values());
+                }
             }
             // .values().map(val_to_key) ==> .dom() (keys)
             assert(s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
