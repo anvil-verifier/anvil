@@ -19,7 +19,7 @@ use crate::vreplicaset_controller::{
     proof::{helper_invariants, predicate::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, seq::*};
+use vstd::{seq_lib::*, map_lib::*};
 use vstd::prelude::*;
 
 verus! {
