@@ -101,4 +101,10 @@ pub proof fn lemma_mk_map_insert_k<A, B>(m: Set<A>, k: A, map: spec_fn(A) -> B)
     }
 }
 
+pub proof fn lemma_to_seq_to_seq_equal<A>(s: Set<A>)
+    requires s.finite(),
+    ensures s.to_seq().to_set() == s,
+{
+    finite_set_to_seq_contains_all_set_elements(s);
+}
 }
