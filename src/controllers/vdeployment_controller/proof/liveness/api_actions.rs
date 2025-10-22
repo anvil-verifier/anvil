@@ -144,7 +144,7 @@ ensures
                 // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
                 // .m().to_set() == .to_set().m() to get rid of the map
                 resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
-                // lhs & rhs: .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
+                // .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
                 lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
                 // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
