@@ -137,7 +137,10 @@ ensures
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
             // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
-            assume(resp_objs.filter(weakened_obj_filter) == s_prime.resources().values().to_seq().filter(valid_obj_filter));
+            assert(s_prime.resources().values().filter(list_req_filter).to_seq().filter(weakened_obj_filter) == s_prime.resources().values().to_seq().filter(valid_obj_filter)) by {
+                // == s.r().v().to_seq().f().f()
+                assert(false); // ALERT: order not preserved
+            }
             // s.to_seq().to_set() ==> s
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
