@@ -434,19 +434,17 @@ pub proof fn same_filter_implies_same_result<A>(s: Seq<A>, f1: spec_fn(A) -> boo
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_homomorphism_of_map_values<A, B, C>(s: Seq<A>, f1: spec_fn(A) -> B, f2: spec_fn(B) -> C, g: spec_fn(A)->C)
     requires forall |e: A| #[trigger] s.contains(e) ==> f2(f1(e)) == g(e),
     ensures s.map_values(g) == s.map_values(f1).map_values(f2),
     decreases s.len()
 {
-    reveal(Seq::map_values);
     if s.len() != 0 {
         let subseq = s.drop_last();
         assert(forall |e: A| #[trigger] subseq.contains(e) ==> s.contains(e));
         lemma_homomorphism_of_map_values(subseq, f1, f2, g);    
         assert(s.contains(s.last()));
-        assert(s.map_values(g) == subseq.map_values(g).push(f2(f1(s.last()))));
+        assert(s.map_values(g) == subseq.map_values(g).push(g(s.last())));
     }
 }
 
