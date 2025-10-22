@@ -130,7 +130,10 @@ ensures
             }
             // map_values(unmarshal).map_values(object_ref) ==> map_values(object_ref)
             assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref())) by {
-                assume(false);
+                assert forall |o: DynamicObjectView| #[trigger] resp_objs.filter(weakened_obj_filter).contains(o) implies
+                    o.kind == VReplicaSetView::kind() && VReplicaSetView::unmarshal(o) is Ok by {
+                    seq_filter_contains_implies_seq_contains(resp_objs, weakened_obj_filter, o);
+                }
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
             // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) ==> valid_obj_filter
