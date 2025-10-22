@@ -141,13 +141,14 @@ ensures
                 assert(s_prime.resources().values().to_seq().filter(valid_obj_filter).map_values((|o: DynamicObjectView| o.object_ref())).to_set()
                     == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                     // the order of seq isn't guaranteed, so we can only move to_set forwards
-                    // ==> s.r().v().to_seq().f().to_set().map()
+                    // == s.r().v().to_seq().f().to_set().map()
                     s_prime.resources().values().to_seq().filter(valid_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
-                    // ==> s.r().v().to_seq().to_set().f().map()
+                    // == s.r().v().to_seq().to_set().f().map()
                     lemma_filter_to_set_eq_to_set_filter(s_prime.resources().values().to_seq(), valid_obj_filter);
-                    // ==> s.r().v().f().map()
+                    // s.r().v().finite()
                     injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
-                    lemma_to_seq_to_seq_equal(s_prime.resources().values());
+                    // == s.r().v().f().map()
+                    lemma_to_seq_to_set_equal(s_prime.resources().values());
                 }
             }
             // .values().map(val_to_key) ==> .dom() (keys)
