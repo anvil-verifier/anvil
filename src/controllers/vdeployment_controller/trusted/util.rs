@@ -35,26 +35,26 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
 {
     // first vrs that match template and has non-zero replicas
     // non-zero replicas ensures the stability of esr
-    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
+    let reusable_nonempty_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
         &&& match_template_without_hash(vd.spec.template, vrs)
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     });
-    let new_vrs = if new_vrs_list.len() > 0 {
-        Some(new_vrs_list.first())
+    let reusable_nonempty_vrs = if reusable_nonempty_vrs_list.len() > 0 {
+        Some(reusable_nonempty_vrs_list.first())
     } else {
         // otherwise, pick any vrs that match deployment's template
-        let vrs_list_with_zero_replicas = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs));
-        if vrs_list_with_zero_replicas.len() > 0 {
-            Some(vrs_list_with_zero_replicas.first())
+        let reusable_empty_vrs = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs));
+        if reusable_empty_vrs.len() > 0 {
+            Some(reusable_empty_vrs.first())
         } else {
             None
         }
     };
     let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
-        &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
+        &&& reusable_nonempty_vrs is None || vrs.metadata.uid != reusable_nonempty_vrs->0.metadata.uid
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     });
-    (new_vrs, old_vrs_list)
+    (reusable_nonempty_vrs, old_vrs_list)
 }
 
 pub open spec fn match_template_without_hash(template: PodTemplateSpecView, vrs: VReplicaSetView) -> bool {
