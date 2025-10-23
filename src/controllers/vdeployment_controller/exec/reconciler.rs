@@ -481,6 +481,7 @@ ensures
 {
     let mut new_vrs_list = Vec::<VReplicaSet>::new();
     let mut old_vrs_list = Vec::<VReplicaSet>::new();
+    let mut new_vrs = Option::<VReplicaSet>::None;
     let mut idx = 0;
     assert(new_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| {
         model_util::match_template_without_hash(vd@.spec.template, vrs) &&
@@ -526,12 +527,49 @@ ensures
         // this is stupid
         assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
     }
-    let new_vrs = if new_vrs_list.len() == 0 {
-        None
-    } else {
+    if new_vrs_list.len() > 0 {
         assert(model_util::valid_owned_vrs(new_vrs_list[0]@, vd@));
-        Some(new_vrs_list[0].clone())
-    };
+        new_vrs = Some(new_vrs_list[0].clone());
+    } else {
+        let mut new_vrs_list_with_zero_replicas = Vec::<VReplicaSet>::new();
+        assert(new_vrs_list_with_zero_replicas.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| {
+            model_util::match_template_without_hash(vd@.spec.template, vrs)
+        }));
+        for idx in 0..vrs_list.len()
+        invariant
+            new_vrs_list_with_zero_replicas.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| {
+                model_util::match_template_without_hash(vd@.spec.template, vrs)
+            }),
+            forall |i: int| 0 <= i < new_vrs_list_with_zero_replicas.len() ==> #[trigger] model_util::valid_owned_vrs(new_vrs_list_with_zero_replicas[i]@, vd@),
+            forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(vrs_list[i]@, vd@),
+            vd@.well_formed(),
+            idx <= vrs_list.len(),
+        {
+            assert(model_util::valid_owned_vrs(vrs_list[idx as int]@, vd@));
+            if match_template_without_hash(&vd.spec().template(), &vrs_list[idx]) {
+                new_vrs_list_with_zero_replicas.push(vrs_list[idx].clone());
+            }
+            proof {
+                let spec_filter = |vrs: VReplicaSetView| {
+                    model_util::match_template_without_hash(vd@.spec.template, vrs)
+                };
+                let pre_filtered_vrs_list = if spec_filter(vrs_list[idx as int]@) {
+                    new_vrs_list_with_zero_replicas.deep_view().drop_last()
+                } else {
+                    new_vrs_list_with_zero_replicas.deep_view()
+                };
+                assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(spec_filter));
+                lemma_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs_list[idx as int]@);
+                assert(vrs_list.deep_view().take(idx as int).push(vrs_list[idx as int]@)
+                    == vrs_list.deep_view().take(idx + 1 as int));
+                assert(spec_filter(vrs_list[idx as int]@ ) ==> new_vrs_list_with_zero_replicas.deep_view() == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
+            }
+        }
+        if new_vrs_list_with_zero_replicas.len() > 0 {
+            assert(model_util::valid_owned_vrs(new_vrs_list_with_zero_replicas[0]@, vd@));
+            new_vrs = Some(new_vrs_list_with_zero_replicas[0].clone())
+        };
+    }
     assert(new_vrs.deep_view() == model_util::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).0);
     assert(old_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| {
                 &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)

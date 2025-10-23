@@ -39,10 +39,16 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
         &&& match_template_without_hash(vd.spec.template, vrs)
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     });
-    let new_vrs = if new_vrs_list.len() == 0 {
-        None
-    } else {
+    let new_vrs = if new_vrs_list.len() > 0 {
         Some(new_vrs_list.first())
+    } else {
+        // otherwise, pick any vrs that match deployment's template
+        let vrs_list_with_zero_replicas = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs));
+        if vrs_list_with_zero_replicas.len() > 0 {
+            Some(vrs_list_with_zero_replicas.first())
+        } else {
+            None
+        }
     };
     let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
         &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
