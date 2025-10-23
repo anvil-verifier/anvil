@@ -52,7 +52,7 @@ pub open spec fn filter_new_vrs_keys(template: PodTemplateSpecView, s: ClusterSt
         &&& obj.kind == VReplicaSetView::kind()
         &&& VReplicaSetView::unmarshal(obj) is Ok
         // be consistent with filter_old_and_new_vrs
-        &&& match_template_without_hash(template, vrs)
+        &&& match_template_without_hash(template)(vrs)
         // replicas can be zero
         // &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     }

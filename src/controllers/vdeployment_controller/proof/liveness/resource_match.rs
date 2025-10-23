@@ -133,16 +133,10 @@ ensures
                     &&& new_vrs->0.metadata.namespace is Some
                 }) by {
                     if new_vrs is Some {
-                        let new_vrs_filter = |vrs: VReplicaSetView| {
-                            &&& match_template_without_hash(triggering_cr.spec.template, vrs)
-                            &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-                        };
-                        let weakened_new_vrs_filter = |vrs: VReplicaSetView| {
-                            &&& match_template_without_hash(triggering_cr.spec.template, vrs)
-                        };
+                        let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
                         assert(managed_vrs_list.contains(new_vrs->0)) by {
-                            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, new_vrs_filter);
-                            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, weakened_new_vrs_filter);
+                            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
+                            seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter);
                         }
                     }
                 }
@@ -722,19 +716,11 @@ ensures
     assert(new_vrs is Some ==> managed_vrs_list.contains(new_vrs->0) && vrs_list.contains(new_vrs->0) && valid_owned_vrs(new_vrs->0, vd)) by {
         assert(new_vrs is Some ==> managed_vrs_list.contains(new_vrs->0)) by { // trigger
             // unwrap filter_old_and_new_vrs
-            let new_vrs_filter = |vrs: VReplicaSetView| {
-                &&& match_template_without_hash(vd.spec.template, vrs)
-                &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-            };
-            let weakened_new_vrs_filter = |vrs: VReplicaSetView| {
-                &&& match_template_without_hash(vd.spec.template, vrs)
-            };
-            if managed_vrs_list.filter(new_vrs_filter).len() > 0 {
-                assert(managed_vrs_list.filter(new_vrs_filter).contains(new_vrs->0));
-                seq_filter_is_a_subset_of_original_seq(managed_vrs_list, new_vrs_filter);
-            } else if managed_vrs_list.filter(weakened_new_vrs_filter).len() > 0 {
-                assert(managed_vrs_list.filter(weakened_new_vrs_filter).contains(new_vrs->0));
-                seq_filter_is_a_subset_of_original_seq(managed_vrs_list, weakened_new_vrs_filter);
+            let non_zero_replicas_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+            if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).len() > 0 {
+                assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(new_vrs->0));
+                seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
+                seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), non_zero_replicas_filter);
             } else {
                 assert(new_vrs is None);
             }
