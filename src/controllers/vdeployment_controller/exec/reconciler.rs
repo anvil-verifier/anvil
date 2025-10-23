@@ -468,7 +468,8 @@ ensures
     filtered_vrs_list
 }
 
-#[verifier(rlimit(10))]
+#[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 fn filter_old_and_new_vrs(vd: &VDeployment, vrs_list: Vec<VReplicaSet>) -> (res: (Option<VReplicaSet>, Vec<VReplicaSet>))
 requires
     vd@.well_formed(),
