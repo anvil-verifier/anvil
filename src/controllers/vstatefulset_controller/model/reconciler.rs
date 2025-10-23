@@ -6,6 +6,11 @@ use vstd::prelude::*;
 
 verus! {
 
+// TODO: Make the shim layer's requeue time configurable as we need multiple reconcile() to finish the job and the queue
+// time is critical now
+
+// TODO: Directly jump to DeleteOutdated if we already have desired number of replicas
+
 pub struct VStatefulSetReconciler {}
 
 pub struct VStatefulSetReconcileState {
