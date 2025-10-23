@@ -37,6 +37,7 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
     // non-zero replicas ensures the stability of esr
     let reusable_nonempty_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
         &&& match_template_without_hash(vd.spec.template, vrs)
+        // if replicas is None, it's interpreted as 1
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     });
     let reusable_nonempty_vrs = if reusable_nonempty_vrs_list.len() > 0 {
