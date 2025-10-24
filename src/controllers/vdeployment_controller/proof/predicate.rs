@@ -370,7 +370,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         // updated vrs is valid and owned by vd
         &&& valid_owned_vrs(req_vrs, vd)
         // and can pass new vrs filter
-        &&& match_template_without_hash(vd.spec.template, req_vrs)
+        &&& match_template_without_hash(vd.spec.template)(req_vrs)
         // etcd obj is owned by vd and should be protected by non-interference property
         &&& s.resources().contains_key(key)
         &&& valid_owned_obj_key(vd, s)(key)

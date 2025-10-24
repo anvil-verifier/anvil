@@ -468,6 +468,8 @@ ensures
     filtered_vrs_list
 }
 
+#[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 fn filter_old_and_new_vrs(vd: &VDeployment, vrs_list: Vec<VReplicaSet>) -> (res: (Option<VReplicaSet>, Vec<VReplicaSet>))
 requires
     vd@.well_formed(),
@@ -479,69 +481,87 @@ ensures
     res.0.is_some() ==> model_util::valid_owned_vrs(res.0.unwrap()@, vd@),
     forall |i: int| 0 <= i < res.1.len() ==> #[trigger] model_util::valid_owned_vrs(res.1[i]@, vd@),
 {
-    let mut new_vrs_list = Vec::<VReplicaSet>::new();
+    let mut reusable_vrs_list = Vec::<VReplicaSet>::new();
     let mut old_vrs_list = Vec::<VReplicaSet>::new();
+    let mut reusable_vrs = Option::<VReplicaSet>::None;
     let mut idx = 0;
-    assert(new_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| {
-        model_util::match_template_without_hash(vd@.spec.template, vrs) &&
-        (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0 as int)
-    }));
+    assert(reusable_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(model_util::match_template_without_hash(vd@.spec.template)));
     for idx in 0..vrs_list.len()
     invariant
-        new_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| {
-            model_util::match_template_without_hash(vd@.spec.template, vrs) &&
-            (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0 as int)
-        }),
-        forall |i: int| 0 <= i < new_vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(new_vrs_list[i]@, vd@),
+        reusable_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(model_util::match_template_without_hash(vd@.spec.template)),
+        forall |i: int| 0 <= i < reusable_vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(reusable_vrs_list[i]@, vd@),
         forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(vrs_list[i]@, vd@),
         vd@.well_formed(),
         idx <= vrs_list.len(),
     {
         assert(model_util::valid_owned_vrs(vrs_list[idx as int]@, vd@));
-        if match_template_without_hash(&vd.spec().template(), &vrs_list[idx]) &&
-            (vrs_list[idx].spec().replicas().is_none() || vrs_list[idx].spec().replicas().unwrap() > 0) {
-            new_vrs_list.push(vrs_list[idx].clone());
+        if match_template_without_hash(&vd.spec().template(), &vrs_list[idx]) {
+            reusable_vrs_list.push(vrs_list[idx].clone());
         }
         proof {
-            let spec_filter = |vrs: VReplicaSetView| {
-                model_util::match_template_without_hash(vd@.spec.template, vrs) &&
-                (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0 as int)
-            };
-            let pre_filtered_vrs_list = if spec_filter(vrs_list[idx as int]@) {
-                new_vrs_list.deep_view().drop_last()
+            let pre_filtered_vrs_list = if model_util::match_template_without_hash(vd@.spec.template)(vrs_list[idx as int]@) {
+                reusable_vrs_list.deep_view().drop_last()
             } else {
-                new_vrs_list.deep_view()
+                reusable_vrs_list.deep_view()
             };
-            assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(spec_filter));
-            lemma_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs_list[idx as int]@);
-            assert(vrs_list.deep_view().take(idx as int).push(vrs_list[idx as int]@)
-                   == vrs_list.deep_view().take(idx + 1 as int));
-            assert(spec_filter(vrs_list[idx as int]@ ) ==> new_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
+            assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(model_util::match_template_without_hash(vd@.spec.template)));
+            lemma_filter_push(vrs_list.deep_view().take(idx as int), model_util::match_template_without_hash(vd@.spec.template), vrs_list[idx as int]@);
+            assert(vrs_list.deep_view().take(idx as int).push(vrs_list[idx as int]@) == vrs_list.deep_view().take(idx + 1 as int));
+            assert(model_util::match_template_without_hash(vd@.spec.template)(vrs_list[idx as int]@ ) ==> reusable_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
         }
     }
-    assert(new_vrs_list.deep_view() == vrs_list.deep_view().filter(|vrs: VReplicaSetView| {
-        model_util::match_template_without_hash(vd@.spec.template, vrs)
-        && (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
-    })) by {
-        // this is stupid
+    assert(reusable_vrs_list.deep_view() == vrs_list.deep_view().filter(model_util::match_template_without_hash(vd@.spec.template))) by {
         assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
     }
-    let new_vrs = if new_vrs_list.len() == 0 {
-        None
-    } else {
-        assert(model_util::valid_owned_vrs(new_vrs_list[0]@, vd@));
-        Some(new_vrs_list[0].clone())
-    };
-    assert(new_vrs.deep_view() == model_util::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).0);
+    if reusable_vrs_list.len() > 0 {
+        let mut reusable_nonempty_vrs_list = Vec::<VReplicaSet>::new();
+        assert(reusable_nonempty_vrs_list.deep_view() == reusable_vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0));
+        for idx in 0..reusable_vrs_list.len()
+        invariant
+            reusable_nonempty_vrs_list.deep_view() == reusable_vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0),
+            forall |i: int| 0 <= i < reusable_nonempty_vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(reusable_nonempty_vrs_list[i]@, vd@),
+            forall |i: int| 0 <= i < reusable_vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(reusable_vrs_list[i]@, vd@),
+            vd@.well_formed(),
+            idx <= reusable_vrs_list.len(),
+        {
+            assert(model_util::valid_owned_vrs(reusable_vrs_list[idx as int]@, vd@));
+            if reusable_vrs_list[idx].spec().replicas().is_none() || reusable_vrs_list[idx].spec().replicas().unwrap() > 0 {
+                reusable_nonempty_vrs_list.push(reusable_vrs_list[idx].clone());
+            }
+            proof {
+                let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+                let pre_filtered_vrs_list = if nonempty_vrs_filter(reusable_vrs_list[idx as int]@) {
+                    reusable_nonempty_vrs_list.deep_view().drop_last()
+                } else {
+                    reusable_nonempty_vrs_list.deep_view()
+                };
+                assert(pre_filtered_vrs_list == reusable_vrs_list.deep_view().take(idx as int).filter(nonempty_vrs_filter));
+                lemma_filter_push(reusable_vrs_list.deep_view().take(idx as int), nonempty_vrs_filter, reusable_vrs_list[idx as int]@);
+                assert(reusable_vrs_list.deep_view().take(idx as int).push(reusable_vrs_list[idx as int]@)
+                    == reusable_vrs_list.deep_view().take(idx + 1 as int));
+                assert(nonempty_vrs_filter(reusable_vrs_list[idx as int]@ ) ==> reusable_nonempty_vrs_list.deep_view() == pre_filtered_vrs_list.push(reusable_vrs_list[idx as int]@));
+            }
+        }
+        assert(reusable_nonempty_vrs_list.deep_view() == reusable_vrs_list.deep_view().filter(|vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0)) by {
+            assert(reusable_vrs_list.deep_view().take(reusable_vrs_list.len() as int) == reusable_vrs_list.deep_view());
+        }
+        if reusable_nonempty_vrs_list.len() > 0 {
+            assert(model_util::valid_owned_vrs(reusable_nonempty_vrs_list[0]@, vd@));
+            reusable_vrs = Some(reusable_nonempty_vrs_list[0].clone());
+        } else {
+            reusable_vrs = Some(reusable_vrs_list[0].clone());
+        }
+    }
+    assert(reusable_vrs.deep_view() == model_util::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).0);
     assert(old_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| {
-                &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
+                &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
                 &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
             }));
     for idx in 0..vrs_list.len()
     invariant
         old_vrs_list.deep_view() == vrs_list.deep_view()
             .take(idx as int).filter(|vrs: VReplicaSetView| {
-                &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
+                &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
                 &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
             }),
         forall |i: int| 0 <= i < old_vrs_list.len() ==> #[trigger] model_util::valid_owned_vrs(old_vrs_list[i]@, vd@),
@@ -551,13 +571,13 @@ ensures
     {
         assert(model_util::valid_owned_vrs(vrs_list[idx as int]@, vd@));
         let vrs = &vrs_list[idx];
-        if (new_vrs.is_none() || !vrs.metadata().uid_eq(&new_vrs.as_ref().unwrap().metadata()))
+        if (reusable_vrs.is_none() || !vrs.metadata().uid_eq(&reusable_vrs.as_ref().unwrap().metadata()))
             && (vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0) {
             old_vrs_list.push(vrs.clone());
         }
         proof {
             let spec_filter = |vrs: VReplicaSetView| {
-                &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
+                &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
                 &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
             };
             let pre_filtered_vrs_list = if spec_filter(vrs@) {
@@ -573,7 +593,7 @@ ensures
         }
     }
     assert(old_vrs_list.deep_view() == model_util::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1);
-    return (new_vrs, old_vrs_list);
+    return (reusable_vrs, old_vrs_list);
 }
 
 // TODO
@@ -660,7 +680,7 @@ pub fn match_template_without_hash(template: &PodTemplateSpec, vrs: &VReplicaSet
 requires
     vrs@.state_validation(),
 ensures
-    res == model_util::match_template_without_hash(template@, vrs@),
+    res == model_util::match_template_without_hash(template@)(vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();

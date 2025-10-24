@@ -133,14 +133,11 @@ ensures
                     &&& new_vrs->0.metadata.namespace is Some
                 }) by {
                     if new_vrs is Some {
-                        let vrs = new_vrs->0;
-                        let new_vrs_filter = |vrs: VReplicaSetView| {
-                            &&& match_template_without_hash(triggering_cr.spec.template, vrs)
-                            &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-                        };
-                        assert(managed_vrs_list.filter(new_vrs_filter).contains(vrs)); // trigger
-                        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, new_vrs_filter);
-                        VReplicaSetView::marshal_preserves_integrity();
+                        let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+                        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(triggering_cr.spec.template));
+                        if managed_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
+                            seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template)), nonempty_vrs_filter);
+                        }
                     }
                 }
                 // TODO: helper lemma
@@ -674,10 +671,6 @@ ensures
     let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
     let valid_owned_vrs_filter = |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd);
     let managed_vrs_list = vrs_list.filter(valid_owned_vrs_filter);
-    let new_vrs_filter = |vrs: VReplicaSetView| {
-        &&& match_template_without_hash(vd.spec.template, vrs)
-        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-    };
     assert forall |vrs| #[trigger] vrs_list.contains(vrs) implies vrs.metadata.uid is Some by {
         let i = choose |i: int| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
         VReplicaSetView::marshal_preserves_metadata();
@@ -721,10 +714,19 @@ ensures
         seq_filter_is_a_subset_of_original_seq(managed_vrs_list, old_vrs_list_filter_with_new_vrs);
     }
     assert(new_vrs is Some ==> managed_vrs_list.contains(new_vrs->0) && vrs_list.contains(new_vrs->0) && valid_owned_vrs(new_vrs->0, vd)) by {
-        if managed_vrs_list.filter(new_vrs_filter).len() == 0 {
-            assert(new_vrs is None);
-        } else {
-            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, new_vrs_filter);
+        assert(new_vrs is Some ==> managed_vrs_list.contains(new_vrs->0)) by { // trigger
+            // unwrap filter_old_and_new_vrs
+            let non_zero_replicas_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+            if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).len() > 0 {
+                seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
+                if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(non_zero_replicas_filter).len() > 0 {
+                    assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(non_zero_replicas_filter).contains(new_vrs->0));
+                    seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), non_zero_replicas_filter);
+                }
+                assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(new_vrs->0));
+            } else {
+                assert(new_vrs is None);
+            }
         }
     };
     let map_key = |vrs: VReplicaSetView| vrs.object_ref();

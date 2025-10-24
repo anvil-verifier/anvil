@@ -269,8 +269,6 @@ ensures
     let updated_obj = s_prime.resources()[req.key()];
     let updated_vrs = VReplicaSetView::unmarshal(updated_obj)->Ok_0;
 
-    // assert(match_template_without_hash(triggering_cr.spec.template, updated_vrs));
-    // assert(updated_vrs.spec.replicas.unwrap_or(1) == triggering_cr.spec.replicas.unwrap_or(1));
     // wait for the helper lemma: make_replica_set pass match_template_without_hash
     assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(req.key()));
 

@@ -35,30 +35,35 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
 {
     // first vrs that match template and has non-zero replicas
     // non-zero replicas ensures the stability of esr
-    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
-        &&& match_template_without_hash(vd.spec.template, vrs)
-        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-    });
-    let new_vrs = if new_vrs_list.len() == 0 {
-        None
+    let reusable_vrs_list = vrs_list.filter(match_template_without_hash(vd.spec.template));
+    // TODO: can be replaced with sort based on abs(replicas-vd.spec.replicas)
+    let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+    let reusable_vrs = if reusable_vrs_list.len() > 0 {
+        if reusable_vrs_list.filter(nonempty_vrs_filter).len() > 0 {
+            Some(reusable_vrs_list.filter(nonempty_vrs_filter).first())
+        } else {
+            Some(reusable_vrs_list.first())
+        }
     } else {
-        Some(new_vrs_list.first())
+        None
     };
     let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
-        &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
+        &&& reusable_vrs is None || vrs.metadata.uid != reusable_vrs->0.metadata.uid
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     });
-    (new_vrs, old_vrs_list)
+    (reusable_vrs, old_vrs_list)
 }
 
-pub open spec fn match_template_without_hash(template: PodTemplateSpecView, vrs: VReplicaSetView) -> bool {
-    let vrs_template = vrs.spec.template.unwrap();
-    template == PodTemplateSpecView {
-        metadata: Some(ObjectMetaView {
-            labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
-            ..vrs_template.metadata.unwrap()
-        }),
-        ..vrs_template
+pub open spec fn match_template_without_hash(template: PodTemplateSpecView) -> spec_fn(VReplicaSetView) -> bool {
+    |vrs: VReplicaSetView| {
+        let vrs_template = vrs.spec.template.unwrap();
+        template == PodTemplateSpecView {
+            metadata: Some(ObjectMetaView {
+                labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
+                ..vrs_template.metadata.unwrap()
+            }),
+            ..vrs_template
+        }
     }
 }
 
