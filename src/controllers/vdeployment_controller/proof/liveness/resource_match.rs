@@ -718,9 +718,12 @@ ensures
             // unwrap filter_old_and_new_vrs
             let non_zero_replicas_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
             if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).len() > 0 {
-                assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(new_vrs->0));
                 seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
-                seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), non_zero_replicas_filter);
+                if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(non_zero_replicas_filter).len() > 0 {
+                    assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(non_zero_replicas_filter).contains(new_vrs->0));
+                    seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), non_zero_replicas_filter);
+                }
+                assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(new_vrs->0));
             } else {
                 assert(new_vrs is None);
             }
