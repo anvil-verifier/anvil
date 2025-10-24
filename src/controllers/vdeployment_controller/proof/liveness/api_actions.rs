@@ -190,7 +190,7 @@ ensures
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
     let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
-    let new_vrs = make_replica_set(triggering_cr);
+    let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr);
     assert(req == CreateRequest {
         namespace: triggering_cr.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
@@ -244,16 +244,13 @@ ensures
         }
         // assert(vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
         assert(triggering_cr.well_formed());
-        assert(triggering_cr.spec.replicas.unwrap_or(1) > 0) by {
-            assert(triggering_cr.spec.replicas is Some ==> triggering_cr.spec.replicas->0 >= 0);
-            assert(triggering_cr.spec.replicas is None || triggering_cr.spec.replicas->0 > 0);
-        }
         assert(vrs.spec.replicas.unwrap_or(1) == triggering_cr.spec.replicas.unwrap_or(1));
         assert(s_prime.resources().contains_key(key));
         assert(s_prime.resources()[key] == created_obj);
-        assume(match_template_without_hash(vd.spec.template, vrs));
-        // TODO: >=0 is coded in spec_types, confirm with vanilla implementation
-        assert(vrs.spec.replicas.unwrap_or(1) > 0);
+        assert(match_template_without_hash(vd.spec.template)(vrs)) by {
+            VReplicaSetView::marshal_spec_preserves_integrity();
+            assert(vrs.spec == new_vrs.spec);
+        }
         assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key));
         assert(valid_owned_obj_key(triggering_cr, s_prime)(key));
         // TODO: helper lemma: every_obj_in_etcd_has_different_uid

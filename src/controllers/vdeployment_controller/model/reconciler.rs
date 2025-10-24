@@ -65,7 +65,7 @@ pub open spec fn reconcile_error(state: VDeploymentReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView<VoidERespView>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
-    let namespace = vd.metadata.namespace.unwrap();
+    let namespace = vd.metadata.namespace->0;
     match &state.reconcile_step {
         VDeploymentReconcileStepView::Init => {
             let req = APIRequest::ListRequest(ListRequest {
@@ -84,7 +84,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
-                let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
+                let objs = extract_some_k_list_resp_view!(resp_o)->Ok_0;
                 let vrs_list_or_none = objects_to_vrs_list(objs);
                 if vrs_list_or_none is None {
                     (error_state(state), None)
@@ -114,7 +114,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
-                let new_obj = extract_some_k_create_resp_view!(resp_o).unwrap();
+                let new_obj = extract_some_k_create_resp_view!(resp_o)->Ok_0;
                 let new_vrs_or_err = VReplicaSetView::unmarshal(new_obj);
                 if new_vrs_or_err is Err {
                     (error_state(state), None)
@@ -200,12 +200,12 @@ pub open spec fn done_state(state: VDeploymentReconcileState) -> (state_prime: V
 // we may consider existing pods in old vrs later to satisfy maxSurge
 pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
 {
-    let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
-    let match_labels = vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash);
+    let pod_template_hash = int_to_string_view(vd.metadata.resource_version->0);
+    let match_labels = vd.spec.template.metadata->0.labels->0.insert("pod-template-hash"@, pod_template_hash);
     VReplicaSetView {
         metadata: ObjectMetaView {
             name: None, // let API-server generates a unique name
-            generate_name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
+            generate_name: Some(vd.metadata.name->0 + "-"@ + pod_template_hash),
             namespace: vd.metadata.namespace,
             labels: vd.metadata.labels,
             owner_references: Some(make_owner_references(vd)),
@@ -226,11 +226,10 @@ pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> Po
 {
     PodTemplateSpecView {
         metadata: Some(ObjectMetaView {
-            labels: Some(vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, hash)),
-            ..ObjectMetaView::default()
+            labels: Some(vd.spec.template.metadata->0.labels->0.insert("pod-template-hash"@, hash)),
+            ..vd.spec.template.metadata->0
         }),
-        spec: Some(vd.spec.template.spec.unwrap()),
-        ..PodTemplateSpecView::default()
+        ..vd.spec.template
     }
 }
 
@@ -244,7 +243,7 @@ pub open spec fn make_owner_references(vd: VDeploymentView) -> Seq<OwnerReferenc
 pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = make_replica_set(vd);
     let req = APIRequest::CreateRequest(CreateRequest {
-        namespace: vd.metadata.namespace.unwrap(),
+        namespace: vd.metadata.namespace->0,
         obj: new_vrs.marshal(),
     });
     let state_prime = VDeploymentReconcileState {
@@ -265,8 +264,8 @@ pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeployment
         ..new_vrs
     };
     let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
-        name: new_vrs.metadata.name.unwrap(),
-        namespace: vd.metadata.namespace.unwrap(),
+        name: new_vrs.metadata.name->0,
+        namespace: vd.metadata.namespace->0,
         owner_ref: vd.controller_owner_ref(),
         obj: new_vrs.marshal(),
     });
@@ -284,8 +283,8 @@ pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeplo
     let old_vrs_index = (state.old_vrs_index - 1) as nat;
     let old_vrs = state.old_vrs_list[old_vrs_index as int];
     let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
-        name: old_vrs.metadata.name.unwrap(),
-        namespace: vd.metadata.namespace.unwrap(),
+        name: old_vrs.metadata.name->0,
+        namespace: vd.metadata.namespace->0,
         owner_ref: vd.controller_owner_ref(),
         obj: VReplicaSetView {
             spec: VReplicaSetSpecView {

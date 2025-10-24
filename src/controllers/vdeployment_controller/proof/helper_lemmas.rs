@@ -365,4 +365,19 @@ ensures
     commutativity_of_seq_map_and_filter(managed_vrs_list, new_vrs_filter, filter_old_vrs_keys(new_vrs_uid, s), |vrs: VReplicaSetView| vrs.object_ref());
     lemma_filter_to_set_eq_to_set_filter(managed_vrs_keys, filter_old_vrs_keys(new_vrs_uid, s));
 }
+
+pub proof fn lemma_make_replica_set_passes_match_template_without_hash(vd: VDeploymentView) -> (vrs: VReplicaSetView)
+requires
+    vd.well_formed(),
+ensures
+    match_template_without_hash(vd.spec.template)(vrs),
+    vrs == make_replica_set(vd),
+{
+    let vrs = make_replica_set(vd);
+    assert(match_template_without_hash(vd.spec.template)(vrs)) by {
+        assume(vrs.spec.template->0.metadata->0.labels->0.remove("pod-template-hash"@)
+            == vd.spec.template.metadata->0.labels->0);
+    }
+    return vrs;
+}
 }

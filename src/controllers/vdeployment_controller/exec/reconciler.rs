@@ -659,21 +659,18 @@ ensures
     vrs
 }
 
-pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template_spec: PodTemplateSpec)
+pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template: PodTemplateSpec)
 requires
     vd@.well_formed(),
 ensures
-    pod_template_spec@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
+    pod_template@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
 {
-    let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
-    let mut template_meta = ObjectMeta::default();
-    template_meta.set_labels(labels);
+    let mut template_meta = vd.spec().template().metadata().unwrap().clone();
     template_meta.add_label("pod-template-hash".to_string(), hash);
-    let mut pod_template_spec = PodTemplateSpec::default();
-    pod_template_spec.set_metadata(template_meta);
-    pod_template_spec.set_spec(vd.spec().template().spec().unwrap().clone());
-    assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
-    pod_template_spec
+    let mut pod_template = vd.spec().template().clone();
+    pod_template.set_metadata(template_meta);
+    assert(pod_template@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
+    pod_template
 }
 
 pub fn match_template_without_hash(template: &PodTemplateSpec, vrs: &VReplicaSet) -> (res: bool)
