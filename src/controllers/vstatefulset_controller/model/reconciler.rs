@@ -15,11 +15,19 @@ pub struct VStatefulSetReconciler {}
 
 pub struct VStatefulSetReconcileState {
     pub reconcile_step: VStatefulSetReconcileStepView,
+    // needed contains all the pods that should be running
+    // if the pod doesn't exist yet, the cell will be None
     pub needed: Seq<Option<PodView>>,
+    // needed_index tracks how many pods have been created (or already exists) so far
     pub needed_index: nat,
+    // condemned contains all the pods that should be deleted because their ordinal is larger than desired replicas
     pub condemned: Seq<PodView>,
+    // condemned_index tracks how many pods have been deleted
     pub condemned_index: nat,
+    // pvcs contains the persistent volume claims that need to be created for each needed pod
     pub pvcs: Seq<PersistentVolumeClaimView>,
+    // pvc_index tracks how many persistent volume claims have been created (or already exists) for each pod
+    // pvc_index will be reset when we move to a new pod
     pub pvc_index: nat,
 }
 
@@ -87,6 +95,25 @@ pub enum VStatefulSetReconcileStepView {
     Error,
 }
 
+// The VSTS controller manages pods and volumes to run stateful, distributed applications.
+// The controller does two things: managing replicas and versions.
+//
+// Managing replicas:
+// The controller first lists all the pods managed by it, and then checks how many pods
+// it needs to create or delete. For example, if the desired replicas is 5 and list returns
+// [pod-0, pod-2, pod-4, pod-5], the controller will first create pod-1 and pod-3, and then
+// delete pod-5. For the already running pod-0, pod-2, and pod-4, the controller will configure
+// their network and storage to make sure the pods are running well.
+//
+// Managing versions:
+// After creating and deleting the pods, the controller now has desired number of pods.
+// Next, the controller will make sure all pods are running the desired version (the pod template).
+// Since many pod fields are immutable, the controller will pick the outdated pod with
+// the largest ordinal and then delete the pod, instead of updating the pod.
+// After this deletion, the controller will end reconcile(), which means that the desired
+// state will not be achieved in just one round of reconciliation. The remaining job will
+// be done by the next round of reconcile---the controller will get [pod-0, ...pod-3] by list,
+// and then it will create a new pod-4 with the new template, and then delete the next outdated pod.
 pub open spec fn reconcile_core(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     match state.reconcile_step {
         VStatefulSetReconcileStepView::Init => {
@@ -751,6 +778,7 @@ pub open spec fn pod_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     pod.spec == vsts.spec.template.spec
 }
 
+// Check whether the ordinal is the largest ordinal of pods that don't match vsts
 pub open spec fn is_the_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>, ordinal: nat) -> bool {
     &&& ordinal < pods.len()
     &&& pods[ordinal as int] is Some
