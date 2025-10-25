@@ -475,6 +475,7 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
 {
     always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
+    .and(always(lift_state(Cluster::etcd_object_has_lower_uid_than_uid_counter())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
     .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
     .and(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
@@ -512,6 +513,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
 {
     always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_unique_id()));
     always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()));
+    always_p_is_stable(lift_state(Cluster::etcd_object_has_lower_uid_than_uid_counter()));
     always_p_is_stable(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)));
     always_p_is_stable(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()));
     always_p_is_stable(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()));
@@ -546,6 +548,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
         always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        always(lift_state(Cluster::etcd_object_has_lower_uid_than_uid_counter())),
         always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))),
         always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
         always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
@@ -592,6 +595,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_etcd_object_has_lower_uid_than_uid_counter(spec);
     cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(spec);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(spec, controller_id);
@@ -671,6 +675,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::etcd_object_has_lower_uid_than_uid_counter()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
