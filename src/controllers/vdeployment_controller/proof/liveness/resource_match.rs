@@ -140,8 +140,7 @@ ensures
                         }
                     }
                 }
-                // TODO: helper lemma
-                assume(etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, old_vrs_list.len())(s));
+                lemma_filter_old_and_new_vrs_implies_etcd_state_is(vd, cluster, controller_id, nv_uid_key_replicas, old_vrs_list.len(), msg, s);
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
             temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));

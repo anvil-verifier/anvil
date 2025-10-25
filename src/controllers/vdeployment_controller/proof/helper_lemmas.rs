@@ -382,4 +382,16 @@ ensures
     }
     return vrs;
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_filter_old_and_new_vrs_implies_etcd_state_is(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int,nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
+)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, msg, nv_uid_key_replicas, n)(s),
+    resp_msg_is_pending_list_resp_in_flight_and_match_req(vd.object_ref(), controller_id, msg)(s),
+ensures
+    etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s),
+{}
 }
