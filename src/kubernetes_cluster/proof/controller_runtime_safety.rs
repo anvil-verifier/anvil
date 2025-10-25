@@ -75,6 +75,35 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(self, spe
     init_invariant(spec, self.init(), stronger_next, invariant);
 }
 
+pub open spec fn etcd_object_has_lower_uid_than_uid_counter() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) ==> {
+            let obj = s.resources()[k];
+            &&& obj.metadata.uid is Some
+            &&& obj.metadata.uid->0 < s.api_server.uid_counter
+        }
+    }
+}
+
+pub proof fn lemma_always_etcd_object_has_lower_uid_than_uid_counter(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::etcd_object_has_lower_uid_than_uid_counter()))),
+{
+    let invariant = Self::etcd_object_has_lower_uid_than_uid_counter();
+    let stronger_next = |s, s_prime| {
+        &&& self.next()(s, s_prime)
+        &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
+    };
+    self.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(self.next()),
+        lift_state(Self::each_object_in_etcd_is_weakly_well_formed())
+    );
+    init_invariant(spec, self.init(), stronger_next, invariant);
+}
+
 // This lemma ensures that if a controller is at some reconcile state for a cr, there must be the pending request of the
 // reconcile state in flight or a corresponding response in flight.
 // Obviously, this requires that when controller enters the 'state' in reconcile_core, there must be a request generated;
