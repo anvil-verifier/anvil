@@ -366,7 +366,7 @@ ensures
         }
     }
     assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)).len() == n - 1) by {
-        assume(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(req.key()));
+        assert(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(req.key()));
     }
     return resp_msg;
 }
