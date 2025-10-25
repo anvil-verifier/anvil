@@ -54,15 +54,22 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
     (reusable_vrs, old_vrs_list)
 }
 
+// there is no way to ensure vd does not have label with key "pod-template-hash",
+// so here we remote key from both sides
 pub open spec fn match_template_without_hash(template: PodTemplateSpecView) -> spec_fn(VReplicaSetView) -> bool {
     |vrs: VReplicaSetView| {
-        let vrs_template = vrs.spec.template.unwrap();
-        template == PodTemplateSpecView {
+        PodTemplateSpecView {
             metadata: Some(ObjectMetaView {
-                labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
-                ..vrs_template.metadata.unwrap()
+                labels: Some(template.metadata->0.labels->0.remove("pod-template-hash"@)),
+                ..template.metadata->0
             }),
-            ..vrs_template
+            ..template
+        } == PodTemplateSpecView {
+            metadata: Some(ObjectMetaView {
+                labels: Some(vrs.spec.template->0.metadata->0.labels->0.remove("pod-template-hash"@)),
+                ..vrs.spec.template->0.metadata->0
+            }),
+            ..vrs.spec.template->0
         }
     }
 }

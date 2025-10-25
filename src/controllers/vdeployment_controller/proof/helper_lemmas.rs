@@ -12,7 +12,7 @@ use crate::vdeployment_controller::{
     trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
 use vstd::prelude::*;
 
@@ -375,8 +375,10 @@ ensures
 {
     let vrs = make_replica_set(vd);
     assert(match_template_without_hash(vd.spec.template)(vrs)) by {
-        assume(vrs.spec.template->0.metadata->0.labels->0.remove("pod-template-hash"@)
-            == vd.spec.template.metadata->0.labels->0);
+        assert(vrs.spec.template->0.metadata->0.labels->0 == 
+            vd.spec.template.metadata->0.labels->0.insert("pod-template-hash"@, int_to_string_view(vd.metadata.resource_version->0)));
+        assert(vrs.spec.template->0.metadata->0.labels->0.remove("pod-template-hash"@)
+            == vd.spec.template.metadata->0.labels->0.remove("pod-template-hash"@));
     }
     return vrs;
 }
