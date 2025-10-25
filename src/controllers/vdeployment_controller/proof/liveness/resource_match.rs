@@ -200,20 +200,7 @@ ensures
                     assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) implies
                         tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)).satisfied_by(ex) by {
                         let s = ex.head();
-                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        let (resp_msg, nv_uid_key) = choose |j: (Message, (Uid, ObjectRef))| {
-                            &&& #[trigger] s.in_flight().contains(j.0)
-                            &&& resp_msg_matches_req_msg(j.0, req_msg)
-                            &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
-                            &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
-                        };
-                        // TODO: investigate flakiness here
-                        assume(exists |j: (Message, (Uid, ObjectRef))| {
-                            &&& #[trigger] s.in_flight().contains(j.0)
-                            &&& resp_msg_matches_req_msg(j.0, req_msg)
-                            &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
-                            &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n)(s)
-                        });
+                        let (resp_msg, nv_uid_key) = lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n, s);
                         assert((|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))((resp_msg, nv_uid_key)).satisfied_by(ex));
                     }
                     temp_pred_equality(create_vrs_resp, tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)));
