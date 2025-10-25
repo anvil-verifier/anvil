@@ -255,8 +255,10 @@ ensures
         assert(valid_owned_obj_key(triggering_cr, s_prime)(key));
         // TODO: helper lemma: every_obj_in_etcd_has_different_uid
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        assume(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
-                vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0 && vds_prime.old_vrs_list[i].object_ref() != key);
+        assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() implies
+            vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0 && vds_prime.old_vrs_list[i].object_ref() != key by {
+            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter); //etcd_object_has_lower_uid_than_uid_counter
+        }
     }
     // we know the former one's length is n
     assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)) == 
