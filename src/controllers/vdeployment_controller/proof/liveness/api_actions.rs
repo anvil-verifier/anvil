@@ -312,7 +312,7 @@ ensures
     let updated_vrs = VReplicaSetView::unmarshal(updated_obj)->Ok_0;
 
     // wait for the helper lemma: make_replica_set pass match_template_without_hash
-    assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(req.key()));
+    assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(req.key()));
 
     // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
     assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)) == 
