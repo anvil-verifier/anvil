@@ -327,7 +327,7 @@ ensures
     }
 }
 
-pub proof fn old_vrs_filter_on_objs_eq_filter_on_keys(
+pub proof fn lemma_old_vrs_filter_on_objs_eq_filter_on_keys(
     vd: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
 )
 requires
@@ -383,7 +383,6 @@ ensures
     return vrs;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_filter_old_and_new_vrs_implies_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
 )
@@ -391,9 +390,52 @@ requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, msg, nv_uid_key_replicas, n)(s),
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd.object_ref(), controller_id, msg)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s),
-{}
+{
+    let resp_objs = msg.content.get_list_response().res.unwrap();
+    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+    let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    assert((|vrs| valid_owned_vrs(vrs, vd)) == (|vrs| valid_owned_vrs(vrs, triggering_cr)));
+    let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
+    if let Some(new_vrs) = new_vrs_or_none {
+        assume(managed_vrs_list.contains(new_vrs)); // from precondition
+        assert(nv_uid_key_replicas is Some);
+        assert(new_vrs.metadata.uid is Some);
+        assert((nv_uid_key_replicas->0).0 == new_vrs.metadata.uid->0);
+        assert((nv_uid_key_replicas->0).1 == new_vrs.object_ref());
+        assert(s.resources().contains_key(new_vrs.object_ref()));
+        let etcd_obj = s.resources()[new_vrs.object_ref()];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
+        assert(filter_new_vrs_keys(vd.spec.template, s)(new_vrs.object_ref()));
+        assert(etcd_vrs.metadata.uid is Some);
+        assert(etcd_vrs.metadata.uid->0 == new_vrs.metadata.uid->0);
+        assert(etcd_vrs.spec.replicas.unwrap_or(1) == (nv_uid_key_replicas->0).2);
+    } else {
+        assert(nv_uid_key_replicas is None);
+    }
+    let new_vrs_uid = if new_vrs_or_none is Some {
+        Some(new_vrs_or_none->0.metadata.uid->0)
+    } else {
+        None
+    };
+    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == n) by {
+        let old_vrs_filter = |vrs: VReplicaSetView| {
+            &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+        };
+        let key_map = |vrs: VReplicaSetView| vrs.object_ref();
+        assert(old_vrs_list == managed_vrs_list.filter(old_vrs_filter));
+        assert(old_vrs_list.len() == old_vrs_list.map_values(key_map).len());
+        assert(old_vrs_list.map_values(key_map).no_duplicates());
+        old_vrs_list.map_values(key_map).lemma_no_dup_set_cardinality();
+        lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
+    }
+}
 
 // this one is flaky
 pub proof fn lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(
@@ -407,8 +449,6 @@ ensures
     resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, res.0, res.1)(s),
     etcd_state_is(vd.object_ref(), controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
 {
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
     assert(exists |j: (Message, (Uid, ObjectRef))| {
         &&& s.in_flight().contains(j.0)
