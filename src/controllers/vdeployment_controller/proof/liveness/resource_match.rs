@@ -196,14 +196,17 @@ ensures
                     local_state_is(vd.object_ref(), controller_id, None, n),
                     local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
                 ));
-                assert(create_vrs_resp == tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))) by {
-                    assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) implies
+                let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
+                assert(spec.entails(create_vrs_resp.leads_to(tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))))) by {
+                    assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) && inv.satisfied_by(ex) implies
                         tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)).satisfied_by(ex) by {
                         let s = ex.head();
-                        let (resp_msg, nv_uid_key) = lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n, s);
+                        assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s));
+                        let (resp_msg, nv_uid_key) = lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(vd, cluster, controller_id, n, s);
                         assert((|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))((resp_msg, nv_uid_key)).satisfied_by(ex));
                     }
-                    temp_pred_equality(create_vrs_resp, tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)));
+                    entails_implies_leads_to(spec, create_vrs_resp.and(inv), tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)));
+                    leads_to_by_borrowing_inv(spec, create_vrs_resp, tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)), inv);
                 }
                 assert forall |j: (Message, (Uid, ObjectRef))| #![trigger create_vrs_resp_msg_nv(j.0, j.1)]
                     spec.entails(create_vrs_resp_msg_nv(j.0, j.1).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by {
@@ -235,6 +238,7 @@ ensures
                     after_list_with_etcd_state(msg, None, n),
                     create_vrs_req,
                     create_vrs_resp,
+                    tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)),
                     tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i))
                 );
             } else {

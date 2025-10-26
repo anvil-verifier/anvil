@@ -397,18 +397,17 @@ ensures
 
 // this one is flaky
 pub proof fn lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(
-    vd: VDeploymentView, controller_id: int, n: nat, s: ClusterState
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, n: nat, s: ClusterState
 ) -> (res: (Message, (Uid, ObjectRef)))
 requires
     exists_create_resp_msg_containing_new_vrs_uid_key(vd.object_ref(), controller_id, n)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, res.0, res.1)(s),
     etcd_state_is(vd.object_ref(), controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // todo: introduce invariant here
-    assume(vd.object_ref() == triggering_cr.object_ref());
-    assume(vd.spec == triggering_cr.spec);
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
     assert(exists |j: (Message, (Uid, ObjectRef))| {
