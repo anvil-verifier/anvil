@@ -385,7 +385,7 @@ ensures
 
 #[verifier(external_body)]
 pub proof fn lemma_filter_old_and_new_vrs_implies_etcd_state_is(
-    vd: VDeploymentView, cluster: Cluster, controller_id: int,nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),

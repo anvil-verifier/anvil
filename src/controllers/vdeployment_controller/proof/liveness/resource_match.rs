@@ -756,12 +756,10 @@ ensures
             }
         }
     }
-    // TODO
     assert(old_vrs_list.map_values(map_key).to_set()
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))) by {
         old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
     }
-    // we have some flakiness issues here
     assert(old_vrs_list.len() == n) by {
         old_vrs_list.map_values(map_key).unique_seq_to_set();
         assert(old_vrs_list.map_values(map_key).len() == old_vrs_list.len());
