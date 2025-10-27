@@ -140,7 +140,7 @@ ensures
                         }
                     }
                 }
-                lemma_filter_old_and_new_vrs_implies_etcd_state_is(vd, cluster, controller_id, nv_uid_key_replicas, old_vrs_list.len(), msg, s);
+                lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(vd, cluster, controller_id, nv_uid_key_replicas, old_vrs_list.len(), msg, s);
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
             temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
@@ -721,40 +721,7 @@ ensures
     };
     let map_key = |vrs: VReplicaSetView| vrs.object_ref();
     assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-        assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-            assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()) == vrs_list.map_values(map_key)) by {
-                assert forall |i| 0 <= i < vrs_list.len() implies vrs_list[i].object_ref() == #[trigger] resp_objs[i].object_ref() by {
-                    assert(resp_objs.contains(resp_objs[i])); // trigger
-                }
-            }
-            map_values_weakens_no_duplicates(vrs_list, map_key);
-            seq_filter_preserves_no_duplicates(vrs_list, valid_owned_vrs_filter);
-            seq_filter_preserves_no_duplicates(managed_vrs_list, old_vrs_list_filter_with_new_vrs);
-            assert(old_vrs_list.no_duplicates());
-            assert forall |vrs| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) by {
-                seq_filter_contains_implies_seq_contains(managed_vrs_list, old_vrs_list_filter_with_new_vrs, vrs);
-                seq_filter_contains_implies_seq_contains(vrs_list, valid_owned_vrs_filter, vrs);
-            }
-            assert forall |i, j| 0 <= i < old_vrs_list.len() && 0 <= j < old_vrs_list.len() && i != j && old_vrs_list.no_duplicates() implies
-                #[trigger] old_vrs_list[i].object_ref() != #[trigger] old_vrs_list[j].object_ref() by {
-                assert(old_vrs_list.contains(old_vrs_list[i])); // trigger of vrs_list.contains
-                assert(old_vrs_list.contains(old_vrs_list[j]));
-                let m = choose |m| 0 <= m < vrs_list.len() && vrs_list[m] == old_vrs_list[i];
-                let n = choose |n| 0 <= n < vrs_list.len() && vrs_list[n] == old_vrs_list[j];
-                assert(old_vrs_list[i].object_ref() != old_vrs_list[j].object_ref()) by {
-                    if m == n {
-                        assert(old_vrs_list[i] == old_vrs_list[j]);
-                        assert(false);
-                    } else {
-                        assert(vrs_list[m].object_ref() != vrs_list[n].object_ref()) by {
-                            assert(vrs_list.map_values(map_key)[m] == vrs_list[m].object_ref());
-                            assert(vrs_list.map_values(map_key)[n] == vrs_list[n].object_ref());
-                            assert(vrs_list.map_values(map_key).no_duplicates());
-                        }
-                    }
-                }
-            }
-        }
+        lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(vd, resp_objs);
     }
     assert(old_vrs_list.map_values(map_key).to_set()
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))) by {
