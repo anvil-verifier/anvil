@@ -44,6 +44,7 @@ ensures
             current_state_matches(vd)
         )))),
 {
+    let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     // Init ~> send list req
     let init = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)));
     let list_req = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), pending_list_req_in_flight(vd.object_ref(), controller_id)));
@@ -109,12 +110,12 @@ ensures
     // from list_resp with different etcd state to different transitions to AfterEnsureNewVRS
     // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs((nv_uid, nv_key, n)))
     assert forall |msg: Message| #![trigger list_resp_msg(msg)]
-        spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by{
+        spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by {
         // (\A |msg|) list_resp_msg(msg) == \E |replicas: Options<int>, n: nat| after_ensure_vrs((nv_uid, nv_key, n))
         // here replicas.is_Some == if new vrs exists, replicas->0 == new_vrs.spec.replicas.unwrap_or(int1!())
         // 1 is the default value if not set
-        assert(list_resp_msg(msg) == tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) implies
+        assert(spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))))) by {
+            assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) && inv.satisfied_by(ex) implies
                 tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
                 let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -143,7 +144,8 @@ ensures
                 lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(vd, cluster, controller_id, nv_uid_key_replicas, old_vrs_list.len(), msg, s);
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
-            temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
+            entails_implies_leads_to(spec, list_resp_msg(msg).and(inv), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
+            leads_to_by_borrowing_inv(spec, list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)), inv);
         }
         // \A |replicas, n| etcd_state_is(replicas, n) ~> \E |n| after_ensure_vrs((nv_uid, nv_key, n))
         assert forall |i: (Option<(Uid, ObjectRef, int)>, nat)| #![trigger after_list_with_etcd_state(msg, i.0, i.1)]
@@ -196,7 +198,6 @@ ensures
                     local_state_is(vd.object_ref(), controller_id, None, n),
                     local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
                 ));
-                let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
                 assert(spec.entails(create_vrs_resp.leads_to(tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))))) by {
                     assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) && inv.satisfied_by(ex) implies
                         tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)).satisfied_by(ex) by {
@@ -346,9 +347,15 @@ ensures
             }
         }
         leads_to_exists_intro(spec, |i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1), tla_exists(|i| after_ensure_vrs(i)));
+        leads_to_trans_n!(
+            spec,
+            list_resp_msg(msg),
+            tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)),
+            tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i))
+        );
     }
     // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs((nv_uid, nv_key, n)))
-    leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)));
+    leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|i| after_ensure_vrs(i)));
     // Init ~> AfterEnsureNewVRS(n)
     leads_to_trans_n!(
         spec,
