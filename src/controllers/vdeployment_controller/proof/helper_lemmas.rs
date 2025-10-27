@@ -12,7 +12,7 @@ use crate::vdeployment_controller::{
     trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
 use vstd::prelude::*;
 
@@ -327,7 +327,7 @@ ensures
     }
 }
 
-pub proof fn old_vrs_filter_on_objs_eq_filter_on_keys(
+pub proof fn lemma_old_vrs_filter_on_objs_eq_filter_on_keys(
     vd: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
 )
 requires
@@ -364,5 +364,200 @@ ensures
     }
     commutativity_of_seq_map_and_filter(managed_vrs_list, new_vrs_filter, filter_old_vrs_keys(new_vrs_uid, s), |vrs: VReplicaSetView| vrs.object_ref());
     lemma_filter_to_set_eq_to_set_filter(managed_vrs_keys, filter_old_vrs_keys(new_vrs_uid, s));
+}
+
+pub proof fn lemma_make_replica_set_passes_match_template_without_hash(vd: VDeploymentView) -> (vrs: VReplicaSetView)
+requires
+    vd.well_formed(),
+ensures
+    match_template_without_hash(vd.spec.template)(vrs),
+    vrs == make_replica_set(vd),
+{
+    let vrs = make_replica_set(vd);
+    assert(match_template_without_hash(vd.spec.template)(vrs)) by {
+        assert(vrs.spec.template->0.metadata->0.labels->0 == 
+            vd.spec.template.metadata->0.labels->0.insert("pod-template-hash"@, int_to_string_view(vd.metadata.resource_version->0)));
+        assert(vrs.spec.template->0.metadata->0.labels->0.remove("pod-template-hash"@)
+            == vd.spec.template.metadata->0.labels->0.remove("pod-template-hash"@));
+    }
+    return vrs;
+}
+
+pub proof fn lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(
+    vd: VDeploymentView, resp_objs: Seq<DynamicObjectView>
+)
+requires
+    vd.well_formed(),
+    resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates(),
+    forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+        &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.uid is Some
+    },
+    objects_to_vrs_list(resp_objs) is Some,
+ensures
+    ({
+        let vrs_list = objects_to_vrs_list(resp_objs)->0;
+        let managed_vrs_list = objects_to_vrs_list(resp_objs)->0.filter(|vrs| valid_owned_vrs(vrs, vd));
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
+        &&& old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
+    }),
+{
+    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+    let managed_vrs_list = objects_to_vrs_list(resp_objs)->0.filter(|vrs| valid_owned_vrs(vrs, vd));
+    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
+    let map_key = |vrs: VReplicaSetView| vrs.object_ref();
+    let valid_owned_vrs_filter = |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd);
+    let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
+        &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
+        &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+    };
+    VReplicaSetView::marshal_preserves_integrity();
+    assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
+        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()) == vrs_list.map_values(map_key)) by {
+            assert forall |i| 0 <= i < resp_objs.len() implies vrs_list[i].object_ref() == #[trigger] resp_objs[i].object_ref() by {
+                assert(resp_objs.contains(resp_objs[i])); // trigger
+            }
+        }
+        map_values_weakens_no_duplicates(vrs_list, map_key);
+        seq_filter_preserves_no_duplicates(vrs_list, valid_owned_vrs_filter);
+        seq_filter_preserves_no_duplicates(managed_vrs_list, old_vrs_list_filter_with_new_vrs);
+        assert(old_vrs_list.no_duplicates());
+        assert forall |vrs| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) by {
+            seq_filter_contains_implies_seq_contains(managed_vrs_list, old_vrs_list_filter_with_new_vrs, vrs);
+            seq_filter_contains_implies_seq_contains(vrs_list, valid_owned_vrs_filter, vrs);
+        }
+        assert forall |i, j| 0 <= i < old_vrs_list.len() && 0 <= j < old_vrs_list.len() && i != j && old_vrs_list.no_duplicates() implies
+            #[trigger] old_vrs_list[i].object_ref() != #[trigger] old_vrs_list[j].object_ref() by {
+            assert(old_vrs_list.contains(old_vrs_list[i])); // trigger of vrs_list.contains
+            assert(old_vrs_list.contains(old_vrs_list[j]));
+            let m = choose |m| 0 <= m < vrs_list.len() && vrs_list[m] == old_vrs_list[i];
+            let n = choose |n| 0 <= n < vrs_list.len() && vrs_list[n] == old_vrs_list[j];
+            assert(old_vrs_list[i].object_ref() != old_vrs_list[j].object_ref()) by {
+                if m == n {
+                    assert(old_vrs_list[i] == old_vrs_list[j]);
+                    assert(false);
+                } else {
+                    assert(vrs_list[m].object_ref() != vrs_list[n].object_ref()) by {
+                        assert(vrs_list.map_values(map_key)[m] == vrs_list[m].object_ref());
+                        assert(vrs_list.map_values(map_key)[n] == vrs_list[n].object_ref());
+                        assert(vrs_list.map_values(map_key).no_duplicates());
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub proof fn lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
+)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, msg, nv_uid_key_replicas, n)(s),
+    resp_msg_is_pending_list_resp_in_flight_and_match_req(vd.object_ref(), controller_id, msg)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+ensures
+    etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s),
+{
+    let resp_objs = msg.content.get_list_response().res.unwrap();
+    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+    let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    assert((|vrs| valid_owned_vrs(vrs, vd)) == (|vrs| valid_owned_vrs(vrs, triggering_cr)));
+    let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, managed_vrs_list);
+    if let Some(new_vrs) = new_vrs_or_none {
+        let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(triggering_cr.spec.template));
+        if managed_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
+            seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template)), nonempty_vrs_filter); 
+        }
+    } else {
+        assert(nv_uid_key_replicas is None);
+        assert(managed_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template)).len() == 0);
+        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+            managed_vrs_list, match_template_without_hash(triggering_cr.spec.template)
+        );
+        if exists |k: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(k)
+            &&& valid_owned_obj_key(vd, s)(k)
+            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+        } {
+            let k = choose |k: ObjectRef| {
+                &&& #[trigger] s.resources().contains_key(k)
+                &&& valid_owned_obj_key(vd, s)(k)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+            };
+            let etcd_obj = s.resources()[k];
+            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            assert(filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k));
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
+            let i = choose |i: int| 0 <= i && i < managed_vrs_list.len() && #[trigger] managed_vrs_list[i].object_ref() == k;
+            assert(match_template_without_hash(triggering_cr.spec.template)(managed_vrs_list[i])) by {
+                assert(managed_vrs_list.contains(managed_vrs_list[i])); // trigger
+                assert(managed_vrs_list[i].spec == etcd_vrs.spec);
+            }
+            assert(false);
+        }
+    }
+    let new_vrs_uid = if new_vrs_or_none is Some {
+        Some(new_vrs_or_none->0.metadata.uid->0)
+    } else {
+        None
+    };
+    assert(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == n) by {
+        let old_vrs_filter = |vrs: VReplicaSetView| {
+            &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+        };
+        let map_key = |vrs: VReplicaSetView| vrs.object_ref();
+        assert(old_vrs_list == managed_vrs_list.filter(old_vrs_filter)) by {
+            same_filter_implies_same_result(managed_vrs_list, old_vrs_filter, |vrs: VReplicaSetView| {
+                    &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
+                    &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+            });
+        }
+        assert(old_vrs_list.len() == old_vrs_list.map_values(map_key).len());
+        // this part can be deduped if we move this condition to resp_msg_is_ok_list_resp_containing_matched_vr
+        assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
+            lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(triggering_cr, resp_objs);
+        }
+        no_dup_seq_to_set_cardinality(old_vrs_list.map_values(map_key));
+        lemma_old_vrs_filter_on_objs_eq_filter_on_keys(triggering_cr, managed_vrs_list, new_vrs_uid, s);
+        assert(old_vrs_list.len() == n);
+    }
+}
+
+// this one is flaky
+pub proof fn lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, n: nat, s: ClusterState
+) -> (res: (Message, (Uid, ObjectRef)))
+requires
+    exists_create_resp_msg_containing_new_vrs_uid_key(vd.object_ref(), controller_id, n)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+ensures
+    resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, res.0, res.1)(s),
+    etcd_state_is(vd.object_ref(), controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+{
+    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+    assert(exists |j: (Message, (Uid, ObjectRef))| {
+        &&& s.in_flight().contains(j.0)
+        &&& resp_msg_matches_req_msg(j.0, req_msg)
+        &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
+        &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
+    }) by {
+        assert(exists_create_resp_msg_containing_new_vrs_uid_key(vd.object_ref(), controller_id, n)(s));
+    }
+
+    let (resp_msg, nv_uid_key) = choose |j: (Message, (Uid, ObjectRef))| {
+        &&& s.in_flight().contains(j.0)
+        &&& resp_msg_matches_req_msg(j.0, req_msg)
+        &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
+        &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
+    };
+    return (resp_msg, nv_uid_key);
 }
 }

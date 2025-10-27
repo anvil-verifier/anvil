@@ -659,36 +659,41 @@ ensures
     vrs
 }
 
-pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template_spec: PodTemplateSpec)
+pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template: PodTemplateSpec)
 requires
     vd@.well_formed(),
 ensures
-    pod_template_spec@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
+    pod_template@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
 {
-    let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
-    let mut template_meta = ObjectMeta::default();
-    template_meta.set_labels(labels);
+    let mut template_meta = vd.spec().template().metadata().unwrap().clone();
     template_meta.add_label("pod-template-hash".to_string(), hash);
-    let mut pod_template_spec = PodTemplateSpec::default();
-    pod_template_spec.set_metadata(template_meta);
-    pod_template_spec.set_spec(vd.spec().template().spec().unwrap().clone());
-    assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
-    pod_template_spec
+    let mut pod_template = vd.spec().template().clone();
+    pod_template.set_metadata(template_meta);
+    assert(pod_template@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
+    pod_template
 }
 
 pub fn match_template_without_hash(template: &PodTemplateSpec, vrs: &VReplicaSet) -> (res: bool)
 requires
     vrs@.state_validation(),
+    template@.metadata is Some,
+    template@.metadata->0.labels is Some,
 ensures
     res == model_util::match_template_without_hash(template@)(vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();
+    let mut vd_template = template.clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
+    let mut vd_labels = vd_template.metadata().unwrap().labels().unwrap();
     labels.remove(&"pod-template-hash".to_string());
+    vd_labels.remove(&"pod-template-hash".to_string());
     let mut template_meta = vrs_template.metadata().unwrap().clone();
+    let mut vd_template_meta = vd_template.metadata().unwrap().clone();
     template_meta.set_labels(labels);
+    vd_template_meta.set_labels(vd_labels);
     vrs_template.set_metadata(template_meta);
-    template.eq(&vrs_template)
+    vd_template.set_metadata(vd_template_meta);
+    vd_template.eq(&vrs_template)
 }
 
 pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerReference>)

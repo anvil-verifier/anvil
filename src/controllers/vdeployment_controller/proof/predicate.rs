@@ -142,7 +142,6 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    // TODO: another DS lemma
     &&& managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         == filter_obj_keys_managed_by_vd(vd, s)
     &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
@@ -567,12 +566,16 @@ pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller
     |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].local_state).unwrap();
-        &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
+        &&& forall |i| #![trigger vds.old_vrs_list[i].object_ref()] 0 <= i < vds.old_vrs_list.len() ==> {
             let vrs = vds.old_vrs_list[i];
             let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
             &&& s.resources().contains_key(vrs.object_ref())
             &&& valid_owned_obj_key(vd, s)(vrs.object_ref())
             &&& vrs_weakly_eq(etcd_vrs, vrs)
+        }
+        &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
+            let vrs = vds.old_vrs_list[i];
+            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
             &&& etcd_vrs.spec == vrs.spec
         }
         &&& vds.new_vrs is Some ==> {
@@ -689,6 +692,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
         Cluster::desired_state_is(vd),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()),
+        Cluster::etcd_object_has_lower_uid_than_uid_counter(),
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
         // we use lifted version for vd_reconcile_request_only_interferes_with_itself with quantifiers
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd),

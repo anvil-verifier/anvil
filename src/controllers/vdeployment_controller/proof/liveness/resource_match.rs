@@ -44,6 +44,7 @@ ensures
             current_state_matches(vd)
         )))),
 {
+    let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     // Init ~> send list req
     let init = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)));
     let list_req = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), pending_list_req_in_flight(vd.object_ref(), controller_id)));
@@ -109,12 +110,12 @@ ensures
     // from list_resp with different etcd state to different transitions to AfterEnsureNewVRS
     // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs((nv_uid, nv_key, n)))
     assert forall |msg: Message| #![trigger list_resp_msg(msg)]
-        spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by{
+        spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by {
         // (\A |msg|) list_resp_msg(msg) == \E |replicas: Options<int>, n: nat| after_ensure_vrs((nv_uid, nv_key, n))
         // here replicas.is_Some == if new vrs exists, replicas->0 == new_vrs.spec.replicas.unwrap_or(int1!())
         // 1 is the default value if not set
-        assert(list_resp_msg(msg) == tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) implies
+        assert(spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))))) by {
+            assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) && inv.satisfied_by(ex) implies
                 tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
                 let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -140,11 +141,11 @@ ensures
                         }
                     }
                 }
-                // TODO: helper lemma
-                assume(etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, old_vrs_list.len())(s));
+                lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(vd, cluster, controller_id, nv_uid_key_replicas, old_vrs_list.len(), msg, s);
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
-            temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
+            entails_implies_leads_to(spec, list_resp_msg(msg).and(inv), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
+            leads_to_by_borrowing_inv(spec, list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)), inv);
         }
         // \A |replicas, n| etcd_state_is(replicas, n) ~> \E |n| after_ensure_vrs((nv_uid, nv_key, n))
         assert forall |i: (Option<(Uid, ObjectRef, int)>, nat)| #![trigger after_list_with_etcd_state(msg, i.0, i.1)]
@@ -197,27 +198,16 @@ ensures
                     local_state_is(vd.object_ref(), controller_id, None, n),
                     local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
                 ));
-                assert(create_vrs_resp == tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))) by {
-                    assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) implies
+                assert(spec.entails(create_vrs_resp.leads_to(tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))))) by {
+                    assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) && inv.satisfied_by(ex) implies
                         tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)).satisfied_by(ex) by {
                         let s = ex.head();
-                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        let (resp_msg, nv_uid_key) = choose |j: (Message, (Uid, ObjectRef))| {
-                            &&& #[trigger] s.in_flight().contains(j.0)
-                            &&& resp_msg_matches_req_msg(j.0, req_msg)
-                            &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
-                            &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
-                        };
-                        // TODO: investigate flakiness here
-                        assume(exists |j: (Message, (Uid, ObjectRef))| {
-                            &&& #[trigger] s.in_flight().contains(j.0)
-                            &&& resp_msg_matches_req_msg(j.0, req_msg)
-                            &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
-                            &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n)(s)
-                        });
+                        assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s));
+                        let (resp_msg, nv_uid_key) = lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key(vd, cluster, controller_id, n, s);
                         assert((|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))((resp_msg, nv_uid_key)).satisfied_by(ex));
                     }
-                    temp_pred_equality(create_vrs_resp, tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)));
+                    entails_implies_leads_to(spec, create_vrs_resp.and(inv), tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)));
+                    leads_to_by_borrowing_inv(spec, create_vrs_resp, tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)), inv);
                 }
                 assert forall |j: (Message, (Uid, ObjectRef))| #![trigger create_vrs_resp_msg_nv(j.0, j.1)]
                     spec.entails(create_vrs_resp_msg_nv(j.0, j.1).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by {
@@ -249,6 +239,7 @@ ensures
                     after_list_with_etcd_state(msg, None, n),
                     create_vrs_req,
                     create_vrs_resp,
+                    tla_exists(|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1)),
                     tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i))
                 );
             } else {
@@ -356,9 +347,15 @@ ensures
             }
         }
         leads_to_exists_intro(spec, |i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1), tla_exists(|i| after_ensure_vrs(i)));
+        leads_to_trans_n!(
+            spec,
+            list_resp_msg(msg),
+            tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)),
+            tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i))
+        );
     }
     // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs((nv_uid, nv_key, n)))
-    leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)));
+    leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|i| after_ensure_vrs(i)));
     // Init ~> AfterEnsureNewVRS(n)
     leads_to_trans_n!(
         spec,
@@ -731,47 +728,12 @@ ensures
     };
     let map_key = |vrs: VReplicaSetView| vrs.object_ref();
     assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-        assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-            assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()) == vrs_list.map_values(map_key)) by {
-                assert forall |i| 0 <= i < vrs_list.len() implies vrs_list[i].object_ref() == #[trigger] resp_objs[i].object_ref() by {
-                    assert(resp_objs.contains(resp_objs[i])); // trigger
-                }
-            }
-            map_values_weakens_no_duplicates(vrs_list, map_key);
-            seq_filter_preserves_no_duplicates(vrs_list, valid_owned_vrs_filter);
-            seq_filter_preserves_no_duplicates(managed_vrs_list, old_vrs_list_filter_with_new_vrs);
-            assert(old_vrs_list.no_duplicates());
-            assert forall |vrs| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) by {
-                seq_filter_contains_implies_seq_contains(managed_vrs_list, old_vrs_list_filter_with_new_vrs, vrs);
-                seq_filter_contains_implies_seq_contains(vrs_list, valid_owned_vrs_filter, vrs);
-            }
-            assert forall |i, j| 0 <= i < old_vrs_list.len() && 0 <= j < old_vrs_list.len() && i != j && old_vrs_list.no_duplicates() implies
-                #[trigger] old_vrs_list[i].object_ref() != #[trigger] old_vrs_list[j].object_ref() by {
-                assert(old_vrs_list.contains(old_vrs_list[i])); // trigger of vrs_list.contains
-                assert(old_vrs_list.contains(old_vrs_list[j]));
-                let m = choose |m| 0 <= m < vrs_list.len() && vrs_list[m] == old_vrs_list[i];
-                let n = choose |n| 0 <= n < vrs_list.len() && vrs_list[n] == old_vrs_list[j];
-                assert(old_vrs_list[i].object_ref() != old_vrs_list[j].object_ref()) by {
-                    if m == n {
-                        assert(old_vrs_list[i] == old_vrs_list[j]);
-                        assert(false);
-                    } else {
-                        assert(vrs_list[m].object_ref() != vrs_list[n].object_ref()) by {
-                            assert(vrs_list.map_values(map_key)[m] == vrs_list[m].object_ref());
-                            assert(vrs_list.map_values(map_key)[n] == vrs_list[n].object_ref());
-                            assert(vrs_list.map_values(map_key).no_duplicates());
-                        }
-                    }
-                }
-            }
-        }
+        lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(vd, resp_objs);
     }
-    // TODO
     assert(old_vrs_list.map_values(map_key).to_set()
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))) by {
-        old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
+        lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
     }
-    // we have some flakiness issues here
     assert(old_vrs_list.len() == n) by {
         old_vrs_list.map_values(map_key).unique_seq_to_set();
         assert(old_vrs_list.map_values(map_key).len() == old_vrs_list.len());
