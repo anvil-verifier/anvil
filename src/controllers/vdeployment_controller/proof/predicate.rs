@@ -518,6 +518,14 @@ pub open spec fn etcd_state_is(vd_key: ObjectRef, controller_id: int, nv_uid_key
     }
 }
 
+pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs(vd_key: ObjectRef, controller_id: int)
+-> StatePred<ClusterState> {
+    |s: ClusterState| exists |nv_uid_key: (Uid, ObjectRef)| #![trigger dummy(nv_uid_key)] {
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
+        &&& etcd_state_is(vd_key, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
+    }
+}
+
 // make verus happy about triggers
 pub open spec fn get_replicas(i: Option<int>) -> int {
     i.unwrap_or(int1!())
