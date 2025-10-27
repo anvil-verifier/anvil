@@ -676,16 +676,24 @@ ensures
 pub fn match_template_without_hash(template: &PodTemplateSpec, vrs: &VReplicaSet) -> (res: bool)
 requires
     vrs@.state_validation(),
+    template@.metadata is Some,
+    template@.metadata->0.labels is Some,
 ensures
     res == model_util::match_template_without_hash(template@)(vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();
+    let mut vd_template = template.clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
+    let mut vd_labels = vd_template.metadata().unwrap().labels().unwrap();
     labels.remove(&"pod-template-hash".to_string());
+    vd_labels.remove(&"pod-template-hash".to_string());
     let mut template_meta = vrs_template.metadata().unwrap().clone();
+    let mut vd_template_meta = vd_template.metadata().unwrap().clone();
     template_meta.set_labels(labels);
+    vd_template_meta.set_labels(vd_labels);
     vrs_template.set_metadata(template_meta);
-    template.eq(&vrs_template)
+    vd_template.set_metadata(vd_template_meta);
+    vd_template.eq(&vrs_template)
 }
 
 pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerReference>)
