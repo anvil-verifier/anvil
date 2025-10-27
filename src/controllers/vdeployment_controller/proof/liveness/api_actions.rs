@@ -168,6 +168,7 @@ requires
     req_msg_is_pending_create_new_vrs_req_in_flight(vd.object_ref(), controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd.object_ref(), controller_id, None, n)(s),
+    local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
     res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
@@ -253,11 +254,27 @@ ensures
         }
         assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key));
         assert(valid_owned_obj_key(triggering_cr, s_prime)(key));
-        // TODO: helper lemma: every_obj_in_etcd_has_different_uid
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        assert(forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
+            let vrs = vds.old_vrs_list[i];
+            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
+            &&& s.resources().contains_key(vrs.object_ref())
+            &&& valid_owned_obj_key(vd, s)(vrs.object_ref())
+            &&& vrs_weakly_eq(etcd_vrs, vrs)
+            &&& etcd_vrs.spec == vrs.spec
+        });
         assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() implies
             vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0 && vds_prime.old_vrs_list[i].object_ref() != key by {
-            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter); //etcd_object_has_lower_uid_than_uid_counter
+            assert(s.resources().contains_key(vds_prime.old_vrs_list[i].object_ref())) by {
+                // assert(vds.old_vrs_list[i] == vds_prime.old_vrs_list[i]);
+                assert(s.resources().contains_key(vds.old_vrs_list[i].object_ref()));
+            }
+            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter);
+            assert(vds_prime.old_vrs_list[i].metadata.uid->0 < s.api_server.uid_counter); // etcd_object_has_lower_uid_than_uid_counter
+            assert(vds_prime.old_vrs_list[i].object_ref() != key) by {
+                generated_name_is_unique(s.api_server);
+            }
         }
     }
     // we know the former one's length is n
