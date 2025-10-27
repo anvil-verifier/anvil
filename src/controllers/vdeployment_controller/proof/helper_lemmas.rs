@@ -244,7 +244,7 @@ pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_refere
     );
 }
 
-pub proof fn lemma_esr_equiv_to_and_etcd_state_is(
+pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState
 )
 requires
@@ -252,8 +252,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
-    current_state_matches(vd)(s) == exists |nv_uid_key: (Uid, ObjectRef)|
-        etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s),
+    current_state_matches(vd)(s) == instantiated_etcd_state_is_with_zero_old_vrs(vd.object_ref(), controller_id)(s),
 {
     // ==>
     if current_state_matches(vd)(s) {
