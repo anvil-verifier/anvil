@@ -189,17 +189,13 @@ ensures
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
     let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
     let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr);
     assert(req == CreateRequest {
         namespace: triggering_cr.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
     });
-    assert(req.obj.metadata == new_vrs.metadata);
-    assert(req.obj.metadata.owner_references is Some && req.obj.metadata.owner_references->0 == seq![triggering_cr.controller_owner_ref()]);
     assert(s_prime.api_server == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).0);
-    assert(create_request_admission_check(cluster.installed_types, req, s.api_server) is None);
     let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
     let resp_obj = resp_msg.content.get_create_response().res.unwrap();
     let key = resp_obj.object_ref();
@@ -235,43 +231,24 @@ ensures
     let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
     assert(resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, resp_msg, (created_obj.metadata.uid->0, key))(s_prime)) by {
         VReplicaSetView::marshal_preserves_integrity();
-        assert(vrs.object_ref() == key);
-        assert(vrs.metadata.owner_references is Some);
         let singleton_seq = seq![triggering_cr.controller_owner_ref()];
         assert(singleton_seq == Seq::empty().push(triggering_cr.controller_owner_ref()));
         assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == singleton_seq) by {
             assert(vrs.metadata.owner_references->0 == singleton_seq);
             lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
         }
-        // assert(vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
-        assert(triggering_cr.well_formed());
-        assert(vrs.spec.replicas.unwrap_or(1) == triggering_cr.spec.replicas.unwrap_or(1));
-        assert(s_prime.resources().contains_key(key));
-        assert(s_prime.resources()[key] == created_obj);
         assert(match_template_without_hash(vd.spec.template)(vrs)) by {
             VReplicaSetView::marshal_spec_preserves_integrity();
             assert(vrs.spec == new_vrs.spec);
         }
-        assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key));
-        assert(valid_owned_obj_key(triggering_cr, s_prime)(key));
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        assert(forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
-            let vrs = vds.old_vrs_list[i];
-            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
-            &&& s.resources().contains_key(vrs.object_ref())
-            &&& valid_owned_obj_key(vd, s)(vrs.object_ref())
-            &&& vrs_weakly_eq(etcd_vrs, vrs)
-            &&& etcd_vrs.spec == vrs.spec
-        });
         assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() implies
             vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0 && vds_prime.old_vrs_list[i].object_ref() != key by {
             assert(s.resources().contains_key(vds_prime.old_vrs_list[i].object_ref())) by {
-                // assert(vds.old_vrs_list[i] == vds_prime.old_vrs_list[i]);
                 assert(s.resources().contains_key(vds.old_vrs_list[i].object_ref()));
             }
-            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter);
-            assert(vds_prime.old_vrs_list[i].metadata.uid->0 < s.api_server.uid_counter); // etcd_object_has_lower_uid_than_uid_counter
+            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter); // etcd_object_has_lower_uid_than_uid_counter
             assert(vds_prime.old_vrs_list[i].object_ref() != key) by {
                 generated_name_is_unique(s.api_server);
             }
