@@ -248,7 +248,7 @@ ensures
             assert(s.resources().contains_key(vds_prime.old_vrs_list[i].object_ref())) by {
                 assert(s.resources().contains_key(vds.old_vrs_list[i].object_ref()));
             }
-            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter); // etcd_object_has_lower_uid_than_uid_counter
+            assert(created_obj.metadata.uid->0 == s.api_server.uid_counter); // etcd_object_is_weakly_well_formed
             assert(vds_prime.old_vrs_list[i].object_ref() != key) by {
                 generated_name_is_unique(s.api_server);
             }
