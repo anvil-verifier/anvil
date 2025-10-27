@@ -142,7 +142,6 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    // TODO: another DS lemma
     &&& managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         == filter_obj_keys_managed_by_vd(vd, s)
     &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
