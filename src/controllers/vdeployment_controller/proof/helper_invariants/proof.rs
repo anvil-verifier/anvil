@@ -1725,7 +1725,6 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-// TODO: figure out how to have metadata.[name|namespace]->0 equality
 pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
@@ -1752,10 +1751,7 @@ ensures
         let key = vd.object_ref();
         assert(s.resources().contains_key(key));
         if s_prime.scheduled_reconciles(controller_id).contains_key(key) {
-            if s.scheduled_reconciles(controller_id).contains_key(key) {
-                // Q: What happens here?
-                assume(s.scheduled_reconciles(controller_id)[key] == s_prime.scheduled_reconciles(controller_id)[key]);
-            } // else (Cluster) Step::ScheduleControllerReconcileStep
+            if s.scheduled_reconciles(controller_id).contains_key(key) {}
         } 
     };
     combine_spec_entails_always_n!(
