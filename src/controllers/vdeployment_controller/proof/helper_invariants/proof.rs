@@ -1800,4 +1800,45 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(
+    spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+ensures
+    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
+    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+    spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+    spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
+    spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
+    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+    spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
+    spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())))),
+    spec.entails(always(lift_state(Cluster::etcd_object_has_lower_uid_than_uid_counter()))),
+    spec.entails(always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)))),
+    spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
+    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
+    spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
+    spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
+    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+{}
 }
