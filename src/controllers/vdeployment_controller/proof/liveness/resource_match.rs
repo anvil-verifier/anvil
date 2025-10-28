@@ -2082,6 +2082,7 @@ requires
 ensures
     spec.entails(p.leads_to(always(lift_state(current_state_matches(vd))))),
 {
+    let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     // ESR -> etcd_state_is (which is easier to reason about)
     let final_state = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
@@ -2094,51 +2095,57 @@ ensures
         current_state_matches(vd),
         instantiated_etcd_state_is_with_zero_old_vrs(vd.object_ref(), controller_id)
     );
-    assert(lift_state(final_state).entails(lift_state(final_state_with_instantiated_nv))) by {
-        assert forall |ex: Execution<ClusterState>| lift_state(final_state).satisfied_by(ex)
+    assert(spec.entails(lift_state(final_state).leads_to(lift_state(final_state_with_instantiated_nv)))) by {
+        assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(final_state).satisfied_by(ex) && inv.satisfied_by(ex)
             implies lift_state(final_state_with_instantiated_nv).satisfied_by(ex) by {
             let s = ex.head();
             lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s);
         }
+        entails_implies_leads_to(spec, lift_state(final_state).and(inv), lift_state(final_state_with_instantiated_nv));
+        leads_to_by_borrowing_inv(spec, lift_state(final_state), lift_state(final_state_with_instantiated_nv), inv);
     }
-    temp_pred_equality(lift_state(final_state), lift_state(final_state_with_instantiated_nv));
     let inv_after_esr = |s: ClusterState| {
         &&& current_state_matches(vd)(s)
         &&& instantiated_etcd_state_is_with_zero_old_vrs(vd.object_ref(), controller_id)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-            ||| at_vd_step_with_vd(vd, controller_id, at_step![Init])(s)
-            ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s)
-            ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s)
-            ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s)
-            ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
-            ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS])(s)
-        }
-        &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-            &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-            &&& req_msg_is_list_vrs_req(vd.object_ref(), controller_id, req_msg, s)
-            &&& forall |msg| {
-                &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-                &&& #[trigger] s.in_flight().contains(msg)
-                &&& resp_msg_matches_req_msg(msg, req_msg)
-            } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd.object_ref(), controller_id, msg, s)
-        } else{
-            s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
+            &&& {
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![Init])(s)
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s)
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s)
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s)
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS])(s)
+                ||| at_vd_step_with_vd(vd, controller_id, at_step![Done])(s)
+            }
+            &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
+                    &&& req_msg_is_list_vrs_req(vd.object_ref(), controller_id, req_msg, s)
+                    &&& forall |msg| {
+                        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                    } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd.object_ref(), controller_id, msg, s)
+                } else {
+                    s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
+                }
         }
     };
-    entails_implies_leads_to(spec, lift_state(final_state), lift_state(inv_after_esr));
-    leads_to_trans(spec, p, lift_state(final_state), lift_state(inv_after_esr));
+    entails_implies_leads_to(spec, lift_state(final_state_with_instantiated_nv), lift_state(inv_after_esr));
+    leads_to_trans_n!(spec, p, lift_state(final_state), lift_state(final_state_with_instantiated_nv), lift_state(inv_after_esr));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)(s_prime)
-        &&& helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(cluster, controller_id)(s)
     };
+    helper_invariants::lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(spec, vd, cluster, controller_id);
     always_to_always_later(spec, lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)));
-    vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(spec, cluster, controller_id);
+    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
@@ -2231,9 +2238,11 @@ ensures
                         }
                     }
                 } else {
-                    lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
-                        s, s_prime, vd, cluster, controller_id, msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
-                    );
+                    if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
+                        lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                            s, s_prime, vd, cluster, controller_id, msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
+                        );
+                    }
                 }
             },
             Step::ControllerStep(input) => {
@@ -2242,6 +2251,9 @@ ensures
                     && input.2 == Some(vd.object_ref()) {
                     let resp_msg = input.1->0;
                     if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
+                        // TODO: borrow proof from lemma_from_init_to_current_state_matches
+                        assume(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s));
+                        assume(etcd_state_is(vd.object_ref(), controller_id, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s));
                         lemma_from_list_resp_to_next_state(
                             s, s_prime, vd, cluster, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
                         );
@@ -2284,6 +2296,7 @@ ensures
             }
         }
     }
+    assume(false);
     leads_to_stable(spec, lift_action(stronger_next), p, lift_state(inv_after_esr));
     leads_to_always_enhance(spec, true_pred(), p, lift_state(inv_after_esr), lift_state(current_state_matches(vd)));
 }
