@@ -2251,9 +2251,8 @@ ensures
                     && input.2 == Some(vd.object_ref()) {
                     let resp_msg = input.1->0;
                     if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                        // TODO: borrow proof from lemma_from_init_to_current_state_matches
-                        assume(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s));
-                        assume(etcd_state_is(vd.object_ref(), controller_id, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s));
+                        // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
+                        assume(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0));
                         lemma_from_list_resp_to_next_state(
                             s, s_prime, vd, cluster, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
                         );
