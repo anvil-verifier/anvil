@@ -532,20 +532,36 @@ ensures
 }
 
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
-// the API req msg does not change or delete the object
-// as the direct result of rely condition and non-interference property.
+// the API req msg does not touch the object as the direct result of rely condition and non-interference property.
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+    cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
+    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)(s),
+    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
+    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)(s),
+    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s),
+    Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())(s),
+    Cluster::there_is_the_controller_state(controller_id)(s),
+    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())(s),
+    helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_State_is indirectly
+    helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)(s),
+    helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s),
+    helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects()(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
-    // equivlant form of above
-    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg) // equal to msg.src != HostId::Controller(controller_id, vd.object_ref())
+    // old style pre, stronger to pre above
+    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
     // ultimate version of ownership and guarantee
