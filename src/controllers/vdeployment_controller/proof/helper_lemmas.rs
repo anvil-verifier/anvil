@@ -252,7 +252,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
-    current_state_matches(vd)(s) == instantiated_etcd_state_is_with_zero_old_vrs(vd.object_ref(), controller_id)(s),
+    current_state_matches(vd)(s) == instantiated_etcd_state_is_with_zero_old_vrs(vd, controller_id)(s),
 {
     // ==>
     if current_state_matches(vd)(s) {
@@ -274,7 +274,7 @@ ensures
                 &&& filter_old_vrs_keys(Some(i.0), s)(k)
             }
         };
-        assert(etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s)) by {
+        assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s)) by {
             let filtered_old_vrs_keys = filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s));
             if exists |k: ObjectRef| filtered_old_vrs_keys.contains(k) {
                 let k = choose |k: ObjectRef| filtered_old_vrs_keys.contains(k);
@@ -290,11 +290,11 @@ ensures
     }
     // <==
     if exists |nv_uid_key: (Uid, ObjectRef)|
-        etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s) {
+        etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s) {
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         assert(valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s));
         let nv_uid_key = choose |nv_uid_key: (Uid, ObjectRef)|
-            etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s);
+            etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s);
         let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[nv_uid_key.1])->Ok_0;
         assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies
         !({
@@ -454,12 +454,12 @@ pub proof fn lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, msg, nv_uid_key_replicas, n)(s),
-    resp_msg_is_pending_list_resp_in_flight_and_match_req(vd.object_ref(), controller_id, msg)(s),
+    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas, n)(s),
+    resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
-    etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s),
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s),
 {
     let resp_objs = msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
@@ -534,28 +534,28 @@ pub proof fn lemma_instantiate_exists_create_resp_msg_containing_new_vrs_uid_key
     vd: VDeploymentView, cluster: Cluster, controller_id: int, n: nat, s: ClusterState
 ) -> (res: (Message, (Uid, ObjectRef)))
 requires
-    exists_create_resp_msg_containing_new_vrs_uid_key(vd.object_ref(), controller_id, n)(s),
+    exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
-    resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, res.0, res.1)(s),
-    etcd_state_is(vd.object_ref(), controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+    resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s),
+    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
 {
     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
     assert(exists |j: (Message, (Uid, ObjectRef))| {
         &&& s.in_flight().contains(j.0)
         &&& resp_msg_matches_req_msg(j.0, req_msg)
-        &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
-        &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
+        &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
+        &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
     }) by {
-        assert(exists_create_resp_msg_containing_new_vrs_uid_key(vd.object_ref(), controller_id, n)(s));
+        assert(exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n)(s));
     }
 
     let (resp_msg, nv_uid_key) = choose |j: (Message, (Uid, ObjectRef))| {
         &&& s.in_flight().contains(j.0)
         &&& resp_msg_matches_req_msg(j.0, req_msg)
-        &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd.object_ref(), controller_id, j.0, j.1, s)
-        &&& etcd_state_is(vd.object_ref(), controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
+        &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
+        &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
     };
     return (resp_msg, nv_uid_key);
 }
