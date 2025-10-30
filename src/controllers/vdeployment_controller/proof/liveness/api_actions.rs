@@ -423,9 +423,9 @@ requires
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
-    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
-    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    // etcd state should be maintained even when vd is not in ongoing_reconciles
+    // but then there is not triggering_cr
+    // s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
     etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s) ==> etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s_prime),
 {
