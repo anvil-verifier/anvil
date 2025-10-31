@@ -17,6 +17,16 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
     Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))
 }
 
+pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& Cluster::desired_state_is(vd)(s)
+        // in addition to general desired_state_is, vd must has labels
+        // as required by vd.spec.selector.matches
+        &&& vd.metadata().labels is Some
+        &&& s.resources()[vd.object_ref()].metadata.labels->0 == vd.metadata().labels->0
+    }
+}
+
 // draft of ESR for VDeployment
 // TODO: add another version which talks about pods and derives from VRS ESR and this ESR
 // Also try using quantifiers to simplify the proofs

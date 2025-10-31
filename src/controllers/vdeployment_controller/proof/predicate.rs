@@ -695,7 +695,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::there_is_the_controller_state(controller_id),
         Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
-        Cluster::desired_state_is(vd),
+        desired_state_is(vd),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()),
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
         // we use lifted version for vd_reconcile_request_only_interferes_with_itself with quantifiers

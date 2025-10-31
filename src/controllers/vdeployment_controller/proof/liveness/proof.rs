@@ -49,17 +49,17 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
                 assert((|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)) 
                     =~= (|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))));
                 assert((|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))) 
-                    =~= (|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
-                assert(tla_forall(|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
+                    =~= (|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
+                assert(tla_forall(|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
                 assert(Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd)).satisfied_by(ex));
             }
             assert forall |ex: Execution<ClusterState>| 
                 #[trigger] vd_eventually_stable_reconciliation().satisfied_by(ex)
                 implies tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)).satisfied_by(ex) by {
                 assert(Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd)).satisfied_by(ex));
-                assert(tla_forall(|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
+                assert(tla_forall(|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
                 assert((|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))) 
-                    =~= (|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
+                    =~= (|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
                 assert((|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)) 
                     =~= (|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))));
             }
@@ -108,7 +108,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     spec_before_phase_n_entails_true_leads_to_current_state_matches(2, stable_spec, vd, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(1, stable_spec, vd, cluster, controller_id);
 
-    let assumption = always(lift_state(Cluster::desired_state_is(vd)));
+    let assumption = always(lift_state(desired_state_is(vd)));
     temp_pred_equality(
         stable_spec.and(spec_before_phase_n(1, vd, cluster, controller_id)),
         stable_spec.and(invariants(vd, cluster, controller_id))
@@ -130,7 +130,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     entails_trans(
         spec.and(derived_invariants_since_beginning(vd, cluster, controller_id)), 
         stable_spec.and(invariants(vd, cluster, controller_id)),
-        always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state(current_state_matches(vd))))
+        always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(current_state_matches(vd))))
     );
 }
 
@@ -205,29 +205,29 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         };
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
-            &&& Cluster::desired_state_is(vd)(s)
-            &&& Cluster::desired_state_is(vd)(s_prime)
+            &&& desired_state_is(vd)(s)
+            &&& desired_state_is(vd)(s_prime)
         };
-        always_to_always_later(spec, lift_state(Cluster::desired_state_is(vd)));
+        always_to_always_later(spec, lift_state(desired_state_is(vd)));
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
             lift_action(cluster.next()),
-            lift_state(Cluster::desired_state_is(vd)),
-            later(lift_state(Cluster::desired_state_is(vd)))
+            lift_state(desired_state_is(vd)),
+            later(lift_state(desired_state_is(vd)))
         );
         cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(
             spec,
             controller_id,
             input,
             stronger_next,
-            and!(stronger_reconcile_idle, Cluster::desired_state_is(vd)),
+            and!(stronger_reconcile_idle, desired_state_is(vd)),
             reconcile_scheduled
         );
         temp_pred_equality(
-            lift_state(stronger_reconcile_idle).and(lift_state(Cluster::desired_state_is(vd))),
-            lift_state(and!(stronger_reconcile_idle, Cluster::desired_state_is(vd)))
+            lift_state(stronger_reconcile_idle).and(lift_state(desired_state_is(vd))),
+            lift_state(and!(stronger_reconcile_idle, desired_state_is(vd)))
         );
-        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(Cluster::desired_state_is(vd)));
+        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
         entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         or_leads_to_combine(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
