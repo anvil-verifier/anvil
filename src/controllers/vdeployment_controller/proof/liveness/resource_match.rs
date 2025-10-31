@@ -1876,7 +1876,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(10))]
 pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1899,7 +1899,7 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step!(Done)),
+            at_vd_step_with_vd(vd, controller_id, at_step![Done]),
             no_pending_req_in_cluster(vd, controller_id),
             current_state_matches(vd)
         )))),
@@ -1948,6 +1948,8 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
+                    // trigger
+                    assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime));
                     lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
                 }
             },
@@ -1957,6 +1959,8 @@ ensures
     // without this proof will fail
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
+        // trigger
+        assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime));
         lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
     }
     cluster.lemma_pre_leads_to_post_by_controller(
@@ -1964,8 +1968,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
-#[verifier(spinoff_prover)]
+#[verifier(rlimit(10))]
 pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef)
 )
@@ -2037,6 +2040,8 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
+                    // trigger
+                    assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), 0)(s_prime));
                     lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
                 }
             },
@@ -2046,6 +2051,8 @@ ensures
     // without this the proof will be 1s slower
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
+        // trigger
+        assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), 0)(s_prime));
         lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
     }
     cluster.lemma_pre_leads_to_post_by_controller(
