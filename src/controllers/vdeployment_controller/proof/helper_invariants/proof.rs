@@ -1725,7 +1725,7 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
@@ -1736,10 +1736,10 @@ requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
 {
     VDeploymentView::marshal_preserves_integrity();
-    let inv = cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id);
+    let inv = cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
@@ -1765,25 +1765,25 @@ ensures
 
 }
 
-pub proof fn lemma_always_cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub proof fn lemma_always_cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(desired_state_is(vd)))),
-    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
 {
     VDeploymentView::marshal_preserves_integrity();
-    let inv = cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id);
+    let inv = cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)(s)
+        &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
     };
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1795,7 +1795,7 @@ ensures
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id))
+        lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
@@ -1839,6 +1839,6 @@ ensures
     spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
     spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
     spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
-    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
 {}
 }
