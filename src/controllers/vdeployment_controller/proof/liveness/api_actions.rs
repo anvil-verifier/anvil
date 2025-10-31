@@ -186,6 +186,8 @@ ensures
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
+    VDeploymentView::marshal_preserves_integrity();
+    // VReplicaSetView::marshal_spec_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
     let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr); // vd doesn't have rv
