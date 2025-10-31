@@ -466,6 +466,36 @@ ensures
     }
 }
 
+// equal to etcd_state_is maintained by lemma_esr_equiv_to_instantiated_etcd_state_is
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    current_state_matches(vd)(s),
+ensures
+    current_state_matches(vd)(s_prime),
+{
+    assert(instantiated_etcd_state_is_with_zero_old_vrs(vd, controller_id)(s)) by {
+        lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s);
+    }
+    let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
+        &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
+    };
+    lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+        s, s_prime, vd, cluster, controller_id, msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), nat0!()
+    );
+    assert(current_state_matches(vd)(s_prime)) by {
+        lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
+    }
+}
+
 // filter_obj_keys_managed_by_vd is maintained
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
