@@ -527,12 +527,16 @@ pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<
         pod.metadata.owner_references_contains(vsts.controller_owner_ref())
         && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
-        && exists |ord: nat| pod.metadata.name->0 == pod_name(vsts.metadata.name->0, ord)
+        && get_ordinal(vsts.metadata.name->0, pod) is Some
     )
 }
 
-pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> nat {
-    choose |ord| pod.metadata.name->0 == pod_name(parent_name, ord)
+pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<nat> {
+    if (exists |ord| pod.metadata.name->0 == pod_name(parent_name, ord)) {
+        Some(choose |ord| pod.metadata.name->0 == pod_name(parent_name, ord))
+    } else {
+        None
+    }
 }
 
 pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Seq<PodView>) -> (Seq<Option<PodView>>, Seq<PodView>) {
@@ -550,8 +554,8 @@ pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Se
     // condemned is sorted by the decreasing order of the ordinal number of each pod
     // deletion will start with the pod with the largest ordinal number
     let condemned = pods
-        .filter(|pod: PodView| exists |ord: nat| ord >= replicas && pod.metadata.name->0 == pod_name(parent_name, ord))
-        .sort_by(|p1, p2| get_ordinal(parent_name, p1) >= get_ordinal(parent_name, p2));
+        .filter(|pod: PodView| exists |ord: nat| ord >= replicas && get_ordinal(parent_name, pod) is Some)
+        .sort_by(|p1, p2| get_ordinal(parent_name, p1).expect("UNREACHABLE") >= get_ordinal(parent_name, p2).expect("UNREACHABLE"));
     (needed, condemned)
 }
 
