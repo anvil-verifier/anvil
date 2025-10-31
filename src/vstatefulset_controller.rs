@@ -10,8 +10,10 @@ pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
+
 #[path = "controllers/vstatefulset_controller/mod.rs"]
 pub mod vstatefulset_controller;
+
 pub mod vstd_ext;
 
 // use crate::external_shim_layer::VoidExternalShimLayer;
