@@ -31,8 +31,8 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
         &&& step_pred(local_state)
         &&& {
-            &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)(s)
-            // from cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd, we know:
+            &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
+            // from cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd, we know:
             &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
             &&& (|vrs| valid_owned_vrs(vrs, triggering_cr)) == (|vrs| valid_owned_vrs(vrs, vd))
             &&& (|vrs_list| filter_old_and_new_vrs(vd, vrs_list)) == (|vrs_list| filter_old_and_new_vrs(triggering_cr, vrs_list))
@@ -703,7 +703,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id),
         helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id),
         helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects(),
-        helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)
+        helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)
     )
 }
 

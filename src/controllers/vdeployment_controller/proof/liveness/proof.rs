@@ -243,7 +243,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             &&& cluster.next()(s, s_prime) 
             &&& Cluster::crash_disabled(controller_id)(s) 
             &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s) 
-            &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)(s) 
+            &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s) 
             &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s)
         };
         VDeploymentView::marshal_preserves_integrity();
@@ -252,7 +252,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             lift_action(cluster.next()),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-            lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)),
+            lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
             lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))
         );
         // TODO: fix

@@ -441,7 +441,7 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     }
 }
 
-pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
@@ -450,10 +450,11 @@ pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
         &&& scheduled_cr.metadata.uid->0 == vd.metadata.uid->0
         &&& scheduled_cr.metadata.name->0 == vd.metadata.name->0
         &&& scheduled_cr.metadata.namespace->0 == vd.metadata.namespace->0
+        &&& scheduled_cr.metadata.labels->0 == vd.metadata.labels->0
     }
 }
 
-pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
@@ -465,6 +466,8 @@ pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd
         &&& triggering_cr.metadata.name->0 == vd.metadata.name->0
         // required by requests/responses and filters
         &&& triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0
+        // required by vd.spec.selector.matches
+        &&& triggering_cr.metadata.labels->0 == vd.metadata.labels->0
     }
 }
 
