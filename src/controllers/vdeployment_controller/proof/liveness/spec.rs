@@ -31,7 +31,7 @@ verus! {
 
 pub open spec fn assumption_and_invariants_of_all_phases(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     invariants(vd, cluster, controller_id)
-    .and(always(lift_state(Cluster::desired_state_is(vd))))
+    .and(always(lift_state(desired_state_is(vd))))
     .and(invariants_since_phase_i(controller_id, vd))
     .and(invariants_since_phase_ii(controller_id, vd))
     .and(invariants_since_phase_iii(vd, cluster, controller_id))
@@ -48,7 +48,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vd: VDeploymentVi
 {
     reveal_with_fuel(spec_before_phase_n, 6);
     invariants_is_stable(vd, cluster, controller_id);
-    always_p_is_stable(lift_state(Cluster::desired_state_is(vd)));
+    always_p_is_stable(lift_state(desired_state_is(vd)));
     invariants_since_phase_i_is_stable(controller_id, vd);
     invariants_since_phase_ii_is_stable(controller_id, vd);
     invariants_since_phase_iii_is_stable(vd, cluster, controller_id);
@@ -57,7 +57,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vd: VDeploymentVi
     invariants_since_phase_vi_is_stable(vd, cluster, controller_id);
     stable_and_n!(
         invariants(vd, cluster, controller_id),
-        always(lift_state(Cluster::desired_state_is(vd))),
+        always(lift_state(desired_state_is(vd))),
         invariants_since_phase_i(controller_id, vd),
         invariants_since_phase_ii(controller_id, vd),
         invariants_since_phase_iii(vd, cluster, controller_id),
@@ -102,7 +102,7 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(v
 pub open spec fn invariants_since_phase_n(n: nat, vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     if n == 0 {
         invariants(vd, cluster, controller_id)
-        .and(always(lift_state(Cluster::desired_state_is(vd))))
+        .and(always(lift_state(desired_state_is(vd))))
     } else if n == 1 {
         invariants_since_phase_i(controller_id, vd)
     } else if n == 2 {
@@ -124,7 +124,7 @@ pub open spec fn spec_before_phase_n(n: nat, vd: VDeploymentView, cluster: Clust
     decreases n,
 {
     if n == 1 {
-        invariants(vd, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vd))))
+        invariants(vd, cluster, controller_id).and(always(lift_state(desired_state_is(vd))))
     } else if 2 <= n <= 7 {
         spec_before_phase_n((n-1) as nat, vd, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vd, cluster, controller_id))
     } else {
