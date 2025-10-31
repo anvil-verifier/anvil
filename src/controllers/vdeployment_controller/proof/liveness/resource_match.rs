@@ -726,8 +726,9 @@ ensures
         }
     };
     let map_key = |vrs: VReplicaSetView| vrs.object_ref();
-    assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-        lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(vd, resp_objs);
+    assert(old_vrs_list.map_values(map_key).no_duplicates()) by { // triggering_cr.well_formed()
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(triggering_cr, resp_objs);
     }
     assert(old_vrs_list.map_values(map_key).to_set()
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))) by {

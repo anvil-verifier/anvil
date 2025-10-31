@@ -256,8 +256,6 @@ ensures
 {
     // ==>
     if current_state_matches(vd)(s) {
-        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        assert(valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s));
         let nv_uid_key = choose |i: (Uid, ObjectRef)| {
             let etcd_obj = s.resources()[i.1];
             let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[i.1])->Ok_0;
@@ -291,8 +289,6 @@ ensures
     // <==
     if exists |nv_uid_key: (Uid, ObjectRef)|
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s) {
-        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        assert(valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s));
         let nv_uid_key = choose |nv_uid_key: (Uid, ObjectRef)|
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s);
         let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[nv_uid_key.1])->Ok_0;
