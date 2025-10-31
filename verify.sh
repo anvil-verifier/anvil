@@ -5,5 +5,5 @@
     -Z macro-backtrace \
     --trace \
     --multiple-errors 100 \
-    --verify-only-module vstatefulset_controller::trusted::reconciler \
-    --verify-function get_ordinal
+    --verify-only-module vstatefulset_controller::exec::reconciler \
+    --verify-function filter_pods
