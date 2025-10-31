@@ -478,7 +478,6 @@ requires
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
-    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
