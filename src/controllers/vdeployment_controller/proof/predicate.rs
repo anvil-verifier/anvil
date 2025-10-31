@@ -207,13 +207,14 @@ pub open spec fn req_msg_is_create_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message, s: ClusterState
 ) -> bool {
     let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content.is_APIRequest()
     &&& req_msg.content.get_APIRequest_0().is_CreateRequest()
     &&& req == CreateRequest {
         namespace: vd.metadata.namespace.unwrap(),
-        obj: make_replica_set(vd).marshal()
+        obj: make_replica_set(triggering_cr).marshal() // vd doesn't have rv
     }
 }
 
