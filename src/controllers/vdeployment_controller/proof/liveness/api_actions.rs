@@ -37,7 +37,6 @@ ensures
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
-    let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req = req_msg.content.get_list_request();
     let list_req_filter = |o: DynamicObjectView| {
         // why changing the order of fields makes a difference
@@ -175,8 +174,8 @@ ensures
     resp_msg_matches_req_msg(res.0, req_msg),
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
     etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
-    filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime))
-        == filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(None, s))
+    filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime))
+        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(None, s)),
     // created obj has different key and uid from all old_vrs in local_state
     ({
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
@@ -189,9 +188,10 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
-    let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr);
+    let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr); // vd doesn't have rv
+    assert(match_template_without_hash(vd.spec.template)(new_vrs));
     assert(req == CreateRequest {
-        namespace: triggering_cr.metadata.namespace.unwrap(),
+        namespace: vd.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
     });
     assert(s_prime.api_server == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).0);
@@ -230,11 +230,11 @@ ensures
     let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
     assert(resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, (created_obj.metadata.uid->0, key))(s_prime)) by {
         VReplicaSetView::marshal_preserves_integrity();
-        let singleton_seq = seq![triggering_cr.controller_owner_ref()];
-        assert(singleton_seq == Seq::empty().push(triggering_cr.controller_owner_ref()));
+        let singleton_seq = seq![vd.controller_owner_ref()];
+        assert(singleton_seq == Seq::empty().push(vd.controller_owner_ref()));
         assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == singleton_seq) by {
             assert(vrs.metadata.owner_references->0 == singleton_seq);
-            lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
+            lemma_filter_push(Seq::empty(), controller_owner_filter(), vd.controller_owner_ref());
         }
         assert(match_template_without_hash(vd.spec.template)(vrs)) by {
             VReplicaSetView::marshal_spec_preserves_integrity();
@@ -254,8 +254,8 @@ ensures
         }
     }
     // we know the former one's length is n
-    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)) == 
-        filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s))) by {
+    assert(filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)) == 
+        filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s))) by {
         assert(!filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)(key));
     }
     let replicas_non_zero_filter = |k: ObjectRef| {
@@ -265,7 +265,7 @@ ensures
         &&& VReplicaSetView::unmarshal(obj) is Ok
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     };
-    let managed_keys_in_s = filter_obj_keys_managed_by_vd(triggering_cr, s);
+    let managed_keys_in_s = filter_obj_keys_managed_by_vd(vd, s);
     assert(managed_keys_in_s.filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
     assert(managed_keys_in_s.filter(filter_old_vrs_keys(None, s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
     return (resp_msg, (created_obj.metadata.uid->0, key));
@@ -287,16 +287,15 @@ ensures
     resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s_prime),
     etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
-    filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime))
-        == filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))
+    filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime))
+        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))
 {
     VReplicaSetView::marshal_preserves_integrity();
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req = req_msg.content.get_get_then_update_request();
     let etcd_obj = s.resources()[req.key()];
     // update can succeed
     assert(etcd_obj.metadata.owner_references_contains(req.owner_ref));
-    assert(req.owner_ref == triggering_cr.controller_owner_ref());
+    assert(req.owner_ref == vd.controller_owner_ref());
     assert(s.resources().contains_key(req.key()));
     assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
     let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
@@ -304,11 +303,11 @@ ensures
     let updated_vrs = VReplicaSetView::unmarshal(updated_obj)->Ok_0;
 
     // wait for the helper lemma: make_replica_set pass match_template_without_hash
-    assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(req.key()));
+    assert(filter_new_vrs_keys(vd.spec.template, s_prime)(req.key()));
 
-    // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
-    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)) == 
-        filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))) by {
+    // assert(filter_obj_keys_managed_by_vd(vd, s_prime) == filter_obj_keys_managed_by_vd(vd, s).insert(key));
+    assert(filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)) == 
+        filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))) by {
         assert(!filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)(req.key()));
     }
 
@@ -330,31 +329,31 @@ ensures
     resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0)(s_prime),
     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
-    filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))
-        == filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req_msg.content.get_get_then_update_request().key()),
+    filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))
+        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req_msg.content.get_get_then_update_request().key()),
 {
     VReplicaSetView::marshal_preserves_integrity();
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    // let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req = req_msg.content.get_get_then_update_request();
     let etcd_obj = s.resources()[req.key()];
     // update can succeed
     assert(etcd_obj.metadata.owner_references_contains(req.owner_ref));
-    assert(req.owner_ref == triggering_cr.controller_owner_ref());
+    assert(req.owner_ref == vd.controller_owner_ref());
     assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
     let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
     let updated_obj = s_prime.resources()[req.key()];
     let updated_vrs = VReplicaSetView::unmarshal(updated_obj)->Ok_0;
 
-    assert(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req.key()) == 
-        filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))) by {
+    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req.key()) == 
+        filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))) by {
         assert(!filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)(req.key())) by {
             assert(updated_vrs.spec.replicas == Some(int0!())) by {
                 assert(updated_obj.spec == req.obj.spec);
             }
         }
     }
-    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)).len() == n - 1) by {
-        assert(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(req.key()));
+    assert(filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)).len() == n - 1) by {
+        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(req.key()));
     }
     return resp_msg;
 }
@@ -376,7 +375,6 @@ ensures
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let (nv_uid_key_replicas, n) = choose |i: (Option<(Uid, ObjectRef, int)>, nat)| #[trigger] local_state_is(vd, controller_id, i.0, i.1)(s);
@@ -385,7 +383,7 @@ ensures
             let key = vds_prime.old_vrs_list[i].object_ref();
             &&& s_prime.resources().contains_key(key)
             &&& s_prime.resources()[key] == s.resources()[key]
-            &&& valid_owned_obj_key(triggering_cr, s_prime)(key)
+            &&& valid_owned_obj_key(vd, s_prime)(key)
         } by {
             lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                 s, s_prime, vd, cluster, controller_id, msg
@@ -393,8 +391,8 @@ ensures
     }
     if vds.new_vrs is Some {
         let obj = s.resources()[vds.new_vrs->0.object_ref()];
-        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
         }
         lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
             s, s_prime, vd, cluster, controller_id, msg
@@ -417,13 +415,10 @@ requires
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
     etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s),
     // etcd state should be maintained even when vd is not in ongoing_reconciles
-    // but then there is not triggering_cr
     // s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
     etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    assert(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
     if etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) {
         let nv_uid = match nv_uid_key_replicas {
             Some((uid, _, _)) => Some(uid),
@@ -435,8 +430,8 @@ ensures
         match nv_uid_key_replicas {
             Some((uid, key, replicas)) => {
                 let obj = s.resources()[key];
-                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
-                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
                 }
                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                     s, s_prime, vd, cluster, controller_id, msg
@@ -446,17 +441,17 @@ ensures
                 // if no new_vrs exists in s, no new_vrs should exist in s_prime, prove by contradiction
                 if exists |k: ObjectRef| {
                     &&& #[trigger] s_prime.resources().contains_key(k)
-                    &&& valid_owned_obj_key(triggering_cr, s_prime)(k)
-                    &&& filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(k)
+                    &&& valid_owned_obj_key(vd, s_prime)(k)
+                    &&& filter_new_vrs_keys(vd.spec.template, s_prime)(k)
                 }{
                     let key = choose |k: ObjectRef| {
                         &&& #[trigger] s_prime.resources().contains_key(k)
-                        &&& valid_owned_obj_key(triggering_cr, s_prime)(k)
-                        &&& filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(k)
+                        &&& valid_owned_obj_key(vd, s_prime)(k)
+                        &&& filter_new_vrs_keys(vd.spec.template, s_prime)(k)
                     };
                     let obj = s_prime.resources()[key];
-                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
-                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
                     }
                     // !p(s) => !p(s') <==> p(s') => p(s), I love this ownership lemma
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
@@ -489,31 +484,29 @@ ensures
     filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(nv_uid, s))
         == filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(nv_uid, s_prime))
 {
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    assert(triggering_cr.controller_owner_ref() == vd.controller_owner_ref());
     // ==>
-    assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) implies {
-        &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k)
+    assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(vd, s).contains(k) implies {
+        &&& filter_obj_keys_managed_by_vd(vd, s_prime).contains(k)
         &&& filter_old_vrs_keys(nv_uid, s)(k) == filter_old_vrs_keys(nv_uid, s_prime)(k)
     } by {
         let obj = s.resources()[k];
-        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
             // each_object_in_etcd_has_at_most_one_controller_owner
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
         }
         lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
             s, s_prime, vd, cluster, controller_id, msg
         );
     }
     // <==
-    assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k) implies {
-        &&& filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k)
+    assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(vd, s_prime).contains(k) implies {
+        &&& filter_obj_keys_managed_by_vd(vd, s).contains(k)
         &&& filter_old_vrs_keys(nv_uid, s)(k) == filter_old_vrs_keys(nv_uid, s_prime)(k)
      } by {
         let obj = s_prime.resources()[k];
-        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
             // each_object_in_etcd_has_at_most_one_controller_owner
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
         }
         lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
             s, s_prime, vd, cluster, controller_id, msg
