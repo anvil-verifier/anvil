@@ -250,7 +250,6 @@ pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
     current_state_matches(vd)(s) == instantiated_etcd_state_is_with_zero_old_vrs(vd, controller_id)(s),
 {
