@@ -1126,7 +1126,7 @@ pub proof fn lemma_eventually_no_reconcile_before_reconcile_id_is_ongoing(
     assert_by(spec.entails(always(true_pred().implies(tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num)))))), {
         assert forall |ex| #[trigger] spec.satisfied_by(ex) 
             implies always(true_pred().implies(tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))))).satisfied_by(ex) by {
-            assert forall |i| spec.satisfied_by(ex) implies #[trigger] true_pred().satisfied_by(ex.suffix(i)) ==> tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))).satisfied_by(ex.suffix(i)) by {
+            assert forall |i| spec.satisfied_by(ex) && #[trigger] true_pred().satisfied_by(ex.suffix(i)) implies tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))).satisfied_by(ex.suffix(i)) by {
                 let ongoing_reconciles = ex.suffix(i).head().ongoing_reconciles(controller_id);
                 let reconciles_before_id = Map::new(
                     |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
