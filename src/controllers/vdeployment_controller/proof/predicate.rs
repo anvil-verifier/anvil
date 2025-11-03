@@ -532,7 +532,7 @@ pub open spec fn stronger_esr(vd: VDeploymentView, controller_id: int) -> StateP
         &&& current_state_matches(vd)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
             &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& if at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS])(s) {
+            &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                 &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
                 &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
