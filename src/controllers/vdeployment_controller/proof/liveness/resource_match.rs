@@ -2142,7 +2142,7 @@ ensures
             let msg = input->0;
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
-                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
+                if msg.src != HostId::Controller(controller_id, vd.object_ref()) { // done
                     lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
@@ -2188,15 +2188,6 @@ ensures
                         }
                         assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s_prime));
                         assert(current_state_matches(vd)(s_prime));
-                    } else {
-                        if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
-                            assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None);
-                            assert(current_state_matches(vd)(s_prime));
-                            assert(at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s_prime));
-                            assert(stronger_esr(vd, controller_id)(s_prime));
-                        } else {
-                            assert(current_state_matches(vd)(s_prime));
-                        }
                     }
                 } else {
                     assume(false);
