@@ -2832,8 +2832,8 @@ pub proof fn lemma_current_state_matches_is_stable(
                         // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
                         // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
                         assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
-                        map_values_to_set_eq_to_set_mk_map_values(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
-                        assert(matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).values() == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
+                        filtered_objs.lemma_to_set_map_commutes(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
+                        assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
                         assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
                             // get rid of objects_to_pods
                             true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);

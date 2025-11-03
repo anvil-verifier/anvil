@@ -14,8 +14,6 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
-    pub fn 
-
     pub fn filter_pods(pods: Vec<Pod>, vsts: VStatefulSet) -> (filtered: Vec<Pod>)
         requires vsts@.well_formed()
         ensures filtered.deep_view() =~= model_reconciler::filter_pods(pods.deep_view(), vsts@)
