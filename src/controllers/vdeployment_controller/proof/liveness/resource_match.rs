@@ -2226,9 +2226,9 @@ ensures
             assert(stronger_esr(vd, controller_id)(s_prime));
         },
         Step::ControllerStep(input) => {
-            assume(false);
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
                 && input.0 == controller_id && input.2 == Some(vd.object_ref()) {
+                assume(false);
                 let resp_msg = input.1->0;
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
@@ -2276,7 +2276,19 @@ ensures
                         }
                     }
                 }
-            } else {}
+            } else {
+                // same controller, different cr
+                if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
+                    assert(s_prime.resources() == s.resources());
+                    assert(current_state_matches(vd)(s_prime));
+                    assert(stronger_esr(vd, controller_id)(s_prime));
+                } else {
+                    assert(s_prime.resources() == s.resources());
+                    assert(current_state_matches(vd)(s_prime));
+                    assert(stronger_esr(vd, controller_id)(s_prime)); // etcd state is intact
+                }
+            }
+            assume(false);
         },
         _ => {
             assume(false);
