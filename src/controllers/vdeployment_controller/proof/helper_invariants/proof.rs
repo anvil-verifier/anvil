@@ -1833,7 +1833,6 @@ ensures
     spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))),
     spec.entails(always(lift_state(desired_state_is(vd)))),
     spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())))),
-    spec.entails(always(lift_state(Cluster::etcd_object_has_lower_uid_than_uid_counter()))),
     spec.entails(always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)))),
     spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
     spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
