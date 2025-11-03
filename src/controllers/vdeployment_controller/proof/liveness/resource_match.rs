@@ -2138,11 +2138,11 @@ ensures
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
     };
     match step {
-        Step::APIServerStep(input) =>  {
+        Step::APIServerStep(input) =>  { // done
             let msg = input->0;
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
-                if msg.src != HostId::Controller(controller_id, vd.object_ref()) { // done
+                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
                     lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
@@ -2151,12 +2151,16 @@ ensures
                         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                         assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s));
                         assert forall |resp_msg| {
-                            &&& #[trigger] s.in_flight().contains(resp_msg)
+                            &&& #[trigger] s_prime.in_flight().contains(resp_msg)
                             &&& resp_msg.src.is_APIServer()
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                         } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime) by {
-                            assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s));
-                            assert(s_prime.in_flight().contains(resp_msg));
+                            assert(s.in_flight().contains(resp_msg)) by {
+                                if !s.in_flight().contains(resp_msg) {
+                                    assert(new_msgs.contains(resp_msg));
+                                    assert(!resp_msg_matches_req_msg(resp_msg, req_msg));
+                                }
+                            }
                             lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
                                 s, s_prime, vd, cluster, controller_id, msg, Some(uid)
                             );
@@ -2182,15 +2186,13 @@ ensures
                                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                                     s, s_prime, vd, cluster, controller_id, msg
                                 );
-                                assert(s_prime.resources().contains_key(key));
-                                assert(s_prime.resources()[key] == s.resources()[key]);
                             }
                         }
                         assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s_prime));
                         assert(current_state_matches(vd)(s_prime));
+                        assert(stronger_esr(vd, controller_id)(s_prime)); // sentry for debugging
                     }
                 } else {
-                    assume(false);
                     assert(s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()));
                     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                     assert(input == Some(req_msg));
@@ -2209,9 +2211,19 @@ ensures
                                 );
                             }
                         }
-                    } else {}
+                        assert(stronger_esr(vd, controller_id)(s_prime));
+                    }
+                    assert(stronger_esr(vd, controller_id)(s_prime));
                 }
-            } else {assume(false);}
+                assert(stronger_esr(vd, controller_id)(s_prime));
+            } else {
+                assert(msg.src != HostId::Controller(controller_id, vd.object_ref()));
+                lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+                assert(stronger_esr(vd, controller_id)(s_prime));
+            }
+            assert(stronger_esr(vd, controller_id)(s_prime));
         },
         Step::ControllerStep(input) => {
             assume(false);
