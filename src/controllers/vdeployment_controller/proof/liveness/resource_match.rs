@@ -2092,31 +2092,20 @@ ensures
     );
     let inv_after_esr = |s: ClusterState| {
         &&& current_state_matches(vd)(s)
-        &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-            // this is too weak, we need to prove VD controller will not enter error state
-            // or, error state is fine
-            &&& {
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![Init])(s)
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s)
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s)
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s)
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS])(s)
-                ||| at_vd_step_with_vd(vd, controller_id, at_step![Done])(s)
+        &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+            ==> at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s)
+        &&& if lift_local(controller_id, vd, at_step![AfterListVRS])(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
+                &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
+                &&& forall |msg| {
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& msg.src.is_APIServer()
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s)
+            } else {
+                s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }
-            &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                    &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-                    &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
-                    &&& forall |msg| {
-                        &&& #[trigger] s.in_flight().contains(msg)
-                        &&& msg.src.is_APIServer()
-                        &&& resp_msg_matches_req_msg(msg, req_msg)
-                    } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s)
-                } else {
-                    s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
-                }
-        }
     };
     entails_implies_leads_to(spec, lift_state(final_state), lift_state(inv_after_esr));
     leads_to_trans(spec, p, lift_state(final_state), lift_state(inv_after_esr));
@@ -2146,6 +2135,7 @@ ensures
                 let msg = input->0;
                 let new_msgs = s_prime.in_flight().sub(s.in_flight());
                 if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
+                    // this branch is completed
                     lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
@@ -2183,8 +2173,15 @@ ensures
                                 );
                             }
                         }
+                        assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s_prime));
+                        assert(current_state_matches(vd)(s_prime));
+                    } else {
+                        assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None);
+                        assert(current_state_matches(vd)(s_prime));
+                        assert(s_prime.ongoing_reconciles(controller_id).contains_key(vd.object_ref()));
+                        assert(at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s_prime));
+                        assert(inv_after_esr(s_prime));
                     }
-                    assert(inv_after_esr(s_prime));
                 } else if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) { // is it possible to be false?
                     assume(false);
                     if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
