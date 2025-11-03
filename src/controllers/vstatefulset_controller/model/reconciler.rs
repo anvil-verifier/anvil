@@ -674,24 +674,4 @@ pub open spec fn update_storage(vsts: VStatefulSetView, pod: PodView, ordinal: n
     }
 }
 
-// pub open spec fn identity_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
-//     pod.metadata.labels is Some
-//     && pod.metadata.labels->0.contains_key("statefulset.kubernetes.io/pod-name"@)
-//     && pod.metadata.labels->0["statefulset.kubernetes.io/pod-name"@] == pod.metadata.name->0
-// }
-
-// pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
-//     let claims = vsts.spec.volume_claim_templates->0;
-//     let volumes = pod.spec->0.volumes->0;
-//     let ordinal = get_ordinal(vsts.metadata.name->0, pod);
-//     vsts.spec.volume_claim_templates is Some
-//     ==> pod.spec->0.volumes is Some
-//         && forall |i: int| #![trigger claims[i]] 0 <= i < claims.len()
-//             ==> exists |j: int| #![trigger volumes[j]] 0 <= j < volumes.len()
-//                     && volumes[j].name == claims[i].metadata.name->0
-//                     && volumes[j].persistent_volume_claim is Some
-//                     && volumes[j].persistent_volume_claim->0.claim_name == pvc_name(claims[i].metadata.name->0, vsts.metadata.name->0, ordinal)
-// }
-
-
 }
