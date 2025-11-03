@@ -19,23 +19,24 @@ verus! {
         ensures filtered.deep_view() =~= model_reconciler::filter_pods(pods.deep_view(), vsts@)
     {
 
-        let mut filtered_pods: Vec<Pod> = vec![];
+        let mut filtered_pods = Vec::new();
 
         proof {
-            assert_seqs_equal!(filtered_pods.deep_view(), model_reconciler::filter_pods(pods.deep_view(), vsts@));
+            assert_seqs_equal!(filtered_pods.deep_view(), model_reconciler::filter_pods(pods.deep_view().take(0), vsts@));
         }
 
         let mut idx = 0;
-        for i in 0..pods.len()
+        for idx in 0..pods.len()
             invariant
                 idx <= pods.len(),
                 filtered_pods.deep_view()
                     == model_reconciler::filter_pods(pods.deep_view().take(idx as int), vsts@),
         {
-            let pod = &pods[i];
+            let pod = &pods[idx];
             if  pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
                 && vsts.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::empty()))
-                && trusted_reconciler::get_ordinal(vsts.metadata().name().unwrap_or("".to_string()), &pod).is_some() {
+                && vsts.metadata().name().is_some()
+                && trusted_reconciler::get_ordinal(vsts.metadata().name().unwrap(), &pod).is_some() {
                 filtered_pods.push(pod.clone());
             }
 
@@ -43,24 +44,26 @@ verus! {
             proof {
                 let spec_filter = |pod: PodView|
                     pod.metadata.owner_references_contains(vsts@.controller_owner_ref())
-                    && vsts@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                    && vsts@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::<Seq<char>, Seq<char>>::empty()))
+                    && vsts@.metadata.name is Some
                     && model_reconciler::get_ordinal(vsts@.metadata.name->0, pod) is Some;
-                
+
                 let old_filtered = if spec_filter(pod@) {
                     filtered_pods.deep_view().drop_last()
                 } else {
                     filtered_pods.deep_view()
                 };
-                
+
                 assert(old_filtered == pods.deep_view().take(idx as int).filter(spec_filter));
-                // lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
-                // assert(pods.deep_view().take(idx as int).push(pod@)
-                //     == pods.deep_view().take((idx + 1) as int));
-                // assert(spec_filter(pod@) ==> filtered_pods.deep_view() == old_filtered.push(pod@));
+                lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
+                assert(pods.deep_view().take(idx as int).push(pod@)
+                    == pods.deep_view().take((idx + 1) as int));
+                assert(spec_filter(pod@) ==> filtered_pods.deep_view() == old_filtered.push(pod@));
             }
 
         }
-        return filtered_pods;
+        assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
+        filtered_pods
     }
 
     pub fn pod_name(parent_name: String, ordinal: i32) -> (result: String)

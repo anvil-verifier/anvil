@@ -526,7 +526,8 @@ pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<
         // See https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/controller_ref_manager.go#L72-L82
         pod.metadata.owner_references_contains(vsts.controller_owner_ref())
         && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-        // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
+        // // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
+        && vsts.metadata.name is Some
         && get_ordinal(vsts.metadata.name->0, pod) is Some
     )
 }
