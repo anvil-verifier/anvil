@@ -14,6 +14,8 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
+
+
     pub fn filter_pods(pods: Vec<Pod>, vsts: VStatefulSet) -> (filtered: Vec<Pod>)
         requires vsts@.well_formed()
         ensures filtered.deep_view() =~= model_reconciler::filter_pods(pods.deep_view(), vsts@)
@@ -58,7 +60,6 @@ verus! {
                 lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
                 assert(pods.deep_view().take(idx as int).push(pod@)
                     == pods.deep_view().take((idx + 1) as int));
-                assert(spec_filter(pod@) ==> filtered_pods.deep_view() == old_filtered.push(pod@));
             }
 
         }
