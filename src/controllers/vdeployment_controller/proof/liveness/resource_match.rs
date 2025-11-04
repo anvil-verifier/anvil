@@ -2232,31 +2232,10 @@ ensures
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
                     assert(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s)) by {
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let managed_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, vd));
-                        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
-                        assume(new_vrs is Some);
-                        assert({
-                            &&& new_vrs->0.metadata.uid is Some
-                            &&& new_vrs->0.metadata.name is Some
-                            &&& new_vrs->0.metadata.namespace is Some
-                        }) by {
-                            if new_vrs is Some {
-                                let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
-                                seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
-                                if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
-                                    seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter);
-                                }
-                            }
-                        }
-                        assume(new_vrs->0.metadata.uid->0 == uid);
-                        assume(new_vrs->0.object_ref() == key);
-                        assume(new_vrs->0.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
-                        assume(old_vrs_list.len() == 0);
+                        lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
+                            vd, cluster, controller_id, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0, resp_msg, s
+                        );
                     }
-                    lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(
-                        vd, cluster, controller_id, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0, resp_msg, s
-                    );
                     lemma_from_list_resp_to_next_state(
                         s, s_prime, vd, cluster, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
                     );
