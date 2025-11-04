@@ -2137,10 +2137,10 @@ ensures
     let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
     };
+    let new_msgs = s_prime.in_flight().sub(s.in_flight());
     match step {
         Step::APIServerStep(input) =>  { // done
             let msg = input->0;
-            let new_msgs = s_prime.in_flight().sub(s.in_flight());
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
                 if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
                     lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
@@ -2299,14 +2299,23 @@ ensures
                 assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
                 assert(s.resources() == s_prime.resources());
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                    assume(false); // TODO: different CRs do not affect quantifier on in_flight messages
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                    assert forall |msg| {
+                        &&& #[trigger] s_prime.in_flight().contains(msg)
+                        &&& msg.src.is_APIServer()
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                    } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                        if !new_msgs.contains(msg) {
+                            assert(s.in_flight().contains(msg));
+                        }
+                    }
+                    assert(stronger_esr(vd, controller_id)(s_prime));
                 }
                 assert(stronger_esr(vd, controller_id)(s_prime)); // FIXME
             }
             assert(stronger_esr(vd, controller_id)(s_prime));
         },
         _ => { // this branch is slow
-            let new_msgs = s_prime.in_flight().sub(s.in_flight());
             // Maintain quantified invariant.
             if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
