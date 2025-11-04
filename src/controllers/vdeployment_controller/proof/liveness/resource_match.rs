@@ -2295,33 +2295,35 @@ ensures
                     assert(stronger_esr(vd, controller_id)(s_prime));
                 }
                 assert(stronger_esr(vd, controller_id)(s_prime));
-            } else {
+            } else { // same controller_id, different CR
                 assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
                 assert(s.resources() == s_prime.resources());
+                if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
+                    assume(false); // TODO: different CRs do not affect quantifier on in_flight messages
+                }
                 assert(stronger_esr(vd, controller_id)(s_prime)); // FIXME
             }
             assert(stronger_esr(vd, controller_id)(s_prime));
         },
-        _ => {
-            assume(false);
+        _ => { // this branch is slow
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
             // Maintain quantified invariant.
             if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                 assert forall |msg| {
-                    &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src.is_APIServer()
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
-                    assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] resp_msg_matches_req_msg(msg, req_msg)));
                     if !new_msgs.contains(msg) {
                         assert(s.in_flight().contains(msg));
                     }
                 }
+                assert(stronger_esr(vd, controller_id)(s_prime));
             }
+            assert(stronger_esr(vd, controller_id)(s_prime));
         }
     }
-    assume(false);
 }
 
 // Havoc function for VDeploymentView.
