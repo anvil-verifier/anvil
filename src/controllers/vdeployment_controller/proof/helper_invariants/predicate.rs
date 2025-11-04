@@ -467,7 +467,7 @@ pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_label
         // required by requests/responses and filters
         &&& triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0
         // required by vd.spec.selector.matches
-        &&& triggering_cr.metadata.labels->0 == vd.metadata.labels->0
+        // &&& triggering_cr.metadata.labels->0 == vd.metadata.labels->0
     }
 }
 

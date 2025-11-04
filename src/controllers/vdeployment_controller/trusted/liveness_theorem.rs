@@ -20,10 +20,10 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
 pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::desired_state_is(vd)(s)
-        // in addition to general desired_state_is, vd must has labels
+        // in addition to general desired_state_is, template in vd must has labels
         // as required by vd.spec.selector.matches
-        &&& vd.metadata().labels is Some
-        &&& s.resources()[vd.object_ref()].metadata.labels->0 == vd.metadata().labels->0
+        &&& vd.spec.template.metadata is Some
+        &&& vd.spec.template.metadata->0.labels is Some
     }
 }
 
