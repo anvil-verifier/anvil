@@ -2285,9 +2285,10 @@ ensures
             } else if !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
                 if s_prime.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) { // RunScheduledReconcile
                     assert(s_prime.resources() == s.resources());
-                    // TODO: cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd
-                    // to equality of predicates
-                    assume(at_vd_step_with_vd(vd, controller_id, at_step![Init])(s_prime));
+                    assert(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime));
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![Init])(s_prime)) by {
+                        lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
+                    }
                     assert(stronger_esr(vd, controller_id)(s_prime));
                 } else {
                     assert(s_prime.resources() == s.resources());

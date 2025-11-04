@@ -554,4 +554,20 @@ ensures
     };
     return (resp_msg, nv_uid_key);
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_cr_fields_eq_to_cr_predicates_eq(vd: VDeploymentView, controller_id: int, s: ClusterState)
+requires
+    helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s),
+ensures
+    ({
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
+        &&& (|vrs| valid_owned_vrs(vrs, triggering_cr)) == (|vrs| valid_owned_vrs(vrs, vd))
+        &&& (|vrs_list| filter_old_and_new_vrs(vd, vrs_list)) == (|vrs_list| filter_old_and_new_vrs(triggering_cr, vrs_list))
+        &&& (|s| valid_owned_obj_key(vd, s)) == (|s| valid_owned_obj_key(triggering_cr, s))
+        &&& (|s| filter_obj_keys_managed_by_vd(vd, s)) == (|s| filter_obj_keys_managed_by_vd(triggering_cr, s))
+        &&& make_replica_set(vd) == make_replica_set(triggering_cr)
+    }),
+{}
 }
