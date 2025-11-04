@@ -583,7 +583,5 @@ ensures
         &&& (|s| valid_owned_obj_key(vd, s)) == (|s| valid_owned_obj_key(triggering_cr, s))
         &&& (|s| filter_obj_keys_managed_by_vd(vd, s)) == (|s| filter_obj_keys_managed_by_vd(triggering_cr, s))
     }),
-{
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-}
+{}
 }
