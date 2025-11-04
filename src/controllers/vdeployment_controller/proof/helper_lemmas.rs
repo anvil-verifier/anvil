@@ -445,19 +445,52 @@ ensures
     }
 }
 
-#[verifier(external_body)]
+// inverse of lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is for a more limited environment
+// because it's only used to prove the stability of ESR which already excludes some possibilities of etcd state
 pub proof fn lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
-    vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef), msg: Message, s: ClusterState
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s),
+    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
-    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas, n)(s),
-{}
+    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
+{
+    let resp_objs = msg.content.get_list_response().res.unwrap();
+    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+    let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+    let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
+    let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+    if let Some(new_vrs) = new_vrs_or_none{
+        assert((new_vrs.metadata.uid->0, new_vrs.object_ref()) == nv_uid_key) by { // one and only one
+            assume(false);
+        }
+    } else { // prove contradiction
+        assert(managed_vrs_list.filter(nonempty_vrs_filter).len() == 0);
+        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_new_vrs_keys(vd.spec.template, s)).len() == 0) by {
+            assume(false);
+        }
+        if exists |k: ObjectRef| {
+                &&& #[trigger] s.resources().contains_key(k)
+                &&& valid_owned_obj_key(vd, s)(k)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+        }{
+            let key = choose |k: ObjectRef| {
+                &&& #[trigger] s.resources().contains_key(k)
+                &&& valid_owned_obj_key(vd, s)(k)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+            };
+            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_new_vrs_keys(vd.spec.template, s)).contains(key));
+            assert(false);
+        } else {
+            assert(!s.resources().contains_key(nv_uid_key.1));
+            assert(false);
+        }
+    }
+}
 
 pub proof fn lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
@@ -474,8 +507,6 @@ ensures
     let resp_objs = msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
     let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-    // let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // assert((|vrs| valid_owned_vrs(vrs, vd)) == (|vrs| valid_owned_vrs(vrs, triggering_cr)));
     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
     if let Some(new_vrs) = new_vrs_or_none {
         let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
