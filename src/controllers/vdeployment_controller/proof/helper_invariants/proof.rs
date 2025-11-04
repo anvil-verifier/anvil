@@ -1765,6 +1765,8 @@ ensures
 
 }
 
+#[verifier(rlimit(10))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
