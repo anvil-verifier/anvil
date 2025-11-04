@@ -527,6 +527,7 @@ pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs(vd: VDeploymentVie
     }
 }
 
+// closure of esr containing necessary conditions to make stability hold
 pub open spec fn stronger_esr(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& current_state_matches(vd)(s)
