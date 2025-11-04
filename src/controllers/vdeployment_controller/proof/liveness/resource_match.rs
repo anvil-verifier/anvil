@@ -2265,9 +2265,8 @@ ensures
                     assert(vds_prime.old_vrs_index == 0);
                     assert(stronger_esr(vd, controller_id)(s_prime));
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![Init])(s) {
-                    assume(stronger_esr(vd, controller_id)(s_prime));
-                     // prove that the newly sent message has no response.
-                     if s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some {
+                    // prove that the newly sent message has no response.
+                    if s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                         assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
                         assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
@@ -2309,9 +2308,8 @@ ensures
                             assert(s.in_flight().contains(msg));
                         }
                     }
-                    assert(stronger_esr(vd, controller_id)(s_prime));
                 }
-                assert(stronger_esr(vd, controller_id)(s_prime)); // FIXME
+                assert(stronger_esr(vd, controller_id)(s_prime));
             }
             assert(stronger_esr(vd, controller_id)(s_prime));
         },
