@@ -2228,7 +2228,6 @@ ensures
         Step::ControllerStep(input) => {
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
                 && input.0 == controller_id && input.2 == Some(vd.object_ref()) {
-                assume(false);
                 let resp_msg = input.1->0;
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
@@ -2261,7 +2260,12 @@ ensures
                     lemma_from_list_resp_to_next_state(
                         s, s_prime, vd, cluster, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
                     );
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime));
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assert(vds_prime.old_vrs_index == 0);
+                    assert(stronger_esr(vd, controller_id)(s_prime));
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![Init])(s) {
+                    assume(stronger_esr(vd, controller_id)(s_prime));
                      // prove that the newly sent message has no response.
                      if s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
@@ -2275,20 +2279,28 @@ ensures
                             if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                         }
                     }
+                } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) {
+                    // it directly goes to Done
                 }
-            } else {
-                // same controller, different cr
-                if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
+                assert(stronger_esr(vd, controller_id)(s_prime));
+            } else if !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
+                if s_prime.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) { // RunScheduledReconcile
                     assert(s_prime.resources() == s.resources());
-                    assert(current_state_matches(vd)(s_prime));
+                    // TODO: cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd
+                    // to equality of predicates
+                    assume(at_vd_step_with_vd(vd, controller_id, at_step![Init])(s_prime));
                     assert(stronger_esr(vd, controller_id)(s_prime));
                 } else {
                     assert(s_prime.resources() == s.resources());
-                    assert(current_state_matches(vd)(s_prime));
-                    assert(stronger_esr(vd, controller_id)(s_prime)); // etcd state is intact
+                    assert(stronger_esr(vd, controller_id)(s_prime));
                 }
+                assert(stronger_esr(vd, controller_id)(s_prime));
+            } else {
+                assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
+                assert(s.resources() == s_prime.resources());
+                assert(stronger_esr(vd, controller_id)(s_prime)); // FIXME
             }
-            assume(false);
+            assert(stronger_esr(vd, controller_id)(s_prime));
         },
         _ => {
             assume(false);
