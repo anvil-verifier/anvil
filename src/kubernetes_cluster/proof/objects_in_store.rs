@@ -20,6 +20,16 @@ pub open spec fn etcd_object_is_weakly_well_formed(key: ObjectRef) -> StatePred<
     }
 }
 
+pub open spec fn etcd_objects_have_unique_uids() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |k1: ObjectRef, k2: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(k1)
+            &&& #[trigger] s.resources().contains_key(k2)
+            &&& k1 != k2
+        } ==> s.resources()[k1].metadata.uid->0 != s.resources()[k2].metadata.uid->0
+    }
+}
+
 pub open spec fn each_object_in_etcd_is_weakly_well_formed() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef|
@@ -46,6 +56,44 @@ pub proof fn lemma_always_each_object_in_etcd_is_weakly_well_formed(self, spec: 
     }
 
     init_invariant(spec, self.init(), self.next(), invariant);
+}
+
+pub proof fn lemma_always_etcd_objects_have_unique_uids(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
+    ensures spec.entails(always(lift_state(Self::etcd_objects_have_unique_uids()))),
+{
+    let invariant = Self::etcd_objects_have_unique_uids();
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
+    };
+    combine_spec_entails_always_n!(
+        spec,
+        lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::each_object_in_etcd_is_weakly_well_formed())
+    );
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |k1: ObjectRef, k2: ObjectRef| {
+            &&& #[trigger] s_prime.resources().contains_key(k1)
+            &&& #[trigger] s_prime.resources().contains_key(k2)
+            &&& k1 != k2
+        } implies s_prime.resources()[k1].metadata.uid->0 != s_prime.resources()[k2].metadata.uid->0 by {
+            if s.resources().contains_key(k1) {
+                if !s.resources().contains_key(k2) {
+                    assert(s_prime.resources()[k2].metadata.uid->0 == s.api_server.uid_counter);
+                }
+            } else {
+                if s.resources().contains_key(k2) {
+                    assert(s_prime.resources()[k1].metadata.uid->0 == s.api_server.uid_counter);
+                }
+            }
+        }
+    }
+    init_invariant(spec, self.init(), stronger_next, invariant);
 }
 
 
