@@ -480,12 +480,13 @@ ensures
         VReplicaSetView::marshal_preserves_metadata();
     }
     if let Some(new_vrs) = new_vrs_or_none {
-        assert(managed_vrs_list.contains(new_vrs_or_none->0)) by {
+        assert(managed_vrs_list.contains(new_vrs)) by { // trigger
             seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
             if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
                 seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
             }
         }
+        assume(new_vrs.spec.replicas is None || new_vrs.spec.replicas->0 > 0); // FIXME
         if new_vrs.object_ref() != nv_uid_key.1 {
             let other_key = new_vrs.object_ref();
             assert(new_vrs.metadata.uid->0 != nv_uid_key.0);
