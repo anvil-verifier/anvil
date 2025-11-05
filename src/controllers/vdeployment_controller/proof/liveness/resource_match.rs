@@ -2233,7 +2233,7 @@ ensures
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
                     assert(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s)) by {
                         lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
-                            vd, cluster, controller_id, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0, resp_msg, s
+                            vd, cluster, controller_id, (uid, key), resp_msg, s
                         );
                     }
                     lemma_from_list_resp_to_next_state(

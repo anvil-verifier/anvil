@@ -464,31 +464,30 @@ ensures
     let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
     let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
-    if let Some(new_vrs) = new_vrs_or_none{
-        assert((new_vrs.metadata.uid->0, new_vrs.object_ref()) == nv_uid_key) by { // one and only one
-            assume(false);
+    VReplicaSetView::marshal_preserves_integrity();
+    assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+        &&& vrs.metadata.name is Some
+        &&& vrs.metadata.uid is Some
+        &&& vrs.metadata.namespace is Some
+    } by {
+        seq_filter_is_a_subset_of_original_seq(vrs_list, |vrs| valid_owned_vrs(vrs, vd));
+        assert(exists |i| #[trigger] vrs_list[i] == vrs);
+        let i = choose |i| #[trigger] vrs_list[i] == vrs;
+        assert(vrs == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
+        assert(resp_objs[i].metadata == vrs.metadata);
+        assert(resp_objs.contains(resp_objs[i])); // trigger
+    }
+    assert(new_vrs_or_none is Some && new_vrs_or_none->0.metadata.uid->0 == nv_uid_key.0 && new_vrs_or_none->0.object_ref() == nv_uid_key.1) by {
+        assume(false);
+    }
+    assert(managed_vrs_list.contains(new_vrs_or_none->0)) by {
+        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
+        if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
+            seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
         }
-    } else { // prove contradiction
-        assert(managed_vrs_list.filter(nonempty_vrs_filter).len() == 0);
-        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_new_vrs_keys(vd.spec.template, s)).len() == 0) by {
-            assume(false);
-        }
-        if exists |k: ObjectRef| {
-                &&& #[trigger] s.resources().contains_key(k)
-                &&& valid_owned_obj_key(vd, s)(k)
-                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-        }{
-            let key = choose |k: ObjectRef| {
-                &&& #[trigger] s.resources().contains_key(k)
-                &&& valid_owned_obj_key(vd, s)(k)
-                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-            };
-            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_new_vrs_keys(vd.spec.template, s)).contains(key));
-            assert(false);
-        } else {
-            assert(!s.resources().contains_key(nv_uid_key.1));
-            assert(false);
-        }
+    }
+    assert(old_vrs_list.len() == 0) by {
+        lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, Some(nv_uid_key.0), s);
     }
 }
 
@@ -524,7 +523,7 @@ ensures
             &&& #[trigger] s.resources().contains_key(k)
             &&& valid_owned_obj_key(vd, s)(k)
             &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-        } {
+        }{
             let k = choose |k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(k)
                 &&& valid_owned_obj_key(vd, s)(k)
