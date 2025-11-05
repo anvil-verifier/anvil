@@ -456,6 +456,7 @@ requires
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    Cluster::etcd_objects_have_unique_uids()(s),
 ensures
     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
 {
@@ -487,8 +488,7 @@ ensures
         }
         if new_vrs.object_ref() != nv_uid_key.1 {
             let other_key = new_vrs.object_ref();
-            // TODO: Cluster::every_object_in_etcd_has_unique_uid
-            assume(new_vrs.metadata.uid->0 != nv_uid_key.0);
+            assert(new_vrs.metadata.uid->0 != nv_uid_key.0);
             assert(valid_owned_obj_key(vd, s)(other_key));
             assert(filter_old_vrs_keys(Some(nv_uid_key.0), s)(other_key));
             assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(other_key));
