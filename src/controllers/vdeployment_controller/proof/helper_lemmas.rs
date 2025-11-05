@@ -465,6 +465,7 @@ ensures
     let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
     let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+    let key_map = |vrs: VReplicaSetView| vrs.object_ref();
     VReplicaSetView::marshal_preserves_integrity();
     assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
         &&& vrs.metadata.name is Some
@@ -486,11 +487,28 @@ ensures
                 seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
             }
         }
-        assume(new_vrs.spec.replicas is None || new_vrs.spec.replicas->0 > 0); // FIXME
         if new_vrs.object_ref() != nv_uid_key.1 {
             let other_key = new_vrs.object_ref();
             assert(new_vrs.metadata.uid->0 != nv_uid_key.0);
             assert(valid_owned_obj_key(vd, s)(other_key));
+            if new_vrs.spec.replicas == Some(int0!()) {
+                // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
+                assert(false) by {
+                    let k = nv_uid_key.1;
+                    assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
+                    assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
+                    let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == k;
+                    let vrs = managed_vrs_list[i];
+                    assert(vrs.object_ref() == k);
+                    assert(managed_vrs_list.contains(vrs)); // trigger
+                    assume(vd.spec.replicas.unwrap_or(1) > 0); // FIXME
+                    assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
+                        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
+                    }
+                    assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
+                    assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
+                }
+            }
             assert(filter_old_vrs_keys(Some(nv_uid_key.0), s)(other_key));
             assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(other_key));
             assert(false);
@@ -510,7 +528,6 @@ ensures
                 &&& valid_owned_obj_key(vd, s)(k)
                 &&& filter_new_vrs_keys(vd.spec.template, s)(k)
             };
-            let key_map = |vrs: VReplicaSetView| vrs.object_ref();
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
             assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
             let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == k;
