@@ -458,7 +458,9 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     Cluster::etcd_objects_have_unique_uids()(s),
 ensures
-    new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
+    vd.spec.replicas.unwrap_or(int1!()) > 0 ==> new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
+    // vd.spec.replicas == Some(int0!()) ==> exists |nv_uid_key: (Uid, ObjectRef)| // if vd has zero replicas, it's possible to get another valid new_vrs
+    //     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), nat0!())(s),
 {
     let resp_objs = msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
