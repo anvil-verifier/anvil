@@ -640,7 +640,7 @@ pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Se
     // condemned is sorted by the decreasing order of the ordinal number of each pod
     // deletion will start with the pod with the largest ordinal number
     let condemned = pods
-        .filter(|pod: PodView| exists |ord: nat| ord >= replicas && get_ordinal(parent_name, pod) is Some)
+        .filter(|pod: PodView| exists |ord: nat| #[trigger] ord >= replicas && get_ordinal(parent_name, pod) is Some)
         .sort_by(|p1, p2| get_ordinal(parent_name, p1)->0 >= get_ordinal(parent_name, p2)->0);
     (needed, condemned)
 }

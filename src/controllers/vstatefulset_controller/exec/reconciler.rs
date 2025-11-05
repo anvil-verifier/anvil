@@ -103,12 +103,11 @@ verus! {
         vec![vsts.controller_owner_ref()]
     }
 
-    pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
+    pub fn filter_pods(pods: Vec<Pod>, vsts: VStatefulSet) -> (filtered: Vec<Pod>)
         requires vsts@.well_formed()
         ensures filtered.deep_view() =~= model_reconciler::filter_pods(pods.deep_view(), vsts@)
     {
 
-        assert(vsts@.well_formed());
         let mut filtered_pods = Vec::new();
 
         proof {
@@ -121,20 +120,17 @@ verus! {
                 idx <= pods.len(),
                 filtered_pods.deep_view()
                     == model_reconciler::filter_pods(pods.deep_view().take(idx as int), vsts@),
+                vsts@.well_formed()
         {
             let pod = &pods[idx];
             if  pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
                 && vsts.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::empty()))
-                && vsts.metadata().name().is_some()
                 && trusted_reconciler::get_ordinal(vsts.metadata().name().unwrap(), &pod).is_some() {
                 filtered_pods.push(pod.clone());
             }
 
             // prove the invariant
             proof {
-                assert(vsts@.well_formed());
-                assert(vsts@.metadata.well_formed_for_namespaced());
-
                 let spec_filter = |pod: PodView|
                     pod.metadata.owner_references_contains(vsts@.controller_owner_ref())
                     && vsts@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::<Seq<char>, Seq<char>>::empty()))
