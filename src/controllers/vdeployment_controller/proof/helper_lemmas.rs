@@ -479,10 +479,23 @@ ensures
         VReplicaSetView::marshal_preserves_metadata();
     }
     if let Some(new_vrs) = new_vrs_or_none {
-        assert(new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1) by {
-            assume(false);
-        };
-        assume(managed_vrs_list.contains(new_vrs_or_none->0));
+        assert(managed_vrs_list.contains(new_vrs_or_none->0)) by {
+            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
+            if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
+                seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
+            }
+        }
+        if new_vrs.object_ref() != nv_uid_key.1 {
+            let other_key = new_vrs.object_ref();
+            // TODO: Cluster::every_object_in_etcd_has_unique_uid
+            assume(new_vrs.metadata.uid->0 != nv_uid_key.0);
+            assert(valid_owned_obj_key(vd, s)(other_key));
+            assert(filter_old_vrs_keys(Some(nv_uid_key.0), s)(other_key));
+            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(other_key));
+            assert(false);
+        } else {
+            assert(new_vrs.metadata.uid->0 == nv_uid_key.0);
+        }
     } else {
         assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).len() == 0);
         seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(managed_vrs_list, match_template_without_hash(vd.spec.template));
@@ -544,6 +557,7 @@ ensures
     }
 }
 
+// TODO: merge with lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs
 pub proof fn lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
 )
