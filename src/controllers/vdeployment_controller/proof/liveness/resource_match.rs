@@ -2069,6 +2069,7 @@ requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     // spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
@@ -2097,10 +2098,13 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
+        &&& Cluster::etcd_objects_have_unique_uids()(s)
         &&& forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(cluster, controller_id)(s)
     };
     helper_invariants::lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(spec, vd, cluster, controller_id);
+    // this one is inserted temporarily to reduce flakiness and proof time
+    cluster.lemma_always_etcd_objects_have_unique_uids(spec);
     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
     assume(spec.entails(always(lift_action(stronger_next))));
@@ -2122,6 +2126,7 @@ requires
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    Cluster::etcd_objects_have_unique_uids()(s),
     cluster.next_step(s, s_prime, step),
     forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
