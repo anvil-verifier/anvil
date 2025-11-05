@@ -14,11 +14,101 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
-    pub fn filter_pods(pods: Vec<Pod>, vsts: VStatefulSet) -> (filtered: Vec<Pod>)
+    // copied verbatim from vreplicaset_controller::objects_to_pods 
+    // should we refactor to only have one version of this?
+    fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
+        ensures pods_or_none.deep_view() == model_reconciler::objects_to_pods(objs.deep_view())
+    {
+        let mut pods = Vec::new();
+        let mut idx = 0;
+
+        proof {
+            let model_result = model_reconciler::objects_to_pods(objs.deep_view());
+            if model_result.is_some() {
+                assert_seqs_equal!(
+                    pods.deep_view(),
+                    model_result.unwrap().take(0)
+                );
+            }
+        }
+
+        for idx in 0..objs.len()
+            invariant
+                idx <= objs.len(),
+                ({
+                    let model_result = model_reconciler::objects_to_pods(objs.deep_view());
+                    &&& (model_result.is_some() ==>
+                            pods.deep_view() == model_result.unwrap().take(idx as int))
+                    &&& forall|i: int| 0 <= i < idx ==> PodView::unmarshal(#[trigger] objs@[i]@).is_ok()
+                }),
+        {
+            let pod_or_error = Pod::unmarshal(objs[idx].clone());
+            if pod_or_error.is_ok() {
+                pods.push(pod_or_error.unwrap());
+                proof {
+                    // Show that the pods Vec and the model_result are equal up to index idx + 1.
+                    let model_result = model_reconciler::objects_to_pods(objs.deep_view());
+                    if (model_result.is_some()) {
+                        assert(model_result.unwrap().take((idx + 1) as int)
+                            == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
+                        assert_seqs_equal!(
+                            pods.deep_view(),
+                            model_result.unwrap().take((idx + 1) as int)
+                        );
+                    }
+                }
+            } else {
+                proof {
+                    // Show that if a pod was unable to be serialized, the model would return None.
+                    let model_input = objs.deep_view();
+                    let model_result = model_reconciler::objects_to_pods(model_input);
+                    assert(
+                        model_input
+                            .filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err())
+                            .contains(model_input[idx as int])
+                    );
+                    assert(model_result == None::<Seq<PodView>>);
+                }
+                return None;
+            }
+        }
+
+        proof {
+            let model_input = objs.deep_view();
+            let model_result = model_reconciler::objects_to_pods(model_input);
+
+            // Prove, by contradiction, that the model_result can't be None.
+            let filter_result = model_input.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err());
+            assert(filter_result.len() == 0) by {
+                if filter_result.len() != 0 {
+                    seq_filter_contains_implies_seq_contains(
+                        model_input,
+                        |o: DynamicObjectView| PodView::unmarshal(o).is_err(),
+                        filter_result[0]
+                    );
+                }
+            };
+            assert(model_result.is_some());
+
+            assert(model_result.unwrap().take(objs.len() as int) == model_result.unwrap());
+        }
+
+        Some(pods)
+    }
+
+    pub fn make_owner_references(vsts: VStatefulSet) -> (references: Vec<OwnerReference>)
+        requires vsts@.well_formed()
+        ensures references.deep_view() =~= model_reconciler::make_owner_references(vsts@)
+    {
+        vec![vsts.controller_owner_ref()]
+    }
+
+    pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
         requires vsts@.well_formed()
         ensures filtered.deep_view() =~= model_reconciler::filter_pods(pods.deep_view(), vsts@)
     {
 
+        assert(vsts@.well_formed());
         let mut filtered_pods = Vec::new();
 
         proof {
@@ -42,6 +132,9 @@ verus! {
 
             // prove the invariant
             proof {
+                assert(vsts@.well_formed());
+                assert(vsts@.metadata.well_formed_for_namespaced());
+
                 let spec_filter = |pod: PodView|
                     pod.metadata.owner_references_contains(vsts@.controller_owner_ref())
                     && vsts@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::<Seq<char>, Seq<char>>::empty()))
