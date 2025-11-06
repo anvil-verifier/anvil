@@ -2104,7 +2104,15 @@ ensures
     cluster.lemma_always_etcd_objects_have_unique_uids(spec);
     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
-    assume(spec.entails(always(lift_action(stronger_next))));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition(cluster, controller_id),
+        lift_state(Cluster::etcd_objects_have_unique_uids()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+    );
     assert forall |s, s_prime: ClusterState| stronger_esr(vd, controller_id)(s) && #[trigger] stronger_next(s, s_prime) implies stronger_esr(vd, controller_id)(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         lemma_esr_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step);
