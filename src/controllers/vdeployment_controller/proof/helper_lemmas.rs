@@ -490,35 +490,10 @@ ensures
                 seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
             }
         }
-        if new_vrs.object_ref() != nv_uid_key.1 {
-            let other_key = new_vrs.object_ref();
-            assert(new_vrs.metadata.uid->0 != nv_uid_key.0);
-            assert(valid_owned_obj_key(vd, s)(other_key));
-            if new_vrs.spec.replicas == Some(int0!()) {
-                // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
-                assert(false) by {
-                    let k = nv_uid_key.1;
-                    assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
-                    assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
-                    let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == k;
-                    let vrs = managed_vrs_list[i];
-                    assert(vrs.object_ref() == k);
-                    assert(managed_vrs_list.contains(vrs)); // trigger
-                    assume(vd.spec.replicas.unwrap_or(1) > 0); // FIXME
-                    assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
-                        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
-                    }
-                    assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
-                    assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
-                }
-            }
-            assert(filter_old_vrs_keys(Some(nv_uid_key.0), s)(other_key));
-            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(other_key));
-            assert(false);
-        } else {
-            assert(new_vrs.metadata.uid->0 == nv_uid_key.0);
+        assert(new_vrs.spec.replicas.unwrap_or(int1!()) == vd.spec.replicas.unwrap_or(int1!())) by {
+            assume(false);
         }
-    } else {
+    } else { // prove contradiction
         assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).len() == 0);
         seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(managed_vrs_list, match_template_without_hash(vd.spec.template));
         if exists |k: ObjectRef| {
@@ -548,13 +523,8 @@ ensures
             }
         }
     }
-    let new_vrs_uid = Some(nv_uid_key.0);
-    assert(managed_vrs_list.contains(new_vrs_or_none->0)) by {
-        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
-        if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
-            seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
-        }
-    }
+    let new_vrs = new_vrs_or_none->0;
+    let new_vrs_uid = Some(new_vrs.metadata.uid->0);
     assert(old_vrs_list.len() == 0) by {
         let old_vrs_filter = |vrs: VReplicaSetView| {
             &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
@@ -574,8 +544,12 @@ ensures
         }
         no_dup_seq_to_set_cardinality(old_vrs_list.map_values(map_key));
         lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
-        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == 0);
+        assume(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == 0);
     }
+    assert(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((new_vrs.metadata.uid->0, new_vrs.object_ref(), get_replicas(vd.spec.replicas))), nat0!())(s));
+    assert((|nv_uid_key: (Uid, ObjectRef)| new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), nat0!())(s))(
+        (new_vrs.metadata.uid->0, new_vrs.object_ref())
+    ));
 }
 
 // TODO: merge with lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs
