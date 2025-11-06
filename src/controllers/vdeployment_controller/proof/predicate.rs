@@ -709,6 +709,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::every_in_flight_msg_has_lower_id_than_allocator(),
         Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id),
         Cluster::each_object_in_etcd_is_weakly_well_formed(),
+        Cluster::etcd_objects_have_unique_uids(),
         cluster.each_builtin_object_in_etcd_is_well_formed(),
         cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(),
         cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(),

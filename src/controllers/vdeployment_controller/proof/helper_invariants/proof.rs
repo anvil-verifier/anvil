@@ -1816,6 +1816,7 @@ ensures
     spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
     spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
     spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(always(lift_state(Cluster::etcd_objects_have_unique_uids()))),
     spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
     spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
     spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
