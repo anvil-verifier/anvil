@@ -1,5 +1,6 @@
 # Except this file
 !.gitignore
+
 .vscode/
 src/*_controller
 src/*.long-type-*.txt
@@ -15,6 +16,4 @@ src/*.rlib
 tools/*.json
 vreplicaset_controller.*.txt
 certs
-
-# Local testing script
-./verify.sh
+verify.sh
