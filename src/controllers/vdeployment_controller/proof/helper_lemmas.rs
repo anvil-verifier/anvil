@@ -512,23 +512,24 @@ ensures
             }
         }
     }
+    assert(new_vrs_or_none is Some);
     let new_vrs = new_vrs_or_none->0;
     let new_vrs_uid = Some(new_vrs.metadata.uid->0);
     let old_vrs_filter = |vrs: VReplicaSetView| {
         &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
     };
-    assert(old_vrs_list == managed_vrs_list.filter(old_vrs_filter)) by {
-        same_filter_implies_same_result(managed_vrs_list, old_vrs_filter, |vrs: VReplicaSetView| {
-            &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
-            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
-        });
-    }
     assert(managed_vrs_list.contains(new_vrs)) by { // trigger
         seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
         if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
             seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
         }
+    }
+    assert(old_vrs_list == managed_vrs_list.filter(old_vrs_filter)) by {
+        same_filter_implies_same_result(managed_vrs_list, old_vrs_filter, |vrs: VReplicaSetView| {
+            &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
+            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+        });
     }
     assert(new_vrs.spec.replicas.unwrap_or(int1!()) == vd.spec.replicas.unwrap_or(int1!())) by {
         if vd.spec.replicas != Some(int0!()) {
@@ -564,9 +565,16 @@ ensures
             if new_vrs.spec.replicas != Some(int0!()) { // new_vrs can pass nonempty_vrs_filter and old_vrs_filter
                 assert(new_vrs.object_ref() != nv_uid_key.1);
                 assert(new_vrs.metadata.uid->0 != nv_uid_key.0);
-                assert(old_vrs_filter(new_vrs));
-                assert(old_vrs_list.contains(new_vrs));
-                assert(false);
+                assert(false) by {
+                    assert(managed_vrs_list.contains(new_vrs)); // trigger
+                    assert(managed_vrs_list.filter(|vrs: VReplicaSetView| {
+                        &&& Some(nv_uid_key.0) is None || vrs.metadata.uid->0 != Some(nv_uid_key.0)->0
+                        &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+                    }).contains(new_vrs));
+                    lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, Some(nv_uid_key.0), s);
+                    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).len() == 0);
+                    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(new_vrs.object_ref()));
+                }
             }
         }
     }
