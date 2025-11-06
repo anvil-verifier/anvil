@@ -633,8 +633,8 @@ requires
     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas, n)(s),
 ensures
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
+    // this is only guaranteed to hold if vd has non-zero replicas, otherwise instantiated new vrs may differ from the one in etcd_state_is
     etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime),
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
     (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()) ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)

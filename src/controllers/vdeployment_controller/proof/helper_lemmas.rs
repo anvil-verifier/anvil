@@ -445,8 +445,7 @@ ensures
     }
 }
 
-// inverse of lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is for a more limited environment
-// because it's only used to prove the stability of ESR which already excludes some possibilities of etcd state
+// inverse of lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is
 pub proof fn lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef), msg: Message, s: ClusterState
 )
@@ -552,7 +551,6 @@ ensures
     ));
 }
 
-// TODO: merge with lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs
 pub proof fn lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, msg: Message, s: ClusterState
 )
