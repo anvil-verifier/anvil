@@ -446,6 +446,8 @@ ensures
 }
 
 // inverse of lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is
+// if vd has zero replicas, the new vrs picked by controller may differ from the one in etcd_state_is
+// so we can only prove the weakened form with quantifier, and that is still strong enough to prove the stability of ESR
 pub proof fn lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef), msg: Message, s: ClusterState
 )
@@ -457,9 +459,6 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     Cluster::etcd_objects_have_unique_uids()(s),
 ensures
-    // if vd has zero replicas, the new vrs picked by controller may differ from the one in etcd_state_is
-    // that doesn't affect the stability of ESR though
-    // new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
     exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), nat0!())(s),
 {
     let resp_objs = msg.content.get_list_response().res.unwrap();
@@ -573,6 +572,7 @@ ensures
                     }).contains(new_vrs));
                     lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, Some(nv_uid_key.0), s);
                     assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).len() == 0);
+                    // thus contradict with etcd_state_is(.., 0)
                     assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(new_vrs.object_ref()));
                 }
             }
@@ -581,7 +581,7 @@ ensures
     assert(old_vrs_list.len() == 0) by {
         let map_key = |vrs: VReplicaSetView| vrs.object_ref();
         assert(old_vrs_list.len() == old_vrs_list.map_values(map_key).len());
-        // this part can be deduped if we move this condition to resp_msg_is_ok_list_resp_containing_matched_vr
+        // this part can be deduped if we move this condition to resp_msg_is_ok_list_resp_containing_matched_vrs
         assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
             lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(vd, resp_objs);
         }
