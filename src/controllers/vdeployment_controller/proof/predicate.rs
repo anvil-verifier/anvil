@@ -193,7 +193,7 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
                 &&& new_vrs->0.metadata.name is Some
                 &&& new_vrs->0.metadata.namespace is Some
                 &&& new_vrs->0.object_ref() == (nv_uid_key_replicas->0).1
-                &&& new_vrs->0.spec.replicas.unwrap_or(1 as int) == (nv_uid_key_replicas->0).2
+                &&& get_replicas(new_vrs->0.spec.replicas) == (nv_uid_key_replicas->0).2
             }
             &&& old_vrs_list.len() == n
         }
@@ -553,7 +553,11 @@ pub open spec fn stronger_esr(vd: VDeploymentView, controller_id: int) -> StateP
     }
 }
 
-// make verus happy about triggers
+// make verus happy about triggers, otherwise:
+// error: triggers cannot contain let/forall/exists/lambda/choose
+//    --> verus/source/target-verus/release/vstd/std_specs/option.rs:194:9
+//     |
+// 194 |         Some(t) => t,
 pub open spec fn get_replicas(i: Option<int>) -> int {
     i.unwrap_or(int1!())
 }

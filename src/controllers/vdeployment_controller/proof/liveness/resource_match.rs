@@ -631,27 +631,23 @@ requires
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s),
     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas, n)(s),
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s),
 ensures
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
-    local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime),
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime),
     etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
     (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()) ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)
-        &&& local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime)
         &&& no_pending_req_in_cluster(vd, controller_id)(s_prime)
     }),
     (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 != vd.spec.replicas.unwrap_or(int1!()) ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, Some(((nv_uid_key_replicas->0).0, (nv_uid_key_replicas->0).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime)
-        &&& local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime)
         &&& pending_scale_new_vrs_req_in_flight(vd, controller_id, ((nv_uid_key_replicas->0).0, (nv_uid_key_replicas->0).1))(s_prime)
     }),
     (nv_uid_key_replicas is None ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, None, n)(s_prime)
-        &&& local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime)
         &&& pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime)
     }),
 {
@@ -2236,13 +2232,16 @@ ensures
                 let resp_msg = input.1->0;
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
-                    assert(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0)(s)) by {
+                    assert(exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)) by {
                         lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
                             vd, cluster, controller_id, (uid, key), resp_msg, s
                         );
                     }
+                    let nv_uid_key = choose |nv_uid_key: (Uid, ObjectRef)| {
+                        &&& #[trigger] new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
+                    };
                     lemma_from_list_resp_to_next_state(
-                        s, s_prime, vd, cluster, controller_id, resp_msg, Some((uid, key, vd.spec.replicas.unwrap_or(1))), 0
+                        s, s_prime, vd, cluster, controller_id, resp_msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0
                     );
                     assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime));
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
