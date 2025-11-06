@@ -633,19 +633,20 @@ requires
     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas, n)(s),
 ensures
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
-    // this is only guaranteed to hold if vd has non-zero replicas, otherwise instantiated new vrs may differ from the one in etcd_state_is
     etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime),
+    // this branch, without etcd_state_is, handles the case when vd.spec.replicas == 0 and instantiated new vrs differ from the one in etcd_state_is
+    // and is only used in ESR stability proof
     (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()) ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)
         &&& no_pending_req_in_cluster(vd, controller_id)(s_prime)
     }),
-    (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 != vd.spec.replicas.unwrap_or(int1!()) ==> {
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 != vd.spec.replicas.unwrap_or(int1!()) ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, Some(((nv_uid_key_replicas->0).0, (nv_uid_key_replicas->0).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime)
         &&& pending_scale_new_vrs_req_in_flight(vd, controller_id, ((nv_uid_key_replicas->0).0, (nv_uid_key_replicas->0).1))(s_prime)
     }),
-    (nv_uid_key_replicas is None ==> {
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> (nv_uid_key_replicas is None ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, None, n)(s_prime)
         &&& pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime)
