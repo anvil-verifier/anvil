@@ -15,3 +15,6 @@ src/*.rlib
 tools/*.json
 vreplicaset_controller.*.txt
 certs
+
+# Local testing script
+./verify.sh
