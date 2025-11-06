@@ -453,6 +453,7 @@ pub proof fn lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    // can use ESR instead, so if the witness matches or not doesn't matter
     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), nat0!())(s),
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
