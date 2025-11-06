@@ -591,10 +591,9 @@ ensures
             // all vrs in managed_vrs_list that match template has 0 replicas
             assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() == 0);
             if(old_vrs_list.len() != 0) {
-                let havoc_vrs = choose |vrs| #[trigger] old_vrs_list.contains(vrs);
-                assert(managed_vrs_list.filter(old_vrs_filter).contains(havoc_vrs));
-                assert(old_vrs_filter(havoc_vrs)); // TODO: helper lemma
-                assert(havoc_vrs.spec.replicas is None || havoc_vrs.spec.replicas->0 > 0);
+                let havoc_vrs = old_vrs_list[0];
+                assert(havoc_vrs != new_vrs);
+                broadcast use group_filter_ensures;
                 if havoc_vrs.object_ref() == nv_uid_key.1 {
                     let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[nv_uid_key.1])->Ok_0;
                     assert(etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
@@ -602,8 +601,15 @@ ensures
                     assert(etcd_vrs.spec == havoc_vrs.spec);
                     assert(havoc_vrs.spec.replicas == Some(int0!()));
                     assert(false);
+                } else {
+                    seq_filter_contains_implies_seq_contains(managed_vrs_list, old_vrs_filter, havoc_vrs);
+                    assert(managed_vrs_list.contains(havoc_vrs)); // trigger
+                    lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, Some(nv_uid_key.0), s);
+                    assert(false) by {
+                        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).len() == 0);
+                        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(havoc_vrs.object_ref()));
+                    }
                 }
-                assert(false);
             }
         }
     }
