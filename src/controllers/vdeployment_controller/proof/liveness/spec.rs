@@ -503,6 +503,7 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
     .and(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
     .and(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))))
     .and(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))))
+    .and(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
@@ -541,6 +542,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
     always_p_is_stable(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
     always_p_is_stable(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_p_is_stable(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
 
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),

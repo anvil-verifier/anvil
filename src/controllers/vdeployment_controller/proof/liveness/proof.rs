@@ -246,6 +246,9 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     assert(spec.entails(lift_state(init).leads_to(lift_state(done)))) by {
         lemma_from_init_to_current_state_matches(vd, spec, cluster, controller_id);
     }
+    let esr = current_state_matches(vd);
+    assert(lift_state(done).entails(lift_state(esr)));
+    entails_implies_leads_to(spec, lift_state(done), lift_state(esr));
     // true ~> done
     leads_to_trans_n!(
         spec,
@@ -253,16 +256,13 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         lift_state(reconcile_idle),
         lift_state(reconcile_scheduled),
         lift_state(init),
-        lift_state(done)
+        lift_state(done),
+        lift_state(esr)
     );
-    // true ~> []done
-    assert(spec.entails(true_pred().leads_to(always(lift_state(done))))) by {
+    // true ~> []ESR
+    assert(spec.entails(true_pred().leads_to(always(lift_state(esr))))) by {
         lemma_current_state_matches_is_stable(spec, vd, true_pred(), cluster, controller_id);
     }
-    // done |= ESR ==> []done |= []ESR ==> []done ~> []ESR
-    entails_preserved_by_always(lift_state(done), lift_state(current_state_matches(vd)));
-    entails_implies_leads_to(spec, always(lift_state(done)), always(lift_state(current_state_matches(vd))));
-    leads_to_trans(spec, true_pred(), always(lift_state(done)), always(lift_state(current_state_matches(vd))));
 }
 
 }

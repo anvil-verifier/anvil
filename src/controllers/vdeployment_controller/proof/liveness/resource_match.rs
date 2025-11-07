@@ -2058,8 +2058,7 @@ ensures
 // P -> []P
 // final |= P
 // P |= ESR (ESR = current_state_matches(vd))
-#[verifier(rlimit(100))]
-#[verifier(spinoff_prover)]
+#[verifier(rlimit(10))]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
