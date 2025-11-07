@@ -40,36 +40,6 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
         eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, controller_id);
     };
     spec_entails_tla_forall(spec, |vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd));
-    assert_by(
-        tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd))
-        == vd_eventually_stable_reconciliation(), {
-            assert forall |ex: Execution<ClusterState>| 
-                tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)).satisfied_by(ex)
-                implies #[trigger] vd_eventually_stable_reconciliation().satisfied_by(ex) by {
-                assert((|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)) 
-                    =~= (|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))));
-                assert((|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))) 
-                    =~= (|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
-                assert(tla_forall(|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
-                assert(Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd)).satisfied_by(ex));
-            }
-            assert forall |ex: Execution<ClusterState>| 
-                #[trigger] vd_eventually_stable_reconciliation().satisfied_by(ex)
-                implies tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)).satisfied_by(ex) by {
-                assert(Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd)).satisfied_by(ex));
-                assert(tla_forall(|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
-                assert((|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))) 
-                    =~= (|vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
-                assert((|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)) 
-                    =~= (|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))));
-            }
-
-            temp_pred_equality(
-                tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)),
-                vd_eventually_stable_reconciliation()
-            );
-        }
-    )
 }
 
 proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
