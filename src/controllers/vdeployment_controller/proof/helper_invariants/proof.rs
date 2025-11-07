@@ -410,7 +410,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)))),
+        spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),

@@ -136,7 +136,6 @@ pub open spec fn invariants_since_phase_i(controller_id: int, vd: VDeploymentVie
     always(lift_state(Cluster::crash_disabled(controller_id)))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::pod_monkey_disabled())))
-    .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd))))
 }
 
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vd: VDeploymentView)
@@ -145,15 +144,13 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vd: VDeploym
     stable_and_always_n!(
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd))
+        lift_state(Cluster::pod_monkey_disabled())
     );
 }
 
 pub open spec fn invariants_since_phase_ii(controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState>
 {
-    always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)))
-    .and(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())))
+    always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))
     .and(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))))
 }
@@ -162,7 +159,6 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
     ensures valid(stable(invariants_since_phase_ii(controller_id, vd))),
 {
     stable_and_always_n!(
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
         lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
         lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
@@ -256,14 +252,12 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
-        cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, vd);
         leads_to_always_combine_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::req_drop_disabled()),
-            lift_state(Cluster::pod_monkey_disabled()),
-            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd))
+            lift_state(Cluster::pod_monkey_disabled())
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
@@ -281,14 +275,12 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 vd.object_ref()
             );
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-            cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, vd);
             lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_vrs_objects(spec, cluster, controller_id);
             lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vd.object_ref());
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
-                lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
                 lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
                 lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
                 lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
