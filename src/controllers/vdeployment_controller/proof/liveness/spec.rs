@@ -541,6 +541,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
         always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))),
         always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
+        always(lift_state(Cluster::etcd_objects_have_unique_uids())),
         always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
         always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>())),
         always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id))),
@@ -568,7 +569,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS])))),
         always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))),
         always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
-        always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))
+        always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
+        always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))
     );
 }
 
