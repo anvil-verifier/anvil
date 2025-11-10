@@ -216,7 +216,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime) 
             &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
         };
-        VDeploymentView::marshal_preserves_integrity();
         always_to_always_later(spec, lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
         always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
         combine_spec_entails_always_n!(
