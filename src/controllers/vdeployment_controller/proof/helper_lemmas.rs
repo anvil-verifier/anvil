@@ -731,7 +731,7 @@ ensures
 
 pub proof fn lemma_cr_fields_eq_to_cr_predicates_eq(vd: VDeploymentView, controller_id: int, s: ClusterState)
 requires
-    helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s),
+    helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
 ensures
     ({

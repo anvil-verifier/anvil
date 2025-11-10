@@ -411,7 +411,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+        spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
@@ -1726,7 +1726,7 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_eventually_always_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
+pub proof fn lemma_eventually_always_vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
@@ -1738,10 +1738,10 @@ requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
+    spec.entails(true_pred().leads_to(always(lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
 {
     let p = |s| desired_state_is(vd)(s);
-    let q = cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
+    let q = vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
@@ -1766,7 +1766,7 @@ ensures
 
 #[verifier(rlimit(20))]
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
+pub proof fn lemma_eventually_always_vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
@@ -1775,12 +1775,12 @@ requires
     spec.entails(always(lift_state(desired_state_is(vd)))),
     spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
     spec.entails(true_pred().leads_to(lift_state(Cluster::reconcile_idle(controller_id, vd.object_ref())))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
+    spec.entails(true_pred().leads_to(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
 {
     let not_scheduled_or_reconcile = |s: ClusterState| {
         &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
@@ -1813,30 +1813,30 @@ ensures
     }
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
-        &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
+        &&& vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+        lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(Cluster::there_is_the_controller_state(controller_id))
     );
-    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
+    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
         let pre = scheduled_and_not_reconcile;
-        let post = cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
+        let post = vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
         cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(vd.object_ref())), stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
     }
-    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-    assert(spec.entails(true_pred().leads_to(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))))) by {
+    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+    assert(spec.entails(true_pred().leads_to(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))))) by {
         let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()); // Cluster::reconcile_idle
         or_leads_to_combine_and_equality!(
             spec, lift_state(reconcile_idle),
             lift_state(scheduled_and_not_reconcile), lift_state(not_scheduled_or_reconcile);
-            lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+            lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
         );
-        leads_to_trans(spec, true_pred(), lift_state(reconcile_idle), lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-        leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        leads_to_trans(spec, true_pred(), lift_state(reconcile_idle), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
     }
 }
 
@@ -1879,6 +1879,6 @@ ensures
     spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
     spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
     spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
-    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
 {}
 }

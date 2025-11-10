@@ -441,7 +441,7 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     }
 }
 
-pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
+pub open spec fn vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
@@ -464,7 +464,7 @@ pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_
     }
 }
 
-pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
+pub open spec fn vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
