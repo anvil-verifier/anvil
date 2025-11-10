@@ -446,6 +446,7 @@ pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
         let scheduled_cr = VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap();
+
         // make them explicit to Verus
         &&& vd.metadata.uid is Some
         &&& vd.metadata.name is Some
@@ -454,7 +455,7 @@ pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_
         &&& vd.spec.template.metadata is Some
         &&& vd.spec.template.metadata->0.labels is Some
         // required by ESR
-        &&& scheduled_cr.spec == vd.spec
+        &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd)(s)
         // required by controller_owner_ref
         &&& scheduled_cr.metadata.uid->0 == vd.metadata.uid->0
         &&& scheduled_cr.metadata.name->0 == vd.metadata.name->0
@@ -476,7 +477,7 @@ pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_label
         &&& vd.spec.template.metadata is Some
         &&& vd.spec.template.metadata->0.labels is Some
         // required by ESR
-        &&& triggering_cr.spec == vd.spec
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)(s)
         // required by controller_owner_ref
         &&& triggering_cr.metadata.uid->0 == vd.metadata.uid->0
         &&& triggering_cr.metadata.name->0 == vd.metadata.name->0

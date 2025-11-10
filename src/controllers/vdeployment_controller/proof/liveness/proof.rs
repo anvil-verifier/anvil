@@ -151,7 +151,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
     only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, controller_id);
     assert(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))) by {
-        assume(false); // TODO
+        assume(false);
     }
     // true ~> reconcile_idle
     let reconcile_idle = |s: ClusterState| {
@@ -213,20 +213,24 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             &&& cluster.next()(s, s_prime) 
             &&& Cluster::crash_disabled(controller_id)(s) 
             &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s) 
-            &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s) 
-            &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s)
+            &&& helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime) 
+            &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
         };
         VDeploymentView::marshal_preserves_integrity();
+        always_to_always_later(spec, lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-            lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
-            lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))
+            later(lift_state(helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))),
+            later(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))
         );
-        // TODO: fix
-        assume(forall |s, s_prime| reconcile_scheduled(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) ==> init(s_prime));
+        assert forall |s, s_prime| reconcile_scheduled(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies init(s_prime) by {
+            VDeploymentReconcileState::marshal_preserves_integrity();
+            lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
+        }
         cluster.lemma_pre_leads_to_post_by_controller(
             spec,
             controller_id,
