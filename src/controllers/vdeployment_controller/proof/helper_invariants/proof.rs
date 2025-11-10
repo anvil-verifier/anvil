@@ -3,7 +3,8 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::InstalledTypes}, 
     cluster::*, 
-    message::*
+    message::*,
+    controller::types::*,
 };
 use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -1789,23 +1790,42 @@ ensures
     always_to_always_later(spec, lift_state(desired_state_is(vd)));
     assert(spec.entails(lift_state(not_scheduled_or_reconcile).leads_to(lift_state(scheduled_and_not_reconcile)))) by {
         let (pre, post) = (not_scheduled_or_reconcile, scheduled_and_not_reconcile);
-        let stronger_next_for_schedule = |s, s_prime| {
+        let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
             &&& desired_state_is(vd)(s)
             &&& desired_state_is(vd)(s_prime)
             &&& Cluster::there_is_the_controller_state(controller_id)(s)
         };
         combine_spec_entails_always_n!(
-            spec, lift_action(stronger_next_for_schedule),
+            spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(desired_state_is(vd)),
             later(lift_state(desired_state_is(vd))),
             lift_state(Cluster::there_is_the_controller_state(controller_id))
         );
         let stronger_pre = and!(pre, desired_state_is(vd));
-        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vd.object_ref(), stronger_next_for_schedule, stronger_pre, post);
+        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vd.object_ref(), stronger_next, stronger_pre, post);
         temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(vd))), lift_state(stronger_pre));
         leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(vd)));
+    }
+    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
+        let pre = scheduled_and_not_reconcile;
+        let post = cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime)
+            &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
+            &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime)
+            &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        };
+        always_to_always_later(spec, lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+            later(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))),
+            lift_state(Cluster::there_is_the_controller_state(controller_id))
+        );
+        cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(vd.object_ref())), stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
     }
     assume(false);
 }
