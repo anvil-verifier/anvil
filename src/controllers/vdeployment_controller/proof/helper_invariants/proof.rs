@@ -1726,7 +1726,7 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_eventually_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
+pub proof fn lemma_eventually_always_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
