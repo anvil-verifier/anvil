@@ -152,6 +152,7 @@ pub open spec fn invariants_since_phase_ii(controller_id: int, vd: VDeploymentVi
 {
     always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))
     .and(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))
+    .and(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))))
 }
 
@@ -161,6 +162,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
     stable_and_always_n!(
         lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
         lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
+        lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
     );
 }
@@ -168,6 +170,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
 pub open spec fn invariants_since_phase_iii(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
     always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))
+    .and(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))
     .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))))
 }
 
@@ -176,6 +179,7 @@ pub proof fn invariants_since_phase_iii_is_stable(vd: VDeploymentView, cluster: 
 {
     stable_and_always_n!(
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
+        lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))
     );
 
@@ -276,6 +280,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
             lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_vrs_objects(spec, cluster, controller_id);
+            lemma_always_eventually_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(spec, vd, cluster, controller_id);
             lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vd.object_ref());
             leads_to_always_combine_n!(
@@ -306,6 +311,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 vd
             );
             lemma_eventually_always_vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
+            lemma_eventually_always_cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vd.object_ref());
             leads_to_always_combine_n!(
                 spec,
@@ -495,7 +501,6 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
     .and(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
     .and(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))))
     .and(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))))
-    .and(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
@@ -534,8 +539,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
     always_p_is_stable(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
     always_p_is_stable(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
-    always_p_is_stable(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
         always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
@@ -569,8 +572,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS])))),
         always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))),
         always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
-        always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
-        always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))
+        always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))
     );
 }
 
@@ -587,6 +589,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_etcd_objects_have_unique_uids(spec);
     cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(spec);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(spec, controller_id);
@@ -668,6 +671,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::etcd_objects_have_unique_uids()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
