@@ -446,11 +446,20 @@ pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
         let scheduled_cr = VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap();
+        // make them explicit to Verus
+        &&& vd.metadata.uid is Some
+        &&& vd.metadata.name is Some
+        &&& vd.metadata.namespace is Some
+        // required by vd.spec.selector.matches
+        &&& vd.spec.template.metadata is Some
+        &&& vd.spec.template.metadata->0.labels is Some
+        // required by ESR
         &&& scheduled_cr.spec == vd.spec
+        // required by controller_owner_ref
         &&& scheduled_cr.metadata.uid->0 == vd.metadata.uid->0
         &&& scheduled_cr.metadata.name->0 == vd.metadata.name->0
+        // required by requests/responses and filters
         &&& scheduled_cr.metadata.namespace->0 == vd.metadata.namespace->0
-        &&& scheduled_cr.metadata.labels->0 == vd.metadata.labels->0
     }
 }
 
@@ -459,6 +468,13 @@ pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_label
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        // make them explicit to Verus
+        &&& vd.metadata.uid is Some
+        &&& vd.metadata.name is Some
+        &&& vd.metadata.namespace is Some
+        // required by vd.spec.selector.matches
+        &&& vd.spec.template.metadata is Some
+        &&& vd.spec.template.metadata->0.labels is Some
         // required by ESR
         &&& triggering_cr.spec == vd.spec
         // required by controller_owner_ref
@@ -466,8 +482,6 @@ pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_label
         &&& triggering_cr.metadata.name->0 == vd.metadata.name->0
         // required by requests/responses and filters
         &&& triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0
-        // required by vd.spec.selector.matches
-        // &&& triggering_cr.metadata.labels->0 == vd.metadata.labels->0
     }
 }
 

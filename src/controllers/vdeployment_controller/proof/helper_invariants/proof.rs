@@ -1725,44 +1725,57 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
+pub proof fn lemma_always_eventually_cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
     spec.entails(always(lift_state(desired_state_is(vd)))),
     spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(cluster.schedule_controller_reconcile().weak_fairness((controller_id, vd.object_ref()))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+    spec.entails(true_pred().leads_to(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
 {
     VDeploymentView::marshal_preserves_integrity();
-    let inv = cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
+    let p = |s| desired_state_is(vd)(s);
+    let q = cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& desired_state_is(vd)(s) // uid and spec eq
-        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s) // uid, name, namespace is some
+        &&& desired_state_is(vd)(s)
+        &&& desired_state_is(vd)(s_prime)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        let key = vd.object_ref();
-        assert(s.resources().contains_key(key));
-        if s_prime.scheduled_reconciles(controller_id).contains_key(key) {
-            if s.scheduled_reconciles(controller_id).contains_key(key) {}
-        } 
-    };
+    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(desired_state_is(vd)),
+        later(lift_state(desired_state_is(vd))),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
     );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-
+    cluster.schedule_controller_reconcile().wf1(
+        (controller_id, vd.object_ref()),
+        spec,
+        stronger_next,
+        p,
+        q
+    );
+    leads_to_stable(spec, lift_action(stronger_next), lift_state(p), lift_state(q));
+    temp_pred_equality(
+        true_pred().and(lift_state(p)),
+        lift_state(p)
+    );
+    pack_conditions_to_spec(spec, lift_state(p), true_pred(), always(lift_state(q)));
+    temp_pred_equality(
+        lift_state(p),
+        lift_state(desired_state_is(vd))
+    );
+    simplify_predicate(spec, always(lift_state(p)));
 }
 
 #[verifier(rlimit(50))]
