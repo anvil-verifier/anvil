@@ -1764,6 +1764,8 @@ ensures
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
+#[verifier(rlimit(20))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
@@ -1774,6 +1776,7 @@ requires
     spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+    spec.entails(true_pred().leads_to(lift_state(Cluster::reconcile_idle(controller_id, vd.object_ref())))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
@@ -1808,26 +1811,33 @@ ensures
         temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(vd))), lift_state(stronger_pre));
         leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(vd)));
     }
-    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
         let pre = scheduled_and_not_reconcile;
-        let post = cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
-        let stronger_next = |s, s_prime| {
-            &&& cluster.next()(s, s_prime)
-            &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
-            &&& cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime)
-            &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        };
-        always_to_always_later(spec, lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-        combine_spec_entails_always_n!(
-            spec, lift_action(stronger_next),
-            lift_action(cluster.next()),
-            lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
-            later(lift_state(cr_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))),
-            lift_state(Cluster::there_is_the_controller_state(controller_id))
-        );
+        let post = cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
         cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(vd.object_ref())), stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
     }
-    assume(false);
+    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+    assert(spec.entails(true_pred().leads_to(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))))) by {
+        let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()); // Cluster::reconcile_idle
+        or_leads_to_combine_and_equality!(
+            spec, lift_state(reconcile_idle),
+            lift_state(scheduled_and_not_reconcile), lift_state(not_scheduled_or_reconcile);
+            lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+        );
+        leads_to_trans(spec, true_pred(), lift_state(reconcile_idle), lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(cr_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+    }
 }
 
 #[verifier(external_body)]
