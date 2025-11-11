@@ -5,8 +5,7 @@ use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
 use crate::vdeployment_controller::trusted::liveness_theorem as vd_liveness;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::model::reconciler::VReplicaSetReconciler;
-// Q: we have to add some to pub_mod
-use crate::vreplicaset_controller::proof::liveness::composition::*;
+use crate::composition::vreplicaset_reconciler::*;
 use crate::vdeployment_controller::trusted::{
     spec_types::*, rely_guarantee::*
 };

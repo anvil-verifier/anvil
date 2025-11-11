@@ -17,6 +17,8 @@ pub mod vstd_ext;
 // #[path = "controllers/vreplicaset_controller/pub_mod.rs"] // TODO: remove pub_mod
 #[path = "controllers/vreplicaset_controller/mod.rs"]
 pub mod vreplicaset_controller;
+# [path = "controllers/composition/mod.rs"]
+pub mod composition;
 
 // use crate::external_shim_layer::VoidExternalShimLayer;
 // use crate::vdeployment_controller::exec::reconciler::VDeploymentReconciler;
