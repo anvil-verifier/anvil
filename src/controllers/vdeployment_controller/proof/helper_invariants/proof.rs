@@ -480,7 +480,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
         &&& Cluster::etcd_is_finite()(s)
-        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)(s)
+        &&& vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
@@ -614,7 +614,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         later(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
         lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
+        lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
