@@ -19,7 +19,7 @@ use vstd::prelude::*;
 
 verus! {
 
-proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
