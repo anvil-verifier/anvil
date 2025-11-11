@@ -9,7 +9,8 @@ use vstd::prelude::*;
 
 verus !{
 
-// if I replace vd_eventually_stable_reconciliation_per_cr with unwrapped version eventually_stable_reconciliation_holds breaks
+// FLAKY: replace with Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd))
+// breaks eventually_stable_reconciliation_holds
 pub open spec fn vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd))
 }
