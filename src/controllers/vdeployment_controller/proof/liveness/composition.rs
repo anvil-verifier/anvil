@@ -14,7 +14,7 @@ use crate::vdeployment_controller::model::{
     reconciler::*, install::*
 };
 use crate::vdeployment_controller::proof::{
-    guarantee::*
+    guarantee::*, liveness::{spec::*, proof::*}
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -26,11 +26,14 @@ impl Composition for VDeploymentReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             // Q: tla_forall?
-            liveness_guarantee: tla_forall(|vd: VDeploymentView| always(lift_state(vd_liveness::current_state_matches(vd)))),
-            liveness_rely: tla_forall(|vrs: VReplicaSetView| always(lift_state(vrs_liveness::current_state_matches(vrs)))),
+            // Q: current_pods_matches instead of current_state_matches
+            liveness_guarantee: tla_forall(|vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd)).leads_to(always(lift_state(vd_liveness::current_pods_matches(vd)))))),
+            // Q: this one isn't used, what is used is |c: ControllerSpec| Self::composed().values().contains(c) ==> c.c().liveness_guarantee
+            liveness_rely: tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
             safety_guarantee: always(lift_state(vd_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| lift_state(vd_rely(other_id)),
-            fairness: |i: int| true_pred(), // Q: what should be included
+            // Q: next_with_wf requires cluster as input to assume cluster component's wf
+            fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()).and(next_with_wf(cluster, VReplicaSetReconciler::id())),
             membership: |cluster: Cluster, id: int| {
                 &&& cluster.controller_models.contains_pair(id, vd_controller_model())
                 // Q: should they be included here
@@ -42,35 +45,42 @@ impl Composition for VDeploymentReconciler {
 
     uninterp spec fn id() -> int;
 
-    // Q: do we need this
-    // #[verifier(external_body)]
-    // pub proof fn id_is_unique()
-    // ensures
-    //     Self::id() != VReplicaSetReconciler::id(),
-    // ;
-
-    closed spec fn composed() -> Map<int, ControllerSpec> {
-        Map::<int, ControllerSpec>::empty()
-            .insert(Self::id(), Self::c())
-            .insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c())
+    open spec fn composed() -> Map<int, ControllerSpec> {
+        Map::<int, ControllerSpec>::empty().insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c())
     }
 
-    // Q: error: trait method implementation cannot declare requires clauses; these can only be inherited from the trait declaration
-    // post is allowed?
+    // for trait proof implementation, requires conditions are already included here
     proof fn safety_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
-    ensures
-        spec.entails(Self::c().safety_guarantee),
+        ensures spec.entails(Self::c().safety_guarantee),
     {
         guarantee_condition_holds(spec, cluster, Self::id());
     }
 
+    #[verifier(external_body)]
     proof fn no_internal_interference(spec: TempPred<ClusterState>, cluster: Cluster)
-    ensures
-        forall |i| #[trigger] Self::composed().contains_key(i) ==>
+        ensures forall |i| #[trigger] Self::composed().contains_key(i) ==>
             spec.entails((Self::c().safety_partial_rely)(i))
             && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
     {}
 }
+
+impl VerticalComposition for VDeploymentReconciler {
+    #[verifier(external_body)]
+    proof fn liveness_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_guarantee),
+    {
+        eventually_stable_reconciliation_holds(spec, cluster, Self::id());
+    }
+
+    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_rely),
+    {
+        assert(Self::composed().contains_key(VReplicaSetReconciler::id())); // trigger
+    }
+}
+
+proof fn eventually_stable_reconciliation_holds_for_vd_and_vrs()
+{}
 
 
 }

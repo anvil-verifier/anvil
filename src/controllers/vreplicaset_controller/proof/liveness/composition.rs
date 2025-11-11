@@ -9,7 +9,7 @@ use crate::vreplicaset_controller::model::{
     reconciler::*, install::*
 };
 use crate::vreplicaset_controller::proof::{
-    guarantee::*
+    guarantee::*, liveness::spec::*
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -20,19 +20,21 @@ verus !{
 impl Composition for VReplicaSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
-            liveness_guarantee: tla_forall(|vrs: VReplicaSetView| always(lift_state(current_state_matches(vrs)))),
+            liveness_guarantee: tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)).leads_to(always(lift_state(current_state_matches(vrs)))))),
             liveness_rely: true_pred(), // VRS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vrs_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| lift_state(vrs_rely(other_id)),
-            fairness: |i: int| true_pred(),
-            membership: |cluster: Cluster, id: int| cluster.controller_models.contains_pair(id, vrs_controller_model()),
+            fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
+            membership: |cluster: Cluster, id: int| {
+                &&& cluster.controller_models.contains_pair(id, vrs_controller_model())
+                &&& cluster.type_is_installed_in_cluster::<VReplicaSetView>()
+            },
         }
     }
 
     uninterp spec fn id() -> int;
 
-    // Q: should we add VD controller here
-    closed spec fn composed() -> Map<int, ControllerSpec> {
+    open spec fn composed() -> Map<int, ControllerSpec> {
         Map::empty().insert(Self::id(), Self::c())
     }
 
