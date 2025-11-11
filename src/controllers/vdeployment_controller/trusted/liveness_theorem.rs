@@ -9,12 +9,24 @@ use vstd::prelude::*;
 
 verus !{
 
+// FLAKY: replace with Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd))
+// breaks eventually_stable_reconciliation_holds
 pub open spec fn vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd))
+    tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd))
 }
 
 pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView) -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))
+    always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(current_state_matches(vd))))
+}
+
+pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& Cluster::desired_state_is(vd)(s)
+        // in addition to general desired_state_is, template in vd must has labels
+        // as required by vd.spec.selector.matches
+        &&& vd.spec.template.metadata is Some
+        &&& vd.spec.template.metadata->0.labels is Some
+    }
 }
 
 // draft of ESR for VDeployment

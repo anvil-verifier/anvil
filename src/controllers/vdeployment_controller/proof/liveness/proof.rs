@@ -13,6 +13,7 @@ use crate::vdeployment_controller::{
     },
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
+use crate::vdeployment_controller::proof::helper_invariants;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
 
@@ -39,36 +40,6 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
         eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, controller_id);
     };
     spec_entails_tla_forall(spec, |vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd));
-    assert_by(
-        tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd))
-        == vd_eventually_stable_reconciliation(), {
-            assert forall |ex: Execution<ClusterState>| 
-                tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)).satisfied_by(ex)
-                implies #[trigger] vd_eventually_stable_reconciliation().satisfied_by(ex) by {
-                assert((|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)) 
-                    =~= (|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))));
-                assert((|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))) 
-                    =~= (|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
-                assert(tla_forall(|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
-                assert(Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd)).satisfied_by(ex));
-            }
-            assert forall |ex: Execution<ClusterState>| 
-                #[trigger] vd_eventually_stable_reconciliation().satisfied_by(ex)
-                implies tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)).satisfied_by(ex) by {
-                assert(Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd)).satisfied_by(ex));
-                assert(tla_forall(|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))).satisfied_by(ex));
-                assert((|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))) 
-                    =~= (|vd: VDeploymentView| always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state((|vd| current_state_matches(vd))(vd))))));
-                assert((|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)) 
-                    =~= (|vd: VDeploymentView| Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))));
-            }
-
-            temp_pred_equality(
-                tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd)),
-                vd_eventually_stable_reconciliation()
-            );
-        }
-    )
 }
 
 proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
@@ -107,7 +78,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     spec_before_phase_n_entails_true_leads_to_current_state_matches(2, stable_spec, vd, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(1, stable_spec, vd, cluster, controller_id);
 
-    let assumption = always(lift_state(Cluster::desired_state_is(vd)));
+    let assumption = always(lift_state(desired_state_is(vd)));
     temp_pred_equality(
         stable_spec.and(spec_before_phase_n(1, vd, cluster, controller_id)),
         stable_spec.and(invariants(vd, cluster, controller_id))
@@ -129,7 +100,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     entails_trans(
         spec.and(derived_invariants_since_beginning(vd, cluster, controller_id)), 
         stable_spec.and(invariants(vd, cluster, controller_id)),
-        always(lift_state(Cluster::desired_state_is(vd))).leads_to(always(lift_state(current_state_matches(vd))))
+        always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(current_state_matches(vd))))
     );
 }
 
@@ -180,7 +151,45 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
     only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, controller_id);
     assert(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))) by {
-        assume(false); // TODO
+        assert(spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))))) by {
+            always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
+        }
+        combine_spec_entails_always_n!(
+            spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+            lift_state(Cluster::crash_disabled(controller_id)),
+            lift_state(Cluster::req_drop_disabled()),
+            lift_state(Cluster::pod_monkey_disabled()),
+            lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+            lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+            lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+            lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+            lift_state(Cluster::etcd_objects_have_unique_uids()),
+            lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+            lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
+            lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+            lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
+            lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+            lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+            lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)),
+            lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+            lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+            lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
+            lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
+            lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)),
+            lift_state(Cluster::etcd_is_finite()),
+            lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
+            lift_state(Cluster::there_is_the_controller_state(controller_id)),
+            lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
+            lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
+            lift_state(desired_state_is(vd)),
+            lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())),
+            lift_state(helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)),
+            lift_state(helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)),
+            lift_state(helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)),
+            lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
+            lift_state(helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects()),
+            lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+        );
     }
     // true ~> reconcile_idle
     let reconcile_idle = |s: ClusterState| {
@@ -204,29 +213,29 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         };
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
-            &&& Cluster::desired_state_is(vd)(s)
-            &&& Cluster::desired_state_is(vd)(s_prime)
+            &&& desired_state_is(vd)(s)
+            &&& desired_state_is(vd)(s_prime)
         };
-        always_to_always_later(spec, lift_state(Cluster::desired_state_is(vd)));
+        always_to_always_later(spec, lift_state(desired_state_is(vd)));
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
             lift_action(cluster.next()),
-            lift_state(Cluster::desired_state_is(vd)),
-            later(lift_state(Cluster::desired_state_is(vd)))
+            lift_state(desired_state_is(vd)),
+            later(lift_state(desired_state_is(vd)))
         );
         cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(
             spec,
             controller_id,
             input,
             stronger_next,
-            and!(stronger_reconcile_idle, Cluster::desired_state_is(vd)),
+            and!(stronger_reconcile_idle, desired_state_is(vd)),
             reconcile_scheduled
         );
         temp_pred_equality(
-            lift_state(stronger_reconcile_idle).and(lift_state(Cluster::desired_state_is(vd))),
-            lift_state(and!(stronger_reconcile_idle, Cluster::desired_state_is(vd)))
+            lift_state(stronger_reconcile_idle).and(lift_state(desired_state_is(vd))),
+            lift_state(and!(stronger_reconcile_idle, desired_state_is(vd)))
         );
-        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(Cluster::desired_state_is(vd)));
+        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
         entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         or_leads_to_combine(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
@@ -242,20 +251,23 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             &&& cluster.next()(s, s_prime) 
             &&& Cluster::crash_disabled(controller_id)(s) 
             &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s) 
-            &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd)(s) 
-            &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s)
+            &&& helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime) 
+            &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
         };
-        VDeploymentView::marshal_preserves_integrity();
+        always_to_always_later(spec, lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd)),
-            lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))
+            later(lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))),
+            later(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))
         );
-        // TODO: fix
-        assume(forall |s, s_prime| reconcile_scheduled(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) ==> init(s_prime));
+        assert forall |s, s_prime| reconcile_scheduled(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies init(s_prime) by {
+            VDeploymentReconcileState::marshal_preserves_integrity();
+            lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
+        }
         cluster.lemma_pre_leads_to_post_by_controller(
             spec,
             controller_id,
@@ -275,6 +287,9 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     assert(spec.entails(lift_state(init).leads_to(lift_state(done)))) by {
         lemma_from_init_to_current_state_matches(vd, spec, cluster, controller_id);
     }
+    let esr = current_state_matches(vd);
+    assert(lift_state(done).entails(lift_state(esr)));
+    entails_implies_leads_to(spec, lift_state(done), lift_state(esr));
     // true ~> done
     leads_to_trans_n!(
         spec,
@@ -282,16 +297,13 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         lift_state(reconcile_idle),
         lift_state(reconcile_scheduled),
         lift_state(init),
-        lift_state(done)
+        lift_state(done),
+        lift_state(esr)
     );
-    // true ~> []done
-    assert(spec.entails(true_pred().leads_to(always(lift_state(done))))) by {
+    // true ~> []ESR
+    assert(spec.entails(true_pred().leads_to(always(lift_state(esr))))) by {
         lemma_current_state_matches_is_stable(spec, vd, true_pred(), cluster, controller_id);
     }
-    // done |= ESR ==> []done |= []ESR ==> []done ~> []ESR
-    entails_preserved_by_always(lift_state(done), lift_state(current_state_matches(vd)));
-    entails_implies_leads_to(spec, always(lift_state(done)), always(lift_state(current_state_matches(vd))));
-    leads_to_trans(spec, true_pred(), always(lift_state(done)), always(lift_state(current_state_matches(vd))));
 }
 
 }

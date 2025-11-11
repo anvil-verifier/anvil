@@ -3,7 +3,8 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::InstalledTypes}, 
     cluster::*, 
-    message::*
+    message::*,
+    controller::types::*,
 };
 use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -41,7 +42,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
+        spec.entails(always(lift_state(desired_state_is(vd)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -94,7 +95,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::desired_state_is(vd)(s)
+        &&& desired_state_is(vd)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -206,7 +207,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
-        lift_state(Cluster::desired_state_is(vd)),
+        lift_state(desired_state_is(vd)),
         lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
@@ -395,7 +396,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
+        spec.entails(always(lift_state(desired_state_is(vd)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -410,7 +411,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)))),
+        spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
@@ -462,7 +463,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::desired_state_is(vd)(s)
+        &&& desired_state_is(vd)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -479,7 +480,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
         &&& Cluster::etcd_is_finite()(s)
-        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)(s)
+        &&& vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
@@ -599,7 +600,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)),
         lift_action(cluster.next()),
-        lift_state(Cluster::desired_state_is(vd)),
+        lift_state(desired_state_is(vd)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -613,7 +614,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         later(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
         lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
+        lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
@@ -652,7 +653,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
+        spec.entails(always(lift_state(desired_state_is(vd)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -706,7 +707,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::desired_state_is(vd)(s)
+        &&& desired_state_is(vd)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -838,7 +839,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(cluster.next()),
-        lift_state(Cluster::desired_state_is(vd)),
+        lift_state(desired_state_is(vd)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -1594,29 +1595,29 @@ pub proof fn lemma_eventually_always_vd_in_schedule_does_not_have_deletion_times
 requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
+    spec.entails(always(lift_state(desired_state_is(vd)))),
     spec.entails(cluster.schedule_controller_reconcile().weak_fairness((controller_id, vd.object_ref()))),
     cluster.controller_models.contains_key(controller_id),
     cluster.controller_models[controller_id].reconcile_model.kind == VDeploymentView::kind(),
 ensures
     spec.entails(true_pred().leads_to(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))),
 {
-    let p_prime = |s: ClusterState| Cluster::desired_state_is(vd)(s);
+    let p_prime = |s: ClusterState| desired_state_is(vd)(s);
     let q = vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& Cluster::desired_state_is(vd)(s)
-        &&& Cluster::desired_state_is(vd)(s_prime)
+        &&& desired_state_is(vd)(s)
+        &&& desired_state_is(vd)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vd)));
+    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::desired_state_is(vd)),
-        later(lift_state(Cluster::desired_state_is(vd)))
+        lift_state(desired_state_is(vd)),
+        later(lift_state(desired_state_is(vd)))
     );
 
     cluster.schedule_controller_reconcile().wf1(
@@ -1635,7 +1636,7 @@ ensures
     pack_conditions_to_spec(spec, lift_state(p_prime), true_pred(), always(lift_state(q)));
     temp_pred_equality(
         lift_state(p_prime),
-        lift_state(Cluster::desired_state_is(vd))
+        lift_state(desired_state_is(vd))
     );
     simplify_predicate(spec, always(lift_state(p_prime)));
 }
@@ -1725,79 +1726,194 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub proof fn lemma_eventually_always_vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(desired_state_is(vd)))),
     spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(true_pred().leads_to(always(lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
 {
-    VDeploymentView::marshal_preserves_integrity();
-    let inv = cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id);
+    let p = |s| desired_state_is(vd)(s);
+    let q = vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& Cluster::desired_state_is(vd)(s) // uid and spec eq
-        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s) // uid, name, namespace is some
+        &&& desired_state_is(vd)(s)
+        &&& desired_state_is(vd)(s_prime)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        let key = vd.object_ref();
-        assert(s.resources().contains_key(key));
-        if s_prime.scheduled_reconciles(controller_id).contains_key(key) {
-            if s.scheduled_reconciles(controller_id).contains_key(key) {}
-        } 
-    };
+    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::desired_state_is(vd)),
+        lift_state(desired_state_is(vd)),
+        later(lift_state(desired_state_is(vd))),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
     );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-
+    cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vd.object_ref(), stronger_next, p, q);
+    temp_pred_equality(true_pred().and(lift_state(desired_state_is(vd))), lift_state(p));
+    leads_to_by_borrowing_inv(spec, true_pred(), lift_state(q), lift_state(desired_state_is(vd)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
-pub proof fn lemma_always_cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_eventually_always_vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
-    spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(desired_state_is(vd)))),
+    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+    spec.entails(true_pred().leads_to(lift_state(Cluster::reconcile_idle(controller_id, vd.object_ref())))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
-    spec.entails(always(lift_state(cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+    spec.entails(true_pred().leads_to(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))),
 {
-    VDeploymentView::marshal_preserves_integrity();
-    let inv = cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id);
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)(s)
+    let not_scheduled_or_reconcile = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+        &&& !s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
     };
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        let key = vd.object_ref();
-        // ControllerStep::RunScheduledReconcile
-        if !s.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id).contains_key(key) {}
+    let scheduled_and_not_reconcile = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
+    };
+    always_to_always_later(spec, lift_state(desired_state_is(vd)));
+    assert(spec.entails(lift_state(not_scheduled_or_reconcile).leads_to(lift_state(scheduled_and_not_reconcile)))) by {
+        let (pre, post) = (not_scheduled_or_reconcile, scheduled_and_not_reconcile);
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime)
+            &&& desired_state_is(vd)(s)
+            &&& desired_state_is(vd)(s_prime)
+            &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        };
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(desired_state_is(vd)),
+            later(lift_state(desired_state_is(vd))),
+            lift_state(Cluster::there_is_the_controller_state(controller_id))
+        );
+        let stronger_pre = and!(pre, desired_state_is(vd));
+        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vd.object_ref(), stronger_next, stronger_pre, post);
+        temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(vd))), lift_state(stronger_pre));
+        leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(vd)));
     }
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id))
+        lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
     );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
+    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
+        let pre = scheduled_and_not_reconcile;
+        let post = vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
+        assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, None, Some(vd.object_ref())))(s, s_prime) ==> post(s_prime));
+        cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(vd.object_ref())), stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
+    }
+    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+    assert(spec.entails(true_pred().leads_to(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))))) by {
+        let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()); // Cluster::reconcile_idle
+        or_leads_to_combine_and_equality!(
+            spec, lift_state(reconcile_idle),
+            lift_state(scheduled_and_not_reconcile), lift_state(not_scheduled_or_reconcile);
+            lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+        );
+        leads_to_trans(spec, true_pred(), lift_state(reconcile_idle), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+    }
 }
 
+pub proof fn lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(
+    spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+ensures
+    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(always(lift_state(Cluster::etcd_objects_have_unique_uids()))),
+    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
+    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+    spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+    spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
+    spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
+    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+    spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))),
+    spec.entails(always(lift_state(desired_state_is(vd)))),
+    spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())))),
+    spec.entails(always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)))),
+    spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
+    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
+    spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
+    spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
+    spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
+{
+    let p = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
+    always_weaken(spec, p, lift_state(Cluster::crash_disabled(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::req_drop_disabled()));
+    always_weaken(spec, p, lift_state(Cluster::pod_monkey_disabled()));
+    always_weaken(spec, p, lift_state(Cluster::every_in_flight_msg_has_unique_id()));
+    always_weaken(spec, p, lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()));
+    always_weaken(spec, p, lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()));
+    always_weaken(spec, p, lift_state(Cluster::etcd_objects_have_unique_uids()));
+    always_weaken(spec, p, lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()));
+    always_weaken(spec, p, lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()));
+    always_weaken(spec, p, lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()));
+    always_weaken(spec, p, lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)));
+    always_weaken(spec, p, lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
+    always_weaken(spec, p, lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()));
+    always_weaken(spec, p, lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::etcd_is_finite()));
+    always_weaken(spec, p, lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())));
+    always_weaken(spec, p, lift_state(Cluster::there_is_the_controller_state(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
+    always_weaken(spec, p, lift_state(desired_state_is(vd)));
+    always_weaken(spec, p, lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())));
+    always_weaken(spec, p, lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)));
+    always_weaken(spec, p, lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
+    always_weaken(spec, p, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_weaken(spec, p, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
+    always_weaken(spec, p, lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()));
+    always_weaken(spec, p, lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+}
 }
