@@ -44,14 +44,14 @@ impl Composition for VDeploymentReconciler {
     }
 
     // for trait proof implementation, requires conditions are already included here
-    proof fn safety_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().safety_guarantee),
     {
         guarantee_condition_holds(spec, cluster, Self::id());
     }
 
     #[verifier(external_body)]
-    proof fn no_internal_interference(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures forall |i| #[trigger] Self::composed().contains_key(i) ==>
             spec.entails((Self::c().safety_partial_rely)(i))
             && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
@@ -60,7 +60,7 @@ impl Composition for VDeploymentReconciler {
 
 impl VerticalComposition for VDeploymentReconciler {
     #[verifier(external_body)]
-    proof fn liveness_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
         eventually_stable_reconciliation_holds(spec, cluster, Self::id());

@@ -38,14 +38,14 @@ impl Composition for VReplicaSetReconciler {
         Map::empty().insert(Self::id(), Self::c())
     }
 
-    proof fn safety_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
     ensures
         spec.entails(Self::c().safety_guarantee),
     {
         guarantee_condition_holds(spec, cluster, Self::id());
     }
 
-    proof fn no_internal_interference(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
     ensures
         forall |i| #[trigger] Self::composed().contains_key(i) ==>
             spec.entails((Self::c().safety_partial_rely)(i))

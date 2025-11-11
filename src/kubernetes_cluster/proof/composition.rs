@@ -54,7 +54,7 @@ pub trait Composition: Sized {
     spec fn composed() -> Map<int, ControllerSpec>;
 
     // safety_guarantee of the new controller holds
-    proof fn safety_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         requires
             (Self::c().membership)(cluster, Self::id()),
             spec.entails(lift_state(cluster.init())),
@@ -65,7 +65,7 @@ pub trait Composition: Sized {
 
     // The new controller doesn't interfere with composed controllers, or
     // they satisfy each other's safety_partial_rely
-    proof fn no_internal_interference(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         requires
             (Self::c().membership)(cluster, Self::id()),
             spec.entails(lift_state(cluster.init())),
@@ -84,7 +84,7 @@ pub trait Composition: Sized {
 pub trait HorizontalComposition: Sized + Composition {
     // For HorizontalComposition, the new controller's liveness doesn't depend on
     // other controllers' liveness
-    proof fn liveness_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         requires
             (Self::c().membership)(cluster, Self::id()),
             spec.entails(lift_state(cluster.init())),
@@ -100,7 +100,7 @@ pub trait HorizontalComposition: Sized + Composition {
 pub trait VerticalComposition: Sized + Composition {
     // For VerticalComposition, the new controller's liveness depends on
     // other controllers' liveness
-    proof fn liveness_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         requires
             (Self::c().membership)(cluster, Self::id()),
             spec.entails(lift_state(cluster.init())),
@@ -151,14 +151,14 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
             assert(new_composed.contains_key(i));
         }
 
-        HC::safety_is_guaranteed(spec, cluster);
+        HC::safety_guarantee_holds(spec, cluster);
 
         if (forall |i| #[trigger] new_composed.contains_key(i) ==> spec.entails((new_composed[i].fairness)(cluster)))
             && (forall |i| #[trigger] new_composed.contains_key(i) ==>
                     forall |j| #[trigger] others.contains_key(j) ==>
                         spec.entails((new_composed[i].safety_partial_rely)(j)))
         {
-            HC::no_internal_interference(spec, cluster);
+            HC::safety_rely_holds(spec, cluster);
 
             assert forall |i| #[trigger] composed.contains_key(i)
             implies spec.entails(composed[i].liveness_guarantee) by {
@@ -188,7 +188,7 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
                     if others.contains_key(other_id) {}
                 }
 
-                HC::liveness_is_guaranteed(spec, cluster);
+                HC::liveness_guarantee_holds(spec, cluster);
             }
         }
     }
@@ -218,14 +218,14 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
             assert(new_composed.contains_key(i));
         }
 
-        VC::safety_is_guaranteed(spec, cluster);
+        VC::safety_guarantee_holds(spec, cluster);
 
         if (forall |i| #[trigger] new_composed.contains_key(i) ==> spec.entails((new_composed[i].fairness)(cluster)))
             && (forall |i| #[trigger] new_composed.contains_key(i) ==>
                     forall |j| #[trigger] others.contains_key(j) ==>
                         spec.entails((new_composed[i].safety_partial_rely)(j)))
         {
-            VC::no_internal_interference(spec, cluster);
+            VC::safety_rely_holds(spec, cluster);
 
             assert forall |i| #[trigger] composed.contains_key(i)
             implies spec.entails(composed[i].liveness_guarantee) by {
@@ -257,7 +257,7 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
 
                 VC::liveness_rely_holds(spec, cluster);
 
-                VC::liveness_is_guaranteed(spec, cluster);
+                VC::liveness_guarantee_holds(spec, cluster);
             }
         }
     }
@@ -280,15 +280,15 @@ impl Composition for ComposeCook {
     open spec fn composed() -> Map<int, ControllerSpec> { Map::<int, ControllerSpec>::empty() }
 
     #[verifier(external_body)]
-    proof fn safety_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 
     #[verifier(external_body)]
-    proof fn no_internal_interference(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 }
 
 impl HorizontalComposition for ComposeCook {
     #[verifier(external_body)]
-    proof fn liveness_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 }
 
 // waiter is a controller whose progress relies on cook's progress
@@ -304,15 +304,15 @@ impl Composition for ComposeWaiter {
     open spec fn composed() -> Map<int, ControllerSpec> { Map::<int, ControllerSpec>::empty().insert(ComposeCook::id(), cook()) }
 
     #[verifier(external_body)]
-    proof fn safety_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 
     #[verifier(external_body)]
-    proof fn no_internal_interference(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 }
 
 impl VerticalComposition for ComposeWaiter {
     #[verifier(external_body)]
-    proof fn liveness_is_guaranteed(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 
     #[verifier(external_body)]
     proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
