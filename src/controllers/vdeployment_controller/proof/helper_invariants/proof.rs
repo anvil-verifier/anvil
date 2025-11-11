@@ -1764,7 +1764,7 @@ ensures
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
-#[verifier(rlimit(20))]
+#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
@@ -1825,6 +1825,7 @@ ensures
     assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))) by {
         let pre = scheduled_and_not_reconcile;
         let post = vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id);
+        // this proof is slow
         cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(vd.object_ref())), stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
     }
     leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
