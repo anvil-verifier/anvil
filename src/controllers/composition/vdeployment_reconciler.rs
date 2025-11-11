@@ -24,18 +24,13 @@ verus !{
 impl Composition for VDeploymentReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
-            // Q: tla_forall?
-            // Q: current_pods_matches instead of current_state_matches
             liveness_guarantee: tla_forall(|vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd)).leads_to(always(lift_state(vd_liveness::current_pods_matches(vd)))))),
-            // Q: this one isn't used, what is used is |c: ControllerSpec| Self::composed().values().contains(c) ==> c.c().liveness_guarantee
             liveness_rely: tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
             safety_guarantee: always(lift_state(vd_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| lift_state(vd_rely(other_id)),
-            // Q: next_with_wf requires cluster as input to assume cluster component's wf
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()).and(next_with_wf(cluster, VReplicaSetReconciler::id())),
             membership: |cluster: Cluster, id: int| {
                 &&& cluster.controller_models.contains_pair(id, vd_controller_model())
-                // Q: should they be included here
                 &&& cluster.type_is_installed_in_cluster::<VDeploymentView>()
                 &&& cluster.type_is_installed_in_cluster::<VReplicaSetView>()
             },
