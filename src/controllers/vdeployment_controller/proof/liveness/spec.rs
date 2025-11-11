@@ -476,6 +476,7 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
     .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
     .and(always(lift_state(Cluster::etcd_objects_have_unique_uids())))
     .and(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
+    .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())))
     .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>())))
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id))))
     .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
@@ -514,6 +515,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     always_p_is_stable(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()));
     always_p_is_stable(lift_state(Cluster::etcd_objects_have_unique_uids()));
     always_p_is_stable(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()));
+    always_p_is_stable(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()));
     always_p_is_stable(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()));
     always_p_is_stable(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)));
     always_p_is_stable(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
@@ -548,6 +550,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
         always(lift_state(Cluster::etcd_objects_have_unique_uids())),
         always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
+        always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())),
         always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>())),
         always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id))),
         always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
@@ -593,6 +596,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_etcd_objects_have_unique_uids(spec);
     cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
+    cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(spec);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(spec);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
@@ -675,6 +679,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(Cluster::etcd_objects_have_unique_uids()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),

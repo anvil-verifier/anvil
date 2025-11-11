@@ -1840,7 +1840,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
