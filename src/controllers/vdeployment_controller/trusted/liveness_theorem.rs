@@ -29,10 +29,7 @@ pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState
     }
 }
 
-// draft of ESR for VDeployment
-// TODO: add another version which talks about pods and derives from VRS ESR and this ESR
-// Also try using quantifiers to simplify the proofs
-// *indeed simplified version of etcd_state_is
+// exists and only exists one VRS that matches vd.spec.template and has desired replicas
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // new vrs exists and only one exists
@@ -53,6 +50,24 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
                 &&& filter_old_vrs_keys(Some(i.0), s)(k)
             }
         }
+    }
+}
+
+// composed ESR
+pub open spec fn current_pods_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        s.resources().values().filter(valid_owned_pods(vd)).len() == vd.spec.replicas.unwrap_or(0)
+    }
+}
+
+pub open spec fn valid_owned_pods(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
+    |obj: DynamicObjectView| {
+        &&& obj.kind == PodView::kind()
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace == vd.metadata.namespace
+        &&& obj.metadata.owner_references_contains(vd.controller_owner_ref())
+        &&& vd.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        &&& obj.metadata.deletion_timestamp is None
     }
 }
 

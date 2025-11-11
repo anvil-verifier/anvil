@@ -220,6 +220,24 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_admission_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
+  esr-composition-verification:
+    needs: build-and-cache-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Verify the ESR composition
+        run: |
+          . "$HOME/.cargo/env"
+          VERUS_DIR="${HOME}/verus" ./build.sh esr_composition.rs --crate-type lib --rlimit 50 --time --verify-module composition
   framework-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
