@@ -23,7 +23,7 @@ impl Composition for VReplicaSetReconciler {
             liveness_guarantee: vrs_eventually_stable_reconciliation(),
             liveness_rely: true_pred(), // VRS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vrs_guarantee(Self::id()))),
-            safety_partial_rely: |other_id: int| lift_state(vrs_rely(other_id)),
+            safety_partial_rely: |other_id: int| always(lift_state(vrs_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
             membership: |cluster: Cluster, id: int| {
                 &&& cluster.controller_models.contains_pair(id, vrs_controller_model())
