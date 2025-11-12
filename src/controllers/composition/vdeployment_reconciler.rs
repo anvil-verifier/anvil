@@ -53,7 +53,7 @@ impl Composition for VDeploymentReconciler {
         guarantee_condition_holds(spec, cluster, Self::id());
     }
 
-    // vrs_guarantee to vd_rely & vrs_rely
+    // vrs_guarantee to vd_rely & vrs_rely, trivial
     proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures forall |i| #[trigger] Self::composed().contains_key(i) ==>
             spec.entails((Self::c().safety_partial_rely)(i))
@@ -64,31 +64,7 @@ impl Composition for VDeploymentReconciler {
         let vrs_guarantee = vrs_guarantee(VReplicaSetReconciler::id());
         let vrs_rely = vrs_rely(Self::id());
         assert(Self::composed().contains_key(VReplicaSetReconciler::id())); // trigger
-        assert(lift_state(vd_guarantee).and(lift_state(vrs_guarantee)).entails(lift_state(vd_rely).and(lift_state(vrs_rely)))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vd_guarantee).and(lift_state(vrs_guarantee)).satisfied_by(ex)
-                implies lift_state(vd_rely).and(lift_state(vrs_rely)).satisfied_by(ex) by {
-                let s = ex.head();
-                assert forall |msg| {
-                    &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.content.is_APIRequest()
-                    &&& msg.src.is_controller_id(VReplicaSetReconciler::id())
-                } implies match msg.content.get_APIRequest_0() {
-                    APIRequest::CreateRequest(req) => vd_rely_create_req(req)(s),
-                    APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
-                    APIRequest::GetThenUpdateRequest(req) => vd_rely_get_then_update_req(req)(s),
-                    APIRequest::UpdateStatusRequest(req) => vd_rely_update_status_req(req)(s),
-                    APIRequest::DeleteRequest(req) => vd_rely_delete_req(req)(s),
-                    APIRequest::GetThenDeleteRequest(req) => vd_rely_get_then_delete_req(req)(s),
-                    _ => true,
-                } by {
-                    match msg.content.get_APIRequest_0() {
-                        APIRequest::CreateRequest(req) => {},
-                        APIRequest::GetThenUpdateRequest(req) => {},
-                        _ => {},
-                    }
-                }
-            }
-        }
+        assert(lift_state(vd_guarantee).and(lift_state(vrs_guarantee)).entails(lift_state(vd_rely).and(lift_state(vrs_rely))));
         // spec |= always(p & q)
         entails_and_temp(spec,
             always(lift_state(vd_guarantee)),
