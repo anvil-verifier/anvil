@@ -19,6 +19,14 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
     always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(current_state_matches(vd))))
 }
 
+pub open spec fn composed_vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
+    tla_forall(|vd: VDeploymentView| composed_vd_eventually_stable_reconciliation_per_cr(vd))
+}
+
+pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView) -> TempPred<ClusterState> {
+    always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))
+}
+
 pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::desired_state_is(vd)(s)
@@ -53,7 +61,7 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
 }
 
 // composed ESR
-pub open spec fn current_pods_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn current_pods_match(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.resources().values().filter(valid_owned_pods(vd)).len() == vd.spec.replicas.unwrap_or(0)
     }

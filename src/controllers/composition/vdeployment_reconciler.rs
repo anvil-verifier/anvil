@@ -1,6 +1,6 @@
 use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::spec::cluster::*;
-use crate::temporal_logic::defs::*;
+use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
 use crate::vdeployment_controller::trusted::liveness_theorem as vd_liveness;
 use crate::vreplicaset_controller::trusted::spec_types::*;
@@ -24,11 +24,11 @@ verus !{
 impl Composition for VDeploymentReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
-            liveness_guarantee: tla_forall(|vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd)).leads_to(always(lift_state(vd_liveness::current_pods_matches(vd)))))),
-            liveness_rely: tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
+            liveness_guarantee: vd_liveness::composed_vd_eventually_stable_reconciliation(),
+            liveness_rely: vrs_liveness::vrs_eventually_stable_reconciliation(),
             safety_guarantee: always(lift_state(vd_guarantee(Self::id()))),
-            safety_partial_rely: |other_id: int| lift_state(vd_rely(other_id)),
-            fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()).and(next_with_wf(cluster, VReplicaSetReconciler::id())),
+            safety_partial_rely: |other_id: int| always(lift_state(vd_rely(other_id))),
+            fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
             membership: |cluster: Cluster, id: int| {
                 &&& cluster.controller_models.contains_pair(id, vd_controller_model())
                 &&& cluster.type_is_installed_in_cluster::<VDeploymentView>()
@@ -59,11 +59,11 @@ impl Composition for VDeploymentReconciler {
 }
 
 impl VerticalComposition for VDeploymentReconciler {
-    #[verifier(external_body)]
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
         eventually_stable_reconciliation_holds(spec, cluster, Self::id());
+        composed_eventually_stable_reconciliation_holds(spec);
     }
 
     proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
@@ -73,7 +73,13 @@ impl VerticalComposition for VDeploymentReconciler {
     }
 }
 
-proof fn eventually_stable_reconciliation_holds_for_vd_and_vrs()
+#[verifier(external_body)]
+pub proof fn composed_eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>)
+requires
+    spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
+    spec.entails(vd_liveness::vd_eventually_stable_reconciliation()),
+ensures
+    spec.entails(vd_liveness::composed_vd_eventually_stable_reconciliation()),
 {}
 
 
