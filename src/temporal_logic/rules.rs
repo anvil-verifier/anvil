@@ -1307,7 +1307,7 @@ pub proof fn entails_preserved_by_always<T>(p: TempPred<T>, q: TempPred<T>)
 //     spec |= []q
 pub proof fn always_weaken<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
-        valid(p.implies(q)),
+        p.entails(q),
         spec.entails(always(p)),
     ensures spec.entails(always(q)),
 {
