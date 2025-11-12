@@ -101,14 +101,32 @@ impl VerticalComposition for VDeploymentReconciler {
     }
 }
 
-#[verifier(external_body)]
 pub proof fn composed_eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>)
 requires
     spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
     spec.entails(vd_liveness::vd_eventually_stable_reconciliation()),
 ensures
     spec.entails(vd_liveness::composed_vd_eventually_stable_reconciliation()),
-{}
+{
+    assert forall |crs: (VDeploymentView, VReplicaSetView)| true implies #[trigger] spec.entails(vd_liveness::composed_vd_eventually_stable_reconciliation_per_cr(crs.0, crs.1)) by {
+        let vd = crs.0;
+        let vrs = crs.1;
+        // p & q |= r
+        assert(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))).entails(lift_state(vd_liveness::current_pods_match(vd)))) by {
+            assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))).satisfied_by(ex)
+                implies lift_state(vd_liveness::current_pods_match(vd)).satisfied_by(ex) by {
+                assume(false);
+            };
+        }
+        // always(p) & always(q) |= always(r)
+        entails_preserved_by_always(vd_liveness::current_state_matches(vd) && vrs_liveness::current_state_matches(vrs), lift_state(vd_liveness::current_pods_match(vd)));
+        always_and_equality(lift_state(vd_liveness::current_state_matches(vd)), lift_state(vrs_liveness::current_state_matches(vrs)));
+        // need a helper lemma:
+        // spec |= always(a) ~> always(c) & always(b) ~> always(d)
+        // ==>
+        // spec |= (always(a) & always(b)) ~> (always(c) & always(d))
+    };
+}
 
 
 }
