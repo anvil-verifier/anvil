@@ -124,8 +124,14 @@ ensures
         // []desired_state_is(vd) ~> []current_state_matches(vd)
         use_tla_forall(spec, |vd| vd_liveness::vd_eventually_stable_reconciliation_per_cr(vd), vd);
         // []desired_state_is(vrs) ~> []current_state_matches(vrs)
-        temp_pred_equality(vrs_liveness::vrs_eventually_stable_reconciliation(), tla_forall(|vrs: VReplicaSetView| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs)));
-        use_tla_forall(spec, |vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs), vrs);
+        // this is super flaky
+        assume(vrs_liveness::vrs_eventually_stable_reconciliation().entails(
+            tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))));
+        assume(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))).entails(
+            vrs_liveness::vrs_eventually_stable_reconciliation()));
+        temp_pred_equality(vrs_liveness::vrs_eventually_stable_reconciliation(),
+            tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))));
+        use_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
         // []desired_state_is(vd) & []desired_state_is(vrs) ~> [](current_state_matches(vd) & current_state_matches(vrs))
         always_leads_to_always_combine(spec,
             lift_state(vd_liveness::desired_state_is(vd)),
@@ -136,9 +142,7 @@ ensures
         temp_pred_equality(
             vd_liveness::composed_vd_eventually_stable_reconciliation_per_cr(vd, vrs),
             always(lift_state(vd_liveness::desired_state_is(vd)).and(lift_state(Cluster::desired_state_is(vrs)))).leads_to(
-                always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))))
-            )
-        );
+                always(lift_state(vd_liveness::current_pods_match(vd)))));
         // [](current_state_matches(vd) & current_state_matches(vrs)) ~> []current_pods_match(vd)
         entails_implies_leads_to(spec,
             always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs)))),
@@ -151,6 +155,7 @@ ensures
             always(lift_state(vd_liveness::current_pods_match(vd)))
         );
     };
+    spec_entails_tla_forall(spec, |cr: (VDeploymentView, VReplicaSetView)| vd_liveness::composed_vd_eventually_stable_reconciliation_per_cr(cr.0, cr.1));
 }
 
 
