@@ -118,13 +118,38 @@ ensures
                 assume(false);
             };
         }
-        // always(p) & always(q) |= always(r)
+        // []current_state_matches(vd) & []current_state_matches(vrs) |= []current_pods_match(vd)
         entails_preserved_by_always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))), lift_state(vd_liveness::current_pods_match(vd)));
         always_and_equality(lift_state(vd_liveness::current_state_matches(vd)), lift_state(vrs_liveness::current_state_matches(vrs)));
-        // need a helper lemma:
-        // spec |= always(a) ~> always(c) & always(b) ~> always(d)
-        // ==>
-        // spec |= (always(a) & always(b)) ~> (always(c) & always(d))
+        // []desired_state_is(vd) ~> []current_state_matches(vd)
+        use_tla_forall(spec, |vd| vd_liveness::vd_eventually_stable_reconciliation_per_cr(vd), vd);
+        // []desired_state_is(vrs) ~> []current_state_matches(vrs)
+        temp_pred_equality(vrs_liveness::vrs_eventually_stable_reconciliation(), tla_forall(|vrs: VReplicaSetView| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs)));
+        use_tla_forall(spec, |vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs), vrs);
+        // []desired_state_is(vd) & []desired_state_is(vrs) ~> [](current_state_matches(vd) & current_state_matches(vrs))
+        always_leads_to_always_combine(spec,
+            lift_state(vd_liveness::desired_state_is(vd)),
+            lift_state(Cluster::desired_state_is(vrs)),
+            lift_state(vd_liveness::current_state_matches(vd)),
+            lift_state(vrs_liveness::current_state_matches(vrs))
+        );
+        temp_pred_equality(
+            vd_liveness::composed_vd_eventually_stable_reconciliation_per_cr(vd, vrs),
+            always(lift_state(vd_liveness::desired_state_is(vd)).and(lift_state(Cluster::desired_state_is(vrs)))).leads_to(
+                always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))))
+            )
+        );
+        // [](current_state_matches(vd) & current_state_matches(vrs)) ~> []current_pods_match(vd)
+        entails_implies_leads_to(spec,
+            always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs)))),
+            always(lift_state(vd_liveness::current_pods_match(vd)))
+        );
+        // [](desired_state_is(vd) & desired_state_is(vrs)) ~> []current_pods_match(vd)
+        leads_to_trans(spec,
+            always(lift_state(vd_liveness::desired_state_is(vd)).and(lift_state(Cluster::desired_state_is(vrs)))),
+            always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs)))),
+            always(lift_state(vd_liveness::current_pods_match(vd)))
+        );
     };
 }
 
