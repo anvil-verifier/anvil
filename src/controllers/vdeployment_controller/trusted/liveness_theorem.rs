@@ -60,24 +60,6 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     }
 }
 
-// composed ESR
-pub open spec fn current_pods_match(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.resources().values().filter(valid_owned_pods(vd)).len() == vd.spec.replicas.unwrap_or(0)
-    }
-}
-
-pub open spec fn valid_owned_pods(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
-    |obj: DynamicObjectView| {
-        &&& obj.kind == PodView::kind()
-        &&& obj.metadata.namespace is Some
-        &&& obj.metadata.namespace == vd.metadata.namespace
-        &&& obj.metadata.owner_references_contains(vd.controller_owner_ref())
-        &&& vd.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-        &&& obj.metadata.deletion_timestamp is None
-    }
-}
-
 pub open spec fn filter_new_vrs_keys(template: PodTemplateSpecView, s: ClusterState) -> spec_fn(ObjectRef) -> bool {
     |k: ObjectRef| {
         let obj = s.resources()[k];
@@ -116,6 +98,24 @@ pub open spec fn valid_owned_obj_key(vd: VDeploymentView, s: ClusterState) -> sp
 
 pub open spec fn filter_obj_keys_managed_by_vd(vd: VDeploymentView, s: ClusterState) -> Set<ObjectRef> {
     s.resources().dom().filter(valid_owned_obj_key(vd, s))
+}
+
+//* ESR composition *//
+pub open spec fn current_pods_match(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        s.resources().values().filter(valid_owned_pods(vd)).len() == vd.spec.replicas.unwrap_or(0)
+    }
+}
+
+pub open spec fn valid_owned_pods(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
+    |obj: DynamicObjectView| {
+        &&& obj.kind == PodView::kind()
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace == vd.metadata.namespace
+        &&& obj.metadata.owner_references_contains(vd.controller_owner_ref())
+        &&& vd.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        &&& obj.metadata.deletion_timestamp is None
+    }
 }
 
 }
