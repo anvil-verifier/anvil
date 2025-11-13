@@ -109,14 +109,12 @@ pub open spec fn valid_owned_vrs_p(vrs: VReplicaSetView, vd: VDeploymentView) ->
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         &&& s.resources().contains_key(vrs.object_ref())
         &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
+        &&& etcd_vrs == vrs
         &&& valid_owned_vrs(etcd_vrs, vd)
     }
 }
 
-#[verifier(external_body)]
 pub proof fn current_state_match_vd_implies_desired_state_is_vrs(vd: VDeploymentView, s: ClusterState)
-requires
-	vd_liveness::current_state_matches(vd)(s),
 ensures
 	forall |vrs: VReplicaSetView| #[trigger] valid_owned_vrs_p(vrs, vd)(s) ==> Cluster::desired_state_is(vrs)(s),
 {}
