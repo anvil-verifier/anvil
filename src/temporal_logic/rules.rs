@@ -680,7 +680,7 @@ pub proof fn always_leads_to_always_combine<T>(spec: TempPred<T>, p1: TempPred<T
         entails_apply(ex, spec, always(p2).leads_to(always(q2)));
         leads_to_unfold(ex, always(p1), always(q1));
         leads_to_unfold(ex, always(p2), always(q2));
-        assert forall |i| #[trigger] always(p1.and(p2)).satisfied_by(ex.suffix(i)) implies eventually(always(q1.and(q2))).satisfied_by(ex.suffix(i)) by {
+        assert forall |i| #[trigger] always(p1.and(p2)).satisfied_by(ex.suffix(i)) implies eventually(always(q1).and(always(q2))).satisfied_by(ex.suffix(i)) by {
             always_unfold(ex.suffix(i), p1.and(p2));
             eventually_unfold(ex.suffix(i), always(q1));
             eventually_unfold(ex.suffix(i), always(q2));
@@ -688,10 +688,17 @@ pub proof fn always_leads_to_always_combine<T>(spec: TempPred<T>, p1: TempPred<T
             let witness2 = eventually_choose_witness(ex.suffix(i), always(q2));
             always_unfold(ex.suffix(i).suffix(witness1), q1);
             always_unfold(ex.suffix(i).suffix(witness2), q2);
-            // execution_equality(ex.suffix(i).suffix(witness2), ex.suffix())
-            // eventually_propagate_backwards
-            // always_propagate_forwards
+            if witness1 > witness2 {
+                execution_equality(ex.suffix(i).suffix(witness1), ex.suffix(i).suffix(witness2).suffix((witness1 - witness2) as nat));
+                always_propagate_forwards(ex.suffix(i).suffix(witness2), q2, (witness1 - witness2) as nat);
+                assert(always(q1).and(always(q2)).satisfied_by(ex.suffix(i).suffix(witness1)));
+            } else {
+                execution_equality(ex.suffix(i).suffix(witness2), ex.suffix(i).suffix(witness1).suffix((witness2 - witness1) as nat));
+                always_propagate_forwards(ex.suffix(i).suffix(witness1), q1, (witness2 - witness1) as nat);
+                assert(always(q1).and(always(q2)).satisfied_by(ex.suffix(i).suffix(witness2)));
+            }
         }
+        always_and_equality(q1, q2);
     }
 }
 
