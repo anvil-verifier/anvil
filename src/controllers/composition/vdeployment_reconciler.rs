@@ -151,6 +151,8 @@ ensures
 pub proof fn current_state_match_combining_vrs_vd(vd: VDeploymentView, s: ClusterState)
 requires
 	vd_liveness::current_state_matches(vd)(s),
+    // this assumption is too strong. We also needs to prove all vrs that pass p later are exactly those vrs that pass p earlier
+    // i.e. no new vrs passes p
     forall |vrs: VReplicaSetView| #[trigger] valid_owned_vrs_p(vrs, vd)(s) ==> vrs_liveness::current_state_matches(vrs)(s),
 ensures
     current_pods_match(vd)(s),
