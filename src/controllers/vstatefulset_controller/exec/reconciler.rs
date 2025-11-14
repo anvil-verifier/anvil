@@ -16,11 +16,7 @@ use std::collections::BTreeSet;
 use vstd::relations::{sorted_by, total_ordering};
 use vstd::{prelude::*, seq_lib::*};
 
-use core::alloc::Allocator;
-
 verus! {
-
-
     pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: i32) -> (result: Option<Pod>) 
         ensures result.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int)
     {
