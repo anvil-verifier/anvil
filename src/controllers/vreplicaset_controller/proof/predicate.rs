@@ -98,7 +98,7 @@ pub open spec fn matching_pod_entries(vrs: VReplicaSetView, resources: StoredSta
 pub open spec fn num_diff_pods_is(vrs: VReplicaSetView, diff: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let pods = matching_pods(vrs, s.resources());
-        &&& pods.len() - vrs.spec.replicas.unwrap_or(0) == diff
+        &&& pods.len() - vrs.spec.replicas.unwrap_or(1) == diff
     }
 }
 
