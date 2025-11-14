@@ -612,31 +612,41 @@ pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<
         pod.metadata.owner_references_contains(vsts.controller_owner_ref())
         && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
-        && exists |ord: nat| pod.metadata.name->0 == pod_name(vsts.metadata.name->0, ord)
+        && vsts.metadata.name is Some
+        && get_ordinal(vsts.metadata.name->0, pod) is Some
     )
 }
 
-pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> nat {
-    choose |ord| pod.metadata.name->0 == pod_name(parent_name, ord)
+pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<nat> {
+    if (exists |ord| pod.metadata.name->0 == pod_name(parent_name, ord)) {
+        Some(choose |ord| pod.metadata.name->0 == pod_name(parent_name, ord))
+    } else {
+        None
+    }
+}
+
+
+pub open spec fn get_pod_with_ord(parent_name: StringView, pods: Seq<PodView>, ord: int) -> Option<PodView> {
+    let filtered = pods.filter(|pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 == ord);
+    if filtered.len() > 0 {
+        Some(filtered[0])
+    } else {
+        None
+    }
 }
 
 pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Seq<PodView>) -> (Seq<Option<PodView>>, Seq<PodView>) {
     // needed includes all the pods that should be created or updated
     // creation/update will start with the beginning of needed where ordinal == 0
     let needed = Seq::<Option<PodView>>::new(replicas,
-        |ord: int| if exists |i| #![trigger pods[i]] pods[i].metadata.name->0 == pod_name(parent_name, ord as nat) {
-            let i = choose |i| #![trigger pods[i]] pods[i].metadata.name->0 == pod_name(parent_name, ord as nat);
-            Some(pods[i]) // The pod exists but might need to be updated
-        } else {
-            None // The pod doesn't exist so it needs to be created
-        }
+        |ord: int| get_pod_with_ord(parent_name, pods, ord)
     );
     // condemned includes all the pods that should be deleted
     // condemned is sorted by the decreasing order of the ordinal number of each pod
     // deletion will start with the pod with the largest ordinal number
     let condemned = pods
-        .filter(|pod: PodView| exists |ord: nat| ord >= replicas && pod.metadata.name->0 == pod_name(parent_name, ord))
-        .sort_by(|p1, p2| get_ordinal(parent_name, p1) >= get_ordinal(parent_name, p2));
+        .filter(|pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 >= replicas)
+        .sort_by(|p1, p2| get_ordinal(parent_name, p1)->0 >= get_ordinal(parent_name, p2)->0);
     (needed, condemned)
 }
 
@@ -770,7 +780,8 @@ pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
             ==> exists |j: int| #![trigger volumes[j]] 0 <= j < volumes.len()
                     && volumes[j].name == claims[i].metadata.name->0
                     && volumes[j].persistent_volume_claim is Some
-                    && volumes[j].persistent_volume_claim->0.claim_name == pvc_name(claims[i].metadata.name->0, vsts.metadata.name->0, ordinal)
+                    && ordinal is Some
+                    && volumes[j].persistent_volume_claim->0.claim_name == pvc_name(claims[i].metadata.name->0, vsts.metadata.name->0, ordinal->0)
 }
 
 // TODO: compare other fields of the pod if necessary
