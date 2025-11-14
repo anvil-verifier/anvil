@@ -113,7 +113,7 @@ pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr(vd: VDeploy
 
 pub open spec fn current_pods_match(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        s.resources().values().filter(valid_owned_pods(vd, s)).len() == vd.spec.replicas.unwrap_or(0)
+        s.resources().values().filter(valid_owned_pods(vd, s)).len() == vd.spec.replicas.unwrap_or(1)
     }
 }
 
@@ -211,7 +211,9 @@ ensures
         // <==
         if vrs_liveness::owned_selector_match_is(vrs, obj) {} // trivial
     }
-    assume(false);
+    assert(vrs_liveness::matching_pods(vrs, s.resources()) == s.resources().values().filter(valid_owned_pods(vd, s)));
+    assert(vrs_liveness::matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1));
+    assert(vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
 }
 
 // generic proof
