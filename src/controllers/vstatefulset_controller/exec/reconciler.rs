@@ -20,6 +20,7 @@ use core::alloc::Allocator;
 
 verus! {
 
+
     pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: i32) -> (result: Option<Pod>) 
         ensures result.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int)
     {
@@ -58,6 +59,11 @@ verus! {
 
         }
       
+        // proof {
+        //     let model_filtered = pods.deep_view().filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord);
+        //     assert(model_filtered.len() == 0 ==> model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord) is None);
+        // }
+
         if filtered.len() > 0 {
             assume(model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int) == Some(filtered[0]).deep_view());
             Some(filtered[0].clone())
