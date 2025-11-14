@@ -72,6 +72,7 @@ verus! {
 
 
     pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (result: (Vec<Option<Pod>>, Vec<Pod>))
+        requires replicas <= i32::MAX
         ensures result.0.deep_view() == model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).0,
                 // result.1.deep_view() =~= model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).1
     {
@@ -88,6 +89,7 @@ verus! {
         let mut i = 0;
         while i < replicas
             invariant 
+            replicas <= i32::MAX,
             i <= replicas,
             needed.deep_view() == model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).0.take(i as int)
             decreases replicas - i
@@ -96,15 +98,16 @@ verus! {
             needed.push(pod_or_none);
 
             proof {
+                assert((i as i32) as int == i as int);
+                
                 let needed_model: Seq<Option<PodView>> = Seq::new(replicas as nat, |ord: int| model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int));
                 let needed_old = needed.deep_view().drop_last();
                 let pod = pod_or_none.deep_view();
-                assert(needed.deep_view().last() == pod);
+
                 assert(needed.deep_view() == needed_old.push(pod));
 
-                assert(needed.deep_view().drop_last() == needed_model.take(i as int));
+                assert(needed_old == needed_model.take(i as int));
                 assert(needed_model[i as int] == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), i as int));
-                assume((i as i32) as int == i as int);
                 assert(pod_or_none.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), i as int));
                 assert(needed_model[i as int] == pod_or_none.deep_view());
             }
