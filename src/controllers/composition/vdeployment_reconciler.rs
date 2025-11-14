@@ -171,6 +171,7 @@ ensures
         }
     };
     let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+    assume(valid_owned_vrs_p(vrs, vd)(s)); // trigger
     // prove that all counted pods belong to the up-to-date vrs owned by vd
     // pod count == vd.spec.template.replicas
     assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
@@ -178,7 +179,6 @@ ensures
         // TODO: add cluster invariants
         assume(s.resources().contains_key(vrs.object_ref())); // trigger
         assume(VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs);
-        assume(valid_owned_vrs_p(vrs, vd)(s)); // trigger
         // ==>
         if valid_owned_pods(vd, s)(obj) {
             if !vrs_liveness::owned_selector_match_is(vrs, obj) {
