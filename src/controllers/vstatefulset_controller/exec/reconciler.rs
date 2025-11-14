@@ -57,18 +57,14 @@ verus! {
             assert(filtered.deep_view() == model_filtered);
 
         }
-        let ret = if filtered.len() > 0 {
+      
+        if filtered.len() > 0 {
+            assume(model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int) == Some(filtered[0]).deep_view());
             Some(filtered[0].clone())
         } else {
+            assume(model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int) is None);
             None
-
-        };
-
-        proof {
-            reveal(model_reconciler::get_pod_with_ord);
-            assume(ret.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int));
         }
-        return ret;
     }
 
 
