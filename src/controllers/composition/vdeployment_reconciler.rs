@@ -183,17 +183,24 @@ ensures
             };
             assert(valid_owned_vrs_p(havoc_vrs, vd)(s)); // trigger
             if havoc_vrs.spec.replicas == Some(int0!()) {
-                assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).len() == 0);
-                assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
+                assert(!vrs_liveness::matching_pods(havoc_vrs, s.resources()).is_empty()) by {
+                    assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
+                }
+                assume(vrs_liveness::matching_pods(havoc_vrs, s.resources()).finite());
+                vrs_liveness::matching_pods(havoc_vrs, s.resources()).lemma_len0_is_empty();
                 assert(false);
             }
             if havoc_vrs != vrs { // then can pass vd_liveness::filter_old_vrs_keys, contradiction proved
                 assert(vd_liveness::valid_owned_obj_key(vd, s)(havoc_vrs.object_ref()));
+                assume(havoc_vrs.metadata.uid->0 != vrs.metadata.uid->0);
+                assert(vd_liveness::filter_old_vrs_keys(Some(vrs.metadata.uid->0), s)(havoc_vrs.object_ref()));
                 assert(false);
             }
             assert(false); // then vrs_liveness::owned_selector_match_is is true
         }
     }
+    assert(s.resources().contains_key(vrs.object_ref())); // trigger
+    assume(VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs);
     assert(valid_owned_vrs_p(vrs, vd)(s)); // trigger
     assert(valid_owned_pods(vd, s) =~= (|obj| vrs_liveness::owned_selector_match_is(vrs, obj)));
 }
