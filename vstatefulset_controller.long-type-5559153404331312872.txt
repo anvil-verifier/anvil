@@ -1,0 +1,1 @@
+(vstd::seq::Seq<std::option::Option<kubernetes_api_objects::spec::pod::PodView>>, vstd::seq::Seq<kubernetes_api_objects::spec::pod::PodView>)
