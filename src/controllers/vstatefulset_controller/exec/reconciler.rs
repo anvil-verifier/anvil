@@ -4,6 +4,7 @@ use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
+use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstd_ext::string_view::StringView;
 use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
 use crate::{
@@ -33,7 +34,7 @@ verus! {
             filtered.deep_view() == pods.deep_view().take(idx as int).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord)
         {
             let pod = &pods[idx];
-            if get_ordinal(parent_name.clone(), pod).is_some() && get_ordinal(parent_name.clone(), pod).unwrap() == ord {
+            if get_ordinal(&parent_name, pod).is_some() && get_ordinal(&parent_name, pod).unwrap() == ord {
                 filtered.push(pod.clone());
             }
 
@@ -74,7 +75,7 @@ verus! {
     pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (result: (Vec<Option<Pod>>, Vec<Pod>))
         requires replicas <= i32::MAX
         ensures result.0.deep_view() == model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).0,
-                // result.1.deep_view() =~= model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).1
+                result.1.deep_view() == model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).1
     {
         // needed includes all the pods that should be created or updated
         // creation/update will start with the beginning of needed where ordinal == 0
@@ -92,13 +93,14 @@ verus! {
             replicas <= i32::MAX,
             i <= replicas,
             needed.deep_view() == model_reconciler::partition_pods(parent_name@, replicas as nat, pods.deep_view()).0.take(i as int)
+            
             decreases replicas - i
         {
             let pod_or_none = get_pod_with_ord(parent_name.clone(), &pods, i as i32);
             needed.push(pod_or_none);
 
             proof {
-                assert((i as i32) as int == i as int);
+                assert((i as i32) as int == i as int); // this is needed due to some ugly type conversions
                 
                 let needed_model: Seq<Option<PodView>> = Seq::new(replicas as nat, |ord: int| model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int));
                 let needed_old = needed.deep_view().drop_last();
@@ -115,7 +117,47 @@ verus! {
             i += 1;
         }
 
-        (needed, vec![])
+        let mut condemned: Vec<Pod> = Vec::new();
+
+        proof {
+            assert_seqs_equal!(
+                condemned.deep_view(),
+                pods.deep_view().take(0).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas)
+            );
+        }        
+
+        for i in 0..pods.len() 
+        invariant 
+            replicas <= i32::MAX,
+            condemned.deep_view() == pods.deep_view().take(i as int).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas)
+        {
+            let pod = &pods[i];
+            let ordinal = get_ordinal(&parent_name, pod);
+            if ordinal.is_some() && ordinal.unwrap() >= replicas as i32 {
+                condemned.push(pod.clone());
+            } 
+        
+            proof {
+                assert(replicas as i32 == replicas);
+                let spec_filter = |pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas;
+                let old_filtered = if spec_filter(pod@) {
+                    condemned.deep_view().drop_last()
+                } else {
+                    condemned.deep_view()
+                };
+                assert(old_filtered == pods.deep_view().take(i as int).filter(spec_filter));
+                lemma_filter_push(pods.deep_view().take(i as int), spec_filter, pod@);
+                assert(pods.deep_view().take(i as int).push(pod@) == pods.deep_view().take(i + 1));
+            }
+        }
+
+        proof {
+            assert(pods.deep_view().take(pods.len() as int) == pods.deep_view());
+        }
+        
+        sort_pods_by_ord(&parent_name, &mut condemned);
+
+        (needed, condemned)
 
     }
 
@@ -230,7 +272,7 @@ verus! {
             let pod = &pods[idx];
             if  pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
                 && vsts.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::empty()))
-                && trusted_reconciler::get_ordinal(vsts.metadata().name().unwrap(), &pod).is_some() {
+                && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod).is_some() {
                 filtered_pods.push(pod.clone());
             }
 
