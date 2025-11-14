@@ -84,7 +84,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                 } else {
                     let pods = pods_or_none.unwrap();
                     let filtered_pods = filter_pods(pods, v_replica_set);
-                    let replicas = v_replica_set.spec.replicas.unwrap_or(0);
+                    let replicas = v_replica_set.spec.replicas.unwrap_or(1);
                     if replicas < 0 {
                         (error_state(state), None)
                     } else {

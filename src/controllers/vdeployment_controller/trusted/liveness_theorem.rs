@@ -34,40 +34,21 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     |s: ClusterState| {
         // new vrs exists and only one exists
         // at most one exists is enforced by filter_old_vrs_keys
-        exists |i: (Uid, ObjectRef)| {
-            let etcd_obj = s.resources()[i.1];
+        exists |k: ObjectRef| {
+            let etcd_obj = s.resources()[k];
             let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            &&& #[trigger] s.resources().contains_key(i.1)
-            &&& valid_owned_obj_key(vd, s)(i.1)
-            &&& filter_new_vrs_keys(vd.spec.template, s)(i.1)
+            &&& #[trigger] s.resources().contains_key(k)
+            &&& valid_owned_obj_key(vd, s)(k)
+            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
             &&& etcd_vrs.metadata.uid is Some
-            &&& etcd_vrs.metadata.uid->0 == i.0
             &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(k)
                 &&& valid_owned_obj_key(vd, s)(k)
-                &&& filter_old_vrs_keys(Some(i.0), s)(k)
+                &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
             }
         }
-    }
-}
-
-// composed ESR
-pub open spec fn current_pods_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.resources().values().filter(valid_owned_pods(vd)).len() == vd.spec.replicas.unwrap_or(0)
-    }
-}
-
-pub open spec fn valid_owned_pods(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
-    |obj: DynamicObjectView| {
-        &&& obj.kind == PodView::kind()
-        &&& obj.metadata.namespace is Some
-        &&& obj.metadata.namespace == vd.metadata.namespace
-        &&& obj.metadata.owner_references_contains(vd.controller_owner_ref())
-        &&& vd.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-        &&& obj.metadata.deletion_timestamp is None
     }
 }
 

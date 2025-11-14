@@ -234,7 +234,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         true_pred::<ClusterState>().satisfied_by(ex) implies #[trigger] exists_num_diff_pods_is.satisfied_by(ex) by {
             let s = ex.head();
             let pods = matching_pods(vrs, s.resources());
-            let diff = pods.len() - vrs.spec.replicas.unwrap_or(0);
+            let diff = pods.len() - vrs.spec.replicas.unwrap_or(1);
 
             // Instantiate exists statement.
             assert((|diff| lift_state(num_diff_pods_is(vrs, diff)))(diff).satisfied_by(ex));

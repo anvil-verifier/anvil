@@ -16,7 +16,7 @@ pub open spec fn vrs_eventually_stable_reconciliation_per_cr(vrs: VReplicaSetVie
 
 pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<ClusterState> {
     |s: ClusterState|
-        matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(0)
+        matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1)
 }
 
 pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<DynamicObjectView> {

@@ -669,6 +669,35 @@ pub proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>
     };
 }
 
+pub proof fn always_leads_to_always_combine<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+    requires
+        spec.entails(always(p1).leads_to(always(q1))),
+        spec.entails(always(p2).leads_to(always(q2))),
+    ensures spec.entails(always((p1).and(p2)).leads_to(always(q1.and(q2)))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(p1.and(p2)).leads_to(always(q1.and(q2))).satisfied_by(ex) by {
+        entails_apply(ex, spec, always(p1).leads_to(always(q1)));
+        entails_apply(ex, spec, always(p2).leads_to(always(q2)));
+        leads_to_unfold(ex, always(p1), always(q1));
+        leads_to_unfold(ex, always(p2), always(q2));
+        assert forall |i| #[trigger] always(p1.and(p2)).satisfied_by(ex.suffix(i)) implies eventually(always(q1).and(always(q2))).satisfied_by(ex.suffix(i)) by {
+            always_unfold(ex.suffix(i), p1.and(p2));
+            let witness1 = eventually_choose_witness(ex.suffix(i), always(q1));
+            let witness2 = eventually_choose_witness(ex.suffix(i), always(q2));
+            if witness1 > witness2 {
+                execution_equality(ex.suffix(i).suffix(witness1), ex.suffix(i).suffix(witness2).suffix((witness1 - witness2) as nat));
+                always_propagate_forwards(ex.suffix(i).suffix(witness2), q2, (witness1 - witness2) as nat);
+                assert(always(q1).and(always(q2)).satisfied_by(ex.suffix(i).suffix(witness1)));
+            } else {
+                execution_equality(ex.suffix(i).suffix(witness2), ex.suffix(i).suffix(witness1).suffix((witness2 - witness1) as nat));
+                always_propagate_forwards(ex.suffix(i).suffix(witness1), q1, (witness2 - witness1) as nat);
+                assert(always(q1).and(always(q2)).satisfied_by(ex.suffix(i).suffix(witness2)));
+            }
+        }
+        always_and_equality(q1, q2);
+    }
+}
+
 pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, q: TempPred<T>)
     requires forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(q)),
     ensures spec.entails(tla_exists(a_to_p).leads_to(q)),
@@ -1307,7 +1336,7 @@ pub proof fn entails_preserved_by_always<T>(p: TempPred<T>, q: TempPred<T>)
 //     spec |= []q
 pub proof fn always_weaken<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
-        valid(p.implies(q)),
+        p.entails(q),
         spec.entails(always(p)),
     ensures spec.entails(always(q)),
 {
