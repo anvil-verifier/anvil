@@ -299,16 +299,15 @@ verus! {
         filtered_pods
     }
 
-    pub fn pod_name(parent_name: String, ordinal: i32) -> (result: String)
-        requires ordinal >= 0
+    pub fn pod_name(parent_name: String, ordinal: u32) -> (result: String)
         ensures result@ == model_reconciler::pod_name(parent_name@, ordinal as nat)
     {
         parent_name
         .concat("-")
-        .concat(i32_to_string(ordinal).as_str())
+        .concat(i32_to_string(ordinal as i32).as_str())
     }
 
-    pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: i32) -> (result: String)
+    pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: u32) -> (result: String)
         requires ordinal >= 0
         ensures result@ == model_reconciler::pvc_name(pvc_template_name@, vsts_name@, ordinal as nat)
     {
