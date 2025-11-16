@@ -625,9 +625,16 @@ pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<na
     }
 }
 
+pub open spec fn pod_has_ord(parent_name: StringView, ord: nat) -> (spec_fn(PodView) -> bool) {
+    |pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 == ord
+}
 
-pub open spec fn get_pod_with_ord(parent_name: StringView, pods: Seq<PodView>, ord: int) -> Option<PodView> {
-    let filtered = pods.filter(|pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 == ord);
+pub open spec fn filter_pods_by_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Seq<PodView> {
+    pods.filter(pod_has_ord(parent_name, ord))
+}
+
+pub open spec fn get_pod_with_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Option<PodView> {
+    let filtered = filter_pods_by_ord(parent_name, pods, ord);
     if filtered.len() > 0 {
         Some(filtered[0])
     } else {
@@ -639,7 +646,7 @@ pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Se
     // needed includes all the pods that should be created or updated
     // creation/update will start with the beginning of needed where ordinal == 0
     let needed = Seq::<Option<PodView>>::new(replicas,
-        |ord: int| get_pod_with_ord(parent_name, pods, ord)
+        |ord: int| get_pod_with_ord(parent_name, pods, ord as nat)
     );
     // condemned includes all the pods that should be deleted
     // condemned is sorted by the decreasing order of the ordinal number of each pod

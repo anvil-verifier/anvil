@@ -17,18 +17,26 @@ use vstd::relations::{sorted_by, total_ordering};
 use vstd::{prelude::*, seq_lib::*};
 
 verus! {
-    pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: i32) -> (result: Option<Pod>) 
-        ensures result.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int)
+
+    // pub fn make_pod(vsts: VStatefulSet, ord: i32) -> (pod: Pod)
+    //     requires ord >= 0
+    //     ensures pod@ == model_reconciler::make_pod(vsts@, ord as nat)
+    // {
+        
+    // }
+
+    pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: u32) -> (result: Option<Pod>) 
+        ensures result.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as nat)
     {
         let mut filtered: Vec<Pod> = Vec::new();
         proof {
-            let model_filtered = pods.deep_view().take(0).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord);
+            let model_filtered = model_reconciler::filter_pods_by_ord(parent_name@, pods.deep_view().take(0), ord as nat);
             assert(filtered.deep_view() == model_filtered);
         }
 
         for idx in 0..pods.len()
             invariant idx <= pods.len(),
-            filtered.deep_view() == pods.deep_view().take(idx as int).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord)
+            filtered.deep_view() == model_reconciler::filter_pods_by_ord(parent_name@, pods.deep_view().take(idx as int), ord as nat)
         {
             let pod = &pods[idx];
             if get_ordinal(&parent_name, pod).is_some() && get_ordinal(&parent_name, pod).unwrap() == ord {
@@ -36,35 +44,27 @@ verus! {
             }
 
             proof {
-                let spec_filter = |pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord;
-                let old_filtered = if spec_filter(pod@) {
+                let old_filtered = if model_reconciler::pod_has_ord(parent_name@, ord as nat)(pod@) {
                     filtered.deep_view().drop_last()
                 } else {
                     filtered.deep_view()
                 };
-                assert(old_filtered == pods.deep_view().take(idx as int).filter(spec_filter));
-                lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
+                assert(old_filtered == model_reconciler::filter_pods_by_ord(parent_name@, pods.deep_view().take(idx as int), ord as nat));
+                lemma_filter_push(pods.deep_view().take(idx as int), model_reconciler::pod_has_ord(parent_name@, ord as nat), pod@);
                 assert(pods.deep_view().take(idx as int).push(pod@) == pods.deep_view().take(idx + 1));
+                assert(filtered.deep_view() == model_reconciler::filter_pods_by_ord(parent_name@, pods.deep_view().take(idx + 1 as int), ord as nat));
             }
         }
-
-        proof {
-            let model_filtered = pods.deep_view().filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord);
-            assert(pods.deep_view().take(pods.len() as int) == pods.deep_view());
-            assert(filtered.deep_view() == model_filtered);
-
-        }
       
-        // proof {
-        //     let model_filtered = pods.deep_view().filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 == ord);
-        //     assert(model_filtered.len() == 0 ==> model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord) is None);
-        // }
+        proof {
+            assert(pods.deep_view().take(pods.len() as int) == pods.deep_view());
+        }
+
+        assert(filtered.deep_view() == model_reconciler::filter_pods_by_ord(parent_name@, pods.deep_view(), ord as nat));
 
         if filtered.len() > 0 {
-            assume(model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int) == Some(filtered[0]).deep_view());
             Some(filtered[0].clone())
         } else {
-            assume(model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int) is None);
             None
         }
     }
@@ -94,21 +94,21 @@ verus! {
             
             decreases replicas - i
         {
-            let pod_or_none = get_pod_with_ord(parent_name.clone(), &pods, i as i32);
+            let pod_or_none = get_pod_with_ord(parent_name.clone(), &pods, i);
             needed.push(pod_or_none);
 
             proof {
                 assert((i as i32) as int == i as int); // this is needed due to some ugly type conversions
                 
-                let needed_model: Seq<Option<PodView>> = Seq::new(replicas as nat, |ord: int| model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as int));
+                let needed_model: Seq<Option<PodView>> = Seq::new(replicas as nat, |ord: int| model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as nat));
                 let needed_old = needed.deep_view().drop_last();
                 let pod = pod_or_none.deep_view();
 
                 assert(needed.deep_view() == needed_old.push(pod));
 
                 assert(needed_old == needed_model.take(i as int));
-                assert(needed_model[i as int] == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), i as int));
-                assert(pod_or_none.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), i as int));
+                assert(needed_model[i as int] == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), i as nat));
+                assert(pod_or_none.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), i as nat));
                 assert(needed_model[i as int] == pod_or_none.deep_view());
             }
 
@@ -131,7 +131,7 @@ verus! {
         {
             let pod = &pods[i];
             let ordinal = get_ordinal(&parent_name, pod);
-            if ordinal.is_some() && ordinal.unwrap() >= replicas as i32 {
+            if ordinal.is_some() && ordinal.unwrap() >= replicas {
                 condemned.push(pod.clone());
             } 
         
