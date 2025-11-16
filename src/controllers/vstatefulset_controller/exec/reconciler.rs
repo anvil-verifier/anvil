@@ -10,7 +10,7 @@ use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
-    vstd_ext::string_view::i32_to_string,
+    vstd_ext::string_view::u32_to_string,
 };
 use std::collections::BTreeSet;
 use vstd::relations::{sorted_by, total_ordering};
@@ -304,11 +304,10 @@ verus! {
     {
         parent_name
         .concat("-")
-        .concat(i32_to_string(ordinal as i32).as_str())
+        .concat(u32_to_string(ordinal).as_str())
     }
 
     pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: u32) -> (result: String)
-        requires ordinal >= 0
         ensures result@ == model_reconciler::pvc_name(pvc_template_name@, vsts_name@, ordinal as nat)
     {
         pvc_template_name
