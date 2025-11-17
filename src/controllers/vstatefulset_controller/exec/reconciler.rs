@@ -25,6 +25,7 @@ verus! {
     {
 
         proof {
+            // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
             assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
         }
 
@@ -70,22 +71,18 @@ verus! {
             
             assert(len == vsts@.spec.volume_claim_templates->0.len());
 
-            let mut idx = 0;
-
-            while idx < len
+            for idx in 0..len
                 invariant 
                     result.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat).take(idx as int),
                     vsts@.well_formed(),
                     vsts@.spec.volume_claim_templates is Some,
                     len == vsts@.spec.volume_claim_templates->0.len(),
-                    idx <= len
      
                 decreases len - idx
             {
                 result.push(make_pvc(&vsts, ordinal, idx));
-                idx += 1;
                 proof {
-                    assume(result.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat).take(idx as int));
+                    assume(result.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat).take(idx + 1 as int));
                 }
             }
             result
