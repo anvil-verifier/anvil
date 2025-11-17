@@ -18,12 +18,72 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
-    // pub fn make_pod(vsts: VStatefulSet, ord: i32) -> (pod: Pod)
-    //     requires ord >= 0
-    //     ensures pod@ == model_reconciler::make_pod(vsts@, ord as nat)
-    // {
-        
-    // }
+
+    pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim) 
+        requires vsts@.well_formed() && vsts@.spec.volume_claim_templates is Some && i < vsts@.spec.volume_claim_templates->0.len(),
+        ensures pvc@ == model_reconciler::make_pvc(vsts@, ordinal as nat, i as int),
+    {
+
+        proof {
+
+            assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+        }
+
+        let pvc_template = vsts.spec().volume_claim_templates().unwrap()[i].clone();
+        let mut pvc = PersistentVolumeClaim::default();
+        pvc.set_metadata({
+            let mut metadata = ObjectMeta::default();
+            
+            metadata.set_namespace(vsts.metadata().namespace().unwrap());
+            
+            let pvc_labels = pvc_template.metadata().labels();
+            let vsts_labels = vsts.spec().selector().match_labels();
+            let labels = if pvc_labels.is_some() {
+                if vsts_labels.is_some() {
+                    let mut pvc_map = pvc_labels.unwrap();
+                    pvc_map.extend(vsts_labels.unwrap());
+                    Some(pvc_map)
+                } else {
+                    pvc_labels
+                }
+            } else {
+                vsts_labels
+            };
+            if labels.is_some() {
+                metadata.set_labels(labels.unwrap());
+            }
+            
+            proof {
+                assume(pvc_template@.metadata.name is Some);
+            }
+
+            metadata.set_name(pvc_name(pvc_template.metadata().name().unwrap(), vsts.metadata().name().unwrap(), ordinal));
+
+            metadata
+        });
+        pvc.set_spec(pvc_template.spec().unwrap());
+        pvc   
+    }
+
+    pub fn make_pvcs(vsts: VStatefulSet, ordinal: u32) -> (pvcs: Vec<PersistentVolumeClaim>)
+        requires vsts@.well_formed()
+        ensures pvcs.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat)
+    {
+        if vsts.spec().volume_claim_templates().is_some() {
+            let mut result: Vec<PersistentVolumeClaim> = Vec::new();
+            for i in 0..vsts.spec().volume_claim_templates().unwrap().len() {
+                result.push(make_pvc(&vsts, ordinal, i));
+            }
+            result
+        } else {
+            Vec::new()
+        }
+        // if vsts.spec.volume_claim_templates is Some {
+        //     Seq::new(vsts.spec.volume_claim_templates->0.len(), |i| make_pvc(vsts, ordinal, i))
+        // } else {
+        //     Seq::empty()
+        // }
+    }
 
     pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: u32) -> (result: Option<Pod>) 
         ensures result.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as nat)
