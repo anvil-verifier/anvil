@@ -92,11 +92,6 @@ verus! {
         } else {
             Vec::new()
         }
-        // if vsts.spec.volume_claim_templates is Some {
-        //     Seq::new(vsts.spec.volume_claim_templates->0.len(), |i| make_pvc(vsts, ordinal, i))
-        // } else {
-        //     Seq::empty()
-        // }
     }
 
     pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: u32) -> (result: Option<Pod>) 

@@ -342,7 +342,7 @@ impl Pod {
 impl PersistentVolumeClaim {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
-    { self.spec().is_some() && self.name().is_some() }
+    { self.spec().is_some() }
 
     pub fn transition_validation(&self, old_obj: &PersistentVolumeClaim) -> (ret: bool)
         ensures ret == self@.transition_validation(old_obj@)
