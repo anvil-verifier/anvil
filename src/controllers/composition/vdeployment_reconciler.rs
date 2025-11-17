@@ -107,6 +107,7 @@ pub open spec fn composed_vd_eventually_stable_reconciliation() -> TempPred<Clus
     tla_forall(|crs: (VDeploymentView, VReplicaSetView)| composed_vd_eventually_stable_reconciliation_per_cr(crs.0, crs.1))
 }
 
+// TODO: only talk about vd
 pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView, vrs: VReplicaSetView) -> TempPred<ClusterState> {
     always(lift_state(vd_liveness::desired_state_is(vd)).and(lift_state(Cluster::desired_state_is(vrs)))).leads_to(always(lift_state(current_pods_match(vd))))
 }
