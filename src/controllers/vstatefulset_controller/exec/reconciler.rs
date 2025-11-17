@@ -25,7 +25,6 @@ verus! {
     {
 
         proof {
-
             assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
         }
 
@@ -51,10 +50,6 @@ verus! {
             };
             if labels.is_some() {
                 metadata.set_labels(labels.unwrap());
-            }
-            
-            proof {
-                assume(pvc_template@.metadata.name is Some);
             }
 
             metadata.set_name(pvc_name(pvc_template.metadata().name().unwrap(), vsts.metadata().name().unwrap(), ordinal));

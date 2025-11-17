@@ -36,7 +36,7 @@ impl PersistentVolumeClaimView {
 
     #[verifier(inline)]
     pub open spec fn _state_validation(self) -> bool {
-        self.spec is Some
+        self.spec is Some && self.metadata.name is Some
     }
 
     #[verifier(inline)]
