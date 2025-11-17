@@ -712,7 +712,6 @@ pub open spec fn pvc_name(pvc_template_name: StringView, vsts_name: StringView, 
     pvc_template_name + "-"@ + pod_name(vsts_name, ordinal)
 }
 
-// TODO: pvc_template.metadata.name should not be None; implement the check in validation logic
 pub open spec fn make_pvc(vsts: VStatefulSetView, ordinal: nat, i: int) -> PersistentVolumeClaimView {
     let pvc_template = vsts.spec.volume_claim_templates->0[i];
     PersistentVolumeClaimView {

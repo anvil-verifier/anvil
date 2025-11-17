@@ -66,8 +66,27 @@ verus! {
     {
         if vsts.spec().volume_claim_templates().is_some() {
             let mut result: Vec<PersistentVolumeClaim> = Vec::new();
-            for i in 0..vsts.spec().volume_claim_templates().unwrap().len() {
-                result.push(make_pvc(&vsts, ordinal, i));
+            let len = vsts.spec().volume_claim_templates().unwrap().len();
+            
+            assert(len == vsts@.spec.volume_claim_templates->0.len());
+
+            let mut idx = 0;
+
+            while idx < len
+                invariant 
+                    result.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat).take(idx as int),
+                    vsts@.well_formed(),
+                    vsts@.spec.volume_claim_templates is Some,
+                    len == vsts@.spec.volume_claim_templates->0.len(),
+                    idx <= len
+     
+                decreases len - idx
+            {
+                result.push(make_pvc(&vsts, ordinal, idx));
+                idx += 1;
+                proof {
+                    assume(result.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat).take(idx as int));
+                }
             }
             result
         } else {
