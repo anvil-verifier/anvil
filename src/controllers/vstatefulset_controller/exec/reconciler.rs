@@ -82,7 +82,11 @@ verus! {
             {
                 result.push(make_pvc(&vsts, ordinal, idx));
                 proof {
-                    assume(result.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat).take(idx + 1 as int));
+                    let prev = result.deep_view().drop_last();
+                    let model_pvcs = model_reconciler::make_pvcs(vsts@, ordinal as nat);
+                    // assert(prev == model_pvcs.take(idx as int));
+                    // assert(result.deep_view().last() == model_pvcs[idx as int]);
+                    assert(model_pvcs.take(idx + 1) == model_pvcs.take(idx as int).push(model_pvcs[idx as int]));
                 }
             }
             result
