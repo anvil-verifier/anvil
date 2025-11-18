@@ -131,6 +131,7 @@ pub open spec fn valid_owned_pods(vd: VDeploymentView, s: ClusterState) -> spec_
     }
 }
 
+// TODO: deprecate this
 pub open spec fn valid_owned_vrs_p(vrs: VReplicaSetView, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[vrs.object_ref()];
@@ -139,6 +140,19 @@ pub open spec fn valid_owned_vrs_p(vrs: VReplicaSetView, vd: VDeploymentView) ->
         &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
         &&& etcd_vrs == vrs
         &&& valid_owned_vrs(etcd_vrs, vd)
+    }
+}
+
+// we still use key to reuse infra in liveness reasoning
+pub open spec fn vrs_set_matches_current_state_matches_vd(vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& vrs_keys_set == s.resources().keys().filter(valid_owned_obj_key(vd, s))
+        &&& forall |k| #[trigger] vrs_keys_set.contains(k) ==> {
+            let obj = s.resources()[k];
+            let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+            // conjuncted desired_state_is
+            &&& Cluster::desired_state_is(vrs)(s)
+        }
     }
 }
 
