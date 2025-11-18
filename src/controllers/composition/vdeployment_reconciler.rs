@@ -144,26 +144,45 @@ pub open spec fn valid_owned_vrs_p(vrs: VReplicaSetView, vd: VDeploymentView) ->
 }
 
 // we still use key to reuse infra in liveness reasoning
-pub open spec fn vrs_set_matches_current_state_matches_vd(vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn vrs_set_matches_vd_stable_state(vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        // vrs_set is exactly those owned vrs that pass filter_new_vrs_keys
         &&& vrs_keys_set == s.resources().keys().filter(valid_owned_obj_key(vd, s))
+        // conjuncted desired_state_is
         &&& forall |k| #[trigger] vrs_keys_set.contains(k) ==> {
-            let obj = s.resources()[k];
-            let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
-            // conjuncted desired_state_is
-            &&& Cluster::desired_state_is(vrs)(s)
+            let etcd_obj = s.resources()[k];
+            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            &&& Cluster::desired_state_is(etcd_vrs)(s)
+        }
+        // interpret current_state_matches using vrs_set
+        // there only exists one up-to-date vrs has matching replicas
+        // and other owned vrs has 0 replicas
+        &&& exists |k: ObjectRef| {
+            let etcd_obj = s.resources()[k];
+            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            &&& #[trigger] vrs_keys_set.contains(k)
+            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+            &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+            // no old vrs, including the 2nd new vrs (if any)
+            &&& !exists |j: ObjectRef| {
+                let etcd_obj = s.resources()[j];
+                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                &&& #[trigger] vrs_keys_set.contains(j)
+                &&& valid_owned_obj_key(vd, s)(j)
+                &&& etcd_vrs.spec.replicas.unwrap_or(1) > 0 // != Some(0)
+            }
         }
     }
 }
 
-pub proof fn conjuncted_desired_state_is_vrs_to_current_pods_match_vd(spec: TempPred, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView)
-requires
+pub proof fn vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec: TempPred, vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView)
+ensures
+    // VRS ESR
     spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)))
         .leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
-ensures
-    spec.entails(always(lift_state(conjuncted_vrs_desired_state_is(vrs_set))).leads_to(always(lift_state(current_pods_match(vd))))),
-{
-}
+    spec.entails(always(lift_state(vrs_set_matches_vd_stable_state(vrs_keys_set, vd)))
+        .leads_to(always(lift_state(current_pods_match(vd))))),
+{}
 
 // interface for different CRs
 
