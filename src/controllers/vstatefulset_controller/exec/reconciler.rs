@@ -10,6 +10,7 @@ use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
+    vstatefulset_controller::trusted::step::*,
     vstd_ext::string_view::u32_to_string,
 };
 use std::collections::BTreeSet;
@@ -18,52 +19,111 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
+    // pub fn reconcile_core(vd: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+    //     requires vd@.well_formed(),
+    //     ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
+    // {
+    //     match state.reconcile_step {
+    //         VStatefulSetReconcileStep::Init => {
+    //             handle_init(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterListPod => {
+    //             handle_after_list_pod(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::GetPVC => {
+    //             handle_get_pvc(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterGetPVC => {
+    //             handle_after_get_pvc(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::CreatePVC => {
+    //             handle_create_pvc(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterCreatePVC => {
+    //             handle_after_create_pvc(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::SkipPVC => {
+    //             handle_skip_pvc(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::CreateNeeded => {
+    //             handle_create_needed(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterCreateNeeded => {
+    //             handle_after_create_needed(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::UpdateNeeded => {
+    //             handle_update_needed(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterUpdateNeeded => {
+    //             handle_after_update_needed(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::DeleteCondemned => {
+    //             handle_delete_condemned(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterDeleteCondemned => {
+    //             handle_after_delete_condemned(vsts, resp_o, state)
+    //         },
+    //         // At this point, we should have desired number of replicas running (tho with old versions).
+    //         // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
+    //         // reconcile will do the remaining jobs to start a new one (and delete the next old one).
+    //         VStatefulSetReconcileStep::DeleteOutdated => {
+    //             handle_delete_outdated(vsts, resp_o, state)
+    //         },
+    //         VStatefulSetReconcileStep::AfterDeleteOutdated => {
+    //             handle_after_delete_outdated(vsts, resp_o, state)
+    //         },
+    //         _ => {
+    //             (state, None)
+    //         }
+    //     }
+    // }
 
     // TODO: finish implementing this
-    pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod) 
-        requires vsts@.well_formed()
-        ensures result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat)
-    {
-        let pvcs = make_pvcs(vsts, ordinal);
-        let current_templates = if pod.spec().unwrap().volumes() is Some {
-            pod.spec().unwrap().volumes().unwrap()
-        } else {
-            Vec::new()
-        };
+    // #[verifier(external_body)]
+    // pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod) 
+    //     requires vsts@.well_formed()
+    //     ensures result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat)
+    // {
+    //     let pvcs = make_pvcs(vsts, ordinal);
+    //     let current_templates = if pod.spec().unwrap().inner().volumes() is Some {
+    //         pod.spec().unwrap().volumes().unwrap()
+    //     } else {
+    //         Vec::new()
+    //     };
 
-        let new_volumes = if vsts.spec().volume_claim_templates() is Some {
-            let templates = vsts.spec().volume_claim_templates().unwrap();
+    //     let new_volumes = if vsts.spec().volume_claim_templates() is Some {
+    //         let templates = vsts.spec().volume_claim_templates().unwrap();
 
-            let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
-                name: templates@[i].metadata.name->0,
-                persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
-                    claim_name: pvcs[i].metadata.name->0,
-                    read_only: Some(false),
-                }),
-                ..VolumeView::default()
-            });
+    //         let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
+    //             name: templates.deep_view()[i].metadata.name->0,
+    //             persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+    //                 claim_name: pvcs[i].metadata.name->0,
+    //                 read_only: Some(false),
+    //             }),
+    //             ..VolumeView::default()
+    //         });
 
-            let new_volumes: Vec<Volume> = Vec::new();
-            let len = templates.len();
+    //         let new_volumes: Vec<Volume> = Vec::new();
+    //         let len = templates.len();
             
-            for i in 0..len 
-                invariant 
-                    vsts@.well_formed(),
-                    new_volumes.deep_view() == new_volumes_spec.take(i)
-            {
-                proof {
-                    // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
-                    assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
-                }
-                let vol = Volume::default();
-                vol.set_name(templates[i].metadata().name().unwrap());
-            }  
-        } else {
-            Vec::new()
-        };
+    //         for i in 0..len 
+    //             invariant 
+    //                 vsts@.well_formed(),
+    //                 new_volumes.deep_view() == new_volumes_spec.take(i)
+    //         {
+    //             proof {
+    //                 // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
+    //                 assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+    //             }
+    //             let vol = Volume::default();
+    //             vol.set_name(templates[i].metadata().name().unwrap());
+    //         }  
+    //     } else {
+    //         Vec::new()
+    //     };
 
-        pod
-    }
+    //     pod
+    // }
 
     pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim) 
         requires vsts@.well_formed() && vsts@.spec.volume_claim_templates is Some && i < vsts@.spec.volume_claim_templates->0.len(),
@@ -107,7 +167,7 @@ verus! {
         pvc   
     }
 
-    pub fn make_pvcs(vsts: VStatefulSet, ordinal: u32) -> (pvcs: Vec<PersistentVolumeClaim>)
+    pub fn make_pvcs(vsts: &VStatefulSet, ordinal: u32) -> (pvcs: Vec<PersistentVolumeClaim>)
         requires vsts@.well_formed()
         ensures pvcs.deep_view() == model_reconciler::make_pvcs(vsts@, ordinal as nat)
     {

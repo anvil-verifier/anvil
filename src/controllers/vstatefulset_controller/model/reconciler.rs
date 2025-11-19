@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::spec::{io::*, reconciler::*};
-use crate::vstatefulset_controller::trusted::spec_types::*;
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -73,26 +73,6 @@ pub open spec fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
         VStatefulSetReconcileStepView::Error => true,
         _ => false,
     }
-}
-
-pub enum VStatefulSetReconcileStepView {
-    Init,
-    AfterListPod,
-    GetPVC,
-    AfterGetPVC,
-    CreatePVC,
-    AfterCreatePVC,
-    SkipPVC,
-    CreateNeeded,
-    AfterCreateNeeded,
-    UpdateNeeded,
-    AfterUpdateNeeded,
-    DeleteCondemned,
-    AfterDeleteCondemned,
-    DeleteOutdated,
-    AfterDeleteOutdated,
-    Done,
-    Error,
 }
 
 // The VSTS controller manages pods and volumes to run stateful, distributed applications.
