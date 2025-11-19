@@ -152,7 +152,7 @@ pub open spec fn vrs_set_matches_vd(vrs_set: Set<VReplicaSetView>, vd: VDeployme
 
 pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |vrs| #[trigger] vrs_set.contains(vrs) ==>  Cluster::desired_state_is(vrs)(s)
+        forall |vrs| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s)
     }
 }
 
@@ -198,16 +198,16 @@ ensures
         lift_state(vrs_set_matches_vd(vrs_set, vd)).and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd))),
         lift_state(conjuncted_desired_state_is_vrs(vrs_set))
     );
+    // TODO: make it a tla lemma
     assert(spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) // unwrap |=
-            implies always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))).satisfied_by(ex) by {
-            assert forall |i: nat| #[trigger] always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).satisfied_by(ex.suffix(i)) // unwrap ~>
-                implies eventually(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))).satisfied_by(ex.suffix(i)) by {
-                assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies eventually(always(lift_state(Cluster::desired_state_is(vrs)))).satisfied_by(ex.suffix(i)) by {
-                    use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
+        assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))).satisfied_by(ex) by {
+            assert forall |i: nat| #[trigger] always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).satisfied_by(ex.suffix(i))
+                implies exists |j: nat| #[trigger] always(lift_state(conjuncted_current_state_matches_vrs(vrs_set))).satisfied_by(ex.suffix(i).suffix(j)) by {
+                assert exists |j: nat| forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies always(lift_state(vrs_liveness::current_state_matches(vrs))).satisfied_by(ex.suffix(i).suffix(j)) by {
                     assume(false);
-                }
-                assume(false);
+                    assert(always(lift_state(vrs_liveness::current_state_matches(vrs))).satisfied_by(ex.suffix(i)));
+                    use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
+                };
             }
         };
     }
@@ -236,8 +236,6 @@ ensures
         always(lift_state(current_pods_match(vd)))
     );
 }
-
-// interface for different CRs
 
 #[verifier(external_body)]
 pub proof fn current_state_match_combining_vrs_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, s: ClusterState)
