@@ -13,7 +13,7 @@ trait VerusClone: View + Sized {
 fn vec_filter<T: VerusClone + Sized + DeepView<V = U>, U>(v: Vec<T>, f: impl Fn(&T) -> bool, f_spec: spec_fn(U) -> bool) -> (r: Vec<T>)
     requires
         forall |v: T| #[trigger] f.requires((&v,)),
-        forall |v: T, r: bool| f.ensures((&v,), r) <==> f_spec(v.deep_view()) == r // this says that f and f_spec are in conformance,
+        forall |v: T, r: bool| f.ensures((&v,), r) ==> f_spec(v.deep_view()) == r // this says that f and f_spec are in conformance,
     ensures r.deep_view() =~= v.deep_view().filter(f_spec)
 {
     let mut r = Vec::new();
@@ -22,7 +22,7 @@ fn vec_filter<T: VerusClone + Sized + DeepView<V = U>, U>(v: Vec<T>, f: impl Fn(
         invariant
             forall |v: T| #[trigger] f.requires((&v,)),
             r.deep_view() =~= v.deep_view().take(i as int).filter(f_spec),
-            forall |v: T, r: bool| f.ensures((&v,), r) <==> f_spec(v.deep_view()) == r,
+            forall |v: T, r: bool| f.ensures((&v,), r) ==> f_spec(v.deep_view()) == r,
     {
 
         let elem = &v[i];
