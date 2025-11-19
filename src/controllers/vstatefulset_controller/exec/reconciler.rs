@@ -5,6 +5,7 @@ use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
 use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
+use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
 use crate::vstd_ext::string_view::StringView;
 use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
 use crate::{
@@ -19,64 +20,195 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
-    // pub fn reconcile_core(vd: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
-    //     requires vd@.well_formed(),
-    //     ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
-    // {
-    //     match state.reconcile_step {
-    //         VStatefulSetReconcileStep::Init => {
-    //             handle_init(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterListPod => {
-    //             handle_after_list_pod(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::GetPVC => {
-    //             handle_get_pvc(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterGetPVC => {
-    //             handle_after_get_pvc(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::CreatePVC => {
-    //             handle_create_pvc(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterCreatePVC => {
-    //             handle_after_create_pvc(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::SkipPVC => {
-    //             handle_skip_pvc(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::CreateNeeded => {
-    //             handle_create_needed(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterCreateNeeded => {
-    //             handle_after_create_needed(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::UpdateNeeded => {
-    //             handle_update_needed(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterUpdateNeeded => {
-    //             handle_after_update_needed(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::DeleteCondemned => {
-    //             handle_delete_condemned(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterDeleteCondemned => {
-    //             handle_after_delete_condemned(vsts, resp_o, state)
-    //         },
-    //         // At this point, we should have desired number of replicas running (tho with old versions).
-    //         // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
-    //         // reconcile will do the remaining jobs to start a new one (and delete the next old one).
-    //         VStatefulSetReconcileStep::DeleteOutdated => {
-    //             handle_delete_outdated(vsts, resp_o, state)
-    //         },
-    //         VStatefulSetReconcileStep::AfterDeleteOutdated => {
-    //             handle_after_delete_outdated(vsts, resp_o, state)
-    //         },
-    //         _ => {
-    //             (state, None)
-    //         }
-    //     }
-    // }
+    pub struct VStatefulSetReconcileState {
+        pub reconcile_step: VStatefulSetReconcileStep,
+        pub needed: Vec<Option<Pod>>,
+        pub needed_index: usize,
+        pub condemned: Vec<Pod>,
+        pub condemned_index: usize,
+        pub pvcs: Vec<PersistentVolumeClaim>,
+        pub pvc_index: usize,
+    }
+
+    impl View for VStatefulSetReconcileState {
+        type V = model_reconciler::VStatefulSetReconcileState;
+
+        open spec fn view(&self) -> Self::V {
+            model_reconciler::VStatefulSetReconcileState {
+                reconcile_step: self.reconcile_step@,
+                needed: self.needed.deep_view(),
+                needed_index: self.needed_index as nat,
+                condemned: self.condemned.deep_view(),
+                condemned_index: self.condemned_index as nat,
+                pvcs: self.pvcs.deep_view(),
+                pvc_index: self.pvc_index as nat,
+            }
+        }
+    }
+
+    pub fn reconcile_core(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vsts@, resp_o.deep_view(), state@),
+    {
+        match state.reconcile_step {
+            VStatefulSetReconcileStep::Init => {
+                handle_init(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterListPod => {
+                handle_after_list_pod(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::GetPVC => {
+                handle_get_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterGetPVC => {
+                handle_after_get_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::CreatePVC => {
+                handle_create_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterCreatePVC => {
+                handle_after_create_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::SkipPVC => {
+                handle_skip_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::CreateNeeded => {
+                handle_create_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterCreateNeeded => {
+                handle_after_create_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::UpdateNeeded => {
+                handle_update_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterUpdateNeeded => {
+                handle_after_update_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::DeleteCondemned => {
+                handle_delete_condemned(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterDeleteCondemned => {
+                handle_after_delete_condemned(vsts, resp_o, state)
+            },
+            // At this point, we should have desired number of replicas running (tho with old versions).
+            // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
+            // reconcile will do the remaining jobs to start a new one (and delete the next old one).
+            VStatefulSetReconcileStep::DeleteOutdated => {
+                handle_delete_outdated(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStep::AfterDeleteOutdated => {
+                handle_after_delete_outdated(vsts, resp_o, state)
+            },
+            _ => {
+                (state, None)
+            }
+        }
+    }
+
+    pub fn handle_init(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>)) 
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_init(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_list_pod(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_list_pod(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_get_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_get_pvc(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_get_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_get_pvc(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_create_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_create_pvc(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_create_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_pvc(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_skip_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_skip_pvc(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_create_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_create_needed(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_create_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_needed(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_update_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_update_needed(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_update_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_update_needed(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_delete_condemned(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_condemned(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_delete_condemned(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_condemned(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_delete_outdated(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_outdated(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
+
+    pub fn handle_after_delete_outdated(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires vsts@.well_formed(),
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_outdated(vsts@, resp_o.deep_view(), state@),
+    {
+        (state, None)
+    }
 
     // TODO: finish implementing this
     // #[verifier(external_body)]
