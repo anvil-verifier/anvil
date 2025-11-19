@@ -1,5 +1,5 @@
-use crate::kubernetes_api_objects::exec::prelude::*;
-use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_api_objects::exec::{prelude::*, volume::*};
+use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
@@ -18,6 +18,52 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
+
+    // TODO: finish implementing this
+    pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod) 
+        requires vsts@.well_formed()
+        ensures result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat)
+    {
+        let pvcs = make_pvcs(vsts, ordinal);
+        let current_templates = if pod.spec().unwrap().volumes() is Some {
+            pod.spec().unwrap().volumes().unwrap()
+        } else {
+            Vec::new()
+        };
+
+        let new_volumes = if vsts.spec().volume_claim_templates() is Some {
+            let templates = vsts.spec().volume_claim_templates().unwrap();
+
+            let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
+                name: templates@[i].metadata.name->0,
+                persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+                    claim_name: pvcs[i].metadata.name->0,
+                    read_only: Some(false),
+                }),
+                ..VolumeView::default()
+            });
+
+            let new_volumes: Vec<Volume> = Vec::new();
+            let len = templates.len();
+            
+            for i in 0..len 
+                invariant 
+                    vsts@.well_formed(),
+                    new_volumes.deep_view() == new_volumes_spec.take(i)
+            {
+                proof {
+                    // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
+                    assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+                }
+                let vol = Volume::default();
+                vol.set_name(templates[i].metadata().name().unwrap());
+            }  
+        } else {
+            Vec::new()
+        };
+
+        pod
+    }
 
     pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim) 
         requires vsts@.well_formed() && vsts@.spec.volume_claim_templates is Some && i < vsts@.spec.volume_claim_templates->0.len(),
