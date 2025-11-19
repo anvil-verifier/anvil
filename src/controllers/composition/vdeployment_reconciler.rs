@@ -187,6 +187,7 @@ pub open spec fn current_state_matches_vrs_set_for_vd(vrs_set: Set<VReplicaSetVi
 pub proof fn vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView)
 requires
     // VRS ESR
+    vrs_set.finite(),
     spec.entails(tla_forall(|vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
 ensures
     spec.entails(always(lift_state(vrs_set_matches_vd(vrs_set, vd)).and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd))).and(lift_state(conjuncted_desired_state_is_vrs(vrs_set))))
@@ -218,6 +219,9 @@ ensures
                     leads_to_unfold(ex, always(lift_state(Cluster::desired_state_is(vrs))), always(lift_state(vrs_liveness::current_state_matches(vrs))));
                 }
                 // push vrs_set inside
+                eventually_always_combine(ex.suffix(i), vrs_set, |vrs| vrs_liveness::current_state_matches(vrs));
+                temp_pred_equality(lift_state(conjuncted_current_state_matches_vrs(vrs_set)),
+                    lift_state(|s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> (|vrs| vrs_liveness::current_state_matches(vrs))(vrs)(s))));
             };
         }
     }

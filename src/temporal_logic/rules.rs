@@ -178,12 +178,30 @@ proof fn eventually_proved_by_witness<T>(ex: Execution<T>, p: TempPred<T>, witne
     ensures eventually(p).satisfied_by(ex)
 {}
 
-spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
+pub open spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends exists |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {
     let witness = choose |i| p.satisfied_by(#[trigger] ex.suffix(i));
     witness
 }
+
+#[verifier(external_body)]
+pub proof fn eventually_combine<T, A>(ex: Execution<T>, a_set: Set<A>, a_to_p: spec_fn(A) -> StatePred<T>)
+    requires
+        forall |a| #[trigger] a_set.contains(a) ==> eventually(lift_state(a_to_p(a))).satisfied_by(ex),
+        a_set.finite(),
+    ensures
+        eventually(lift_state(|t: T| (forall |a| #[trigger] a_set.contains(a) ==> a_to_p(a)(t)))).satisfied_by(ex),
+{}
+
+#[verifier(external_body)]
+pub proof fn eventually_always_combine<T, A>(ex: Execution<T>, a_set: Set<A>, a_to_p: spec_fn(A) -> StatePred<T>)
+    requires
+        forall |a| #[trigger] a_set.contains(a) ==> eventually(always(lift_state(a_to_p(a)))).satisfied_by(ex),
+        a_set.finite(),
+    ensures
+        eventually(always(lift_state(|t: T| (forall |a| #[trigger] a_set.contains(a) ==> a_to_p(a)(t))))).satisfied_by(ex),
+{}
 
 proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
     requires valid(p),
