@@ -52,6 +52,8 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     }
 }
 
+// TODO: next time, if possible, don't reason over keys, use CR directly.
+// This work poorly with tla_forall(|cr| ESR(cr))
 pub open spec fn filter_new_vrs_keys(template: PodTemplateSpecView, s: ClusterState) -> spec_fn(ObjectRef) -> bool {
     |k: ObjectRef| {
         let obj = s.resources()[k];

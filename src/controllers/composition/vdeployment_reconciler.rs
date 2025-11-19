@@ -143,74 +143,106 @@ pub open spec fn valid_owned_vrs_p(vrs: VReplicaSetView, vd: VDeploymentView) ->
     }
 }
 
-pub open spec fn vrs_set_matches_vd(vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView) -> StatePred<ClusterState> {
-     |s: ClusterState| vrs_keys_set == s.resources().keys().filter(valid_owned_obj_key(vd, s))
+pub open spec fn vrs_set_matches_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| vrs_set == s.resources().values()
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
 }
 
-pub open spec fn conjuncted_desired_state_is_vrs(vrs_keys_set: Set<ObjectRef>) -> StatePred<ClusterState> {
+pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |k| #[trigger] vrs_keys_set.contains(k) ==> {
-            let etcd_obj = s.resources()[k];
-            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            Cluster::desired_state_is(etcd_vrs)(s)
-        }
+        forall |vrs| #[trigger] vrs_set.contains(vrs) ==>  Cluster::desired_state_is(vrs)(s)
     }
 }
 
-pub open spec fn conjuncted_current_state_matches_vrs(vrs_keys_set: Set<ObjectRef>) -> StatePred<ClusterState> {
+pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |k| #[trigger] vrs_keys_set.contains(k) ==> {
-            let etcd_obj = s.resources()[k];
-            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            vrs_liveness::current_state_matches(etcd_vrs)(s)
-        }
+        forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::current_state_matches(vrs)(s)
     }
 }
 
-pub open spec fn current_state_matches_vrs_set(vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn current_state_matches_vrs_set_for_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // interpret current_state_matches using vrs_set
         // there only exists one up-to-date vrs has matching replicas
         // and other owned vrs has 0 replicas
-        &&& exists |k: ObjectRef| {
-            let etcd_obj = s.resources()[k];
-            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            &&& #[trigger] vrs_keys_set.contains(k)
-            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-            &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        &&& exists |vrs: VReplicaSetView| {
+            &&& #[trigger] vrs_set.contains(vrs)
+            &&& s.resources().values().contains(vrs.marshal())
+            &&& valid_owned_vrs(vrs, vd)
+            &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1) // vd.spec.replicas can be Some(0)
             // no old vrs, including the 2nd new vrs (if any)
-            &&& !exists |j: ObjectRef| {
-                let etcd_obj = s.resources()[j];
-                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                &&& #[trigger] vrs_keys_set.contains(j)
-                &&& valid_owned_obj_key(vd, s)(j)
-                &&& etcd_vrs.spec.replicas.unwrap_or(1) > 0 // != Some(0)
+            &&& !exists |old_vrs: VReplicaSetView| {
+                &&& #[trigger] vrs_set.contains(old_vrs)
+                &&& old_vrs != vrs
+                &&& s.resources().values().contains(old_vrs.marshal())
+                &&& valid_owned_vrs(old_vrs, vd)
+                &&& old_vrs.spec.replicas.unwrap_or(1) > 0 // != Some(0)
             }
         }
     }
 }
 
-pub proof fn vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec: TempPred, vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView)
+pub proof fn vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView)
 requires
     // VRS ESR
-    spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)))
-        .leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
+    spec.entails(tla_forall(|vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
 ensures
-    spec.entails(always(lift_state(and!(
-        vrs_set_matches_vd(vrs_keys_set, vd),
-        conjuncted_desired_state_is_vrs(vrs_keys_set),
-        current_state_matches_vrs_set(vrs_keys_set, vd))))
-    .leads_to(always(lift_state(current_pods_match(vd))))),
-{}
+    spec.entails(always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_desired_state_is_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd))))
+        .leads_to(always(lift_state(current_pods_match(vd))))),
+{
+    // q1 ~> q2 ==>
+    // [](q & q & r) ~> [](p & q2 & r)
+    temp_pred_equality(
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_desired_state_is_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd)))),
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), current_state_matches_vrs_set_for_vd(vrs_set, vd)))).and(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))))
+    );
+    assert(spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))))) by {
+        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) // unwrap |=
+            implies always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))).satisfied_by(ex) by {
+            assert forall |i: nat| #[trigger] always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).satisfied_by(ex.suffix(i)) // unwrap ~>
+                implies eventually(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))).satisfied_by(ex.suffix(i)) by {
+                assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies Cluster::desired_state_is(vrs)(ex.suffix(i).head()) by {
+                    use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
+                } // trigger
+            }
+        };
+    }
+    leads_to_self_temp(always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), current_state_matches_vrs_set_for_vd(vrs_set, vd)))));
+    always_leads_to_always_combine(spec,
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), current_state_matches_vrs_set_for_vd(vrs_set, vd)))),
+        always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))),
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), current_state_matches_vrs_set_for_vd(vrs_set, vd)))),
+        always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))
+    );
+    temp_pred_equality(
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), current_state_matches_vrs_set_for_vd(vrs_set, vd)))).and(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))),
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_current_state_matches_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd))))
+    );
+    assert forall |ex: Execution<ClusterState>| always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_current_state_matches_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd)))).satisfied_by(ex)
+        implies #[trigger] lift_state(current_pods_match(vd)).satisfied_by(ex) by {
+        current_state_match_combining_vrs_vd(vrs_set, vd, ex.head());
+    };
+    entails_implies_leads_to(spec,
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_current_state_matches_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd)))),
+        lift_state(current_pods_match(vd))
+    );
+    leads_to_trans(spec,
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_desired_state_is_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd)))),
+        always(lift_state(and!(vrs_set_matches_vd(vrs_set, vd), conjuncted_current_state_matches_vrs(vrs_set), current_state_matches_vrs_set_for_vd(vrs_set, vd)))),
+        lift_state(current_pods_match(vd))
+    );
+}
 
 // interface for different CRs
 
 #[verifier(external_body)]
-pub proof fn current_state_match_combining_vrs_vd(vrs_keys_set: Set<ObjectRef>, vd: VDeploymentView, s: ClusterState)
+pub proof fn current_state_match_combining_vrs_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, s: ClusterState)
 requires
-    vrs_set_matches_vd(vrs_keys_set, vd),
-    conjuncted_current_state_matches_vrs(vrs_keys_set),
-    current_state_matches_vrs_set(vrs_keys_set, vd),
+    vrs_set_matches_vd(vrs_set, vd)(s),
+    conjuncted_current_state_matches_vrs(vrs_set)(s),
+    current_state_matches_vrs_set_for_vd(vrs_set, vd)(s),
 ensures
     current_pods_match(vd)(s),
 {
