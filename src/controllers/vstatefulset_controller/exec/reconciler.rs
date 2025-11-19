@@ -109,7 +109,23 @@ verus! {
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_init(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        if vsts.metadata().has_deletion_timestamp() {
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStep::Done,
+                ..state
+            };
+            (state_prime, None)
+        } else {
+            let req = KubeAPIRequest::ListRequest(KubeListRequest {
+                api_resource: VStatefulSet::api_resource(),
+                namespace: vsts.metadata().namespace().unwrap(),
+            });
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStep::AfterListPod,
+                ..state
+            };
+            (state_prime, Some(Request::KRequest(req)))
+        }
     }
 
     pub fn handle_after_list_pod(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
