@@ -12,7 +12,7 @@ proof fn later_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     ensures p.satisfied_by(ex.suffix(1)),
 {}
 
-proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+pub proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires always(p).satisfied_by(ex),
     ensures forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
@@ -32,7 +32,7 @@ proof fn stable_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     ensures p.satisfied_by(ex) ==> forall |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
-proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires p.leads_to(q).satisfied_by(ex),
     ensures forall |i: nat| p.implies(eventually(q)).satisfied_by(#[trigger] ex.suffix(i)),
 {
@@ -106,7 +106,7 @@ proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempP
     always_unfold::<T>(ex, p);
 }
 
-proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
@@ -129,7 +129,7 @@ proof fn not_eventually_by_always_not<T>(ex: Execution<T>, p: TempPred<T>)
     always_unfold::<T>(ex, not(p));
 }
 
-proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+pub proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires always(p).satisfied_by(ex),
     ensures always(p).satisfied_by(ex.suffix(i)),
 {
@@ -149,7 +149,7 @@ proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
     };
 }
 
-proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
+pub proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
     requires always(p).satisfied_by(ex),
     ensures p.satisfied_by(ex),
 {
