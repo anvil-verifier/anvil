@@ -117,7 +117,7 @@ verus! {
             (state_prime, None)
         } else {
             let req = KubeAPIRequest::ListRequest(KubeListRequest {
-                api_resource: VStatefulSet::api_resource(),
+                api_resource: Pod::api_resource(),
                 namespace: vsts.metadata().namespace().unwrap(),
             });
             let state_prime = VStatefulSetReconcileState {
