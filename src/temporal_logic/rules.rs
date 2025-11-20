@@ -652,14 +652,14 @@ pub proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spe
         spec.entails(always(tla_forall(a_to_p))) == (forall |a: A| spec.entails(always(#[trigger] a_to_p(a)))),
 {
     if forall |a: A| spec.entails(always(#[trigger] a_to_p(a))) {
-        always_tla_forall_fold::<T, A>(spec, a_to_p);
+        spec_entails_forall_always_a_to_p::<T, A>(spec, a_to_p);
     }
     if spec.entails(always(tla_forall(a_to_p))) {
-        always_tla_forall_unfold::<T, A>(spec, a_to_p);
+        spec_entails_always_tla_forall_a_to_p::<T, A>(spec, a_to_p);
     }
 }
 
-proof fn always_tla_forall_fold<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+proof fn spec_entails_forall_always_a_to_p<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
     ensures spec.entails(always(tla_forall(a_to_p))),
 {
@@ -668,7 +668,7 @@ proof fn always_tla_forall_fold<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->Tem
     tla_forall_always_equality_variant::<T, A>(a_to_always, a_to_p);
 }
 
-proof fn always_tla_forall_unfold<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+proof fn spec_entails_always_tla_forall_a_to_p<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires spec.entails(always(tla_forall(a_to_p))),
     ensures forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
 {
@@ -744,36 +744,6 @@ pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies tla_exists(a_to_p).leads_to(q).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, tla_forall(a_to_p_leads_to_q));
         tla_forall_leads_to_equality1::<T, A>(a_to_p, q);
-    };
-}
-
-// similar to init_invariant with quantifier
-pub proof fn leads_to_always_exists_intro<T, A>(spec: TempPred<T>, next: ActionPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> StatePred<T>)
-    requires
-        spec.entails(p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a))))),
-        spec.entails(always(lift_action(next))),
-        forall |s, s_prime| forall |a| #[trigger] a_to_q(a)(s) && #[trigger] next(s, s_prime) ==> a_to_q(a)(s_prime),
-    ensures
-        spec.entails(p.leads_to(tla_exists(|a: A| always(lift_state(a_to_q(a)))))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|a: A| always(lift_state(a_to_q(a))))).satisfied_by(ex) by {
-        entails_apply(ex, spec, p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a)))));
-        entails_apply(ex, spec, always(lift_action(next)));
-        leads_to_unfold::<T>(ex, p, tla_exists(|a: A| lift_state(a_to_q(a))));
-        always_unfold::<T>(ex, lift_action(next));
-        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|a: A| always(lift_state(a_to_q(a))))).satisfied_by(ex.suffix(i)) by {
-            always_propagate_forwards::<T>(ex, lift_action(next), i);
-            let witness_i = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|a: A| lift_state(a_to_q(a))));
-            tla_exists_unfold::<T, A>(ex.suffix(i).suffix(witness_i), |a: A| lift_state(a_to_q(a)));
-            always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_i);
-            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i).suffix(witness_i), |a: A| lift_state(a_to_q(a)));
-            assert forall |j| #[trigger] lift_state(a_to_q(witness_a)).satisfied_by(ex.suffix(i).suffix(witness_i).suffix(j)) by {
-                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_i), lift_action(next), j);
-                next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_i), lift_action(next), lift_state(a_to_q(witness_a)), j);
-            }
-            tla_exists_proved_by_witness::<T, A>(ex.suffix(i).suffix(witness_i), |a: A| always(lift_state(a_to_q(a))), witness_a);
-            eventually_proved_by_witness::<T>(ex.suffix(i), tla_exists(|a: A| always(lift_state(a_to_q(a)))), witness_i);
-        };
     };
 }
 
@@ -1871,6 +1841,36 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPre
             };
 
             eventually_proved_by_witness::<T>(ex.suffix(i), always(q), witness_idx);
+        };
+    };
+}
+
+// similar to init_invariant
+pub proof fn leads_to_exists_stable<T, A>(spec: TempPred<T>, next: ActionPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> StatePred<T>)
+    requires
+        spec.entails(p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a))))),
+        spec.entails(always(lift_action(next))),
+        forall |s, s_prime| forall |a| #[trigger] a_to_q(a)(s) && #[trigger] next(s, s_prime) ==> a_to_q(a)(s_prime),
+    ensures
+        spec.entails(p.leads_to(tla_exists(|a: A| always(lift_state(a_to_q(a)))))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|a: A| always(lift_state(a_to_q(a))))).satisfied_by(ex) by {
+        entails_apply(ex, spec, p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a)))));
+        entails_apply(ex, spec, always(lift_action(next)));
+        leads_to_unfold::<T>(ex, p, tla_exists(|a: A| lift_state(a_to_q(a))));
+        always_unfold::<T>(ex, lift_action(next));
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|a: A| always(lift_state(a_to_q(a))))).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards::<T>(ex, lift_action(next), i);
+            let witness_i = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|a: A| lift_state(a_to_q(a))));
+            tla_exists_unfold::<T, A>(ex.suffix(i).suffix(witness_i), |a: A| lift_state(a_to_q(a)));
+            always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_i);
+            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i).suffix(witness_i), |a: A| lift_state(a_to_q(a)));
+            assert forall |j| #[trigger] lift_state(a_to_q(witness_a)).satisfied_by(ex.suffix(i).suffix(witness_i).suffix(j)) by {
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_i), lift_action(next), j);
+                next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_i), lift_action(next), lift_state(a_to_q(witness_a)), j);
+            }
+            tla_exists_proved_by_witness::<T, A>(ex.suffix(i).suffix(witness_i), |a: A| always(lift_state(a_to_q(a))), witness_a);
+            eventually_proved_by_witness::<T>(ex.suffix(i), tla_exists(|a: A| always(lift_state(a_to_q(a)))), witness_i);
         };
     };
 }
