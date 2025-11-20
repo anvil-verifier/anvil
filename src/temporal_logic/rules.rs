@@ -12,7 +12,7 @@ proof fn later_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     ensures p.satisfied_by(ex.suffix(1)),
 {}
 
-pub proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires always(p).satisfied_by(ex),
     ensures forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
@@ -32,7 +32,7 @@ proof fn stable_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     ensures p.satisfied_by(ex) ==> forall |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
-pub proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires p.leads_to(q).satisfied_by(ex),
     ensures forall |i: nat| p.implies(eventually(q)).satisfied_by(#[trigger] ex.suffix(i)),
 {
@@ -106,7 +106,7 @@ proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempP
     always_unfold::<T>(ex, p);
 }
 
-pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
@@ -129,7 +129,7 @@ proof fn not_eventually_by_always_not<T>(ex: Execution<T>, p: TempPred<T>)
     always_unfold::<T>(ex, not(p));
 }
 
-pub proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires always(p).satisfied_by(ex),
     ensures always(p).satisfied_by(ex.suffix(i)),
 {
@@ -149,7 +149,7 @@ proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
     };
 }
 
-pub proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
+proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
     requires always(p).satisfied_by(ex),
     ensures p.satisfied_by(ex),
 {
@@ -178,22 +178,12 @@ proof fn eventually_proved_by_witness<T>(ex: Execution<T>, p: TempPred<T>, witne
     ensures eventually(p).satisfied_by(ex)
 {}
 
-pub open spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
+spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends exists |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {
     let witness = choose |i| p.satisfied_by(#[trigger] ex.suffix(i));
     witness
 }
-
-// TODO: remove and replace with forall_leads_to_always and leads_to_always_combine
-#[verifier(external_body)]
-pub proof fn eventually_always_combine<T, A>(ex: Execution<T>, a_set: Set<A>, a_to_p: spec_fn(A) -> StatePred<T>)
-    requires
-        forall |a| #[trigger] a_set.contains(a) ==> eventually(always(lift_state(a_to_p(a)))).satisfied_by(ex),
-        a_set.finite(),
-    ensures
-        eventually(always(lift_state(|t: T| (forall |a| #[trigger] a_set.contains(a) ==> a_to_p(a)(t))))).satisfied_by(ex),
-{}
 
 proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
     requires valid(p),
