@@ -1770,6 +1770,28 @@ pub proof fn forall_leads_to_always<T, A>(spec: TempPred<T>, p: TempPred<T>, a_t
     };
 }
 
+// free p from forall_leads_to_always
+pub proof fn always_eventually_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+    requires spec.entails(always(eventually(always(tla_forall(a_to_p))))),
+    ensures forall |a: A| spec.entails(always(eventually(always(#[trigger] a_to_p(a))))),
+{
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies forall |a: A| always(eventually(always(#[trigger] a_to_p(a)))).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, always(eventually(always(tla_forall(a_to_p)))));
+        always_unfold::<T>(ex, eventually(always(tla_forall(a_to_p))));
+        assert forall |i: nat| forall |a: A| eventually(always(#[trigger] a_to_p(a))).satisfied_by(#[trigger] ex.suffix(i)) by {
+            eventually_unfold::<T>(ex.suffix(i), always(tla_forall(a_to_p)));
+            let j = eventually_choose_witness::<T>(ex.suffix(i), always(tla_forall(a_to_p)));
+            always_unfold::<T>(ex.suffix(i).suffix(j), tla_forall(a_to_p));
+            assert forall |k: nat| forall |a: A| #[trigger] a_to_p(a).satisfied_by(#[trigger] ex.suffix(i).suffix(j).suffix(k)) by {
+                tla_forall_unfold::<T, A>(ex.suffix(i).suffix(j).suffix(k), a_to_p);
+            };
+            assert forall |a: A| eventually(always(#[trigger] a_to_p(a))).satisfied_by(ex.suffix(i)) by {
+                eventually_proved_by_witness::<T>(ex.suffix(i), always(a_to_p(a)), j);
+            };
+        };
+    };
+}
+
 // Combine the conclusions of two leads_to if the conclusions are stable.
 // pre:
 //     spec |= p ~> []q
