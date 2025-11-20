@@ -664,6 +664,21 @@ pub proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spe
     tla_forall_always_equality_variant::<T, A>(a_to_always, a_to_p);
 }
 
+pub proof fn always_tla_forall_unfold<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+    requires spec.entails(always(tla_forall(a_to_p))),
+    ensures forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
+{
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies forall |a: A| always(#[trigger] a_to_p(a)).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, always(tla_forall(a_to_p)));
+        always_unfold::<T>(ex, tla_forall(a_to_p));
+        assert forall |i: nat| (forall |a: A| #[trigger] a_to_p(a).satisfied_by(#[trigger] ex.suffix(i))) by {
+            assert forall |a: A| #[trigger] a_to_p(a).satisfied_by(ex.suffix(i)) by {
+                tla_forall_unfold::<T, A>(ex.suffix(i), a_to_p);
+            };
+        }
+    };
+}
+
 pub proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>)
     requires forall |a: A| spec.entails(#[trigger] a_to_p(a)),
     ensures spec.entails(tla_forall(a_to_p)),
