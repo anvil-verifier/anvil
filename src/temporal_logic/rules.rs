@@ -185,15 +185,7 @@ pub open spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) 
     witness
 }
 
-#[verifier(external_body)]
-pub proof fn eventually_combine<T, A>(ex: Execution<T>, a_set: Set<A>, a_to_p: spec_fn(A) -> StatePred<T>)
-    requires
-        forall |a| #[trigger] a_set.contains(a) ==> eventually(lift_state(a_to_p(a))).satisfied_by(ex),
-        a_set.finite(),
-    ensures
-        eventually(lift_state(|t: T| (forall |a| #[trigger] a_set.contains(a) ==> a_to_p(a)(t)))).satisfied_by(ex),
-{}
-
+// TODO: remove and replace with forall_leads_to_always and leads_to_always_combine
 #[verifier(external_body)]
 pub proof fn eventually_always_combine<T, A>(ex: Execution<T>, a_set: Set<A>, a_to_p: spec_fn(A) -> StatePred<T>)
     requires
@@ -1751,6 +1743,29 @@ pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>,
                 execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
             }
             eventually_proved_by_witness(ex.suffix(i), always(tla_forall(a_to_p)), max_witness);
+        };
+    };
+}
+
+// dual of leads_to_always_tla_forall
+// pre:
+//     spec |= p ~> []tla_forall(a_to_p)
+// post:
+//     forall |a: A|, spec |= p ~> []a_to_p(a)
+pub proof fn forall_leads_to_always<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+    requires spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
+    ensures forall |a: A| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
+{
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies forall |a: A| p.leads_to(always(#[trigger] a_to_p(a))).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, p.leads_to(always(tla_forall(a_to_p))));
+        assert forall |i: nat| #[trigger] p.satisfied_by(ex.suffix(i)) implies forall |a: A| eventually(always(#[trigger] a_to_p(a))).satisfied_by(ex.suffix(i)) by {
+            leads_to_unfold::<T>(ex, p, always(tla_forall(a_to_p)));
+            // similar to always_tla_forall_unfold, but on ex level
+            let j = eventually_choose_witness::<T>(ex.suffix(i), always(tla_forall(a_to_p)));
+            always_unfold::<T>(ex.suffix(i).suffix(j), tla_forall(a_to_p));
+            assert forall |a: A| eventually(always(#[trigger] a_to_p(a))).satisfied_by(ex.suffix(i)) by {
+                eventually_proved_by_witness::<T>(ex.suffix(i), always(a_to_p(a)), j);
+            };
         };
     };
 }
