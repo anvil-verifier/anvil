@@ -1706,7 +1706,7 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     requires
         forall |a: A| eventually(always(#[trigger] a_to_p(a))).satisfied_by(ex),
         domain.finite(),
-        domain.len() > 0,
+        domain.len() > 0, // TODO: remove this and prove trivial case
         forall |a: A| #[trigger] domain.contains(a),
     ensures eventually(always(tla_forall(a_to_p))).satisfied_by(ex),
 {
