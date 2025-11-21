@@ -375,7 +375,8 @@ ensures
         let desired_state_is_vrs_set = |vrs_set: Set<VReplicaSetView>|
             lift_state(|s: ClusterState| vrs_set_matches_vd(vrs_set, vd)(s))
             .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
-            .and(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s))));
+            .and(tla_forall(|vrs: VReplicaSetView| (lift_state(|s: ClusterState| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s)))));
+            // tla_forall(|vrs: VReplicaSetView| crashes verus
         assert(lift_state(vd_liveness::current_state_matches(vd)).entails(tla_exists(desired_state_is_vrs_set))) by {
             assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vd_liveness::current_state_matches(vd)).satisfied_by(ex)
                 implies #[trigger] tla_exists(desired_state_is_vrs_set).satisfied_by(ex) by {
