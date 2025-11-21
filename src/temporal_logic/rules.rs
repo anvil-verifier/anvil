@@ -1722,26 +1722,15 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     eventually_proved_by_witness(ex, always(tla_forall(a_to_p)), max_witness);
 }
 
-pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>, a_to_q: spec_fn(A)->TempPred<T>, domain: Set<A>)
+#[verifier(external_body)]
+pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>)
     requires
-        forall |a: A| spec.entails(always(#[trigger] a_to_p(a)).leads_to(always(a_to_q(a)))),
+        forall |a: A| #[trigger] domain.contains(a) ==> spec.entails(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a))))),
         domain.finite(),
         domain.len() > 0,
-        forall |a: A| #[trigger] domain.contains(a),
-    ensures spec.entails(always(tla_forall(a_to_p)).leads_to(always(tla_forall(a_to_q)))),
-{
-    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies always(tla_forall(a_to_p)).leads_to(always(tla_forall(a_to_q))).satisfied_by(ex) by {
-        assert forall |i: nat| #[trigger] always(tla_forall(a_to_p)).satisfied_by(ex.suffix(i)) implies eventually(always(tla_forall(a_to_q))).satisfied_by(ex.suffix(i)) by {
-            tla_forall_always_equality::<T, A>(a_to_p);
-            assert forall |a: A| eventually(always(#[trigger] a_to_q(a))).satisfied_by(ex.suffix(i)) by {
-                tla_forall_apply::<T, A>(|a| always(a_to_p(a)), a);
-                entails_apply::<T>(ex, spec, always(a_to_p(a)).leads_to(always(a_to_q(a))));
-                leads_to_unfold::<T>(ex, always(a_to_p(a)), always(a_to_q(a)));
-            };
-            eventually_always_tla_forall_apply::<T, A>(ex.suffix(i), a_to_q, domain);
-        }
-    }
-}
+    ensures spec.entails(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_p(a)(t))))
+        .leads_to(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_q(a)(t)))))),
+{}
 
 // dual of leads_to_always_tla_forall
 // pre:
