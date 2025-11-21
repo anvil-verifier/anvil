@@ -1,1 +1,0 @@
-fn(vstd::set::Set<vreplicaset_controller::trusted::spec_types::VReplicaSetView>) -> builtin::FnSpec<(vreplicaset_controller::trusted::spec_types::VReplicaSetView,), temporal_logic::defs::TempPred<kubernetes_cluster::spec::cluster::ClusterState>> {composition::vdeployment_reconciler::conjuncted_desired_state_is_vrs}
