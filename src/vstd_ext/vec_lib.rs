@@ -5,12 +5,13 @@ use super::seq_lib::lemma_filter_push;
 
 verus! {
 
-trait VerusClone: View + Sized {
+pub trait VerusClone: View + Sized {
     fn verus_clone(&self) -> (r: Self)
         ensures self == r;
 }
 
-fn vec_filter<T: VerusClone + Sized + DeepView<V = U>, U>(v: Vec<T>, f: impl Fn(&T) -> bool, f_spec: spec_fn(U) -> bool) -> (r: Vec<T>)
+
+pub fn vec_filter<T: VerusClone + Sized + DeepView<V = U>, U>(v: &Vec<T>, f: impl Fn(&T) -> bool, f_spec: spec_fn(U) -> bool) -> (r: Vec<T>)
     requires
         forall |v: T| #[trigger] f.requires((&v,)),
         forall |v: T, r: bool| f.ensures((&v,), r) ==> f_spec(v.deep_view()) == r // this says that f and f_spec are in conformance,

@@ -1,13 +1,16 @@
 use crate::kubernetes_api_objects::exec::{prelude::*, volume::*};
 use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
+use crate::kubernetes_api_objects::error::APIError;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
 use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
+use crate::vstatefulset_controller::model::reconciler::pod_has_ord;
+use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStep;
 use crate::vstd_ext::string_view::StringView;
-use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
+use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
@@ -139,14 +142,56 @@ verus! {
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_get_pvc(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        // TODO: what to do about this?
+        if state.pvc_index < state.pvcs.len() {
+
+            // if state.pvcs[state.pvc_index].metadata().name().is_none() {
+            //     return (error_state(state), None)
+            // }
+            assume(state.pvcs[state.pvc_index as int]@.metadata.name is Some);
+            let req = KubeAPIRequest::GetRequest( KubeGetRequest {
+                api_resource: PersistentVolumeClaim::api_resource(),
+                name: state.pvcs[state.pvc_index].metadata().name().unwrap(),
+                namespace: vsts.metadata().namespace().unwrap()
+            });
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStep::AfterGetPVC,
+                ..state
+            };
+            (state_prime, Some(Request::KRequest(req)))
+        } else {
+            (error_state(state), None)
+        }
     }
 
     pub fn handle_after_get_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_get_pvc(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        if is_some_k_get_resp!(resp_o) {
+            assert(is_some_k_get_resp_view!(resp_o.deep_view()));
+            let result = extract_some_k_get_resp!(resp_o);
+            if result.is_ok() {
+                let state_prime = VStatefulSetReconcileState {
+                    reconcile_step: VStatefulSetReconcileStep::SkipPVC,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let not_found = matches!(result.unwrap_err(), APIError::ObjectNotFound);
+                if not_found {
+                    let state_prime = VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::CreatePVC,
+                        ..state
+                    };
+                    (state_prime, None)
+                } else {
+                    (error_state(state), None)
+                }
+            }
+        } else {
+            (error_state(state), None)
+        }
     }
 
     pub fn handle_create_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
@@ -224,6 +269,16 @@ verus! {
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_outdated(vsts@, resp_o.deep_view(), state@),
     {
         (state, None)
+    }
+
+
+    pub fn error_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState) 
+        ensures result@ == model_reconciler::error_state(state@)
+    {
+        VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::Error,
+            ..state
+        }
     }
 
     // TODO: finish implementing this
@@ -346,6 +401,13 @@ verus! {
             result
         } else {
             Vec::new()
+        }
+    }
+
+    impl VerusClone for Pod {
+        fn verus_clone(&self) -> Pod
+        {
+            self.clone()
         }
     }
 
