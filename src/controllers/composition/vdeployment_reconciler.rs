@@ -347,8 +347,8 @@ pub proof fn lemma_always_current_state_match_vd_entails_exists_vrs_set_always_d
 requires
     true, // cluster invariants
 ensures
-    always(lift_state(vd_liveness::current_state_matches(vd))).entails(
-    tla_exists(|vrs_set: Set<VReplicaSetView>| always(
+    always(lift_state(vd_liveness::current_state_matches(vd))).entails( // try proving equivlance
+    tla_exists(|vrs_set: Set<VReplicaSetView>| always( // or go with the hard way
         lift_state(vrs_set_matches_vd(vrs_set, vd))
         .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
         .and(tla_forall(conjuncted_desired_state_is_vrs(vrs_set))
