@@ -142,13 +142,11 @@ verus! {
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_get_pvc(vsts@, resp_o.deep_view(), state@),
     {
-        // TODO: what to do about this?
         if state.pvc_index < state.pvcs.len() {
 
-            // if state.pvcs[state.pvc_index].metadata().name().is_none() {
-            //     return (error_state(state), None)
-            // }
+            // TODO: what to do about this?
             assume(state.pvcs[state.pvc_index as int]@.metadata.name is Some);
+
             let req = KubeAPIRequest::GetRequest( KubeGetRequest {
                 api_resource: PersistentVolumeClaim::api_resource(),
                 name: state.pvcs[state.pvc_index].metadata().name().unwrap(),
@@ -198,7 +196,20 @@ verus! {
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_create_pvc(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        if state.pvc_index < state.pvcs.len() {
+            let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                api_resource: PersistentVolumeClaim::api_resource(),
+                namespace: vsts.metadata().namespace().unwrap(),
+                obj: state.pvcs[state.pvc_index].clone().marshal()
+            });
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStep::AfterCreatePVC,
+                ..state
+            };
+            (state_prime, Some(Request::KRequest(req)))
+        } else {
+            (error_state(state), None)
+        }
     }
 
     pub fn handle_after_create_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
