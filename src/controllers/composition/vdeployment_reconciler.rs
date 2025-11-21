@@ -246,7 +246,6 @@ ensures
         always(lift_state(current_pods_match(vd))))) by {
         assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vrs_set_matches_vd(vrs_set, vd)).and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd))).and(tla_forall(conjuncted_current_state_matches_vrs)).satisfied_by(ex)
             implies #[trigger] lift_state(current_pods_match(vd)).satisfied_by(ex) by {
-            tla_forall_unfold(ex, conjuncted_current_state_matches_vrs);
             assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::current_state_matches(vrs)(ex.head())) by {
                 assert(forall |vrs| #![trigger vrs_set.contains(vrs)] conjuncted_current_state_matches_vrs(vrs).satisfied_by(ex));
             }
