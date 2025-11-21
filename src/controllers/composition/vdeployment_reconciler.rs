@@ -104,12 +104,12 @@ impl VerticalComposition for VDeploymentReconciler {
 //* ESR composition *//
 
 pub open spec fn composed_vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
-    tla_forall(|crs: (VDeploymentView, VReplicaSetView)| composed_vd_eventually_stable_reconciliation_per_cr(crs.0, crs.1))
+    tla_forall(composed_vd_eventually_stable_reconciliation_per_cr())
 }
 
 // TODO: only talk about vd
-pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView, vrs: VReplicaSetView) -> TempPred<ClusterState> {
-    always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))
+pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr() -> spec_fn(VDeploymentView) -> TempPred<ClusterState> {
+    |vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))
 }
 
 pub open spec fn current_pods_match(vd: VDeploymentView) -> StatePred<ClusterState> {
@@ -336,34 +336,22 @@ ensures
     assert(vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
 }
 
-// // generic proof
-// proof fn eventually_current_state_matches_with_p(spec: TempPred<ClusterState>, vd: VDeploymentView)
-// requires
-//     forall |vrs: VReplicaSetView| lift_state(valid_owned_vrs_p(vrs, vd)).entails(lift_state(#[trigger] Cluster::desired_state_is(vrs))),
-//     spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs)))
-//         .leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
-// ensures
-//     spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(valid_owned_vrs_p(vrs, vd)))
-//         .leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))),
-// {
-//     assert forall |vrs: VReplicaSetView| #[trigger] spec.entails(always(lift_state(valid_owned_vrs_p(vrs, vd)))
-//         .leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
-//         // []valid_owned_vrs_p(vrs, vd) |= []desired_state_is(vrs)
-//         entails_preserved_by_always(lift_state(valid_owned_vrs_p(vrs, vd)), lift_state(Cluster::desired_state_is(vrs)));
-//         entails_implies_leads_to(spec, always(lift_state(valid_owned_vrs_p(vrs, vd))), always(lift_state(Cluster::desired_state_is(vrs))));
-//         use_tla_forall(spec, |vrs: VReplicaSetView|
-//             always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))),
-//             vrs
-//         );
-//         leads_to_trans(spec,
-//             always(lift_state(valid_owned_vrs_p(vrs, vd))),
-//             always(lift_state(Cluster::desired_state_is(vrs))),
-//             always(lift_state(vrs_liveness::current_state_matches(vrs)))
-//         );
-//     }
-//     spec_entails_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(valid_owned_vrs_p(vrs, vd)))
-//         .leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))));
-// }
+#[verifier(external_body)]
+pub proof fn current_state_match_vd_to_desired_state_is_vrs_set(vd: VDeploymentView, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
+requires
+    vd_liveness::current_state_matches(vd)(s),
+ensures
+    vrs_set_matches_vd(vrs_set, vd)(s),
+    current_state_matches_vrs_set_for_vd(vrs_set, vd)(s),
+    forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s),
+{
+    let vrs_set = choose |vrs_set: Set<VReplicaSetView>| {
+        &&& vrs_set_matches_vd(vrs_set, vd)(s)
+        &&& current_state_matches_vrs_set_for_vd(vrs_set, vd)(s)
+        &&& forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s)
+    };
+    vrs_set
+}
 
 pub proof fn composed_eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>)
 requires
@@ -372,54 +360,54 @@ requires
 ensures
     spec.entails(composed_vd_eventually_stable_reconciliation()),
 {
-    assert forall |crs: (VDeploymentView, VReplicaSetView)| true implies #[trigger] spec.entails(composed_vd_eventually_stable_reconciliation_per_cr(crs.0, crs.1)) by {
-        let vd = crs.0;
-        let vrs = crs.1;
-        // current_state_matches(vd) & current_state_matches(vrs) |= current_pods_match(vd)
-        assert(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))).entails(lift_state(current_pods_match(vd)))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))).satisfied_by(ex)
-                implies lift_state(current_pods_match(vd)).satisfied_by(ex) by {
-                assume(false);
-            };
-        }
-        // []current_state_matches(vd) & []current_state_matches(vrs) |= []current_pods_match(vd)
-        entails_preserved_by_always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs))), lift_state(current_pods_match(vd)));
-        always_and_equality(lift_state(vd_liveness::current_state_matches(vd)), lift_state(vrs_liveness::current_state_matches(vrs)));
-        // []desired_state_is(vd) ~> []current_state_matches(vd)
-        use_tla_forall(spec, |vd| vd_liveness::vd_eventually_stable_reconciliation_per_cr(vd), vd);
-        // []desired_state_is(vrs) ~> []current_state_matches(vrs)
-        // this is super flaky
-        assume(vrs_liveness::vrs_eventually_stable_reconciliation().entails(
-            tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))));
-        assume(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))).entails(
-            vrs_liveness::vrs_eventually_stable_reconciliation()));
-        temp_pred_equality(vrs_liveness::vrs_eventually_stable_reconciliation(),
-            tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))));
+    // unwrap, flaky
+    assume(vrs_liveness::vrs_eventually_stable_reconciliation().entails(
+        tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))));
+    assume(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))).entails(
+        vrs_liveness::vrs_eventually_stable_reconciliation()));
+    temp_pred_equality(vrs_liveness::vrs_eventually_stable_reconciliation(),
+        tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))));
+    assert forall |vrs| #[trigger] spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
         use_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
-        // []desired_state_is(vd) & []desired_state_is(vrs) ~> [](current_state_matches(vd) & current_state_matches(vrs))
-        always_leads_to_always_combine(spec,
-            lift_state(vd_liveness::desired_state_is(vd)),
-            lift_state(Cluster::desired_state_is(vrs)),
-            lift_state(vd_liveness::current_state_matches(vd)),
-            lift_state(vrs_liveness::current_state_matches(vrs))
+    }
+    
+    assert forall |vd: VDeploymentView| #[trigger] spec.entails(composed_vd_eventually_stable_reconciliation_per_cr()(vd)) by {
+        let desired_state_is_vrs_set = |vrs_set: Set<VReplicaSetView>|
+            lift_state(|s: ClusterState| vrs_set_matches_vd(vrs_set, vd)(s))
+            .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
+            .and(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s))));
+        assert(lift_state(vd_liveness::current_state_matches(vd)).entails(tla_exists(desired_state_is_vrs_set))) by {
+            assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vd_liveness::current_state_matches(vd)).satisfied_by(ex)
+                implies #[trigger] tla_exists(desired_state_is_vrs_set).satisfied_by(ex) by {
+                let vrs_set = current_state_match_vd_to_desired_state_is_vrs_set(vd, ex.head());
+                assert(desired_state_is_vrs_set(vrs_set).satisfied_by(ex));
+            }
+        }
+        entails_preserved_by_always(lift_state(vd_liveness::current_state_matches(vd)), tla_exists(desired_state_is_vrs_set));
+        entails_implies_leads_to(spec, always(lift_state(vd_liveness::current_state_matches(vd))), always(tla_exists(desired_state_is_vrs_set)));
+        // always exists => exists always???
+        assume(always(tla_exists(desired_state_is_vrs_set)).entails(tla_exists(|vrs_set: Set<VReplicaSetView>| always(desired_state_is_vrs_set(vrs_set)))));
+        assert forall |vrs_set: Set<VReplicaSetView>| #[trigger] spec.entails(always(desired_state_is_vrs_set(vrs_set)).leads_to(always(lift_state(current_pods_match(vd))))) by {
+            assume(vrs_set.finite());
+            assume(vrs_set.len() > 0);
+            assume(forall |vrs| #[trigger] vrs_set.contains(vrs));
+            vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec, vrs_set, vd);
+        }
+        leads_to_exists_intro(spec, |vrs_set| always(desired_state_is_vrs_set(vrs_set)), always(lift_state(current_pods_match(vd))));
+        leads_to_trans_n!(spec,
+            always(lift_state(vd_liveness::desired_state_is(vd))),
+            always(lift_state(vd_liveness::current_state_matches(vd))),
+            always(tla_exists(desired_state_is_vrs_set)),
+            tla_exists(|vrs_set: Set<VReplicaSetView>| always(desired_state_is_vrs_set(vrs_set))),
+            always(lift_state(current_pods_match(vd)))
         );
         temp_pred_equality(
-            composed_vd_eventually_stable_reconciliation_per_cr(vd, vrs),
-            always(lift_state(vd_liveness::desired_state_is(vd)).and(lift_state(Cluster::desired_state_is(vrs)))).leads_to(
-                always(lift_state(current_pods_match(vd)))));
-        // [](current_state_matches(vd) & current_state_matches(vrs)) ~> []current_pods_match(vd)
-        entails_implies_leads_to(spec,
-            always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs)))),
-            always(lift_state(current_pods_match(vd)))
+            composed_vd_eventually_stable_reconciliation_per_cr()(vd),
+            always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))
         );
-        // [](desired_state_is(vd) & desired_state_is(vrs)) ~> []current_pods_match(vd)
-        leads_to_trans(spec,
-            always(lift_state(vd_liveness::desired_state_is(vd)).and(lift_state(Cluster::desired_state_is(vrs)))),
-            always(lift_state(vd_liveness::current_state_matches(vd)).and(lift_state(vrs_liveness::current_state_matches(vrs)))),
-            always(lift_state(current_pods_match(vd)))
-        );
-    };
-    spec_entails_tla_forall(spec, |cr: (VDeploymentView, VReplicaSetView)| composed_vd_eventually_stable_reconciliation_per_cr(cr.0, cr.1));
+    }
+
+    spec_entails_tla_forall(spec, composed_vd_eventually_stable_reconciliation_per_cr());
 }
 
 }
