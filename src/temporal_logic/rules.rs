@@ -1722,7 +1722,6 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     eventually_proved_by_witness(ex, always(tla_forall(a_to_p)), max_witness);
 }
 
-#[verifier(external_body)]
 pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>)
     requires
         forall |a: A| #[trigger] domain.contains(a) ==> spec.entails(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a))))),
@@ -1730,7 +1729,32 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
         domain.len() > 0,
     ensures spec.entails(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_p(a)(t))))
         .leads_to(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_q(a)(t)))))),
-{}
+{
+    // TODO: try to parse lift_state(p ==> q) directly: lift_state(p) ==> lift_state(q)
+    let lifted_a_to_p = |a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_p(a)(t));
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies always(tla_forall(lifted_a_to_p))
+        .leads_to(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_q(a)(t))))).satisfied_by(ex) by {
+        assert forall |i: nat| always(tla_forall(lifted_a_to_p)).satisfied_by(#[trigger] ex.suffix(i))
+            implies eventually(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_q(a)(t))))).satisfied_by(ex.suffix(i)) by {
+            // let a_to_witness = Map::new(|a: A| domain.contains(a), |a: A| eventually_choose_witness::<T>(ex.suffix(i), always(lift_state(a_to_q(a)))));
+            // always_to_current(ex.suffix(i), tla_forall(lifted_a_to_p));
+            assert forall |a: A| #[trigger] domain.contains(a) implies eventually(always(lift_state(a_to_q(a)))).satisfied_by(ex.suffix(i)) by {
+                assert(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))).satisfied_by(ex)) by {
+                    entails_apply::<T>(ex, spec, always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))));
+                }
+                leads_to_unfold(ex, always(lift_state(a_to_p(a))), always(lift_state(a_to_q(a))));
+                assert(always(lift_state(a_to_p(a))).satisfied_by(ex.suffix(i))) by {
+                    assert forall |j: nat| lift_state(a_to_p(a)).satisfied_by(ex.suffix(i).suffix(j)) by {
+                        always_unfold(ex.suffix(i), tla_forall(lifted_a_to_p));
+                        tla_forall_unfold(ex.suffix(i).suffix(j), lifted_a_to_p);
+                        assert(lifted_a_to_p(a).satisfied_by(ex.suffix(i).suffix(j)));
+                        assert(a_to_p(a)(ex.suffix(i).suffix(j).head()));
+                    }
+                }
+            };
+        }
+    }
+}
 
 // dual of leads_to_always_tla_forall
 // pre:
