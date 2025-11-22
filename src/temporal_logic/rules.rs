@@ -1752,7 +1752,13 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
                 }
             };
             assert forall |a: A| eventually(always(#[trigger] lifted_a_to_q(a))).satisfied_by(ex.suffix(i)) by {
-                assume(false);
+                if domain.contains(a) {
+                    temp_pred_equality::<T>(lift_state(a_to_q(a)), lifted_a_to_q(a));
+                } else {
+                    temp_pred_equality::<T>(lifted_a_to_q(a), true_pred());
+                    temp_pred_equality::<T>(always(lifted_a_to_q(a)), true_pred());
+                    eventually_proved_by_witness::<T>(ex.suffix(i), always(lifted_a_to_q(a)), 0);
+                }
             }
             let a_to_witness = Map::new(|a: A| domain.contains(a), |a: A| eventually_choose_witness::<T>(ex.suffix(i), always(lifted_a_to_q(a))));
             let leq = |a1: nat, a2: nat| a1 <= a2;
