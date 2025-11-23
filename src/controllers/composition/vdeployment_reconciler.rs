@@ -215,7 +215,7 @@ ensures
         }
         assert(spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))))
             .leads_to(always(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))))))) by {
-            spec_entails_always_tla_forall_within_domain(spec, desired_state_is_vrs(), current_state_matches_vrs(), vrs_set);
+            spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(spec, desired_state_is_vrs(), current_state_matches_vrs(), vrs_set);
         }
         // flaky
         assume(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)).entails(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s)))));

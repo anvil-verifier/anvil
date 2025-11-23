@@ -1722,7 +1722,9 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     eventually_proved_by_witness(ex, always(tla_forall(a_to_p)), max_witness);
 }
 
-pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>)
+pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain<T, A>(
+    spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>
+)
     requires
         forall |a: A| #[trigger] domain.contains(a) ==> spec.entails(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a))))),
         domain.finite(),
