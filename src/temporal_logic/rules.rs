@@ -1732,7 +1732,6 @@ pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_do
     ensures spec.entails(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_p(a)(t))))
         .leads_to(always(tla_forall(|a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_q(a)(t)))))),
 {
-    // TODO: try to parse lift_state(p ==> q) directly: lift_state(p) ==> lift_state(q)
     let lifted_a_to_p = |a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_p(a)(t));
     let lifted_a_to_q = |a: A| lift_state(|t: T| #[trigger] domain.contains(a) ==> a_to_q(a)(t));
     assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies always(tla_forall(lifted_a_to_p))
