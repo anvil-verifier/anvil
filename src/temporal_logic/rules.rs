@@ -1738,9 +1738,7 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
         assert forall |i: nat| always(tla_forall(lifted_a_to_p)).satisfied_by(#[trigger] ex.suffix(i))
             implies eventually(always(tla_forall(lifted_a_to_q))).satisfied_by(ex.suffix(i)) by {
             assert forall |a: A| #[trigger] domain.contains(a) implies eventually(always(lift_state(a_to_q(a)))).satisfied_by(ex.suffix(i)) by {
-                assert(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))).satisfied_by(ex)) by {
-                    entails_apply::<T>(ex, spec, always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))));
-                }
+                entails_apply::<T>(ex, spec, always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))));
                 leads_to_unfold::<T>(ex, always(lift_state(a_to_p(a))), always(lift_state(a_to_q(a))));
                 assert(always(lift_state(a_to_p(a))).satisfied_by(ex.suffix(i))) by {
                     assert forall |j: nat| lift_state(a_to_p(a)).satisfied_by(ex.suffix(i).suffix(j)) by {
@@ -1774,14 +1772,13 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
             values.find_unique_maximal_ensures(leq);
             values.lemma_maximal_equivalent_greatest(leq, max_witness);
             assert forall |a: A| always(#[trigger] lifted_a_to_q(a)).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
-                assert(eventually(always(lifted_a_to_q(a))).satisfied_by(ex.suffix(i)));
                 if domain.contains(a) {
                     assert(vstd::relations::is_greatest(leq, max_witness, values));
                     let witness = a_to_witness[a];
                     assert(leq(witness, max_witness));
                     always_propagate_forwards::<T>(ex.suffix(i).suffix(witness), lifted_a_to_q(a), (max_witness - witness) as nat);
                     execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
-                } else {} // true_pred
+                } // else {} true_pred
             }
             eventually_proved_by_witness::<T>(ex.suffix(i), always(tla_forall(lifted_a_to_q)), max_witness);
         }
