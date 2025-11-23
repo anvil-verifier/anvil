@@ -1741,11 +1741,11 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
                 assert(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))).satisfied_by(ex)) by {
                     entails_apply::<T>(ex, spec, always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))));
                 }
-                leads_to_unfold(ex, always(lift_state(a_to_p(a))), always(lift_state(a_to_q(a))));
+                leads_to_unfold::<T>(ex, always(lift_state(a_to_p(a))), always(lift_state(a_to_q(a))));
                 assert(always(lift_state(a_to_p(a))).satisfied_by(ex.suffix(i))) by {
                     assert forall |j: nat| lift_state(a_to_p(a)).satisfied_by(ex.suffix(i).suffix(j)) by {
-                        always_unfold(ex.suffix(i), tla_forall(lifted_a_to_p));
-                        tla_forall_unfold(ex.suffix(i).suffix(j), lifted_a_to_p);
+                        always_unfold::<T>(ex.suffix(i), tla_forall(lifted_a_to_p));
+                        tla_forall_unfold::<T, A>(ex.suffix(i).suffix(j), lifted_a_to_p);
                         assert(lifted_a_to_p(a).satisfied_by(ex.suffix(i).suffix(j)));
                         assert(a_to_p(a)(ex.suffix(i).suffix(j).head()));
                     }
@@ -1754,7 +1754,7 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
             assert forall |a: A| eventually(always(#[trigger] lifted_a_to_q(a))).satisfied_by(ex.suffix(i)) by {
                 if domain.contains(a) {
                     temp_pred_equality::<T>(lift_state(a_to_q(a)), lifted_a_to_q(a));
-                } else {
+                } else { // true_pred
                     temp_pred_equality::<T>(lifted_a_to_q(a), true_pred());
                     temp_pred_equality::<T>(always(lifted_a_to_q(a)), true_pred());
                     eventually_proved_by_witness::<T>(ex.suffix(i), always(lifted_a_to_q(a)), 0);
@@ -1783,7 +1783,7 @@ pub proof fn spec_entails_always_tla_forall_within_domain<T, A>(spec: TempPred<T
                     execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
                 } else {} // true_pred
             }
-            eventually_proved_by_witness(ex.suffix(i), always(tla_forall(lifted_a_to_q)), max_witness);
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(tla_forall(lifted_a_to_q)), max_witness);
         }
     }
 }
