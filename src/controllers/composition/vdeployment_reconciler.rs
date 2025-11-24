@@ -143,6 +143,8 @@ pub open spec fn valid_owned_vrs_p(vrs: VReplicaSetView, vd: VDeploymentView) ->
     }
 }
 
+// TODO: find a way to weaken this
+// maybe "there does not exist a vrs that has non-zero replcias and belongs to vd not included in this set"
 pub open spec fn vrs_set_matches_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| vrs_set == s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
@@ -258,6 +260,15 @@ ensures
     );
 }
 
+pub proof fn pods_match_vrs_set(vrs_set: Set<VReplicaSetView>, s: ClusterState)
+requires
+    forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::current_state_matches(vrs)(s),
+ensures
+    s.resources().values().filter(|obj: DynamicObjectView| exists |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) && #[trigger] owned_selector_match_is(vrs, obj)).len()
+        = sum(vrs_set.to_seq().map_values(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap_or(1)))
+{}
+
+
 pub proof fn current_state_match_combining_vrs_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, s: ClusterState)
 requires
     vrs_set_matches_vd(vrs_set, vd)(s),
@@ -265,67 +276,7 @@ requires
     current_state_matches_vrs_set_for_vd(vrs_set, vd)(s),
 ensures
     current_pods_match(vd)(s),
-{
-    let k = choose |k: ObjectRef| {
-        let etcd_obj = s.resources()[k];
-        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        &&& #[trigger] s.resources().contains_key(k)
-        &&& vd_liveness::valid_owned_obj_key(vd, s)(k)
-        &&& vd_liveness::filter_new_vrs_keys(vd.spec.template, s)(k)
-        &&& etcd_vrs.metadata.uid is Some
-        &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
-        // no old vrs, including the 2nd new vrs (if any)
-        &&& !exists |k: ObjectRef| {
-            &&& #[trigger] s.resources().contains_key(k)
-            &&& vd_liveness::valid_owned_obj_key(vd, s)(k)
-            &&& vd_liveness::filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
-        }
-    };
-    let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
-    assume(valid_owned_vrs_p(vrs, vd)(s)); // trigger
-    // prove that all counted pods belong to the up-to-date vrs owned by vd
-    // pod count == vd.spec.template.replicas
-    assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
-        implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(vrs, obj) by {
-        // TODO: add cluster invariants
-        assume(s.resources().contains_key(vrs.object_ref())); // trigger
-        assume(VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs);
-        // ==>
-        if valid_owned_pods(vd, s)(obj) {
-            if !vrs_liveness::owned_selector_match_is(vrs, obj) {
-                let havoc_vrs = choose |vrs: VReplicaSetView| {
-                    &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
-                    &&& valid_owned_vrs(vrs, vd)
-                    &&& s.resources().contains_key(vrs.object_ref())
-                    &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]) is Ok
-                    &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
-                };
-                assert(valid_owned_vrs_p(havoc_vrs, vd)(s)); // trigger
-                if havoc_vrs.spec.replicas == Some(int0!()) {
-                    assert(!vrs_liveness::matching_pods(havoc_vrs, s.resources()).is_empty()) by {
-                        assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
-                    }
-                    assume(vrs_liveness::matching_pods(havoc_vrs, s.resources()).finite());
-                    vrs_liveness::matching_pods(havoc_vrs, s.resources()).lemma_len0_is_empty();
-                    assert(false);
-                }
-                if havoc_vrs != vrs { // then can pass vd_liveness::filter_old_vrs_keys, contradiction proved
-                    assert(vd_liveness::valid_owned_obj_key(vd, s)(havoc_vrs.object_ref()));
-                    assume(havoc_vrs.metadata.uid->0 != vrs.metadata.uid->0);
-                    assert(vd_liveness::filter_old_vrs_keys(Some(vrs.metadata.uid->0), s)(havoc_vrs.object_ref()));
-                    assert(false);
-                }
-                assert(false); // then vrs_liveness::owned_selector_match_is is true
-            }
-            assert(vrs_liveness::owned_selector_match_is(vrs, obj));
-        }
-        // <==
-        if vrs_liveness::owned_selector_match_is(vrs, obj) {} // trivial
-    }
-    assert(vrs_liveness::matching_pods(vrs, s.resources()) == s.resources().values().filter(valid_owned_pods(vd, s)));
-    assert(vrs_liveness::matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1));
-    assert(vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
-}
+{}
 
 #[verifier(external_body)] // similar to current_state_match_combining_vrs_vd but need to prove stability
 pub proof fn lemma_always_current_state_match_vd_entails_exists_vrs_set_always_desired_state_is(vd: VDeploymentView)
@@ -378,7 +329,6 @@ ensures
         assert forall |vrs_set: Set<VReplicaSetView>| #[trigger] spec.entails(always_desired_state_is_vrs_set(vrs_set).leads_to(always(lift_state(current_pods_match(vd))))) by {
             assume(vrs_set.finite());
             assume(vrs_set.len() > 0);
-            assume(forall |vrs| #[trigger] vrs_set.contains(vrs));
             vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec, vrs_set, vd);
         }
         leads_to_exists_intro(spec, always_desired_state_is_vrs_set, always(lift_state(current_pods_match(vd))));
