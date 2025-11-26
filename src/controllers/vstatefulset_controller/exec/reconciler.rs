@@ -318,7 +318,21 @@ pub fn handle_create_needed(
             state@,
         ),
 {
-    (state, None)
+    if state.needed_index < state.needed.len() {
+        let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+            api_resource: Pod::api_resource(),
+            namespace: vsts.metadata().namespace().unwrap(),
+            obj: make_pod(&vsts, state.needed_index as u32).marshal(),
+        });
+        let state_prime = VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::AfterCreateNeeded,
+            ..state
+        };
+        (state_prime, Some(Request::KRequest(req)))
+    } else {
+        // This should be unreachable
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_after_create_needed(
@@ -603,47 +617,118 @@ pub fn error_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetRe
     VStatefulSetReconcileState { reconcile_step: VStatefulSetReconcileStep::Error, ..state }
 }
 
+pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
+    requires vsts@.well_formed()
+    ensures pod@ == model_reconciler::make_pod(vsts@, ordinal as nat)
+{
+    let mut pod = Pod::default();
+    pod.set_metadata(
+        {
+            let mut metadata = ObjectMeta::default();
+            let template_meta = vsts.spec().template().metadata().unwrap();
+            metadata.set_name(pod_name(vsts.metadata().name().unwrap(), ordinal));
+            if template_meta.labels().is_some() {
+                metadata.set_labels(template_meta.labels().unwrap());
+            }
+            if template_meta.annotations().is_some() {
+                metadata.set_annotations(template_meta.annotations().unwrap());
+            }
+            if template_meta.finalizers().is_some() {
+                metadata.set_finalizers(template_meta.finalizers().unwrap());
+            }
+            metadata.set_owner_references(make_owner_references(vsts));
+            metadata
+        }
+    );
+
+    pod.set_spec(vsts.spec().template().spec().unwrap());
+    update_storage(vsts, init_identity(vsts, pod, ordinal), ordinal)
+}
+
 // TODO: finish implementing this
-// #[verifier(external_body)]
-// pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
-//     requires vsts@.well_formed()
-//     ensures result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat)
+#[verifier(external_body)]
+pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
+    requires vsts@.well_formed()
+    ensures result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat)
+{
+    // let pvcs = make_pvcs(vsts, ordinal);
+    // let current_templates = if pod.spec().unwrap().inner().volumes() is Some {
+    //     pod.spec().unwrap().volumes().unwrap()
+    // } else {
+    //     Vec::new()
+    // };
+    // let new_volumes = if vsts.spec().volume_claim_templates() is Some {
+    //     let templates = vsts.spec().volume_claim_templates().unwrap();
+    //     let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
+    //         name: templates.deep_view()[i].metadata.name->0,
+    //         persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+    //             claim_name: pvcs[i].metadata.name->0,
+    //             read_only: Some(false),
+    //         }),
+    //         ..VolumeView::default()
+    //     });
+    //     let new_volumes: Vec<Volume> = Vec::new();
+    //     let len = templates.len();
+    //     for i in 0..len
+    //         invariant
+    //             vsts@.well_formed(),
+    //             new_volumes.deep_view() == new_volumes_spec.take(i)
+    //     {
+    //         proof {
+    //             // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
+    //             assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+    //         }
+    //         let vol = Volume::default();
+    //         vol.set_name(templates[i].metadata().name().unwrap());
+    //     }
+    // } else {
+    //     Vec::new()
+    // };
+    pod
+}
+
+#[verifier(external_body)]
+pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
+    requires vsts@.well_formed()
+    ensures result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat)
+{
+
+    pod
+    // let updated_pod = update_identity(vsts, pod, ordinal);
+    // let old_spec = updated_pod.spec().unwrap();
+    // updated_pod.set_spec(PodSpec {
+
+    // })
+    // Pod {
+    //     spec: Some(PodSpec {
+    //         hostname: updated_pod.metadata().name(),
+    //         subdomain: Some(vsts.spec().service_name()),
+    //         ..updated_pod.spec().unwrap()
+    //     }),
+    //     ..updated_pod
+    // }
+}
+
+
+// pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (pod: Pod)
+//     requires vsts.well_formed()
+//     ensures pod@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat)
 // {
-//     let pvcs = make_pvcs(vsts, ordinal);
-//     let current_templates = if pod.spec().unwrap().inner().volumes() is Some {
-//         pod.spec().unwrap().volumes().unwrap()
-//     } else {
-//         Vec::new()
-//     };
-//     let new_volumes = if vsts.spec().volume_claim_templates() is Some {
-//         let templates = vsts.spec().volume_claim_templates().unwrap();
-//         let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
-//             name: templates.deep_view()[i].metadata.name->0,
-//             persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
-//                 claim_name: pvcs[i].metadata.name->0,
-//                 read_only: Some(false),
-//             }),
-//             ..VolumeView::default()
-//         });
-//         let new_volumes: Vec<Volume> = Vec::new();
-//         let len = templates.len();
-//         for i in 0..len
-//             invariant
-//                 vsts@.well_formed(),
-//                 new_volumes.deep_view() == new_volumes_spec.take(i)
-//         {
-//             proof {
-//                 // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
-//                 assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
-//             }
-//             let vol = Volume::default();
-//             vol.set_name(templates[i].metadata().name().unwrap());
-//         }
-//     } else {
-//         Vec::new()
-//     };
-//     pod
+//     Pod {
+//         metadata: ObjectMeta {
+//             labels: Some(if pod.metadata().labels().is_none() {
+//                     StringMap::empty()
+//                 } else {
+//                     pod.metadata().labels().unwrap()
+//                 }.insert("statefulset.kubernetes.io/pod-name", pod.metadata().name().unwrap())
+//                 .insert("apps.kubernetes.io/pod-index", u32_to_string(ordinal))),
+//             ..pod.metadata()
+//         },
+//         ..pod
+//     }
 // }
+
+
 pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim)
     requires
         vsts@.well_formed() && vsts@.spec.volume_claim_templates is Some && i
@@ -1016,7 +1101,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
     Some(pods)
 }
 
-pub fn make_owner_references(vsts: VStatefulSet) -> (references: Vec<OwnerReference>)
+pub fn make_owner_references(vsts: &VStatefulSet) -> (references: Vec<OwnerReference>)
     requires
         vsts@.well_formed(),
     ensures
