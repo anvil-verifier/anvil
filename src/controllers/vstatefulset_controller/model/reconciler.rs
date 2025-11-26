@@ -393,17 +393,23 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
         let old_pod = state.needed[state.needed_index as int]->0;
         let ordinal = state.needed_index;
         let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
-        let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
-            name: new_pod.metadata.name->0,
-            namespace: vsts.metadata.namespace->0,
-            owner_ref: vsts.controller_owner_ref(),
-            obj: new_pod.marshal(),
-        });
-        let state_prime = VStatefulSetReconcileState {
-            reconcile_step: VStatefulSetReconcileStepView::AfterUpdateNeeded,
-            ..state
-        };
-        (state_prime, None)
+        
+        // addede this to be defensive, but it should actually be unreachable
+        if new_pod.metadata.name is Some {
+            let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                name: new_pod.metadata.name->0,
+                namespace: vsts.metadata.namespace->0,
+                owner_ref: vsts.controller_owner_ref(),
+                obj: new_pod.marshal(),
+            });
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStepView::AfterUpdateNeeded,
+                ..state
+            };
+            (state_prime, None)
+        } else {
+            (error_state(state), None)
+        }
     } else {
         // This should be unreachable
         (error_state(state), None)

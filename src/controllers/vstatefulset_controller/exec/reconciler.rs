@@ -262,6 +262,7 @@ pub fn handle_after_create_pvc(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.pvc_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_pvc(
             vsts@,
@@ -269,9 +270,6 @@ pub fn handle_after_create_pvc(
             state@,
         ),
 {
-    // TODO: fix this later
-    assume(state.pvc_index < usize::MAX);
-
     if is_some_k_create_resp!(resp_o) {
         let result = extract_some_k_create_resp!(resp_o);
         if result.is_ok() || (result.is_err()
@@ -311,6 +309,7 @@ pub fn handle_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.needed_index < u32::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_create_needed(
             vsts@,
@@ -342,6 +341,7 @@ pub fn handle_after_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.needed_index < u32::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_needed(
             vsts@,
@@ -349,9 +349,6 @@ pub fn handle_after_create_needed(
             state@,
         ),
 {
-    // TODO: fix this later
-    assume(state.needed_index < u32::MAX);
-
     if is_some_k_create_resp!(resp_o) {
         let result = extract_some_k_create_resp!(resp_o);
         if result.is_ok() {
@@ -371,6 +368,7 @@ pub fn handle_update_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_update_needed(
             vsts@,
@@ -378,7 +376,31 @@ pub fn handle_update_needed(
             state@,
         ),
 {
-    (state, None)
+    if state.needed_index < state.needed.len() && state.needed[state.needed_index].is_some() {
+        let old_pod = state.needed[state.needed_index].clone().unwrap();
+        let ordinal = state.needed_index as u32;
+        let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
+
+        if new_pod.metadata().name().is_none() {
+            return (error_state(state), None)
+        }
+
+        let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+            api_resource: Pod::api_resource(),
+            name: new_pod.metadata().name().unwrap(),
+            namespace: vsts.metadata().namespace().unwrap(),
+            owner_ref: vsts.controller_owner_ref(),
+            obj: new_pod.marshal(),
+        });
+        let state_prime = VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::AfterUpdateNeeded,
+            ..state
+        };
+        (state_prime, None)
+    } else {
+        // This should be unreachable
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_after_update_needed(
@@ -388,6 +410,7 @@ pub fn handle_after_update_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.needed_index < u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_update_needed(
             vsts@,
@@ -395,9 +418,6 @@ pub fn handle_after_update_needed(
             state@,
         ),
 {
-    // TODO: fix this later
-    assume(state.needed_index < u32::MAX);
-
     if is_some_k_get_then_update_resp!(resp_o) {
         let result = extract_some_k_get_then_update_resp!(resp_o);
         if result.is_ok() {
@@ -552,7 +572,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
                 None,
             )
         } else {
-            // There is no pvc to handle, so handle the next pod directly
             if state.needed[new_needed_index].is_none() {
                 // Create the pod
                 (
@@ -566,7 +585,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
                     None,
                 )
             } else {
-                // Update the pod
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
@@ -709,24 +727,26 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Po
     // }
 }
 
+#[verifier(external_body)]
+pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
+    requires vsts@.well_formed()
+    ensures result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat)
+{
+    // Pod {
+    //     metadata: ObjectMeta {
+    //         labels: Some(if pod.metadata().labels().is_none() {
+    //                 StringMap::empty()
+    //             } else {
+    //                 pod.metadata().labels().unwrap()
+    //             }.insert("statefulset.kubernetes.io/pod-name", pod.metadata().name().unwrap())
+    //             .insert("apps.kubernetes.io/pod-index", u32_to_string(ordinal))),
+    //         ..pod.metadata()
+    //     },
+    //     ..pod
+    // }
 
-// pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (pod: Pod)
-//     requires vsts.well_formed()
-//     ensures pod@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat)
-// {
-//     Pod {
-//         metadata: ObjectMeta {
-//             labels: Some(if pod.metadata().labels().is_none() {
-//                     StringMap::empty()
-//                 } else {
-//                     pod.metadata().labels().unwrap()
-//                 }.insert("statefulset.kubernetes.io/pod-name", pod.metadata().name().unwrap())
-//                 .insert("apps.kubernetes.io/pod-index", u32_to_string(ordinal))),
-//             ..pod.metadata()
-//         },
-//         ..pod
-//     }
-// }
+    pod
+}
 
 
 pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim)
