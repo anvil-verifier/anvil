@@ -1212,17 +1212,6 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     };
 }
 
-pub proof fn p_is_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>)
-    requires
-        spec.entails(always(lift_action(next))),
-        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) ==> p(s_prime),
-    ensures spec.entails(stable(lift_state(p))),
-{
-    if spec.entails(lift_state(p)) {
-        init_invariant::<T>(spec, p, next, p);
-    } else {}
-}
-
 // Strengthen next with inv.
 // pre:
 //     spec |= []next
