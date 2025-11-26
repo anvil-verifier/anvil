@@ -17,3 +17,4 @@ tools/*.json
 vreplicaset_controller.*.txt
 certs
 verify.sh
+format.sh
