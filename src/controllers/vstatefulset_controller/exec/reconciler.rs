@@ -282,6 +282,115 @@ verus! {
         (state, None)
     }
 
+    pub fn handle_after_create_or_after_update_needed_helper(vsts: VStatefulSet, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>)) 
+        requires 
+            vsts@.well_formed(),
+            state.needed_index < u32::MAX,
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_or_after_update_needed_helper(vsts@, state@),
+    {
+        let new_needed_index = state.needed_index + 1;
+        if new_needed_index < state.needed.len() {
+            // There are more pods to create/update
+            let new_pvcs = make_pvcs(&vsts, new_needed_index as u32);
+            let new_pvc_index = 0;
+            if new_pvcs.len() > 0 {
+                // There is at least one pvc for the next pod to handle
+                (VStatefulSetReconcileState {
+                    reconcile_step: VStatefulSetReconcileStep::GetPVC,
+                    needed_index: new_needed_index,
+                    pvcs: new_pvcs,
+                    pvc_index: new_pvc_index,
+                    ..state
+                }, None)
+            } else {
+                // There is no pvc to handle, so handle the next pod directly
+                if state.needed[new_needed_index].is_none() {
+                    // Create the pod
+                    (VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
+                        needed_index: new_needed_index,
+                        pvcs: new_pvcs,
+                        pvc_index: new_pvc_index,
+                        ..state
+                    }, None)
+                } else {
+                    // Update the pod
+                    (VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
+                        needed_index: new_needed_index,
+                        pvcs: new_pvcs,
+                        pvc_index: new_pvc_index,
+                        ..state
+                    }, None)
+                }
+            }
+        } else {
+            if state.condemned_index < state.condemned.len() {
+                (VStatefulSetReconcileState {
+                    reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                    needed_index: new_needed_index,
+                    ..state
+                }, None)
+            } else {
+                (delete_outdated_state(state), None)
+            }
+        }
+    }
+
+    pub fn handle_after_create_or_skip_pvc_helper(vsts: &VStatefulSet, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires 
+            vsts@.well_formed(),
+            state.pvc_index < usize::MAX,
+            state.needed_index < u32::MAX
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_or_skip_pvc_helper(vsts@, state@),
+    {
+        let new_pvc_index = state.pvc_index + 1;
+        if new_pvc_index < state.pvcs.len() {
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStep::GetPVC,
+                pvc_index: new_pvc_index,
+                ..state
+            };
+            (state_prime, None)
+        } else {
+            // Move to next pod
+            if state.needed_index < state.needed.len() {
+                if state.needed[state.needed_index].is_none() {
+                    let state_prime = VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
+                        pvc_index: new_pvc_index,
+                        ..state
+                    };
+                    (state_prime, None)
+                } else {
+                    let state_prime = VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
+                        pvc_index: new_pvc_index,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                (error_state(state), None)
+            }
+        }
+    }
+        
+    pub fn delete_outdated_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState)
+        ensures result@ == model_reconciler::delete_outdated_state(state@)
+    {
+        VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::DeleteOutdated,
+            ..state
+        }
+    }
+
+    pub fn done_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState) {
+        VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::Done,
+            ..state
+        }
+    }
 
     pub fn error_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState) 
         ensures result@ == model_reconciler::error_state(state@)
@@ -415,17 +524,11 @@ verus! {
         }
     }
 
-    impl VerusClone for Pod {
-        fn verus_clone(&self) -> Pod
-        {
-            self.clone()
-        }
-    }
-
     pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: u32) -> (result: Option<Pod>) 
         ensures result.deep_view() == model_reconciler::get_pod_with_ord(parent_name@, pods.deep_view(), ord as nat)
     {
         let mut filtered: Vec<Pod> = Vec::new();
+
         proof {
             let model_filtered = model_reconciler::filter_pods_by_ord(parent_name@, pods.deep_view().take(0), ord as nat);
             assert(filtered.deep_view() == model_filtered);
