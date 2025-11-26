@@ -212,18 +212,41 @@ verus! {
         }
     }
 
-    pub fn handle_after_create_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+    pub fn handle_after_create_pvc(
+        vsts: &VStatefulSet,
+        resp_o: Option<Response<VoidEResp>>,
+        state: VStatefulSetReconcileState,
+    ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_pvc(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+
+        // TODO: fix this later
+        assume(state.pvc_index < usize::MAX);
+
+        if is_some_k_create_resp!(resp_o) {
+            let result = extract_some_k_create_resp!(resp_o);
+            if result.is_ok() || (result.is_err() && matches!(result.unwrap_err(), APIError::ObjectAlreadyExists)) {
+                handle_after_create_or_skip_pvc_helper(vsts, state)
+            } else {
+                (error_state(state), None)
+            }
+        } else {
+            (error_state(state), None)
+        }
     }
 
-    pub fn handle_skip_pvc(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+    pub fn handle_skip_pvc(
+        vsts: &VStatefulSet,
+        resp_o: Option<Response<VoidEResp>>,
+        state: VStatefulSetReconcileState,
+    ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_skip_pvc(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        assume(state.pvc_index < usize::MAX);
+
+        handle_after_create_or_skip_pvc_helper(vsts, state)
     }
 
     pub fn handle_create_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
@@ -233,11 +256,27 @@ verus! {
         (state, None)
     }
 
-    pub fn handle_after_create_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+    pub fn handle_after_create_needed(
+        vsts: &VStatefulSet,
+        resp_o: Option<Response<VoidEResp>>,
+        state: VStatefulSetReconcileState,
+    ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_needed(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        // TODO: fix this later
+        assume(state.needed_index < u32::MAX);
+
+        if is_some_k_create_resp!(resp_o) {
+            let result = extract_some_k_create_resp!(resp_o);
+            if result.is_ok() {
+                handle_after_create_or_after_update_needed_helper(vsts.clone(), state)
+            } else {
+                (error_state(state), None)
+            }
+        } else {
+            (error_state(state), None)
+        }
     }
 
     pub fn handle_update_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
@@ -247,11 +286,27 @@ verus! {
         (state, None)
     }
 
-    pub fn handle_after_update_needed(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+    pub fn handle_after_update_needed(
+        vsts: &VStatefulSet,
+        resp_o: Option<Response<VoidEResp>>,
+        state: VStatefulSetReconcileState,
+    ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
         requires vsts@.well_formed(),
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_update_needed(vsts@, resp_o.deep_view(), state@),
     {
-        (state, None)
+        // TODO: fix this later
+        assume(state.needed_index < u32::MAX);
+
+        if is_some_k_get_then_update_resp!(resp_o) {
+            let result = extract_some_k_get_then_update_resp!(resp_o);
+            if result.is_ok() {
+                handle_after_create_or_after_update_needed_helper(vsts.clone(), state)
+            } else {
+                (error_state(state), None)
+            }
+        } else {
+            (error_state(state), None)
+        }
     }
 
     pub fn handle_delete_condemned(vsts: &VStatefulSet, resp_o: Option<Response<VoidEResp>>, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
@@ -280,6 +335,44 @@ verus! {
         ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_outdated(vsts@, resp_o.deep_view(), state@),
     {
         (state, None)
+    }
+
+    pub fn handle_after_create_or_skip_pvc_helper(vsts: &VStatefulSet, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
+        requires 
+            vsts@.well_formed(),
+            state.pvc_index < usize::MAX,
+        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_or_skip_pvc_helper(vsts@, state@),
+    {
+        let new_pvc_index = state.pvc_index + 1;
+        if new_pvc_index < state.pvcs.len() {
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStep::GetPVC,
+                pvc_index: new_pvc_index,
+                ..state
+            };
+            (state_prime, None)
+        } else {
+            // Move to next pod
+            if state.needed_index < state.needed.len() {
+                if state.needed[state.needed_index].is_none() {
+                    let state_prime = VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
+                        pvc_index: new_pvc_index,
+                        ..state
+                    };
+                    (state_prime, None)
+                } else {
+                    let state_prime = VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
+                        pvc_index: new_pvc_index,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                (error_state(state), None)
+            }
+        }
     }
 
     pub fn handle_after_create_or_after_update_needed_helper(vsts: VStatefulSet, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>)) 
@@ -333,45 +426,6 @@ verus! {
                 }, None)
             } else {
                 (delete_outdated_state(state), None)
-            }
-        }
-    }
-
-    pub fn handle_after_create_or_skip_pvc_helper(vsts: &VStatefulSet, state: VStatefulSetReconcileState) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
-        requires 
-            vsts@.well_formed(),
-            state.pvc_index < usize::MAX,
-            state.needed_index < u32::MAX
-        ensures (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_or_skip_pvc_helper(vsts@, state@),
-    {
-        let new_pvc_index = state.pvc_index + 1;
-        if new_pvc_index < state.pvcs.len() {
-            let state_prime = VStatefulSetReconcileState {
-                reconcile_step: VStatefulSetReconcileStep::GetPVC,
-                pvc_index: new_pvc_index,
-                ..state
-            };
-            (state_prime, None)
-        } else {
-            // Move to next pod
-            if state.needed_index < state.needed.len() {
-                if state.needed[state.needed_index].is_none() {
-                    let state_prime = VStatefulSetReconcileState {
-                        reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
-                        pvc_index: new_pvc_index,
-                        ..state
-                    };
-                    (state_prime, None)
-                } else {
-                    let state_prime = VStatefulSetReconcileState {
-                        reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
-                        pvc_index: new_pvc_index,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
-            } else {
-                (error_state(state), None)
             }
         }
     }
