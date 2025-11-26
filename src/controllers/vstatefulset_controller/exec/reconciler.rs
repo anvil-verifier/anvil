@@ -145,7 +145,77 @@ pub fn handle_after_list_pod(
             state@,
         ),
 {
-    (state, None)
+    if is_some_k_list_resp!(resp_o) {
+        let extracted = extract_some_k_list_resp!(resp_o);
+        if extracted.is_err() {
+            return (error_state(state), None)
+        }
+        let objs = extracted.unwrap();
+        let pods_or_none = objects_to_pods(objs);
+        if pods_or_none.is_none() {
+            (error_state(state), None)
+        } else {
+            let pods = pods_or_none.unwrap();
+            let filtered_pods = filter_pods(pods, vsts);
+            let replicas = if vsts.spec().replicas().is_some() { vsts.spec().replicas().unwrap() } else { 0 };
+            if replicas >= 0 {
+                let (needed, condemned) = partition_pods(vsts.metadata().name().unwrap(), replicas as u32, filtered_pods);
+                let needed_index = 0;
+                let condemned_index = 0;
+                let pvc_index = 0;
+                let pvcs = make_pvcs(vsts, 0);
+
+                let state_without_step = VStatefulSetReconcileState {
+                    needed: needed.clone(),
+                    condemned: condemned.clone(),
+                    pvcs: pvcs.clone(),
+                    needed_index: needed_index,
+                    condemned_index: condemned_index,
+                    pvc_index: pvc_index,
+                    ..state
+                };
+
+                if needed_index < needed.len() {
+                    // There are more pods to create/update
+                    if pvcs.len() > 0 {
+                        // There is at least one pvc for the next pod to handle
+                        (VStatefulSetReconcileState {
+                            reconcile_step: VStatefulSetReconcileStep::GetPVC,
+                            ..state_without_step
+                        }, None)
+                    } else {
+                        // There is no pvc to handle, so handle the next pod directly
+                        if needed[needed_index].is_none() {
+                            // Create the pod
+                            (VStatefulSetReconcileState {
+                                reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
+                                ..state_without_step
+                            }, None)
+                        } else {
+                            // Update the pod
+                            (VStatefulSetReconcileState {
+                                reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
+                                ..state_without_step
+                            }, None)
+                        }
+                    }
+                } else {
+                    if condemned_index < condemned.len() {
+                        (VStatefulSetReconcileState {
+                            reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                            ..state_without_step
+                        }, None)
+                    } else {
+                        (delete_outdated_state(state), None)
+                    }
+                }
+            } else {
+                (error_state(state), None)
+            }
+        }
+    } else {
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_get_pvc(
@@ -672,7 +742,10 @@ pub fn delete_outdated_state(state: VStatefulSetReconcileState) -> (result:
     }
 }
 
-pub fn done_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState) {
+pub fn done_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState) 
+    ensures
+        result@ == model_reconciler::done_state(state@),
+{
     VStatefulSetReconcileState { reconcile_step: VStatefulSetReconcileStep::Done, ..state }
 }
 
@@ -1178,7 +1251,7 @@ pub fn make_owner_references(vsts: &VStatefulSet) -> (references: Vec<OwnerRefer
     vec![vsts.controller_owner_ref()]
 }
 
-pub fn filter_pods(pods: Vec<Pod>, vsts: VStatefulSet) -> (filtered: Vec<Pod>)
+pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
     requires
         vsts@.well_formed(),
     ensures
