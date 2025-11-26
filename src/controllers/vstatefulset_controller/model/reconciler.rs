@@ -482,19 +482,24 @@ pub open spec fn handle_after_create_or_after_update_needed_helper(vsts: VStatef
 
 pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if state.condemned_index < state.condemned.len() {
-        let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
-            key: ObjectRef {
-                kind: PodView::kind(),
-                name: state.condemned[state.condemned_index as int].metadata.name->0,
-                namespace: vsts.metadata.namespace->0,
-            },
-            owner_ref: vsts.controller_owner_ref(),
-        });
-        let state_prime = VStatefulSetReconcileState {
-            reconcile_step: VStatefulSetReconcileStepView::AfterDeleteCondemned,
-            ..state
-        };
-        (state_prime, Some(RequestView::KRequest(req)))
+        let condemned_pod = state.condemned[state.condemned_index as int];
+        if condemned_pod.metadata.name is Some {
+            let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
+                key: ObjectRef {
+                    kind: PodView::kind(),
+                    name: state.condemned[state.condemned_index as int].metadata.name->0,
+                    namespace: vsts.metadata.namespace->0,
+                },
+                owner_ref: vsts.controller_owner_ref(),
+            });
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStepView::AfterDeleteCondemned,
+                ..state
+            };
+            (state_prime, Some(RequestView::KRequest(req)))
+        } else {
+            (error_state(state), None)
+        }
     } else {
         // This should be unreachable
         (error_state(state), None)
@@ -503,7 +508,7 @@ pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: Default
 
 pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view!(resp_o) {
-        let result = extract_some_k_delete_resp_view!(resp_o);
+        let result = extract_some_k_get_then_delete_resp_view!(resp_o);
         if result is Ok {
             let new_condemned_index = state.condemned_index + 1;
             if new_condemned_index < state.condemned.len() {
@@ -547,7 +552,7 @@ pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultR
 
 pub open spec fn handle_after_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view!(resp_o) {
-        let result = extract_some_k_delete_resp_view!(resp_o);
+        let result = extract_some_k_get_then_delete_resp_view!(resp_o);
         if result is Ok {
             (done_state(state), None)
         } else {

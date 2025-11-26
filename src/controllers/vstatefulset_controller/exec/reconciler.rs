@@ -290,6 +290,7 @@ pub fn handle_skip_pvc(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.pvc_index < usize::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_skip_pvc(
             vsts@,
@@ -297,8 +298,6 @@ pub fn handle_skip_pvc(
             state@,
         ),
 {
-    assume(state.pvc_index < usize::MAX);
-
     handle_after_create_or_skip_pvc_helper(vsts, state)
 }
 
@@ -444,7 +443,26 @@ pub fn handle_delete_condemned(
             state@,
         ),
 {
-    (state, None)
+    if state.condemned_index < state.condemned.len() {
+        let condemned_pod = &state.condemned[state.condemned_index];
+        if condemned_pod.metadata().name().is_none() {
+            return (error_state(state), None);
+        }
+        let req = KubeAPIRequest::GetThenDeleteRequest(KubeGetThenDeleteRequest {
+            api_resource: Pod::api_resource(),
+            name: condemned_pod.metadata().name().unwrap(),
+            namespace: vsts.metadata().namespace().unwrap(),
+            owner_ref: vsts.controller_owner_ref(),
+        });
+        let state_prime = VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::AfterDeleteCondemned,
+            ..state
+        };
+        (state_prime, Some(Request::KRequest(req)))
+    } else {
+        // This should be unreachable
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_after_delete_condemned(
@@ -454,6 +472,7 @@ pub fn handle_after_delete_condemned(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.condemned_index < usize::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_condemned(
             vsts@,
@@ -461,7 +480,26 @@ pub fn handle_after_delete_condemned(
             state@,
         ),
 {
-    (state, None)
+    if is_some_k_get_then_delete_resp!(resp_o) {
+        let result = extract_some_k_get_then_delete_resp!(resp_o);
+        if result.is_ok() {
+            let new_condemned_index = state.condemned_index + 1;
+            if new_condemned_index < state.condemned.len() {
+                (VStatefulSetReconcileState {
+                    reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                    needed_index: new_condemned_index,
+                    ..state
+                }, None)
+            } else {
+                (delete_outdated_state(state), None)
+            }
+        } else {
+            (error_state(state), None)
+        }
+    } else {
+        // This should be unreachable
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_delete_outdated(
@@ -495,7 +533,17 @@ pub fn handle_after_delete_outdated(
             state@,
         ),
 {
-    (state, None)
+    if is_some_k_get_then_delete_resp!(resp_o) {
+        let result = extract_some_k_get_then_delete_resp!(resp_o);
+        if result.is_ok() {
+            (done_state(state), None)
+        } else {
+            (error_state(state), None)
+        }
+    } else {
+        // This should be unreachable
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_after_create_or_skip_pvc_helper(
