@@ -18,7 +18,9 @@ use crate::vdeployment_controller::model::{
 use crate::vdeployment_controller::proof::{
     guarantee::*, liveness::{spec::*, proof::*}, predicate::*
 };
-use crate::vstd_ext::string_view::*;
+use crate::vstd_ext::{
+    string_view::*, seq_lib::*
+};
 use vstd::prelude::*;
 
 verus !{
@@ -183,6 +185,12 @@ pub open spec fn current_state_matches_vrs() -> spec_fn(VReplicaSetView) -> Stat
     |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs)
 }
 
+pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |vrs| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s)
+    }
+}
+
 pub open spec fn lifted_conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> spec_fn(VReplicaSetView) -> TempPred<ClusterState> {
     |vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s))
 }
@@ -264,8 +272,8 @@ pub proof fn pods_match_vrs_set(vrs_set: Set<VReplicaSetView>, s: ClusterState)
 requires
     forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::current_state_matches(vrs)(s),
 ensures
-    s.resources().values().filter(|obj: DynamicObjectView| exists |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) && #[trigger] owned_selector_match_is(vrs, obj)).len()
-        = sum(vrs_set.to_seq().map_values(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap_or(1)))
+    s.resources().values().filter(|obj: DynamicObjectView| exists |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) && #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)).len()
+        == sum(vrs_set.to_seq().map_values(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap_or(int1!())))
 {}
 
 
@@ -278,7 +286,17 @@ ensures
     current_pods_match(vd)(s),
 {}
 
-#[verifier(external_body)] // similar to current_state_match_combining_vrs_vd but need to prove stability
+#[verifier(external_body)]
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView)
+ensures
+    lift_state(vd_liveness::current_state_matches(vd)).entails(
+    tla_exists(|vrs_set: Set<VReplicaSetView>|
+        lift_state(vrs_set_matches_vd(vrs_set, vd))
+        .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
+        .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
+    )),
+{}
+
 pub proof fn lemma_always_current_state_match_vd_entails_exists_vrs_set_always_desired_state_is(vd: VDeploymentView)
 requires
     true, // cluster invariants
@@ -289,6 +307,23 @@ ensures
         .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
         .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))
     )))),
+{}
+
+#[verifier(external_body)] // similar to current_state_match_combining_vrs_vd but need to prove stability
+pub proof fn composed_desired_state_is_stable(
+    vd: VDeploymentView, cluster: Cluster, vrs_set: Set<VReplicaSetView>, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next()(s, s_prime),
+    vd_liveness::current_state_matches(vd)(s),
+    vrs_set_matches_vd(vrs_set, vd)(s),
+    current_state_matches_vrs_set_for_vd(vrs_set, vd)(s),
+    forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s),
+ensures
+    vd_liveness::current_state_matches(vd)(s_prime),
+    vrs_set_matches_vd(vrs_set, vd)(s_prime),
+    current_state_matches_vrs_set_for_vd(vrs_set, vd)(s_prime),
+    forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s_prime),
 {}
 
 pub proof fn composed_eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>)

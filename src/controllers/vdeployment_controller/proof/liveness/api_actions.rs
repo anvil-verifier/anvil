@@ -544,6 +544,24 @@ ensures
     }
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_vd_do_not_write_to_cluster_state_when_esr_is_satisfied(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
+)
+requires
+    current_state_matches(vd)(s),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    // forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    msg.src == HostId::Controller(controller_id, vd.object_ref()),
+ensures
+    msg.content.is_APIRequest() ==> !{
+        ||| msg.content.get_APIRequest_0().is_DeleteRequest()
+        ||| msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
+        ||| msg.content.get_APIRequest_0().is_UpdateRequest()
+        ||| msg.content.get_APIRequest_0().is_CreateRequest()
+    },
+{}
+
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API req msg does not touch the object as the direct result of rely condition and non-interference property.
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
@@ -565,7 +583,7 @@ requires
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())(s),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())(s),
-    helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_State_is indirectly
+    helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_state_is indirectly
     helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)(s),
     helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s),
     helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects()(s),
