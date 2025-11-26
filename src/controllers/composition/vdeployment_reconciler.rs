@@ -315,9 +315,17 @@ ensures
 {
     let pre = lift_state(vd_liveness::current_state_matches(vd));
     let post = |vrs_set: Set<VReplicaSetView>| and!(
-        vd_liveness::current_state_matches(vd),
         vrs_set_matches_vd(vrs_set, vd),
-        current_state_matches_vrs_set_for_vd(vrs_set, vd)
+        current_state_matches_vrs_set_for_vd(vrs_set, vd),
+        conjuncted_desired_state_is_vrs(vrs_set)
+    );
+    assume(
+        tla_exists(|vrs_set: Set<VReplicaSetView>| always(
+            lift_state(vrs_set_matches_vd(vrs_set, vd))
+            .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
+            .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
+        ))
+        == tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(post(vrs_set))))
     );
     let stronger_post = |vrs_set: Set<VReplicaSetView>| and!(
         vd_liveness::current_state_matches(vd),
@@ -325,34 +333,48 @@ ensures
         current_state_matches_vrs_set_for_vd(vrs_set, vd),
         conjuncted_desired_state_is_vrs(vrs_set)
     );
-    let lifted_post = tla_exists(|vrs_set: Set<VReplicaSetView>| always(
+    let lifted_always_post = tla_exists(|vrs_set: Set<VReplicaSetView>| always(
         lift_state(vrs_set_matches_vd(vrs_set, vd))
         .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
         .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))
     )));
-    assert(spec.entails(pre.leads_to(lifted_post))) by {
-        assert(spec.entails(pre.leads_to(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set)))))) by {
+    assert(spec.entails(always(pre).leads_to(lifted_always_post))) by {
+        assert(spec.entails(always(pre).leads_to(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set)))))) by {
             current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd);
-            assert(pre.entails(pre));
-            entails_and_temp(pre, pre, lifted_post);
-            temp_pred_equality(pre.and(lifted_post), tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set))));
+            assume(
+                tla_exists(|vrs_set: Set<VReplicaSetView>| 
+                    lift_state(vrs_set_matches_vd(vrs_set, vd))
+                    .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
+                    .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
+                )
+                == tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(post(vrs_set)))
+            );
+            entails_and_temp(pre, pre, tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(post(vrs_set))));
+            assume(
+                pre.and(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(post(vrs_set))))
+                == tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set)))
+            );
             entails_implies_leads_to(spec, pre, tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set))));
+            eliminate_always(always(pre), pre);
+            entails_implies_leads_to(spec, always(pre), pre);
+            leads_to_trans(spec, always(pre), pre, tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set))));
         }
-        assert forall |s, s_prime| true implies (forall |vrs_set| #[trigger] stronger_post(vrs_set)(s) && #[trigger] cluster.next()(s, s_prime) ==> stronger_post(vrs_set)(s)) by {
-            assert forall |vrs_set| #[trigger] stronger_post(vrs_set)(s) && cluster.next()(s, s_prime) implies stronger_post(vrs_set)(s) by {
+        assert forall |s, s_prime| true implies (forall |vrs_set| #[trigger] stronger_post(vrs_set)(s) && #[trigger] cluster.next()(s, s_prime) ==> stronger_post(vrs_set)(s_prime)) by {
+            assert forall |vrs_set| #[trigger] stronger_post(vrs_set)(s) && cluster.next()(s, s_prime) implies stronger_post(vrs_set)(s_prime) by {
                 composed_desired_state_is_stable(vd, cluster, vrs_set, s, s_prime);
             }
         }
         // pre ~> exists always stronger_post
-        leads_to_exists_stable(spec, cluster.next(), pre, stronger_post);
+        leads_to_exists_stable(spec, cluster.next(), always(pre), stronger_post);
         assert forall |vrs_set: Set<VReplicaSetView>| #[trigger] spec.entails(always(lift_state(stronger_post(vrs_set))).leads_to(always(lift_state(post(vrs_set))))) by {
             always_weaken(always(lift_state(stronger_post(vrs_set))), lift_state(stronger_post(vrs_set)), lift_state(post(vrs_set)));
             entails_implies_leads_to(spec, always(lift_state(stronger_post(vrs_set))), always(lift_state(post(vrs_set))));
         }
         leads_to_exists_intro2(spec, |vrs_set: Set<VReplicaSetView>| always(lift_state(stronger_post(vrs_set))), |vrs_set: Set<VReplicaSetView>| always(lift_state(post(vrs_set))));
-        temp_pred_equality(tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(post(vrs_set)))), lifted_post);
-        leads_to_trans(spec, pre, tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(stronger_post(vrs_set)))), lifted_post);
+        temp_pred_equality(tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(post(vrs_set)))), lifted_always_post);
+        leads_to_trans(spec, always(pre), tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(stronger_post(vrs_set)))), lifted_always_post);
     }
+    leads_to_trans(spec, always(lift_state(vd_liveness::desired_state_is(vd))), always(pre), lifted_always_post);
 }
 
 #[verifier(external_body)] // similar to current_state_match_combining_vrs_vd but need to prove stability
