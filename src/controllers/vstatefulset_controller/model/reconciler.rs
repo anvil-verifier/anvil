@@ -530,8 +530,9 @@ pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: D
 }
 
 pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if exists |ordinal| is_the_largest_ordinal_of_unmatched_pods(vsts, state.needed, ordinal) {
-        let ordinal = choose |ordinal| is_the_largest_ordinal_of_unmatched_pods(vsts, state.needed, ordinal);
+    let ordinal_or_none = get_largest_ordinal_of_unmatched_pods(vsts, state.needed);
+    if ordinal_or_none is Some {
+        let ordinal = ordinal_or_none->0;
         let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
             key: ObjectRef {
                 kind: PodView::kind(),
@@ -795,6 +796,16 @@ pub open spec fn is_the_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView
     // and for any other pods[other_ordinal] that doesn't match vsts, other_ordinal is no larger than ordinal
     &&& forall |other_ordinal: nat| other_ordinal < pods.len() && #[trigger] pods[other_ordinal as int] is Some && !pod_matches(vsts, pods[other_ordinal as int]->0)
         ==> other_ordinal <= ordinal
+}
+
+pub open spec fn get_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<nat> {
+    let filtered = Seq::new(pods.len(), |i: int| i as nat)
+                                .filter(|ordinal: nat| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
+    if filtered.len() > 0 {
+        Some(filtered.last())
+    } else {
+        None
+    }
 }
 
 }

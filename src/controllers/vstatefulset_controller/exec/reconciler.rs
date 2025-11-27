@@ -157,9 +157,17 @@ pub fn handle_after_list_pod(
         } else {
             let pods = pods_or_none.unwrap();
             let filtered_pods = filter_pods(pods, vsts);
-            let replicas = if vsts.spec().replicas().is_some() { vsts.spec().replicas().unwrap() } else { 0 };
+            let replicas = if vsts.spec().replicas().is_some() {
+                vsts.spec().replicas().unwrap()
+            } else {
+                0
+            };
             if replicas >= 0 {
-                let (needed, condemned) = partition_pods(vsts.metadata().name().unwrap(), replicas as u32, filtered_pods);
+                let (needed, condemned) = partition_pods(
+                    vsts.metadata().name().unwrap(),
+                    replicas as u32,
+                    filtered_pods,
+                );
                 let needed_index = 0;
                 let condemned_index = 0;
                 let pvc_index = 0;
@@ -179,32 +187,44 @@ pub fn handle_after_list_pod(
                     // There are more pods to create/update
                     if pvcs.len() > 0 {
                         // There is at least one pvc for the next pod to handle
-                        (VStatefulSetReconcileState {
-                            reconcile_step: VStatefulSetReconcileStep::GetPVC,
-                            ..state_without_step
-                        }, None)
+                        (
+                            VStatefulSetReconcileState {
+                                reconcile_step: VStatefulSetReconcileStep::GetPVC,
+                                ..state_without_step
+                            },
+                            None,
+                        )
                     } else {
                         // There is no pvc to handle, so handle the next pod directly
                         if needed[needed_index].is_none() {
                             // Create the pod
-                            (VStatefulSetReconcileState {
-                                reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
-                                ..state_without_step
-                            }, None)
+                            (
+                                VStatefulSetReconcileState {
+                                    reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
+                                    ..state_without_step
+                                },
+                                None,
+                            )
                         } else {
                             // Update the pod
-                            (VStatefulSetReconcileState {
-                                reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
-                                ..state_without_step
-                            }, None)
+                            (
+                                VStatefulSetReconcileState {
+                                    reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
+                                    ..state_without_step
+                                },
+                                None,
+                            )
                         }
                     }
                 } else {
                     if condemned_index < condemned.len() {
-                        (VStatefulSetReconcileState {
-                            reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
-                            ..state_without_step
-                        }, None)
+                        (
+                            VStatefulSetReconcileState {
+                                reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                                ..state_without_step
+                            },
+                            None,
+                        )
                     } else {
                         (delete_outdated_state(state), None)
                     }
@@ -360,7 +380,7 @@ pub fn handle_skip_pvc(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.pvc_index < usize::MAX
+        state.pvc_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_skip_pvc(
             vsts@,
@@ -378,7 +398,7 @@ pub fn handle_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index < u32::MAX
+        state.needed_index < u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_create_needed(
             vsts@,
@@ -387,11 +407,13 @@ pub fn handle_create_needed(
         ),
 {
     if state.needed_index < state.needed.len() {
-        let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-            api_resource: Pod::api_resource(),
-            namespace: vsts.metadata().namespace().unwrap(),
-            obj: make_pod(&vsts, state.needed_index as u32).marshal(),
-        });
+        let req = KubeAPIRequest::CreateRequest(
+            KubeCreateRequest {
+                api_resource: Pod::api_resource(),
+                namespace: vsts.metadata().namespace().unwrap(),
+                obj: make_pod(&vsts, state.needed_index as u32).marshal(),
+            },
+        );
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterCreateNeeded,
             ..state
@@ -410,7 +432,7 @@ pub fn handle_after_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index < u32::MAX
+        state.needed_index < u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_needed(
             vsts@,
@@ -453,14 +475,15 @@ pub fn handle_update_needed(
         if new_pod.metadata().name().is_none() {
             return (error_state(state), None)
         }
-
-        let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
-            api_resource: Pod::api_resource(),
-            name: new_pod.metadata().name().unwrap(),
-            namespace: vsts.metadata().namespace().unwrap(),
-            owner_ref: vsts.controller_owner_ref(),
-            obj: new_pod.marshal(),
-        });
+        let req = KubeAPIRequest::GetThenUpdateRequest(
+            KubeGetThenUpdateRequest {
+                api_resource: Pod::api_resource(),
+                name: new_pod.metadata().name().unwrap(),
+                namespace: vsts.metadata().namespace().unwrap(),
+                owner_ref: vsts.controller_owner_ref(),
+                obj: new_pod.marshal(),
+            },
+        );
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterUpdateNeeded,
             ..state
@@ -518,12 +541,14 @@ pub fn handle_delete_condemned(
         if condemned_pod.metadata().name().is_none() {
             return (error_state(state), None);
         }
-        let req = KubeAPIRequest::GetThenDeleteRequest(KubeGetThenDeleteRequest {
-            api_resource: Pod::api_resource(),
-            name: condemned_pod.metadata().name().unwrap(),
-            namespace: vsts.metadata().namespace().unwrap(),
-            owner_ref: vsts.controller_owner_ref(),
-        });
+        let req = KubeAPIRequest::GetThenDeleteRequest(
+            KubeGetThenDeleteRequest {
+                api_resource: Pod::api_resource(),
+                name: condemned_pod.metadata().name().unwrap(),
+                namespace: vsts.metadata().namespace().unwrap(),
+                owner_ref: vsts.controller_owner_ref(),
+            },
+        );
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterDeleteCondemned,
             ..state
@@ -542,7 +567,7 @@ pub fn handle_after_delete_condemned(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.condemned_index < usize::MAX
+        state.condemned_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_condemned(
             vsts@,
@@ -555,11 +580,14 @@ pub fn handle_after_delete_condemned(
         if result.is_ok() {
             let new_condemned_index = state.condemned_index + 1;
             if new_condemned_index < state.condemned.len() {
-                (VStatefulSetReconcileState {
-                    reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
-                    needed_index: new_condemned_index,
-                    ..state
-                }, None)
+                (
+                    VStatefulSetReconcileState {
+                        reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                        needed_index: new_condemned_index,
+                        ..state
+                    },
+                    None,
+                )
             } else {
                 (delete_outdated_state(state), None)
             }
@@ -579,6 +607,7 @@ pub fn handle_delete_outdated(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        forall |i: int| #![trigger state.needed.deep_view()[i as int]] i < state.needed.deep_view().len() ==> state.needed.deep_view()[i as int]->0.metadata.name is Some
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_outdated(
             vsts@,
@@ -586,7 +615,34 @@ pub fn handle_delete_outdated(
             state@,
         ),
 {
-    (state, None)
+    let ordinal_or_none = get_largest_ordinal_of_unmatched_pods(vsts, &state.needed);
+    if ordinal_or_none.is_some() {
+        let ordinal = ordinal_or_none.unwrap();
+
+        proof {
+            // let pods = state.needed.deep_view();
+            // let ordinals = Seq::new(pods.len(), |i: int| i as nat);
+            // let filtered = ordinals.filter(|ordinal: nat| pods[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods[ordinal as int]->0));
+            // assert(filtered.contains(ordinal as nat));
+            // assert(ordinals.contains(ordinal as nat));
+            assume(ordinal < state.needed.deep_view().len()); // TODO: need to prove this
+            assert(state.needed.deep_view()[ordinal as int]->0.metadata.name is Some);
+        }
+
+        let req = KubeAPIRequest::GetThenDeleteRequest(KubeGetThenDeleteRequest {
+            api_resource: Pod::api_resource(),
+            name: state.needed[ordinal as usize].clone().unwrap().metadata().name().unwrap(),
+            namespace: vsts.metadata().namespace().unwrap(),
+            owner_ref: vsts.controller_owner_ref(),
+        });
+        let state_prime = VStatefulSetReconcileState {
+            reconcile_step: VStatefulSetReconcileStep::AfterDeleteOutdated,
+            ..state
+        };
+        (state_prime, Some(Request::KRequest(req)))
+    } else {
+        (done_state(state), None)
+    }
 }
 
 pub fn handle_after_delete_outdated(
@@ -742,7 +798,7 @@ pub fn delete_outdated_state(state: VStatefulSetReconcileState) -> (result:
     }
 }
 
-pub fn done_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState) 
+pub fn done_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetReconcileState)
     ensures
         result@ == model_reconciler::done_state(state@),
 {
@@ -757,8 +813,10 @@ pub fn error_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetRe
 }
 
 pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
-    requires vsts@.well_formed()
-    ensures pod@ == model_reconciler::make_pod(vsts@, ordinal as nat)
+    requires
+        vsts@.well_formed(),
+    ensures
+        pod@ == model_reconciler::make_pod(vsts@, ordinal as nat),
 {
     let mut pod = Pod::default();
     pod.set_metadata(
@@ -777,7 +835,7 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
             }
             metadata.set_owner_references(make_owner_references(vsts));
             metadata
-        }
+        },
     );
 
     pod.set_spec(vsts.spec().template().spec().unwrap());
@@ -787,8 +845,10 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
 // TODO: finish implementing this
 #[verifier(external_body)]
 pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
-    requires vsts@.well_formed()
-    ensures result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat)
+    requires
+        vsts@.well_formed(),
+    ensures
+        result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat),
 {
     // let pvcs = make_pvcs(vsts, ordinal);
     // let current_templates = if pod.spec().unwrap().inner().volumes() is Some {
@@ -828,15 +888,15 @@ pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: P
 
 #[verifier(external_body)]
 pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
-    requires vsts@.well_formed()
-    ensures result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat)
+    requires
+        vsts@.well_formed(),
+    ensures
+        result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat),
 {
-
     pod
     // let updated_pod = update_identity(vsts, pod, ordinal);
     // let old_spec = updated_pod.spec().unwrap();
     // updated_pod.set_spec(PodSpec {
-
     // })
     // Pod {
     //     spec: Some(PodSpec {
@@ -846,12 +906,15 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Po
     //     }),
     //     ..updated_pod
     // }
+
 }
 
 #[verifier(external_body)]
 pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
-    requires vsts@.well_formed()
-    ensures result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat)
+    requires
+        vsts@.well_formed(),
+    ensures
+        result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat),
 {
     // Pod {
     //     metadata: ObjectMeta {
@@ -865,10 +928,8 @@ pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: 
     //     },
     //     ..pod
     // }
-
     pod
 }
-
 
 pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim)
     requires
@@ -1321,6 +1382,34 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: u32) -> (
         result@ == model_reconciler::pvc_name(pvc_template_name@, vsts_name@, ordinal as nat),
 {
     pvc_template_name.concat("-").concat(pod_name(vsts_name, ordinal).as_str())
+}
+
+// TODO: implement this
+#[verifier(external_body)]
+pub fn get_largest_ordinal_of_unmatched_pods(
+    vsts: &VStatefulSet,
+    pods: &Vec<Option<Pod>>,
+) -> (result: Option<u32>)
+    requires
+        vsts@.well_formed(),
+    ensures
+        (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods(
+            vsts@,
+            pods.deep_view(),
+        ) is None) || (result.is_some() && model_reconciler::get_largest_ordinal_of_unmatched_pods(
+            vsts@,
+            pods.deep_view(),
+        ) is Some && result.unwrap() as nat
+            == model_reconciler::get_largest_ordinal_of_unmatched_pods(vsts@, pods.deep_view())->0),
+{
+    // let ordinals = Seq::new(pods.len(), |i: int| i as nat);
+    // let filtered = ordinals.filter(|ordinal: nat| pods[ordinal as nat] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
+    // if filtered.len() > 0 {
+    //     Some(filtered.last())
+    // } else {
+    //     None
+    // }
+    None
 }
 
 } // verus!
