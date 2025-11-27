@@ -292,7 +292,7 @@ ensures
     current_pods_match(vd)(s),
 {}
 
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView)
+pub proof fn current_state_match_vd_entails_exists_vrs_set_with_desired_state_is(vd: VDeploymentView)
 ensures
     lift_state(vd_liveness::current_state_matches(vd)).entails(
     tla_exists(|vrs_set: Set<VReplicaSetView>|
@@ -300,7 +300,30 @@ ensures
         .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
         .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
     )),
-{}
+{
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(vd_liveness::current_state_matches(vd)).satisfied_by(ex) implies tla_exists(|vrs_set: Set<VReplicaSetView>|
+        lift_state(vrs_set_matches_vd(vrs_set, vd))
+        .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
+        .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
+    ).satisfied_by(ex) by {
+        let vrs_set = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, ex.head());
+        assert((|vrs_set: Set<VReplicaSetView>| lift_state(vrs_set_matches_vd(vrs_set, vd))
+            .and(lift_state(current_state_matches_vrs_set_for_vd(vrs_set, vd)))
+            .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))))(vrs_set).satisfied_by(ex));
+    }
+}
+
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
+requires
+    vd_liveness::current_state_matches(vd)(s),
+    // cluster invariants
+ensures
+    vrs_set_matches_vd(vrs_set, vd)(s),
+    current_state_matches_vrs_set_for_vd(vrs_set, vd)(s),
+    conjuncted_desired_state_is_vrs(vrs_set)(s),
+{
+    
+}
 
 pub proof fn lemma_always_current_state_match_vd_entails_exists_vrs_set_always_desired_state_is(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster)
 requires
@@ -340,7 +363,7 @@ ensures
     )));
     assert(spec.entails(always(pre).leads_to(lifted_always_post))) by {
         assert(spec.entails(always(pre).leads_to(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(stronger_post(vrs_set)))))) by {
-            current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd);
+            current_state_match_vd_entails_exists_vrs_set_with_desired_state_is(vd);
             assume(
                 tla_exists(|vrs_set: Set<VReplicaSetView>| 
                     lift_state(vrs_set_matches_vd(vrs_set, vd))
