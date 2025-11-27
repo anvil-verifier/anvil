@@ -620,12 +620,13 @@ pub fn handle_delete_outdated(
         let ordinal = ordinal_or_none.unwrap();
 
         proof {
-            // let pods = state.needed.deep_view();
-            // let ordinals = Seq::new(pods.len(), |i: int| i as nat);
-            // let filtered = ordinals.filter(|ordinal: nat| pods[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods[ordinal as int]->0));
-            // assert(filtered.contains(ordinal as nat));
-            // assert(ordinals.contains(ordinal as nat));
-            assume(ordinal < state.needed.deep_view().len()); // TODO: need to prove this
+            let pods = state.needed.deep_view();
+            let ordinals = Seq::new(pods.len(), |i: int| i as nat);
+            let pred = |ordinal: nat| pods[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods[ordinal as int]->0);
+            let filtered = ordinals.filter(pred);
+            assert(filtered.contains(ordinal as nat));
+            seq_filter_contains_implies_seq_contains(ordinals, pred, ordinal as nat);
+            assert(ordinals.contains(ordinal as nat));
             assert(state.needed.deep_view()[ordinal as int]->0.metadata.name is Some);
         }
 
