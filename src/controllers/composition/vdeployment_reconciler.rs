@@ -377,22 +377,41 @@ ensures
     leads_to_trans(spec, always(lift_state(vd_liveness::desired_state_is(vd))), always(pre), lifted_always_post);
 }
 
-#[verifier(external_body)] // similar to current_state_match_combining_vrs_vd but need to prove stability
+// similar to lemma_esr_preserves_from_s_to_s_prime
 pub proof fn composed_desired_state_is_stable(
     vd: VDeploymentView, cluster: Cluster, vrs_set: Set<VReplicaSetView>, s: ClusterState, s_prime: ClusterState
 )
 requires
+    // environment invariants
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    Cluster::etcd_objects_have_unique_uids()(s),
+    forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    // pre
     cluster.next()(s, s_prime),
     vd_liveness::current_state_matches(vd)(s),
     vrs_set_matches_vd(vrs_set, vd)(s),
     current_state_matches_vrs_set_for_vd(vrs_set, vd)(s),
-    forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s),
+    conjuncted_desired_state_is_vrs(vrs_set)(s),
 ensures
     vd_liveness::current_state_matches(vd)(s_prime),
     vrs_set_matches_vd(vrs_set, vd)(s_prime),
     current_state_matches_vrs_set_for_vd(vrs_set, vd)(s_prime),
-    forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s_prime),
-{}
+    conjuncted_desired_state_is_vrs(vrs_set)(s_prime),
+{
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    match step {
+        Step::APIServerStep(input) => {
+            let msg = input->0;
+        },
+        Step::ControllerStep(input) => {
+        },
+    }
+}
 
 pub proof fn composed_eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster)
 requires
