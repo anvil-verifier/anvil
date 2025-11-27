@@ -62,6 +62,10 @@ pub fn reconcile_core(
             state@,
         ),
 {
+    assume(state.pvc_index < usize::MAX);
+    assume(state.needed_index < u32::MAX);
+    assume(state.condemned_index < usize::MAX);
+
     match state.reconcile_step {
         VStatefulSetReconcileStep::Init => { handle_init(vsts, resp_o, state) },
         VStatefulSetReconcileStep::AfterListPod => { handle_after_list_pod(vsts, resp_o, state) },
@@ -607,7 +611,6 @@ pub fn handle_delete_outdated(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        forall |i: int| #![trigger state.needed.deep_view()[i as int]] i < state.needed.deep_view().len() ==> state.needed.deep_view()[i as int]->0.metadata.name is Some
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_outdated(
             vsts@,
@@ -627,12 +630,17 @@ pub fn handle_delete_outdated(
             assert(filtered.contains(ordinal as nat));
             seq_filter_contains_implies_seq_contains(ordinals, pred, ordinal as nat);
             assert(ordinals.contains(ordinal as nat));
-            assert(state.needed.deep_view()[ordinal as int]->0.metadata.name is Some);
+        }
+
+        let pod = state.needed[ordinal as usize].clone().unwrap();
+
+        if pod.metadata().name().is_none() {
+            return (error_state(state), None)
         }
 
         let req = KubeAPIRequest::GetThenDeleteRequest(KubeGetThenDeleteRequest {
             api_resource: Pod::api_resource(),
-            name: state.needed[ordinal as usize].clone().unwrap().metadata().name().unwrap(),
+            name: pod.metadata().name().unwrap(),
             namespace: vsts.metadata().namespace().unwrap(),
             owner_ref: vsts.controller_owner_ref(),
         });

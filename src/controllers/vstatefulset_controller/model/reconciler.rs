@@ -533,19 +533,24 @@ pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultR
     let ordinal_or_none = get_largest_ordinal_of_unmatched_pods(vsts, state.needed);
     if ordinal_or_none is Some {
         let ordinal = ordinal_or_none->0;
-        let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
-            key: ObjectRef {
-                kind: PodView::kind(),
-                name: state.needed[ordinal as int]->0.metadata.name->0,
-                namespace: vsts.metadata.namespace->0,
-            },
-            owner_ref: vsts.controller_owner_ref(),
-        });
-        let state_prime = VStatefulSetReconcileState {
-            reconcile_step: VStatefulSetReconcileStepView::AfterDeleteOutdated,
-            ..state
-        };
-        (state_prime, Some(RequestView::KRequest(req)))
+        let pod = state.needed[ordinal as int]->0;
+        if pod.metadata.name is Some {
+            let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
+                key: ObjectRef {
+                    kind: PodView::kind(),
+                    name: pod.metadata.name->0,
+                    namespace: vsts.metadata.namespace->0,
+                },
+                owner_ref: vsts.controller_owner_ref(),
+            });
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStepView::AfterDeleteOutdated,
+                ..state
+            };
+            (state_prime, Some(RequestView::KRequest(req)))
+        } else {
+            (error_state(state), None)
+        }
     } else {
         (done_state(state), None)
     }
