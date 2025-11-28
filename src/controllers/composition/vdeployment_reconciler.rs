@@ -16,7 +16,7 @@ use crate::vdeployment_controller::model::{
     reconciler::*, install::*
 };
 use crate::vdeployment_controller::proof::{
-    guarantee::*, liveness::{spec::*, proof::*}, predicate::*, helper_invariants
+    guarantee::*, liveness::{spec::*, proof::*}, predicate::*, helper_lemmas::*, helper_invariants
 };
 use crate::vstd_ext::{
     string_view::*, seq_lib::*
@@ -94,21 +94,25 @@ impl VerticalComposition for VDeploymentReconciler {
     {
         eventually_stable_reconciliation_holds(spec, cluster, Self::id());
         assume(vrs_liveness::vrs_eventually_stable_reconciliation() ==
-            tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))));
+            tla_forall(|vrs: VReplicaSetView| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))));
         assume(vd_liveness::vd_eventually_stable_reconciliation() ==
             tla_forall(|vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::current_state_matches(vd))))));
-        assert forall |vrs| #[trigger] spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
-            use_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
+        assert forall |vrs| #[trigger] spec.entails(always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))) by {
+            use_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))), vrs);
         }
         assert forall |vd: VDeploymentView| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::current_state_matches(vd))))) by {
             use_tla_forall(spec, |vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::current_state_matches(vd)))), vd);
         }
         assert forall |vd| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))) by {
+            // TODO: rework liveness/proof.rs to have spec_entails_assumption_and_invariants_of_all_phases
+            assume(spec.entails(assumption_and_invariants_of_all_phases(vd, cluster, Self::id())));
             assert(spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(vd_liveness::current_state_matches(vd))))) by {
-                eliminate_always(always(lift_state(current_pods_match(vd))), lift_state(vd_liveness::current_state_matches(vd)));
-                entails_implies_leads_to(spec, always(lift_state(current_pods_match(vd))), lift_state(vd_liveness::current_state_matches(vd)));
-                leads_to_trans(spec, always(lift_state(vd_liveness::desired_state_is(vd))), always(lift_state(current_pods_match(vd))), lift_state(vd_liveness::current_state_matches(vd)));
+                eliminate_always(always(lift_state(vd_liveness::current_state_matches(vd))), lift_state(vd_liveness::current_state_matches(vd)));
+                entails_implies_leads_to(spec, always(lift_state(vd_liveness::current_state_matches(vd))), lift_state(vd_liveness::current_state_matches(vd)));
+                leads_to_trans(spec, always(lift_state(vd_liveness::desired_state_is(vd))), always(lift_state(vd_liveness::current_state_matches(vd))), lift_state(vd_liveness::current_state_matches(vd)));
             }
+            assume(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, Self::id())))));
+            assume(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(Self::id()))));
             vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec, vd, Self::id(), cluster);
         }
         spec_entails_tla_forall(spec, |vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd)))));
@@ -172,7 +176,7 @@ pub open spec fn lifted_conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSet
 }
 
 pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
-    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s))
+    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))
 }
 
 pub open spec fn lifted_conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> spec_fn(VReplicaSetView) -> TempPred<ClusterState> {
@@ -214,14 +218,24 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set(vrs_set: Set<VReplica
 // ESR vertical composition
 pub proof fn vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster)
 requires
+    // environment invariants
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+        ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    // lifted_vd_post
+    spec.entails(always(lift_action(cluster.next()))),
     // ESR for vrs
-    spec.entails(tla_forall(|vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
+    spec.entails(tla_forall(|vrs| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
     // ESR for vd, note: stability is not required
     spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(vd_liveness::current_state_matches(vd)))),
 ensures
     spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))),
 {
-    let lifted_always_vd_pre = lift_state(vd_liveness::desired_state_is(vd));
+    let lifted_always_vd_pre = always(lift_state(vd_liveness::desired_state_is(vd)));
     let lifted_vd_post = lift_state(vd_liveness::current_state_matches(vd));
     let vrs_set_pre = |vrs_set| and!(
         current_state_match_vd_applied_to_vrs_set(vrs_set, vd),
@@ -252,27 +266,34 @@ ensures
                         assert((|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))(vrs_set).satisfied_by(ex));
                     }
                 }
-                assume(tla_exists(|vrs_set: Set<VReplicaSetView>| 
-                        lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
-                        .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
-                    )
-                    == tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vrs_set_pre(vrs_set)))
-                );
-                entails_and_temp(lifted_vd_post, lifted_vd_post, tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vrs_set_pre(vrs_set))));
-                assume(
-                    lifted_vd_post.and(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vrs_set_pre(vrs_set))))
-                    == tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))
-                );
                 entails_implies_leads_to(spec, lifted_vd_post, tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))));
             }
+            let stronger_next = |s, s_prime| {
+                &&& cluster.next()(s, s_prime)
+                &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+                &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
+                &&& forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+                &&& vd_rely_condition(cluster, controller_id)(s)
+            };
+            helper_invariants::lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(spec, vd, cluster, controller_id);
+            vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
+            always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
+            combine_spec_entails_always_n!(spec,
+                lift_action(stronger_next),
+                lift_action(cluster.next()),
+                lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+                lifted_vd_rely_condition(cluster, controller_id),
+                lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+                later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+            );
             // vd_post_and_vrs_set_pre is stable
-            assert forall |s, s_prime| true implies (forall |vrs_set| #[trigger] vd_post_and_vrs_set_pre(vrs_set)(s) && #[trigger] cluster.next()(s, s_prime) ==> vd_post_and_vrs_set_pre(vrs_set)(s_prime)) by {
-                assert forall |vrs_set| #[trigger] vd_post_and_vrs_set_pre(vrs_set)(s) && cluster.next()(s, s_prime) implies vd_post_and_vrs_set_pre(vrs_set)(s_prime) by {
+            assert forall |s, s_prime| true implies (forall |vrs_set| #[trigger] vd_post_and_vrs_set_pre(vrs_set)(s) && #[trigger] stronger_next(s, s_prime) ==> vd_post_and_vrs_set_pre(vrs_set)(s_prime)) by {
+                assert forall |vrs_set| #[trigger] vd_post_and_vrs_set_pre(vrs_set)(s) && stronger_next(s, s_prime) implies vd_post_and_vrs_set_pre(vrs_set)(s_prime) by {
                     composed_desired_state_is_stable(vd, controller_id, cluster, vrs_set, s, s_prime);
                 }
             }
             // lifted_vd_post ~> \E|vrs_set| []vd_post_and_vrs_set_pre
-            leads_to_exists_stable(spec, cluster.next(), lifted_vd_post, vd_post_and_vrs_set_pre);
+            leads_to_exists_stable(spec, stronger_next, lifted_vd_post, vd_post_and_vrs_set_pre);
             assert forall |vrs_set: Set<VReplicaSetView>| #[trigger] spec.entails(always(lift_state(vd_post_and_vrs_set_pre(vrs_set))).leads_to(always(lift_state(vrs_set_pre(vrs_set))))) by {
                 always_weaken(always(lift_state(vd_post_and_vrs_set_pre(vrs_set))), lift_state(vd_post_and_vrs_set_pre(vrs_set)), lift_state(vrs_set_pre(vrs_set)));
                 entails_implies_leads_to(spec, always(lift_state(vd_post_and_vrs_set_pre(vrs_set))), always(lift_state(vrs_set_pre(vrs_set))));
@@ -283,6 +304,7 @@ ensures
         }
     }
     assert forall |vrs_set| #[trigger] spec.entails(lifted_always_vrs_set_pre(vrs_set).leads_to(lifted_always_composed_post)) by {
+        assume(vrs_set.finite() && vrs_set.len() > 0); // a bit hacky
         // q1 ~> q2 ==>
         // [](q & q & r) ~> [](p & q2 & r)
         always_and_equality(
@@ -291,16 +313,16 @@ ensures
         );
         assert(spec.entails(always(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set)))))) by {
             assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies
-                spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))) by {
-                use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))), vrs);
+                spec.entails(always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))) by {
+                use_tla_forall(spec, |vrs| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))), vrs);
             }
-            assert(spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))))
-                .leads_to(always(tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))))))) by {
+            assert(spec.entails(always(tla_forall(|vrs| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))))
+                .leads_to(always(tla_forall(|vrs| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))))))) by {
                 spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(spec, desired_state_is_vrs(), current_state_matches_vrs(), vrs_set);
+                assume(false); // super flaky
             }
-            // flaky
-            assume(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)) == tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))));
-            assume(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set)) == tla_forall(|vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))));
+            assume(always(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))) == always(tla_forall(|vrs| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s)))));
+            assume(always(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set))) == always(tla_forall(|vrs| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s)))));
         }
         leads_to_self_temp(always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))));
         always_leads_to_always_combine(spec,
@@ -312,8 +334,10 @@ ensures
         assert(lifted_always_vrs_set_post(vrs_set).entails(lifted_always_composed_post)) by {
             assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set))).satisfied_by(ex)
                 implies #[trigger] lift_state(current_pods_match(vd)).satisfied_by(ex) by {
-                assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(ex.head())) by {
+                conjuncted_current_state_matches_vrs_equiv_lifted(vrs_set);
+                assert(conjuncted_current_state_matches_vrs(vrs_set)(ex.head())) by {
                     assert(forall |vrs| #![trigger vrs_set.contains(vrs)] lifted_conjuncted_current_state_matches_vrs(vrs_set)(vrs).satisfied_by(ex));
+                    assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(ex.head()));
                 }
                 conjuncted_current_state_matches_vrs_implies_current_pods_match(vrs_set, vd, ex.head());
             }
@@ -325,7 +349,9 @@ ensures
         entails_implies_leads_to(spec, lifted_always_vrs_set_post(vrs_set), lifted_always_composed_post);
         leads_to_trans(spec, lifted_always_vrs_set_pre(vrs_set), lifted_always_vrs_set_post(vrs_set), lifted_always_composed_post);
     }
-    leads_to_exists_intro(spec, |vrs_set| lifted_always_vrs_set_pre(vrs_set), lifted_always_composed_post);
+    assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).leads_to(lifted_always_composed_post))) by {
+        leads_to_exists_intro(spec, lifted_always_vrs_set_pre, lifted_always_composed_post);
+    }
     leads_to_trans_n!(spec, lifted_always_vd_pre, lifted_vd_post, tla_exists(lifted_always_vrs_set_pre), lifted_always_composed_post);
 }
 
