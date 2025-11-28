@@ -1,5 +1,7 @@
 use crate::kubernetes_cluster::proof::composition::*;
-use crate::kubernetes_cluster::spec::cluster::*;
+use crate::kubernetes_cluster::spec::{
+    cluster::*, message::*
+};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
@@ -16,8 +18,9 @@ use crate::vdeployment_controller::model::{
     reconciler::*, install::*
 };
 use crate::vdeployment_controller::proof::{
-    guarantee::*, liveness::{spec::*, proof::*}, predicate::*, helper_lemmas::*, helper_invariants
+    guarantee::*, liveness::{spec::*, proof::*}, predicate::*, helper_lemmas::*, helper_invariants, liveness::api_actions::*
 };
+use crate::vdeployment_controller::proof::liveness::resource_match::lemma_esr_preserves_from_s_to_s_prime;
 use crate::vstd_ext::{
     string_view::*, seq_lib::*
 };
@@ -107,7 +110,7 @@ impl VerticalComposition for VDeploymentReconciler {
             // TODO: rework liveness/proof.rs to have spec_entails_assumption_and_invariants_of_all_phases
             assume(spec.entails(assumption_and_invariants_of_all_phases(vd, cluster, Self::id())));
             // TODO: import reachability proof of stronger_esr
-            assume(spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(stronger_esr(vd, controller_id)))));
+            assume(spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(stronger_esr(vd, Self::id())))));
             assume(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, Self::id())))));
             assume(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(Self::id()))));
             vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec, vd, Self::id(), cluster);
@@ -180,6 +183,18 @@ pub open spec fn lifted_conjuncted_current_state_matches_vrs(vrs_set: Set<VRepli
     |vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))
 }
 
+pub open spec fn vd_do_not_write_to_cluster_state(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg| #[trigger] s.in_flight().contains(msg) && msg.src == HostId::Controller(controller_id, vd.object_ref())
+        ==> msg.content.is_APIRequest() ==> !{
+            ||| msg.content.get_APIRequest_0().is_DeleteRequest()
+            ||| msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
+            ||| msg.content.get_APIRequest_0().is_UpdateRequest()
+            ||| msg.content.get_APIRequest_0().is_CreateRequest()
+        }
+    }
+}
+
 #[verifier(external_body)]
 pub proof fn conjuncted_desired_state_is_vrs_equiv_lifted(vrs_set: Set<VReplicaSetView>)
 ensures
@@ -236,20 +251,24 @@ ensures
     let lifted_vd_post = lift_state(stronger_esr(vd, controller_id));
     let vrs_set_pre = |vrs_set| and!(
         current_state_match_vd_applied_to_vrs_set(vrs_set, vd),
-        conjuncted_desired_state_is_vrs(vrs_set)
+        conjuncted_desired_state_is_vrs(vrs_set),
+        vd_do_not_write_to_cluster_state(vd, controller_id)
     );
     let vd_post_and_vrs_set_pre = |vrs_set| and!(
         vd_liveness::current_state_matches(vd),
         current_state_match_vd_applied_to_vrs_set(vrs_set, vd),
-        conjuncted_desired_state_is_vrs(vrs_set)
+        conjuncted_desired_state_is_vrs(vrs_set),
+        vd_do_not_write_to_cluster_state(vd, controller_id)
     );
     let lifted_always_vrs_set_pre = |vrs_set| always(
         lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
-        .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))
-    ));
+        .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
+        .and(lift_state(vd_do_not_write_to_cluster_state(vd, controller_id)))
+    );
     let lifted_always_vrs_set_post = |vrs_set| always(
         lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
-        .and(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set))
+        .and(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set)))
+        .and(lift_state(vd_do_not_write_to_cluster_state(vd, controller_id))
     ));
     let lifted_always_composed_post = always(lift_state(current_pods_match(vd)));
     assert(spec.entails(lifted_vd_post.leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
@@ -259,7 +278,7 @@ ensures
                 assert(lifted_vd_post.entails(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))))) by {
                     assert forall |ex: Execution<ClusterState>| #[trigger] lifted_vd_post.satisfied_by(ex) implies
                         tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))).satisfied_by(ex) by {
-                        let vrs_set = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, ex.head());
+                        let vrs_set = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, controller_id, ex.head());
                         assert((|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))(vrs_set).satisfied_by(ex));
                     }
                 }
@@ -353,12 +372,13 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, controller_id: int, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
 requires
     stronger_esr(vd, controller_id)(s),
 ensures
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
     conjuncted_desired_state_is_vrs(vrs_set)(s),
+    vd_do_not_write_to_cluster_state(vd, controller_id)(s),
 {
     let vrs_set = choose |vrs_set| #![trigger] true;
     return vrs_set
@@ -393,19 +413,94 @@ requires
     stronger_esr(vd, controller_id)(s),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
     conjuncted_desired_state_is_vrs(vrs_set)(s),
+    vd_do_not_write_to_cluster_state(vd, controller_id)(s),
 ensures
     stronger_esr(vd, controller_id)(s_prime),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s_prime),
     conjuncted_desired_state_is_vrs(vrs_set)(s_prime),
+    vd_do_not_write_to_cluster_state(vd, controller_id)(s_prime),
 {
     let step = choose |step| cluster.next_step(s, s_prime, step);
-    match step {
-        Step::APIServerStep(input) => {
-            let msg = input->0;
-        },
-        Step::ControllerStep(input) => {
-        },
-        _ => {},
+    assert(stronger_esr(vd, controller_id)(s_prime)) by {
+        lemma_esr_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step);
+    }
+    assert({
+        &&& current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s_prime)
+        &&& conjuncted_desired_state_is_vrs(vrs_set)(s_prime)
+    }) by {
+        match step {
+            Step::APIServerStep(input) => {
+                let vrs_set_prime = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, controller_id, s_prime);
+                let msg = input->0;
+                // trigger lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
+                assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies ({
+                    let k = vrs.object_ref();
+                    let obj = s.resources()[k];
+                    &&& s.resources().contains_key(k)
+                    &&& VReplicaSetView::unmarshal(obj) is Ok
+                    &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
+                    &&& obj.metadata.namespace == vd.metadata.namespace
+                    &&& obj.metadata.owner_references is Some
+                    &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+                    &&& s_prime.resources().contains_key(k)
+                    &&& obj == s_prime.resources()[k]
+                }) by {
+                    assume(false);
+                }
+                assert forall |vrs| #[trigger] vrs_set_prime.contains(vrs) implies ({
+                    let k = vrs.object_ref();
+                    let obj = s_prime.resources()[k];
+                    &&& s_prime.resources().contains_key(k)
+                    &&& VReplicaSetView::unmarshal(obj) is Ok
+                    &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
+                    &&& obj.metadata.namespace == vd.metadata.namespace
+                    &&& obj.metadata.owner_references is Some
+                    &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+                    &&& s.resources().contains_key(k)
+                    &&& obj == s.resources()[k]
+                }) by {
+                    assume(false);
+                }
+                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
+                    if vrs_set != vrs_set_prime {
+                        if exists |vrs| #[trigger] vrs_set.contains(vrs) && !vrs_set_prime.contains(vrs) {
+                            let vrs = choose |vrs| #![trigger] vrs_set.contains(vrs) && !vrs_set_prime.contains(vrs);
+                            if s_prime.resources().contains_key(vrs.object_ref()) {
+                                assert(false) by {
+                                    // should pass filter
+                                    assume(false);
+                                }
+                            }
+                        } else if exists |vrs| #[trigger] !vrs_set.contains(vrs) && vrs_set_prime.contains(vrs) {
+                            let vrs = choose |vrs| #![trigger] !vrs_set.contains(vrs) && vrs_set_prime.contains(vrs);
+                            if s.resources().contains_key(vrs.object_ref()) {
+                                assert(false) by {
+                                    // should pass filter
+                                    assume(false);
+                                }
+                            }
+                        } else {}
+                    }
+                } else {
+                    // controller write, but vd_do_not_write_to_cluster_state holds
+                    assert(vd_do_not_write_to_cluster_state(vd, controller_id)(s));
+                    assert(s.resources() == s_prime.resources());
+                }
+            },
+            Step::ControllerStep(input) => {
+                assert(vd_do_not_write_to_cluster_state(vd, controller_id)(s_prime)) by {
+                    if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+                        && input.0 == controller_id && input.2 == Some(vd.object_ref()) {
+                        let resp_msg = input.1->0;
+                        lemma_vd_do_not_write_to_cluster_state_when_esr_is_satisfied(
+                            s, s_prime, vd, cluster, controller_id, (input.1)->0
+                        );
+                        assume(false);
+                    }
+                }
+            },
+            _ => {}
+        }
     }
 }
 
