@@ -183,18 +183,6 @@ pub open spec fn lifted_conjuncted_current_state_matches_vrs(vrs_set: Set<VRepli
     |vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))
 }
 
-pub open spec fn vd_do_not_write_to_cluster_state(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg| #[trigger] s.in_flight().contains(msg) && msg.src == HostId::Controller(controller_id, vd.object_ref())
-        ==> msg.content.is_APIRequest() ==> !{
-            ||| msg.content.get_APIRequest_0().is_DeleteRequest()
-            ||| msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
-            ||| msg.content.get_APIRequest_0().is_UpdateRequest()
-            ||| msg.content.get_APIRequest_0().is_CreateRequest()
-        }
-    }
-}
-
 #[verifier(external_body)]
 pub proof fn conjuncted_desired_state_is_vrs_equiv_lifted(vrs_set: Set<VReplicaSetView>)
 ensures
@@ -251,25 +239,21 @@ ensures
     let lifted_vd_post = lift_state(stronger_esr(vd, controller_id));
     let vrs_set_pre = |vrs_set| and!(
         current_state_match_vd_applied_to_vrs_set(vrs_set, vd),
-        conjuncted_desired_state_is_vrs(vrs_set),
-        vd_do_not_write_to_cluster_state(vd, controller_id)
+        conjuncted_desired_state_is_vrs(vrs_set)
     );
     let vd_post_and_vrs_set_pre = |vrs_set| and!(
         vd_liveness::current_state_matches(vd),
         current_state_match_vd_applied_to_vrs_set(vrs_set, vd),
-        conjuncted_desired_state_is_vrs(vrs_set),
-        vd_do_not_write_to_cluster_state(vd, controller_id)
+        conjuncted_desired_state_is_vrs(vrs_set)
     );
     let lifted_always_vrs_set_pre = |vrs_set| always(
         lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
         .and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set)))
-        .and(lift_state(vd_do_not_write_to_cluster_state(vd, controller_id)))
     );
     let lifted_always_vrs_set_post = |vrs_set| always(
         lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
         .and(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set)))
-        .and(lift_state(vd_do_not_write_to_cluster_state(vd, controller_id))
-    ));
+    );
     let lifted_always_composed_post = always(lift_state(current_pods_match(vd)));
     assert(spec.entails(lifted_vd_post.leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
         assume(tla_exists(lifted_always_vrs_set_pre) == tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(vrs_set_pre(vrs_set)))));
@@ -377,8 +361,7 @@ requires
     stronger_esr(vd, controller_id)(s),
 ensures
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
-    conjuncted_desired_state_is_vrs(vrs_set)(s),
-    vd_do_not_write_to_cluster_state(vd, controller_id)(s),
+    conjuncted_desired_state_is_vrs(vrs_set)(s)
 {
     let vrs_set = choose |vrs_set| #![trigger] true;
     return vrs_set
@@ -412,13 +395,11 @@ requires
     cluster.next()(s, s_prime),
     stronger_esr(vd, controller_id)(s),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
-    conjuncted_desired_state_is_vrs(vrs_set)(s),
-    vd_do_not_write_to_cluster_state(vd, controller_id)(s),
+    conjuncted_desired_state_is_vrs(vrs_set)(s)
 ensures
     stronger_esr(vd, controller_id)(s_prime),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s_prime),
-    conjuncted_desired_state_is_vrs(vrs_set)(s_prime),
-    vd_do_not_write_to_cluster_state(vd, controller_id)(s_prime),
+    conjuncted_desired_state_is_vrs(vrs_set)(s_prime)
 {
     let step = choose |step| cluster.next_step(s, s_prime, step);
     assert(stronger_esr(vd, controller_id)(s_prime)) by {
@@ -482,23 +463,10 @@ ensures
                         } else {}
                     }
                 } else {
-                    // controller write, but vd_do_not_write_to_cluster_state holds
-                    assert(vd_do_not_write_to_cluster_state(vd, controller_id)(s));
                     assert(s.resources() == s_prime.resources());
                 }
             },
-            Step::ControllerStep(input) => {
-                assert(vd_do_not_write_to_cluster_state(vd, controller_id)(s_prime)) by {
-                    if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-                        && input.0 == controller_id && input.2 == Some(vd.object_ref()) {
-                        let resp_msg = input.1->0;
-                        lemma_vd_do_not_write_to_cluster_state_when_esr_is_satisfied(
-                            s, s_prime, vd, cluster, controller_id, (input.1)->0
-                        );
-                        assume(false);
-                    }
-                }
-            },
+            Step::ControllerStep(input) => {},
             _ => {}
         }
     }

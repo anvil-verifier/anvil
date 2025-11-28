@@ -544,24 +544,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_vd_do_not_write_to_cluster_state_when_esr_is_satisfied(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
-)
-requires
-    current_state_matches(vd)(s),
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    // forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
-    msg.src == HostId::Controller(controller_id, vd.object_ref()),
-ensures
-    msg.content.is_APIRequest() ==> !{
-        ||| msg.content.get_APIRequest_0().is_DeleteRequest()
-        ||| msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
-        ||| msg.content.get_APIRequest_0().is_UpdateRequest()
-        ||| msg.content.get_APIRequest_0().is_CreateRequest()
-    },
-{}
-
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API req msg does not touch the object as the direct result of rely condition and non-interference property.
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
