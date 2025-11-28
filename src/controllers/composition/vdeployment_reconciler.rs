@@ -106,11 +106,8 @@ impl VerticalComposition for VDeploymentReconciler {
         assert forall |vd| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))) by {
             // TODO: rework liveness/proof.rs to have spec_entails_assumption_and_invariants_of_all_phases
             assume(spec.entails(assumption_and_invariants_of_all_phases(vd, cluster, Self::id())));
-            assert(spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(vd_liveness::current_state_matches(vd))))) by {
-                eliminate_always(always(lift_state(vd_liveness::current_state_matches(vd))), lift_state(vd_liveness::current_state_matches(vd)));
-                entails_implies_leads_to(spec, always(lift_state(vd_liveness::current_state_matches(vd))), lift_state(vd_liveness::current_state_matches(vd)));
-                leads_to_trans(spec, always(lift_state(vd_liveness::desired_state_is(vd))), always(lift_state(vd_liveness::current_state_matches(vd))), lift_state(vd_liveness::current_state_matches(vd)));
-            }
+            // TODO: import reachability proof of stronger_esr
+            assume(spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(stronger_esr(vd, controller_id)))));
             assume(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, Self::id())))));
             assume(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(Self::id()))));
             vrs_set_matches_vd_stable_state_leads_to_current_pods_match_vd(spec, vd, Self::id(), cluster);
@@ -231,12 +228,12 @@ requires
     // ESR for vrs
     spec.entails(tla_forall(|vrs| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
     // ESR for vd, note: stability is not required
-    spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(vd_liveness::current_state_matches(vd)))),
+    spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(stronger_esr(vd, controller_id)))),
 ensures
     spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))),
 {
     let lifted_always_vd_pre = always(lift_state(vd_liveness::desired_state_is(vd)));
-    let lifted_vd_post = lift_state(vd_liveness::current_state_matches(vd));
+    let lifted_vd_post = lift_state(stronger_esr(vd, controller_id));
     let vrs_set_pre = |vrs_set| and!(
         current_state_match_vd_applied_to_vrs_set(vrs_set, vd),
         conjuncted_desired_state_is_vrs(vrs_set)
@@ -358,7 +355,7 @@ ensures
 #[verifier(external_body)]
 pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
 requires
-    vd_liveness::current_state_matches(vd)(s),
+    stronger_esr(vd, controller_id)(s),
 ensures
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
     conjuncted_desired_state_is_vrs(vrs_set)(s),
@@ -393,11 +390,11 @@ requires
     vd_rely_condition(cluster, controller_id)(s),
     // lifted_vd_post
     cluster.next()(s, s_prime),
-    vd_liveness::current_state_matches(vd)(s),
+    stronger_esr(vd, controller_id)(s),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
     conjuncted_desired_state_is_vrs(vrs_set)(s),
 ensures
-    vd_liveness::current_state_matches(vd)(s_prime),
+    stronger_esr(vd, controller_id)(s_prime),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s_prime),
     conjuncted_desired_state_is_vrs(vrs_set)(s_prime),
 {
