@@ -391,11 +391,11 @@ pub open spec fn handle_after_create_needed(vsts: VStatefulSetView, resp_o: Defa
 pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if state.needed_index < state.needed.len() && state.needed[state.needed_index as int] is Some {
         let old_pod = state.needed[state.needed_index as int]->0;
-        let ordinal = state.needed_index;
-        let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
         
         // addede this to be defensive, but it should actually be unreachable
-        if new_pod.metadata.name is Some {
+        if old_pod.metadata.name is Some {
+            let ordinal = state.needed_index;
+            let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
             let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
                 name: new_pod.metadata.name->0,
                 namespace: vsts.metadata.namespace->0,

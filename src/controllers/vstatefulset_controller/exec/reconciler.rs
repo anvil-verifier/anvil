@@ -473,12 +473,14 @@ pub fn handle_update_needed(
 {
     if state.needed_index < state.needed.len() && state.needed[state.needed_index].is_some() {
         let old_pod = state.needed[state.needed_index].clone().unwrap();
+
+        if old_pod.metadata().name().is_none() {
+            return (error_state(state), None)
+        }
+
         let ordinal = state.needed_index as u32;
         let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
 
-        if new_pod.metadata().name().is_none() {
-            return (error_state(state), None)
-        }
         let req = KubeAPIRequest::GetThenUpdateRequest(
             KubeGetThenUpdateRequest {
                 api_resource: Pod::api_resource(),
@@ -895,14 +897,26 @@ pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: P
     pod
 }
 
-#[verifier(external_body)]
+// TODO: implement this
 pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
     requires
         vsts@.well_formed(),
+        pod@.metadata.name is Some,
+        pod@.spec is Some
     ensures
         result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat),
 {
-    pod
+    
+    let mut updated_pod = update_identity(vsts, pod, ordinal);
+    let mut pod_spec = updated_pod.spec().unwrap();
+
+    pod_spec.set_hostname(updated_pod.metadata().name().unwrap());
+    pod_spec.set_subdomain(vsts.spec().service_name());
+
+    updated_pod.set_spec(pod_spec);
+
+    updated_pod
+
     // let updated_pod = update_identity(vsts, pod, ordinal);
     // let old_spec = updated_pod.spec().unwrap();
     // updated_pod.set_spec(PodSpec {
@@ -918,26 +932,23 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Po
 
 }
 
-#[verifier(external_body)]
+// TODO: implement this
 pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
     requires
         vsts@.well_formed(),
+        pod@.metadata.name is Some,
     ensures
         result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat),
 {
-    // Pod {
-    //     metadata: ObjectMeta {
-    //         labels: Some(if pod.metadata().labels().is_none() {
-    //                 StringMap::empty()
-    //             } else {
-    //                 pod.metadata().labels().unwrap()
-    //             }.insert("statefulset.kubernetes.io/pod-name", pod.metadata().name().unwrap())
-    //             .insert("apps.kubernetes.io/pod-index", u32_to_string(ordinal))),
-    //         ..pod.metadata()
-    //     },
-    //     ..pod
-    // }
-    pod
+
+    let mut result = pod.clone();
+    let mut meta = pod.metadata();
+    let mut labels = meta.labels().unwrap_or(StringMap::empty());
+    labels.insert("statefulset.kubernetes.io/pod-name".to_string(), meta.name().unwrap());
+    labels.insert("apps.kubernetes.io/pod-index".to_string(), u32_to_string(ordinal));
+    meta.set_labels(labels);
+    result.set_metadata(meta);
+    result
 }
 
 pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim)
