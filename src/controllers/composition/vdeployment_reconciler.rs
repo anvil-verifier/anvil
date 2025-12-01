@@ -22,9 +22,11 @@ use crate::vdeployment_controller::proof::{
 };
 use crate::vdeployment_controller::proof::liveness::resource_match::lemma_esr_preserves_from_s_to_s_prime;
 use crate::vstd_ext::{
-    string_view::*, seq_lib::*
+    string_view::*, seq_lib::*, set_lib::*, map_lib::*
 };
-use vstd::prelude::*;
+use vstd::{
+    prelude::*, set_lib::*
+};
 
 verus !{
 
@@ -151,7 +153,6 @@ pub open spec fn valid_owned_pods(vd: VDeploymentView, s: ClusterState) -> spec_
             &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
             &&& valid_owned_vrs(vrs, vd)
             &&& s.resources().contains_key(vrs.object_ref())
-            &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]) is Ok
             &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
         }
     }
@@ -339,7 +340,7 @@ ensures
                     assert(forall |vrs| #![trigger vrs_set.contains(vrs)] lifted_conjuncted_current_state_matches_vrs(vrs_set)(vrs).satisfied_by(ex));
                     assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(ex.head()));
                 }
-                conjuncted_current_state_matches_vrs_implies_current_pods_match(vrs_set, vd, ex.head());
+                conjuncted_current_state_matches_vrs_implies_current_pods_match(vd, cluster, controller_id, vrs_set, ex.head());
             }
             entails_preserved_by_always(
                 lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(tla_forall(lifted_conjuncted_current_state_matches_vrs(vrs_set))),
@@ -406,20 +407,49 @@ ensures
     return vrs_set;
 }
 
-pub proof fn conjuncted_current_state_matches_vrs_implies_current_pods_match(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, s: ClusterState)
+pub proof fn conjuncted_current_state_matches_vrs_implies_current_pods_match(vd: VDeploymentView, cluster: Cluster ,controller_id: int, vrs_set: Set<VReplicaSetView>, s: ClusterState)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     conjuncted_current_state_matches_vrs(vrs_set)(s),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
 ensures
     current_pods_match(vd)(s),
 {
+    VReplicaSetView::marshal_preserves_integrity();
     let new_vrs = choose |vrs: VReplicaSetView| {
         &&& #[trigger] vrs_set.contains(vrs)
         &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
         &&& match_template_without_hash(vd.spec.template)(vrs)
     };
     assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
-        assume(false);
+        assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
+            implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(new_vrs, obj) by {
+            if valid_owned_pods(vd, s)(obj) {
+                if !vrs_liveness::owned_selector_match_is(new_vrs, obj) {
+                    let havoc_vrs = choose |vrs: VReplicaSetView| {
+                        &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
+                        &&& valid_owned_vrs(vrs, vd)
+                        &&& s.resources().contains_key(vrs.object_ref())
+                        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
+                    };
+                    assert(vrs_set.contains(havoc_vrs)) by {
+                        let havoc_obj = s.resources()[havoc_vrs.object_ref()];
+                        assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(havoc_obj));
+                    }
+                    assert(havoc_vrs.spec.replicas.unwrap_or(1) > 0) by {
+                        assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).len() > 0) by {
+                            assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
+                            // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
+                            injective_finite_map_implies_dom_len_is_equal_to_values_len(s.resources());
+                            finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| vrs_liveness::owned_selector_match_is(havoc_vrs, obj));
+                            lemma_set_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs, s.resources()));
+                        }
+                    }
+                }
+            }
+            if vrs_liveness::owned_selector_match_is(new_vrs, obj) {} // trivial
+        }
     }
 }
 
