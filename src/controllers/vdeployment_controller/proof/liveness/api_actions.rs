@@ -597,10 +597,8 @@ ensures
             &&& s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj)
             &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
         };
-        assert(s.resources().values().contains(obj)); // trigger
-        assert(valid_owned_vrs(vrs, vd));
+        // interestingly, contains() passes from/to filtered set more easily than seq
         assert(s_prime.resources().values().contains(obj)); // trigger
-        assert(VReplicaSetView::unmarshal(obj)->Ok_0 == vrs);
         assert(s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj));
         assert(s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs));
@@ -610,10 +608,7 @@ ensures
             &&& s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj)
             &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
         };
-        assert(s_prime.resources().values().contains(obj)); // trigger
-        assert(valid_owned_vrs(vrs, vd));
         assert(s.resources().values().contains(obj)); // trigger
-        assert(VReplicaSetView::unmarshal(obj)->Ok_0 == vrs);
         assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj));
         assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs));
