@@ -482,71 +482,8 @@ ensures
     assert(stronger_esr(vd, controller_id)(s_prime)) by {
         lemma_esr_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step);
     }
-    assert({
-        &&& current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s_prime)
-        &&& conjuncted_desired_state_is_vrs(vrs_set)(s_prime)
-    }) by {
-        match step {
-            Step::APIServerStep(input) => {
-                let vrs_set_prime = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, cluster, controller_id, s_prime);
-                let msg = input->0;
-                // trigger lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
-                assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies ({
-                    let k = vrs.object_ref();
-                    let obj = s.resources()[k];
-                    &&& s.resources().contains_key(k)
-                    &&& VReplicaSetView::unmarshal(obj) is Ok
-                    &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
-                    &&& obj.metadata.namespace == vd.metadata.namespace
-                    &&& obj.metadata.owner_references is Some
-                    &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-                    &&& s_prime.resources().contains_key(k)
-                    &&& obj == s_prime.resources()[k]
-                }) by {
-                    assume(false);
-                }
-                assert forall |vrs| #[trigger] vrs_set_prime.contains(vrs) implies ({
-                    let k = vrs.object_ref();
-                    let obj = s_prime.resources()[k];
-                    &&& s_prime.resources().contains_key(k)
-                    &&& VReplicaSetView::unmarshal(obj) is Ok
-                    &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
-                    &&& obj.metadata.namespace == vd.metadata.namespace
-                    &&& obj.metadata.owner_references is Some
-                    &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-                    &&& s.resources().contains_key(k)
-                    &&& obj == s.resources()[k]
-                }) by {
-                    assume(false);
-                }
-                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
-                    if vrs_set != vrs_set_prime {
-                        if exists |vrs| #[trigger] vrs_set.contains(vrs) && !vrs_set_prime.contains(vrs) {
-                            let vrs = choose |vrs| #![trigger] vrs_set.contains(vrs) && !vrs_set_prime.contains(vrs);
-                            if s_prime.resources().contains_key(vrs.object_ref()) {
-                                assert(false) by {
-                                    // should pass filter
-                                    assume(false);
-                                }
-                            }
-                        } else if exists |vrs| #[trigger] !vrs_set.contains(vrs) && vrs_set_prime.contains(vrs) {
-                            let vrs = choose |vrs| #![trigger] !vrs_set.contains(vrs) && vrs_set_prime.contains(vrs);
-                            if s.resources().contains_key(vrs.object_ref()) {
-                                assert(false) by {
-                                    // should pass filter
-                                    assume(false);
-                                }
-                            }
-                        } else {}
-                    }
-                } else {
-                    assert(s.resources() == s_prime.resources());
-                }
-            },
-            Step::ControllerStep(input) => {},
-            _ => {}
-        }
-    }
+    let vrs_set_prime = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, cluster, controller_id, s_prime);
+    // TODO: consider directly prove vrs_set == vrs_set_prime
 }
 
 }
