@@ -176,7 +176,7 @@ pub open spec fn lifted_conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSet
 }
 
 pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
-    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))
+    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))
 }
 
 pub open spec fn lifted_conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> spec_fn(VReplicaSetView) -> TempPred<ClusterState> {
@@ -406,14 +406,22 @@ ensures
     return vrs_set;
 }
 
-#[verifier(external_body)]
 pub proof fn conjuncted_current_state_matches_vrs_implies_current_pods_match(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, s: ClusterState)
 requires
     conjuncted_current_state_matches_vrs(vrs_set)(s),
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
 ensures
     current_pods_match(vd)(s),
-{}
+{
+    let new_vrs = choose |vrs: VReplicaSetView| {
+        &&& #[trigger] vrs_set.contains(vrs)
+        &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        &&& match_template_without_hash(vd.spec.template)(vrs)
+    };
+    assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
+        assume(false);
+    }
+}
 
 // similar to lemma_esr_preserves_from_s_to_s_prime
 #[verifier(external_body)]
