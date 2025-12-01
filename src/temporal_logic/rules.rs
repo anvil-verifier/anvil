@@ -361,7 +361,7 @@ pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
     entails_trans(spec, always(p), always(later(p)));
 }
 
-proof fn always_double_equality<T>(p: TempPred<T>)
+pub proof fn always_double_equality<T>(p: TempPred<T>)
     ensures always(always(p)) == always(p),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
