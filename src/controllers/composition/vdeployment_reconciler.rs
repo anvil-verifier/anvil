@@ -262,7 +262,7 @@ ensures
                 assert(lifted_vd_post.entails(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))))) by {
                     assert forall |ex: Execution<ClusterState>| #[trigger] lifted_vd_post.satisfied_by(ex) implies
                         tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))).satisfied_by(ex) by {
-                        let vrs_set = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, controller_id, ex.head());
+                        let vrs_set = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, cluster, controller_id, ex.head());
                         assert((|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))(vrs_set).satisfied_by(ex));
                     }
                 }
@@ -355,16 +355,25 @@ ensures
     leads_to_trans_n!(spec, lifted_always_vd_pre, lifted_vd_post, tla_exists(lifted_always_vrs_set_pre), lifted_always_composed_post);
 }
 
-#[verifier(external_body)]
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, controller_id: int, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     stronger_esr(vd, controller_id)(s),
 ensures
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
     conjuncted_desired_state_is_vrs(vrs_set)(s)
 {
-    let vrs_set = choose |vrs_set| #![trigger] true;
-    return vrs_set
+    let vrs_set = s.resources().values()
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+    // conjuncted_desired_state_is_vrs(vrs_set)(s)
+    assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies desired_state_is_vrs()(vrs)(s) by {
+        VReplicaSetView::marshal_preserves_integrity();
+    }
+    assume(false);
+    return vrs_set;
 }
 
 #[verifier(external_body)]
@@ -411,7 +420,7 @@ ensures
     }) by {
         match step {
             Step::APIServerStep(input) => {
-                let vrs_set_prime = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, controller_id, s_prime);
+                let vrs_set_prime = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, cluster, controller_id, s_prime);
                 let msg = input->0;
                 // trigger lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
                 assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies ({
