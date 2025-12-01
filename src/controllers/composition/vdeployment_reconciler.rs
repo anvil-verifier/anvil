@@ -483,7 +483,19 @@ ensures
         lemma_esr_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step);
     }
     let vrs_set_prime = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, cluster, controller_id, s_prime);
-    // TODO: consider directly prove vrs_set == vrs_set_prime
+    assert(vrs_set == vrs_set_prime) by {
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
+                    lemma_api_request_other_than_pending_req_msg_maintains_vrs_set_owned_by_vd(
+                         s, s_prime, vd, cluster, controller_id, msg
+                    );
+                }
+            },
+            _ => {}
+        }
+    }
 }
 
 }

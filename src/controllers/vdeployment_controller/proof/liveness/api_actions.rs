@@ -496,7 +496,6 @@ ensures
 }
 
 // filter_obj_keys_managed_by_vd is maintained
-// next time, we should unify the filters to use obj or key
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     msg: Message, nv_uid: Option<Uid>
@@ -505,7 +504,8 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    // Q: Why this isn't required?
+    // cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
@@ -515,14 +515,6 @@ ensures
     filter_obj_keys_managed_by_vd(vd, s) == filter_obj_keys_managed_by_vd(vd, s_prime),
     filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(nv_uid, s))
         == filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(nv_uid, s_prime)),
-    s.resources().values() // for current_state_match_vd_applied_to_vrs_set in composition proof
-        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
-    == s_prime.resources().values()
-        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)),
 {
     // ==>
     assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(vd, s).contains(k) implies {
@@ -552,6 +544,33 @@ ensures
             s, s_prime, vd, cluster, controller_id, msg
         );
     }
+}
+
+// next time, we should unify the filters to use obj or key
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_vrs_set_owned_by_vd(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
+    msg: Message
+)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+ensures
+    s.resources().values() // for current_state_match_vd_applied_to_vrs_set in composition proof
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+    == s_prime.resources().values()
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)),
+{
     // ==>
     assert forall |obj: DynamicObjectView| {
         &&& #[trigger] s.resources().values().contains(obj)

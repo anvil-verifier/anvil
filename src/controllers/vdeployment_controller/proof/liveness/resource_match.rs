@@ -2145,7 +2145,7 @@ ensures
     };
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     match step {
-        Step::APIServerStep(input) =>  {
+        Step::APIServerStep(input) => {
             let msg = input->0;
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
                 if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
