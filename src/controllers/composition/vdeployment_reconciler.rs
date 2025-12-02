@@ -25,7 +25,7 @@ use crate::vstd_ext::{
     string_view::*, seq_lib::*, set_lib::*, map_lib::*
 };
 use vstd::{
-    prelude::*, set_lib::*
+    prelude::*, set_lib::*, map_lib::*
 };
 
 verus !{
@@ -394,12 +394,25 @@ requires
     stronger_esr(vd, controller_id)(s),
 ensures
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
-    conjuncted_desired_state_is_vrs(vrs_set)(s)
+    conjuncted_desired_state_is_vrs(vrs_set)(s),
+    vrs_set.finite(),
+    vrs_set.len() > 0,
 {
     let vrs_set = s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
         .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
         .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+    assert(vrs_set.finite()) by {
+        lemma_values_finite(s.resources());
+        finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
+        s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .lemma_map_finite(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0);
+        finite_set_to_finite_filtered_set(
+            s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                .map(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0),
+            |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)
+        );
+    }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
     VReplicaSetView::marshal_preserves_integrity();
     assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s));
