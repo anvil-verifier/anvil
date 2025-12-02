@@ -214,6 +214,7 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set(vrs_set: Set<VReplica
                 &&& old_vrs.spec.replicas.unwrap_or(1) > 0 // != Some(0)
             }
         }
+        &&& vrs_set.finite() && vrs_set.len() > 0
     }
 }
 
@@ -328,8 +329,8 @@ ensures
             leads_to_trans(spec, lifted_vd_post, tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(vd_post_and_vrs_set_pre(vrs_set)))), tla_exists(lifted_always_vrs_set_pre));
         }
     }
-    assert forall |vrs_set| #[trigger] spec.entails(lifted_always_vrs_set_pre(vrs_set).leads_to(lifted_always_composed_post)) by {
-        assume(vrs_set.finite() && vrs_set.len() > 0); // a bit hacky
+    assert forall |vrs_set: Set<VReplicaSetView>| vrs_set.finite() && vrs_set.len() > 0
+        implies #[trigger] spec.entails(lifted_always_vrs_set_pre(vrs_set).leads_to(lifted_always_composed_post)) by {
         // q1 ~> q2 ==>
         // [](q & q & r) ~> [](p & q2 & r)
         always_and_equality(
@@ -382,7 +383,17 @@ ensures
         leads_to_trans(spec, lifted_always_vrs_set_pre(vrs_set), lifted_always_vrs_set_post(vrs_set), lifted_always_composed_post);
     }
     assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).leads_to(lifted_always_composed_post))) by {
-        leads_to_exists_intro(spec, lifted_always_vrs_set_pre, lifted_always_composed_post);
+        let pre = |vrs_set: Set<VReplicaSetView>| vrs_set.finite() && vrs_set.len() > 0;
+        assert forall |vrs_set: Set<VReplicaSetView>| lifted_always_vrs_set_pre(vrs_set).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set))) by {
+            always_entails_current(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))));
+            entails_trans_n!(
+                lifted_always_vrs_set_pre(vrs_set),
+                lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(tla_forall(lifted_conjuncted_desired_state_is_vrs(vrs_set))),
+                lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)),
+                lift_state(|s: ClusterState| #[trigger] pre(vrs_set))
+            );
+        }
+        leads_to_exists_intro_with_pre(spec, lifted_always_vrs_set_pre, lifted_always_composed_post, pre);
     }
     leads_to_trans_n!(spec, lifted_always_vd_pre, lifted_vd_post, tla_exists(lifted_always_vrs_set_pre), lifted_always_composed_post);
 }

@@ -826,6 +826,17 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
     }
 }
 
+// Always p entails p
+// post:
+//     []p |= p
+pub proof fn always_entails_current<T>(p: TempPred<T>)
+    ensures always(p).entails(p),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.satisfied_by(ex) by {
+        always_to_current::<T>(ex, p);
+    };
+}
+
 // Entails p and q if entails each of them.
 // pre:
 //     spec |= p
@@ -843,6 +854,37 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
         implies_apply::<T>(ex, spec, q);
     };
 }
+
+// Entails
+// pre:
+//     p1 |= p2
+//     p2 |= p3
+//      ...
+//     pn-1 |= pn
+// post:
+//     p1 |= pn
+//
+// Usage: entails_trans_n!(p1, p2, p3, p4)
+#[macro_export]
+macro_rules! entails_trans_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::entails_trans_n_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! entails_trans_n_internal {
+    ($p1:expr, $p2:expr, $p3:expr) => {
+        entails_trans($p1, $p2, $p3);
+    };
+    ($p1:expr, $p2:expr, $p3:expr, $($tail:tt)*) => {
+        entails_trans($p1, $p2, $p3);
+        entails_trans_n_internal!($p1, $p3, $($tail)*);
+    };
+}
+
+pub use entails_trans_n;
+pub use entails_trans_n_internal;
 
 // Entails the conjunction of all the p if entails each of them.
 // pre:
