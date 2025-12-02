@@ -763,6 +763,29 @@ pub proof fn leads_to_exists_intro2<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) 
     };
 }
 
+// proved by Copilot
+pub proof fn leads_to_exists_intro_with_pre<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, q: TempPred<T>, pre: spec_fn(A) -> bool)
+    requires
+        forall |a: A| #[trigger] pre(a) ==> spec.entails(a_to_p(a).leads_to(q)),
+        forall |a: A| a_to_p(a).entails(lift_state(|t: T| #[trigger] pre(a))),
+    ensures spec.entails(tla_exists(a_to_p).leads_to(q)),
+{
+    let a_to_p_leads_to_q = |a: A| a_to_p(a).leads_to(q);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies tla_exists(a_to_p).leads_to(q).satisfied_by(ex) by {
+        assert forall |i: nat| #[trigger] tla_exists(a_to_p).satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i), a_to_p);
+            assert(pre(witness_a)) by {
+                entails_apply::<T>(ex.suffix(i), a_to_p(witness_a), lift_state(|t: T| pre(witness_a)));
+                assert(lift_state(|t: T| pre(witness_a)).satisfied_by(ex.suffix(i)));
+            };
+            entails_apply::<T>(ex, spec, a_to_p(witness_a).leads_to(q));
+            leads_to_unfold::<T>(ex, a_to_p(witness_a), q);
+            let witness_n = eventually_choose_witness(ex.suffix(i), q);
+            eventually_proved_by_witness::<T>(ex.suffix(i), q, witness_n);
+        };
+    };
+}
+
 // This lemmas instantiates tla_forall for a.
 pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a: A)
     requires spec.entails(tla_forall(a_to_p)),
