@@ -109,8 +109,6 @@ impl VerticalComposition for VDeploymentReconciler {
             use_tla_forall(spec, |vd: VDeploymentView| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::current_state_matches(vd)))), vd);
         }
         assert forall |vd| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(current_pods_match(vd))))) by {
-            // TODO: rework liveness/proof.rs to have spec_entails_assumption_and_invariants_of_all_phases
-            assume(spec.entails(assumption_and_invariants_of_all_phases(vd, cluster, Self::id())));
             // TODO: import reachability proof of stronger_esr
             assume(spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(stronger_esr(vd, Self::id())))));
             assume(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, Self::id())))));
