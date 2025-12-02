@@ -184,6 +184,7 @@ pub open spec fn lifted_conjuncted_current_state_matches_vrs(vrs_set: Set<VRepli
     |vrs: VReplicaSetView| lift_state(|s: ClusterState| vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))
 }
 
+// TODO: only use one form
 #[verifier(external_body)]
 pub proof fn conjuncted_desired_state_is_vrs_equiv_lifted(vrs_set: Set<VReplicaSetView>)
 ensures
