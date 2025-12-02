@@ -454,6 +454,14 @@ proof fn tla_exists_equality<T, A>(f: spec_fn(A, T) -> bool)
     temp_pred_equality::<T>(p, q);
 }
 
+pub proof fn tla_exists_p_tla_exists_q_equality<T, A>(p: spec_fn(A) -> TempPred<T>, q: spec_fn(A) -> TempPred<T>)
+    requires forall |a: A| #[trigger] p(a) == q(a),
+    ensures tla_exists(p) == tla_exists(q),
+{
+    a_to_temp_pred_equality::<T, A>(p, q);
+    temp_pred_equality::<T>(tla_exists(p), tla_exists(q));
+}
+
 // Lift the "always" outside tla_forall if the function is previously wrapped by an "always"
 // Note: Verus may not able to infer that (|a| func(a))(a) equals func(a).
 //       Please turn to lemma tla_forall_always_equality_variant for troubleshooting.

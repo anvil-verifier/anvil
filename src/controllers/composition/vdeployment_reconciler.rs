@@ -271,7 +271,15 @@ ensures
         );
     }
     assert(spec.entails(lifted_vd_post.leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
-        assume(tla_exists(lifted_always_vrs_set_pre) == tla_exists(|vrs_set: Set<VReplicaSetView>| always(lift_state(vrs_set_pre(vrs_set)))));
+        assert(tla_exists(lifted_always_vrs_set_pre) == tla_exists(|vrs_set| always(lift_state(vrs_set_pre(vrs_set))))) by {
+            // get rid of closure
+            assert forall |vrs_set| #[trigger] lifted_always_vrs_set_pre(vrs_set) == always(lift_state(vrs_set_pre(vrs_set))) by {
+                conjuncted_desired_state_is_vrs_equiv_lifted(vrs_set);
+                and_eq(current_state_match_vd_applied_to_vrs_set(vrs_set, vd), conjuncted_desired_state_is_vrs(vrs_set));
+                temp_pred_equality(lifted_always_vrs_set_pre(vrs_set), always(lift_state(vrs_set_pre(vrs_set))));
+            }
+            tla_exists_p_tla_exists_q_equality(lifted_always_vrs_set_pre, |vrs_set| always(lift_state(vrs_set_pre(vrs_set))));
+        }
         assert(spec.entails(lifted_vd_post.leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
             assert(spec.entails(lifted_vd_post.leads_to(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))))) by {
                 assert(lifted_vd_post.and(lifted_inv).entails(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))))) by {

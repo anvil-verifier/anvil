@@ -834,6 +834,12 @@ pub use or_internal;
 pub use and;
 pub use and_internal;
 
+pub proof fn and_eq(p: StatePred<ClusterState>, q: StatePred<ClusterState>)
+    ensures lift_state(and!(p, q)) == lift_state(p).and(lift_state(q)),
+{
+    temp_pred_equality(lift_state(and!(p, q)), lift_state(p).and(lift_state(q)))
+}
+
 // General helper predicates
 pub open spec fn lifted_vd_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     lift_state(|s| {
