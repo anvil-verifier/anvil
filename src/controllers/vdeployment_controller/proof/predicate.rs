@@ -526,32 +526,6 @@ pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs(vd: VDeploymentVie
     }
 }
 
-// closure of esr containing necessary conditions to make stability hold
-pub open spec fn stronger_esr(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& current_state_matches(vd)(s)
-        &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) ==> {
-                let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                &&& vds.old_vrs_index == 0
-            }
-            &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-                &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
-                &&& forall |msg| {
-                    &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src.is_APIServer()
-                    &&& resp_msg_matches_req_msg(msg, req_msg)
-                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s)
-            } else {
-                s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
-            }
-        }
-    }
-}
-
 // make verus happy about triggers, otherwise:
 // error: triggers cannot contain let/forall/exists/lambda/choose
 //    --> verus/source/target-verus/release/vstd/std_specs/option.rs:194:9
@@ -740,105 +714,6 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
 
 // just to make Verus happy
 pub uninterp spec fn dummy<T>(t: T) -> bool;
-
-#[macro_export]
-macro_rules! and {
-    ($($tokens:tt)+) => {
-        closure_to_fn_spec(|s| {
-            and_internal!(s, $($tokens)+)
-        })
-    };
-}
-
-#[macro_export]
-macro_rules! and_internal {
-    ($s:expr, $head:expr) => {
-        $head($s)
-    };
-
-    ($s:expr, $head:expr, $($tail:tt)+) => {
-        and_internal!($s, $head) && and_internal!($s, $($tail)+)
-    };
-}
-
-#[macro_export]
-macro_rules! or {
-    ($($tokens:tt)+) => {
-        closure_to_fn_spec(|s| {
-            or_internal!(s, $($tokens)+)
-        })
-    };
-}
-
-#[macro_export]
-macro_rules! or_internal {
-    ($s:expr, $head:expr) => {
-        $head($s)
-    };
-
-    ($s:expr, $head:expr, $($tail:tt)+) => {
-        or_internal!($s, $head) || or_internal!($s, $($tail)+)
-    };
-}
-
-// usage: at_step![step_or_pred]
-// step_or_pred = step | (step, pred)
-#[macro_export]
-macro_rules! at_step {
-    [ $($tokens:tt)? ] => {
-        closure_to_fn_spec(|s: ReconcileLocalState| {
-            let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
-            at_step_or_internal!(vds, $($tokens)?)
-        })
-    };
-}
-
-// usage: at_step_or![step_or_pred,*]
-// step_or_pred = step | (step, pred)
-#[macro_export]
-macro_rules! at_step_or {
-    [ $($tokens:tt)+ ] => {
-        closure_to_fn_spec(|s: ReconcileLocalState| {
-            let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
-            at_step_or_internal!(vds, $($tokens)+)
-        })
-    };
-}
-
-#[macro_export]
-macro_rules! at_step_or_internal {
-    ($vds:expr, ($step:expr, $pred:expr)) => {
-        $vds.reconcile_step.eq_step($step) && $pred($vds)
-    };
-
-    // eq_step is the tricky workaround for error, see src/controllers/vdeployment_controller/trusted/step.rs
-    ($vds:expr, $step:expr) => {
-        $vds.reconcile_step.eq_step($step)
-    };
-
-    ($vds:expr, $head:tt, $($tail:tt)+) => {
-        at_step_or_internal!($vds, $head) || at_step_or_internal!($vds, $($tail)+)
-    };
-}
-
-// usage: lift_local(controller_id, vd, at_step_or![step_or_pred+])
-pub open spec fn lift_local(controller_id: int, vd: VDeploymentView, step_pred: spec_fn(ReconcileLocalState) -> bool) -> StatePred<ClusterState> {
-    Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), step_pred)
-}
-
-pub use at_step_or_internal;
-pub use at_step_or;
-pub use at_step;
-pub use or;
-pub use or_internal;
-pub use and;
-pub use and_internal;
-
-pub proof fn and_eq(p: StatePred<ClusterState>, q: StatePred<ClusterState>)
-    ensures lift_state(and!(p, q)) == lift_state(p).and(lift_state(q)),
-{
-    temp_pred_equality(lift_state(and!(p, q)), lift_state(p).and(lift_state(q)))
-}
 
 // General helper predicates
 pub open spec fn lifted_vd_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {

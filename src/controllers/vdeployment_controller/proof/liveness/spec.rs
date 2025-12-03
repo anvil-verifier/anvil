@@ -1,26 +1,14 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::{
-    spec::{
-        api_server::{state_machine::*, types::*},
-        cluster::*,
-        controller::types::*,
-        message::*,
-        esr::*,
-    },
+    spec::{api_server::{state_machine::*, types::*}, cluster::*, controller::types::*, message::*, esr::*,},
     proof::{controller_runtime_liveness::*, network::*},
 };
 
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
-    trusted::{
-        liveness_theorem::*, 
-        rely_guarantee::*,
-        spec_types::*, 
-        step::*,
-        step::VDeploymentReconcileStepView::*,
-    },
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, step::VDeploymentReconcileStepView::*, util::*},
     proof::{helper_invariants::*, helper_lemmas::*, liveness::*, predicate::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
