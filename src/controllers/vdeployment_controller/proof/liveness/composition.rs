@@ -46,12 +46,17 @@ pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr() -> spec_f
 }
 
 // *** ESR composition helpers ***
+// verus is bad at reasoning about closures
+pub open spec fn desired_state_is_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
+    |vrs: VReplicaSetView| Cluster::desired_state_is(vrs)
+}
+
 pub open spec fn current_state_matches_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
     |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs)
 }
 
 pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
-    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s))
+    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))
 }
 
 pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
@@ -202,8 +207,10 @@ ensures
                 spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))) by {
                 use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))), vrs);
             }
-            assume(false);
-            spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(spec, |vrs: VReplicaSetView| Cluster::desired_state_is(vrs), current_state_matches_vrs(), vrs_set);
+            spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
+                spec, desired_state_is_vrs(), current_state_matches_vrs(), vrs_set,
+                conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
+            );
         }
         leads_to_self_temp(always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))));
         always_leads_to_always_combine(spec,

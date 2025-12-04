@@ -1848,17 +1848,18 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
 }
 
 pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain<T, A>(
-    spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>
+    spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>,
+    scoped_a_to_p: StatePred<T>, scoped_a_to_q: StatePred<T> // workaround for flakiness
 )
     requires
         forall |a: A| #[trigger] domain.contains(a) ==> spec.entails(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a))))),
         domain.finite(),
         domain.len() > 0,
+        scoped_a_to_p == (|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_p(a)(t))),
+        scoped_a_to_q == (|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t))),
     ensures spec.entails(always(lift_state(|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_p(a)(t))))
         .leads_to(always(lift_state(|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t)))))),
 {
-    let scoped_a_to_p = |t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_p(a)(t));
-    let scoped_a_to_q = |t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t));
     assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies always(lift_state(scoped_a_to_p))
         .leads_to(always(lift_state(scoped_a_to_q))).satisfied_by(ex) by {
         assert forall |i: nat| always(lift_state(scoped_a_to_p)).satisfied_by(#[trigger] ex.suffix(i))
