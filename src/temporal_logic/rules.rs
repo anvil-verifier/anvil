@@ -1008,6 +1008,40 @@ pub use combine_with_next_internal;
 
 // Strengthen next with arbitrary number of predicates.
 // pre:
+//     spec |= p1
+//     spec |= p2
+//        ...
+//     spec |= pn
+//     p1 /\ p2 /\ ... /\ pn ==> partial_spec
+// post:
+//     spec |= all
+//
+// Usage: combine_spec_entails_n!(spec, partial_spec, p1, p2, p3, p4)
+#[macro_export]
+macro_rules! combine_spec_entails_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::combine_spec_entails_n_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! combine_spec_entails_n_internal {
+    ($spec:expr, $partial_spec:expr, $($tail:tt)*) => {
+        assert_by(
+            $spec.entails(combine_with_next!($($tail)*)),
+            {
+                entails_and_n!($spec, $($tail)*);
+            }
+        );
+        entails_trans($spec, combine_with_next!($($tail)*), $partial_spec);
+    };
+}
+
+pub use combine_spec_entails_n;
+pub use combine_spec_entails_n_internal;
+
+// Strengthen next with arbitrary number of predicates.
+// pre:
 //     spec |= []p1
 //     spec |= []p2
 //        ...

@@ -12,12 +12,6 @@ use vstd::prelude::*;
 
 verus !{
 
-// FLAKY: replace with Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd))
-// breaks eventually_stable_reconciliation_holds
-pub open spec fn vd_eventually_stable_reconciliation(controller_id: int) -> TempPred<ClusterState> {
-    tla_forall(|vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd, controller_id))
-}
-
 pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView, controller_id: int) -> TempPred<ClusterState> {
     always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))
 }

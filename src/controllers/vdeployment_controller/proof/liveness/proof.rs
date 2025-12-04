@@ -14,29 +14,6 @@ use vstd::{prelude::*, multiset::*};
 
 verus! {
 
-pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
-        spec.entails(next_with_wf(cluster, controller_id)),
-        // The vd type is installed in the cluster.
-        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-        // The vrs type is installed in the cluster.
-        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-        // The vd controller runs in the cluster.
-        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-        // No other controllers interfere with the vd controller.
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
-    ensures
-        spec.entails(vd_eventually_stable_reconciliation(controller_id)),
-{
-    assert forall |vd: VDeploymentView| #[trigger] spec.entails(vd_eventually_stable_reconciliation_per_cr(vd, controller_id)) by {
-        eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, controller_id);
-    };
-    spec_entails_tla_forall(spec, |vd: VDeploymentView| vd_eventually_stable_reconciliation_per_cr(vd, controller_id));
-}
-
 pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),

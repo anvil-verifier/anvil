@@ -67,7 +67,7 @@ pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>
     )
 }
 
-proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
