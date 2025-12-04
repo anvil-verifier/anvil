@@ -120,8 +120,6 @@ impl VerticalComposition for VDeploymentReconciler {
             vrs_set_matches_vd_stable_state_leads_to_composed_current_state_matches_vd(spec, vd, Self::id(), cluster);
         }
         spec_entails_tla_forall(spec, |vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd)))));
-        assume(composed_vd_eventually_stable_reconciliation() ==
-            tla_forall(|vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))));
     }
 
     proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
