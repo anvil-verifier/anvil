@@ -98,10 +98,11 @@ impl VerticalComposition for VDeploymentReconciler {
         assert(spec.entails(vd_spec::next_with_wf(cluster, Self::id()))) by {
             entails_trans(spec, next_with_wf, vd_spec::next_with_wf(cluster, Self::id()));
         }
-        assert(spec.entails(Cluster::eventually_stable_reconciliation(|vrs| vrs_liveness::current_state_matches(vrs))));
-        assume(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))));;
+        let current_state_matches_vrs = |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs);
+        assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vrs)));
+        assert(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))))));;
         assert forall |vrs| #[trigger] spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
-            use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
+            use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))), vrs);
         }
         assert forall |vd: VDeploymentView| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id())))) by {
             // stability is not required
