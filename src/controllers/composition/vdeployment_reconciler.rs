@@ -123,7 +123,7 @@ impl VerticalComposition for VDeploymentReconciler {
             only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, Self::id());
         }
         assert forall |vd| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))) by {
-            assume(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, Self::id())))));
+            vd_proof::spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec, vd, Self::id(), cluster);
             vrs_set_matches_vd_stable_state_leads_to_composed_current_state_matches_vd(spec, vd, Self::id(), cluster);
         }
         spec_entails_tla_forall(spec, |vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd)))));

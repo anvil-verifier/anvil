@@ -76,6 +76,25 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     );
 }
 
+#[verifier(external_body)]
+pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
+        spec.entails(next_with_wf(cluster, controller_id)),
+        // The vd type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        // The vrs type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        // The vd controller runs in the cluster.
+        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+        // No other controllers interfere with the vd controller.
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+    ensures
+        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+{}
+
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
     requires
         1 <= i <= 6,
