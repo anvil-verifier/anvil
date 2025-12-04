@@ -229,9 +229,13 @@ ensures
                 lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_current_state_matches_vrs(vrs_set))).and(lifted_inv),
                 lift_state(composed_current_state_matches(vd))
             );
-            assume(lifted_always_vrs_set_post(vrs_set).and(always(lifted_inv)) ==
-                always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
-                .and(lift_state(conjuncted_current_state_matches_vrs(vrs_set))).and(lifted_inv)));
+            assert(lifted_always_vrs_set_post(vrs_set).and(always(lifted_inv)) == always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
+                .and(lift_state(conjuncted_current_state_matches_vrs(vrs_set))).and(lifted_inv))) by {
+                always_and_equality(
+                    lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_current_state_matches_vrs(vrs_set))),
+                    lifted_inv
+                );
+            }
             entails_implies_leads_to(spec, lifted_always_vrs_set_post(vrs_set).and(always(lifted_inv)), lifted_always_composed_post);
             // these helpers are hard to use
             always_double_equality(lifted_inv);
