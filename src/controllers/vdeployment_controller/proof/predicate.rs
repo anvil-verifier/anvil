@@ -649,6 +649,10 @@ pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> Stat
                                         ==> #[trigger] vd_rely(other_id)(s)
 }
 
+pub open spec fn vd_reconcile_request_only_interferes_with_itself_condition(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+}
+
 // same as vrs, similar to rely condition. Yet we talk about owner_ref here
 pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -730,6 +734,12 @@ pub open spec fn lifted_vd_rely_condition_action(cluster: Cluster, controller_id
             ==> #[trigger] vd_rely(other_id)(s))
         && (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime))
+    })
+}
+
+pub open spec fn lifted_vd_reconcile_request_only_interferes_with_itself(controller_id: int) -> TempPred<ClusterState> {
+    lift_state(|s| {
+        forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
     })
 }
 

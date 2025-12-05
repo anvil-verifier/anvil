@@ -556,7 +556,7 @@ requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
-    forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_reconcile_request_only_interferes_with_itself_condition(controller_id)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
