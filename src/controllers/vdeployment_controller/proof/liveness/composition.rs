@@ -96,11 +96,12 @@ requires
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
     // lifted_vd_post
     spec.entails(always(lift_action(cluster.next()))),
+    // stable spec and invariants
+    spec.and(always(lift_state(desired_state_is(vd)))).entails(true_pred().leads_to(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))),
     // ESR for vrs
     spec.entails(tla_forall(|vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
     // ESR for vd, note: stability is not required
     spec.entails(always(lift_state(desired_state_is(vd))).leads_to(lift_state(inductive_current_state_matches(vd, controller_id)))),
-    
 ensures
     spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
