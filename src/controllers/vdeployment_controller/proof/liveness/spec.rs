@@ -257,7 +257,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 spec_before_phase_n(6, vd, cluster, controller_id).and(invariants_since_phase_n(6, vd, cluster, controller_id)),
                 spec_before_phase_n(7, vd, cluster, controller_id)
             );
-            eliminate_always_when_stable(spec_before_phase_n(7, vd, cluster, controller_id));
+            stable_to_always(spec_before_phase_n(7, vd, cluster, controller_id));
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(6, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(5, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(4, stable_spec, vd, cluster, controller_id);

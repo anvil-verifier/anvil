@@ -1196,13 +1196,13 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
-// always(p) == p if p is stable
+// p == always(p) if p is stable
 // pre:
 //     |= stable(p)
 // post:
 //     p == []p
 
-pub proof fn eliminate_always_when_stable<T>(p: TempPred<T>)
+pub proof fn stable_to_always<T>(p: TempPred<T>)
     requires valid(stable(p)),
     ensures p == always(p),
 {
