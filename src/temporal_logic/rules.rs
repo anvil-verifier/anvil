@@ -2077,6 +2077,14 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: Te
     always_and_equality(q, r);
 }
 
+#[verifier(external_body)] // leave as exercise
+pub proof fn leads_to_exists_always_combine<T, A>(spec: TempPred<T>, c: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
+    requires
+        spec.entails(tla_exists(|a| always(a_to_p(a))).leads_to(tla_exists(|a| always(a_to_q(a))))),
+    ensures
+        spec.entails(tla_exists(|a| always(a_to_p(a))).and(always(c)).leads_to(tla_exists(|a| always(a_to_q(a))).and(always(c)))),
+{}
+
 // Prove p leads_to always q by showing that q is preserved.
 // pre:
 //     spec |= [](q /\ next => q')

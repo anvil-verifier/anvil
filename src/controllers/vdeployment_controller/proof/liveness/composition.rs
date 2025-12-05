@@ -202,18 +202,23 @@ ensures
         // [] stable_vd_post |= \E|vrs_set| [] vd_post_and_vrs_set_pre
         entails_exists_stable(always(stable_vd_post), stronger_next, vrs_set_pre);
     }
-    // eliminate stable_vd_post
-    assert(spec.entails(always(lift_state(desired_state_is(vd))).leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
+    // spec |= [] desired_state_is ~> \E |vrs_set| [] vd_pre_and_vrs_set_pre /\ [] stable_vd_post
+    assert(spec.entails(always(lift_state(desired_state_is(vd))).leads_to(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))))) by {
+        entails_and_temp(
+            always(stable_vd_post),
+            tla_exists(lifted_always_vrs_set_pre),
+            always(stable_vd_post)
+        );
         entails_implies_leads_to(
             spec,
             always(stable_vd_post),
-            tla_exists(lifted_always_vrs_set_pre)
+            tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
         );
         leads_to_trans_n!(
             spec,
             always(lift_state(desired_state_is(vd))),
             always(stable_vd_post),
-            tla_exists(lifted_always_vrs_set_pre)
+            tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
         );
     }
     let lifted_always_vrs_set_post = |vrs_set| always(
@@ -223,6 +228,7 @@ ensures
     let lifted_always_composed_post = always(lift_state(composed_current_state_matches(vd)));
     assert forall |vrs_set| #[trigger] lifted_always_vrs_set_pre(vrs_set)
         == always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_desired_state_is_vrs(vrs_set)))) by {
+        and_eq(current_state_match_vd_applied_to_vrs_set(vrs_set, vd), conjuncted_desired_state_is_vrs(vrs_set));
         temp_pred_equality(
             lifted_always_vrs_set_pre(vrs_set),
             always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_desired_state_is_vrs(vrs_set))))
@@ -252,6 +258,7 @@ ensures
             lift_state(conjuncted_current_state_matches_vrs(vrs_set))
         );
     }
+    // spec |= \E |vrs_set| [] vd_pre_and_vrs_set_pre ~> \E |vrs_set| [] vd_post_and_vrs_set_post
     assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).leads_to(tla_exists(lifted_always_vrs_set_post)))) by {
         let pre = |vrs_set: Set<VReplicaSetView>| vrs_set.finite() && vrs_set.len() > 0;
         assert forall |vrs_set: Set<VReplicaSetView>| lifted_always_vrs_set_pre(vrs_set).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set))) by {
@@ -264,6 +271,16 @@ ensures
             );
         }
         leads_to_exists_intro_with_pre(spec, lifted_always_vrs_set_pre, tla_exists(lifted_always_vrs_set_post), pre);
+    }
+    // spec |= (\E |vrs_set| [] vrs_set_pre) /\ [] stable_vd_post ~> (\E |vrs_set| [] vd_post_and_vrs_set_post) /\ [] stable_vd_post
+    assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
+        .leads_to(tla_exists(lifted_always_vrs_set_post).and(always(stable_vd_post)))) ) by {
+        leads_to_exists_always_combine(
+            spec,
+            stable_vd_post,
+            |vrs_set| lift_state(vrs_set_pre(vrs_set)),
+            |vrs_set| lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))
+        );
     }
     assert forall |vrs_set: Set<VReplicaSetView>| always(stable_vd_post).entails(#[trigger] lifted_always_vrs_set_post(vrs_set).leads_to(lifted_always_composed_post)) by {
         let stable_inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
@@ -289,14 +306,37 @@ ensures
         leads_to_by_borrowing_inv(always(stable_vd_post), lifted_always_vrs_set_post(vrs_set), lifted_always_composed_post, always(stable_inv));
     }
     leads_to_exists_intro(always(stable_vd_post), lifted_always_vrs_set_post, lifted_always_composed_post);
+    temp_pred_equality(
+        true_pred(),
+        always(stable_vd_post)
+    );
+    // true |= [] stable_vd_post /\ \E |vrs_set| [] vd_post_and_vrs_set_post ~> [] composed_post
+    unpack_conditions_from_spec(true_pred(), always(stable_vd_post), tla_exists(lifted_always_vrs_set_post), lifted_always_composed_post);
+    temp_pred_equality(
+        always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_post)),
+        tla_exists(lifted_always_vrs_set_post).and(always(stable_vd_post))
+    );
+    // spec |= (([] stable_vd_post /\ \E |vrs_set| [] vd_post_and_vrs_set_post) ~> [] composed_post) /\ spec
+    entails_and_different_temp(
+        true_pred(),
+        spec,
+        always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_post)).leads_to(lifted_always_composed_post),
+        spec
+    );
+    // spec |= ([] stable_vd_post /\ \E |vrs_set| [] vd_post_and_vrs_set_post) ~> [] composed_post
+    entails_trans(
+        spec,
+        always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_post)).leads_to(lifted_always_composed_post).and(spec),
+        always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_post)).leads_to(lifted_always_composed_post)
+    );
     assert(spec.entails(always(lift_state(desired_state_is(vd))).leads_to(lifted_always_composed_post))) by {
-        leads_to_trans(
+        leads_to_trans_n!(
             spec,
             always(lift_state(desired_state_is(vd))),
-            tla_exists(lifted_always_vrs_set_pre),
-            tla_exists(lifted_always_vrs_set_post)
+            tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
+            tla_exists(lifted_always_vrs_set_post).and(always(stable_vd_post)),
+            lifted_always_composed_post
         );
-        assume(false);
     }
 }
 
