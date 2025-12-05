@@ -93,25 +93,6 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
     ensures
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
 {
-    // There are two specs we wish to deal with: one, `spec`, has `cluster.init()` true,
-    // while the other spec, `stable_spec`, has it false.
-    let stable_spec = stable_spec(cluster, controller_id);
-    assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
-    stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
-    
-    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(
-        stable_spec, cluster, controller_id
-    );
-    lemma_true_leads_to_always_current_state_matches(stable_spec, vd, cluster, controller_id);
-    reveal_with_fuel(spec_before_phase_n, 7);
-
-    let assumption = always(lift_state(desired_state_is(vd)));
-    temp_pred_equality(
-        stable_spec.and(spec_before_phase_n(1, vd, cluster, controller_id)),
-        stable_spec.and(invariants(vd, cluster, controller_id))
-            .and(assumption)
-    );
-
     // Annoying non-automatic unpacking of the spec for one precondition.
     entails_trans(
         spec,

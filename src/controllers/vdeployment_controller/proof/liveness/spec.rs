@@ -206,6 +206,135 @@ pub proof fn invariants_since_phase_vi_is_stable(vd: VDeploymentView, cluster: C
     always_p_is_stable(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)));
 }
 
+pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
+        spec.entails(next_with_wf(cluster, controller_id)),
+        // The vd type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        // The vrs type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        // The vd controller runs in the cluster.
+        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+        // No other controllers interfere with the vd controller.
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+    ensures
+        spec.entails(always(lift_state(desired_state_is(vd))).leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
+{
+    assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
+    stable_spec_is_stable(cluster, controller_id);
+    let stable_spec = stable_spec(cluster, controller_id);
+    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(stable_spec, cluster, controller_id);
+    assert(stable_spec.and(invariants(vd, cluster, controller_id)).entails(
+        always(lift_state(desired_state_is(vd))).leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
+        assert(stable_spec.and(invariants(vd, cluster, controller_id)).and(always(lift_state(desired_state_is(vd)))).entails(true_pred()
+            .leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
+            assume(spec_before_phase_n(7, vd, cluster, controller_id).entails(
+                assumption_and_invariants_of_all_phases(vd, cluster, controller_id)));
+            entails_implies_leads_to(
+                stable_spec,
+                spec_before_phase_n(7, vd, cluster, controller_id),
+                assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+            );
+            temp_pred_equality(
+                true_pred().and(spec_before_phase_n(7, vd, cluster, controller_id)),
+                spec_before_phase_n(7, vd, cluster, controller_id)
+            );
+            pack_conditions_to_spec(
+                stable_spec,
+                spec_before_phase_n(7, vd, cluster, controller_id),
+                true_pred(),
+                assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+            );
+            invariants_since_phase_vi_is_stable(vd, cluster, controller_id);
+            stable_and_temp(
+                spec_before_phase_n(6, vd, cluster, controller_id),
+                invariants_since_phase_n(6, vd, cluster, controller_id)
+            );
+            temp_pred_equality(
+                spec_before_phase_n(6, vd, cluster, controller_id).and(invariants_since_phase_n(6, vd, cluster, controller_id)),
+                spec_before_phase_n(7, vd, cluster, controller_id)
+            );
+            eliminate_always_when_stable(spec_before_phase_n(7, vd, cluster, controller_id));
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(6, stable_spec, vd, cluster, controller_id);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(5, stable_spec, vd, cluster, controller_id);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(4, stable_spec, vd, cluster, controller_id);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(3, stable_spec, vd, cluster, controller_id);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(2, stable_spec, vd, cluster, controller_id);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(1, stable_spec, vd, cluster, controller_id);
+        }
+        stable_and_temp(
+            stable_spec,
+            invariants(vd, cluster, controller_id)
+        );
+        unpack_conditions_from_spec(
+            stable_spec.and(invariants(vd, cluster, controller_id)),
+            always(lift_state(desired_state_is(vd))),
+            true_pred(),
+            assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+        );
+        temp_pred_equality(
+            always(lift_state(desired_state_is(vd))).and(true_pred()),
+            always(lift_state(desired_state_is(vd)))
+        );
+    }
+    spec_and_invariants_entails_stable_spec_and_invariants(spec, vd, cluster, controller_id);
+    entails_trans(
+        spec.and(derived_invariants_since_beginning(vd, cluster, controller_id)),
+        stable_spec.and(invariants(vd, cluster, controller_id)),
+        always(lift_state(desired_state_is(vd))).leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))
+    );
+    entails_trans(
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lift_action(cluster.next()))
+    );
+    spec_entails_all_invariants(spec, vd, cluster, controller_id);
+    simplify_predicate(spec, derived_invariants_since_beginning(vd, cluster, controller_id));
+}
+
+// a bit duplicated with spec_of_previous_phases_entails_eventually_new_invariants
+proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(i: nat, spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
+    requires
+        1 <= i <= 6,
+        valid(stable(spec)),
+        valid(stable(spec_before_phase_n(i, vd, cluster, controller_id))),
+        spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
+        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+    ensures
+        spec.and(spec_before_phase_n(i, vd, cluster, controller_id)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
+{
+    stable_and_temp(spec, spec_before_phase_n(i, vd, cluster, controller_id));
+    reveal_with_fuel(spec_before_phase_n, 7);
+    temp_pred_equality(
+        spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)),
+        spec.and(spec_before_phase_n(i, vd, cluster, controller_id))
+            .and(invariants_since_phase_n(i, vd, cluster, controller_id))
+    );
+    spec_of_previous_phases_entails_eventually_new_invariants(spec, vd, cluster, controller_id, i);
+    unpack_conditions_from_spec(
+        spec.and(spec_before_phase_n(i, vd, cluster, controller_id)),
+        invariants_since_phase_n(i, vd, cluster, controller_id),
+        true_pred(),
+        assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+    );
+    temp_pred_equality(
+        true_pred().and(invariants_since_phase_n(i, vd, cluster, controller_id)),
+        invariants_since_phase_n(i, vd, cluster, controller_id)
+    );
+    leads_to_trans(
+        spec.and(spec_before_phase_n(i, vd, cluster, controller_id)),
+        true_pred(),
+        invariants_since_phase_n(i, vd, cluster, controller_id),
+        assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+    );
+}
+
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int, i: nat)
     requires 
         1 <= i <= 6,

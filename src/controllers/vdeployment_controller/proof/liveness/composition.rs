@@ -91,7 +91,6 @@ requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
@@ -101,6 +100,7 @@ requires
     spec.entails(tla_forall(|vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
     // ESR for vd, note: stability is not required
     spec.entails(always(lift_state(desired_state_is(vd))).leads_to(lift_state(inductive_current_state_matches(vd, controller_id)))),
+    
 ensures
     spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
@@ -126,19 +126,19 @@ ensures
         .and(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))
     );
     let lifted_always_composed_post = always(lift_state(composed_current_state_matches(vd)));
-    assert(spec.entails(always(lifted_inv))) by {
-        always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
-        entails_always_and_n!(spec, 
-            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-            later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
-        );
-        temp_pred_equality(
-            lifted_inv,
-            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
-                .and(later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
-        );
-    }
-    assert(spec.entails(lifted_vd_post.leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
+    // assert(spec.entails(always(lifted_inv))) by {
+    //     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
+    //     entails_always_and_n!(spec, 
+    //         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+    //         later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+    //     );
+    //     temp_pred_equality(
+    //         lifted_inv,
+    //         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    //             .and(later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    //     );
+    // }
+    assert(spec.entails(lifted_vd_post.and(lifted_inv).leads_to(tla_exists(lifted_always_vrs_set_pre).and(lifted_inv)))) by {
         assert(tla_exists(lifted_always_vrs_set_pre) == tla_exists(|vrs_set| always(lift_state(vrs_set_pre(vrs_set))))) by {
             // get rid of closure
             assert forall |vrs_set| #[trigger] lifted_always_vrs_set_pre(vrs_set) == always(lift_state(vrs_set_pre(vrs_set))) by {
@@ -147,8 +147,8 @@ ensures
             }
             tla_exists_p_tla_exists_q_equality(lifted_always_vrs_set_pre, |vrs_set| always(lift_state(vrs_set_pre(vrs_set))));
         }
-        assert(spec.entails(lifted_vd_post.leads_to(tla_exists(lifted_always_vrs_set_pre)))) by {
-            assert(spec.entails(lifted_vd_post.leads_to(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))))) by {
+        assert(spec.entails(lifted_vd_post.and(lifted_inv).leads_to(tla_exists(lifted_always_vrs_set_pre).and(lifted_inv)))) by {
+            assert(spec.entails(lifted_vd_post.and(lifted_inv).leads_to(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))).and(lifted_inv)))) by {
                 assert(lifted_vd_post.and(lifted_inv).entails(tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))))) by {
                     assert forall |ex: Execution<ClusterState>| #[trigger] lifted_vd_post.and(lifted_inv).satisfied_by(ex) implies
                         tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))).satisfied_by(ex) by {
@@ -156,26 +156,21 @@ ensures
                         assert((|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set)))(vrs_set).satisfied_by(ex));
                     }
                 }
-                entails_implies_leads_to(spec, lifted_vd_post.and(lifted_inv), tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))));
-                leads_to_by_borrowing_inv(spec, lifted_vd_post, tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))), lifted_inv);
+                entails_and_temp(lifted_vd_post.and(lifted_inv), tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))), lifted_inv);
+                entails_implies_leads_to(spec, lifted_vd_post.and(lifted_inv), tla_exists(|vrs_set: Set<VReplicaSetView>| lift_state(vd_post_and_vrs_set_pre(vrs_set))).and(lifted_inv));
             }
             let stronger_next = |s, s_prime| {
                 &&& cluster.next()(s, s_prime)
-                &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-                &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
                 &&& forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
                 &&& vd_rely_condition(cluster, controller_id)(s)
             };
             helper_invariants::lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(spec, vd, cluster, controller_id);
             vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
-            always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
             combine_spec_entails_always_n!(spec,
                 lift_action(stronger_next),
                 lift_action(cluster.next()),
                 lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
-                lifted_vd_rely_condition(cluster, controller_id),
-                lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-                later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+                lifted_vd_rely_condition(cluster, controller_id)
             );
             // vd_post_and_vrs_set_pre is stable
             assert forall |s, s_prime| true implies (forall |vrs_set| #[trigger] vd_post_and_vrs_set_pre(vrs_set)(s) && #[trigger] stronger_next(s, s_prime) ==> vd_post_and_vrs_set_pre(vrs_set)(s_prime)) by {
