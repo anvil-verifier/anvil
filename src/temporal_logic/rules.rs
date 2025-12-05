@@ -1525,6 +1525,11 @@ pub proof fn entails_implies_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: T
     always_implies_to_leads_to(spec, p, q);
 }
 
+#[verifier(external_body)] // leave as exercise
+pub proof fn entails_exists_intro<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, a_witness: A)
+    ensures a_to_p(a_witness).entails(tla_exists(a_to_p)),
+{}
+
 // Introduce always to both sides of implies.
 // pre:
 //     p |= q
