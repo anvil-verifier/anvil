@@ -261,12 +261,12 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
         lift_state(desired_state_is(vd)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())),
-        lift_state(helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)),
-        lift_state(helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)),
-        lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
-        lift_state(helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects()),
-        lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+        lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)),
+        lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)),
+        lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
+        lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
+        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
+        lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
     );
     entails_implies_leads_to(
         spec,

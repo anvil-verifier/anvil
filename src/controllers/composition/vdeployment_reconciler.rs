@@ -104,14 +104,8 @@ impl VerticalComposition for VDeploymentReconciler {
         assert forall |vrs| #[trigger] spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
             use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))), vrs);
         }
-        assert forall |vd: VDeploymentView| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id())))) by {
-            // stability is not required
+        assert forall |vd: VDeploymentView| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id()))))) by {
             vd_proof::eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, Self::id());
-            let p = always(lift_state(vd_liveness::desired_state_is(vd)));
-            let q = lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id()));
-            eliminate_always(always(q), q);
-            entails_implies_leads_to(spec, always(q), q);
-            leads_to_trans(spec, p, always(q), q);
         }
         spec_entails_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))));
         assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(Self::id())))) by {
@@ -123,7 +117,7 @@ impl VerticalComposition for VDeploymentReconciler {
             only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, Self::id());
         }
         assert forall |vd| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))) by {
-            vd_proof::spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec, vd, Self::id(), cluster);
+            vd_spec::spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec, vd, Self::id(), cluster);
             vrs_set_matches_vd_stable_state_leads_to_composed_current_state_matches_vd(spec, vd, Self::id(), cluster);
         }
         spec_entails_tla_forall(spec, |vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd)))));
