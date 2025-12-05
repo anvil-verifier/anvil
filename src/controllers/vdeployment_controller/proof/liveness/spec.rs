@@ -231,8 +231,22 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
         always(lift_state(desired_state_is(vd))).leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
         assert(stable_spec.and(invariants(vd, cluster, controller_id)).and(always(lift_state(desired_state_is(vd)))).entails(true_pred()
             .leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
-            assume(spec_before_phase_n(7, vd, cluster, controller_id).entails(
-                assumption_and_invariants_of_all_phases(vd, cluster, controller_id)));
+            assert(spec_before_phase_n(7, vd, cluster, controller_id).entails(
+                assumption_and_invariants_of_all_phases(vd, cluster, controller_id))) by {
+                reveal_with_fuel(spec_before_phase_n, 7);
+                combine_spec_entails_n!(
+                    spec_before_phase_n(7, vd, cluster, controller_id),
+                    assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
+                    invariants(vd, cluster, controller_id),
+                    always(lift_state(desired_state_is(vd))),
+                    invariants_since_phase_i(controller_id, vd),
+                    invariants_since_phase_ii(controller_id, vd),
+                    invariants_since_phase_iii(vd, cluster, controller_id),
+                    invariants_since_phase_iv(vd, cluster, controller_id),
+                    invariants_since_phase_v(vd, cluster, controller_id),
+                    invariants_since_phase_vi(vd, cluster, controller_id)
+                );
+            }
             assert(stable_spec.and(spec_before_phase_n(7, vd, cluster, controller_id)).entails(
                 true_pred().leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
                 assert(stable_spec.and(always(spec_before_phase_n(7, vd, cluster, controller_id))).entails(
