@@ -8,16 +8,6 @@ use crate::vstd_ext::set_lib::*;
 
 verus! {
 
-pub open spec fn sum(s: Seq<int>) -> int
-    decreases s.len(),
-{
-    if s.len() == 0 {
-        0
-    } else {
-        sum(s.drop_last()) + s.last()
-    }
-}
-
 pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A>)
     requires s1 != s2
     ensures s1 + suffix != s2 + suffix
