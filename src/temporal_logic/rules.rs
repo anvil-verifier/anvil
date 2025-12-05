@@ -149,7 +149,7 @@ proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
     };
 }
 
-proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
+pub proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
     requires always(p).satisfied_by(ex),
     ensures p.satisfied_by(ex),
 {
@@ -1196,6 +1196,49 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
+// p is stable if it preserves from s to s_prime
+// pre:
+//     next(s, s_prime) && p(s) ==> p(s_prime)
+// post:
+//     |= stable(lift_state(p))
+pub proof fn next_to_stable<T>(next: ActionPred<T>, p: StatePred<T>)
+    requires
+        forall |s, s_prime| #[trigger] next(s, s_prime) && p(s) ==> p(s_prime),
+    ensures
+        always(lift_action(next)).entails(stable(lift_state(p))),
+{
+    assert forall |ex| #[trigger] always(lift_action(next)).satisfied_by(ex) implies stable(lift_state(p)).satisfied_by(ex) by {
+        if lift_state(p).satisfied_by(ex) {
+            assert forall |i: nat| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) by {
+                next_to_stable_rec::<T>(ex, next, p, i);
+            }
+        }
+    };
+}
+
+proof fn next_to_stable_rec<T>(ex: Execution<T>, next: ActionPred<T>, p: StatePred<T>, i: nat)
+    requires
+        lift_state(p).satisfied_by(ex),
+        forall |s, s_prime| #[trigger] next(s, s_prime) && p(s) ==> p(s_prime),
+        always(lift_action(next)).satisfied_by(ex),
+    ensures
+        lift_state(p).satisfied_by(ex.suffix(i)),
+    decreases i,
+{
+    if i > 0 {
+        always_propagate_forwards::<T>(ex, lift_action(next), (i - 1) as nat);
+        always_unfold::<T>(ex.suffix((i - 1) as nat), lift_action(next));
+        next_to_stable_rec::<T>(ex, next, p, (i - 1) as nat);
+        assert(p(ex.suffix(i).head())) by {
+            assert(lift_action(next).satisfied_by(ex.suffix((i - 1) as nat)));
+            assert(next(ex.suffix((i - 1) as nat).head(), ex.suffix((i - 1) as nat).head_next()));
+            assert(p(ex.suffix((i - 1) as nat).head()));
+        }
+    } else {
+        execution_equality::<T>(ex, ex.suffix(0));
+    }
+}
+
 // p == always(p) if p is stable
 // pre:
 //     |= stable(p)
@@ -1496,6 +1539,28 @@ pub proof fn entails_preserved_by_always<T>(p: TempPred<T>, q: TempPred<T>)
             always_unfold::<T>(ex, p);
             implies_apply::<T>(ex.suffix(i), p, q);
         };
+    };
+}
+
+// similar to leads_to_exists_stable
+pub proof fn entails_exists_stable<T, A>(spec: TempPred<T>, next: ActionPred<T>, a_to_p: spec_fn(A) -> StatePred<T>)
+    requires
+        spec.entails(tla_exists(|a: A| lift_state(a_to_p(a)))),
+        spec.entails(always(lift_action(next))),
+        forall |s, s_prime| #![trigger next(s, s_prime)] forall |a| #[trigger] a_to_p(a)(s) && next(s, s_prime) ==> a_to_p(a)(s_prime),
+    ensures
+        spec.entails(tla_exists(|a: A| always(lift_state(a_to_p(a))))),
+{
+    assert forall |a| #[trigger] spec.entails(stable(lift_state(a_to_p(a)))) by {
+        next_to_stable::<T>(next, a_to_p(a));
+        entails_trans::<T>(spec, always(lift_action(next)), stable(lift_state(a_to_p(a))));
+    };
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies tla_exists(|a: A| always(lift_state(a_to_p(a)))).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, tla_exists(|a: A| lift_state(a_to_p(a))));
+        let a_witness = tla_exists_choose_witness::<T, A>(ex, |a: A| lift_state(a_to_p(a)));
+        entails_apply::<T>(ex, spec, stable(lift_state(a_to_p(a_witness))));
+        stable_unfold::<T>(ex, lift_state(a_to_p(a_witness)));
+        tla_exists_proved_by_witness::<T, A>(ex, |a: A| always(lift_state(a_to_p(a))), a_witness);
     };
 }
 
@@ -2060,8 +2125,8 @@ pub proof fn leads_to_exists_stable<T, A>(spec: TempPred<T>, next: ActionPred<T>
         spec.entails(p.leads_to(tla_exists(|a: A| always(lift_state(a_to_q(a)))))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|a: A| always(lift_state(a_to_q(a))))).satisfied_by(ex) by {
-        entails_apply(ex, spec, p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a)))));
-        entails_apply(ex, spec, always(lift_action(next)));
+        entails_apply::<T>(ex, spec, p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a)))));
+        entails_apply::<T>(ex, spec, always(lift_action(next)));
         leads_to_unfold::<T>(ex, p, tla_exists(|a: A| lift_state(a_to_q(a))));
         always_unfold::<T>(ex, lift_action(next));
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|a: A| always(lift_state(a_to_q(a))))).satisfied_by(ex.suffix(i)) by {
