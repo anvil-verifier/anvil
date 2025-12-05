@@ -1542,7 +1542,13 @@ pub proof fn entails_preserved_by_always<T>(p: TempPred<T>, q: TempPred<T>)
     };
 }
 
-// similar to leads_to_exists_stable
+// tla_exists(always(p(a))) if tla_exists(p(a)) and p(a) is preserved by next.
+// pre:
+//    spec |= exists |a| p(a)
+//    spec |= []next
+//    forall |s, s_prime| next(s, s_prime) && p(a)(s) ==> p(a)(s_prime)
+// post:
+//    spec |= exists |a| []p(a)
 pub proof fn entails_exists_stable<T, A>(spec: TempPred<T>, next: ActionPred<T>, a_to_p: spec_fn(A) -> StatePred<T>)
     requires
         spec.entails(tla_exists(|a: A| lift_state(a_to_p(a)))),
