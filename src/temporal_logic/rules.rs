@@ -1196,6 +1196,25 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
+// always(p) == p if p is stable
+// pre:
+//     |= stable(p)
+// post:
+//     p == []p
+
+pub proof fn eliminate_always_when_stable<T>(p: TempPred<T>)
+    requires valid(stable(p)),
+    ensures p == always(p),
+{
+    assert forall |ex| #[trigger] p.satisfied_by(ex) implies always(p).satisfied_by(ex) by {
+        stable_unfold::<T>(ex, p);
+    };
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.satisfied_by(ex) by {
+        always_to_current::<T>(ex, p);
+    };
+    temp_pred_equality::<T>(p, always(p));
+}
+
 // The conjunction of all the p is stable if each p is stable.
 // pre:
 //     |= stable(p1)
