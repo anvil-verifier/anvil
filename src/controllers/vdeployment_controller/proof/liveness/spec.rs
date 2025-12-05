@@ -233,37 +233,51 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
             .leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
             assume(spec_before_phase_n(7, vd, cluster, controller_id).entails(
                 assumption_and_invariants_of_all_phases(vd, cluster, controller_id)));
-            entails_implies_leads_to(
-                stable_spec,
-                spec_before_phase_n(7, vd, cluster, controller_id),
-                assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
-            );
-            temp_pred_equality(
-                true_pred().and(spec_before_phase_n(7, vd, cluster, controller_id)),
-                spec_before_phase_n(7, vd, cluster, controller_id)
-            );
-            pack_conditions_to_spec(
-                stable_spec,
-                spec_before_phase_n(7, vd, cluster, controller_id),
-                true_pred(),
-                assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
-            );
-            invariants_since_phase_vi_is_stable(vd, cluster, controller_id);
-            stable_and_temp(
-                spec_before_phase_n(6, vd, cluster, controller_id),
-                invariants_since_phase_n(6, vd, cluster, controller_id)
-            );
-            temp_pred_equality(
-                spec_before_phase_n(6, vd, cluster, controller_id).and(invariants_since_phase_n(6, vd, cluster, controller_id)),
-                spec_before_phase_n(7, vd, cluster, controller_id)
-            );
-            stable_to_always(spec_before_phase_n(7, vd, cluster, controller_id));
+            assert(stable_spec.and(spec_before_phase_n(7, vd, cluster, controller_id)).entails(
+                true_pred().leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
+                assert(stable_spec.and(always(spec_before_phase_n(7, vd, cluster, controller_id))).entails(
+                    true_pred().leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))) by {
+                    entails_implies_leads_to(
+                        stable_spec,
+                        spec_before_phase_n(7, vd, cluster, controller_id),
+                        assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+                    );
+                    temp_pred_equality(
+                        true_pred().and(spec_before_phase_n(7, vd, cluster, controller_id)),
+                        spec_before_phase_n(7, vd, cluster, controller_id)
+                    );
+                    pack_conditions_to_spec(
+                        stable_spec,
+                        spec_before_phase_n(7, vd, cluster, controller_id),
+                        true_pred(),
+                        assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
+                    );
+                }
+                assert(always(spec_before_phase_n(7, vd, cluster, controller_id)) == spec_before_phase_n(7, vd, cluster, controller_id)) by {
+                    assert(valid(stable(spec_before_phase_n(7, vd, cluster, controller_id)))) by {
+                        invariants_since_phase_vi_is_stable(vd, cluster, controller_id);
+                        stable_and_temp(
+                            spec_before_phase_n(6, vd, cluster, controller_id),
+                            invariants_since_phase_n(6, vd, cluster, controller_id)
+                        );
+                        temp_pred_equality(
+                            spec_before_phase_n(6, vd, cluster, controller_id).and(invariants_since_phase_n(6, vd, cluster, controller_id)),
+                            spec_before_phase_n(7, vd, cluster, controller_id)
+                        );
+                    };
+                    stable_to_always(spec_before_phase_n(7, vd, cluster, controller_id));
+                }
+            };
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(6, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(5, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(4, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(3, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(2, stable_spec, vd, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(1, stable_spec, vd, cluster, controller_id);
+            temp_pred_equality(
+                stable_spec.and(invariants(vd, cluster, controller_id)).and(always(lift_state(desired_state_is(vd)))),
+                stable_spec.and(spec_before_phase_n(1, vd, cluster, controller_id))
+            );
         }
         stable_and_temp(
             stable_spec,
@@ -276,7 +290,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
             assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
         );
         temp_pred_equality(
-            always(lift_state(desired_state_is(vd))).and(true_pred()),
+            true_pred().and(always(lift_state(desired_state_is(vd)))),
             always(lift_state(desired_state_is(vd)))
         );
     }
