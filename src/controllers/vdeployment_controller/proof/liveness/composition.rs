@@ -310,6 +310,7 @@ ensures
             lifted_always_vrs_set_post
         );
     }
+    // [] stable_vd_post |= \E |vrs_set| [] vd_post_and_vrs_set_post ~> [] composed_post
     assert forall |vrs_set: Set<VReplicaSetView>| always(stable_vd_post).entails(#[trigger] lifted_always_vrs_set_post(vrs_set).leads_to(lifted_always_composed_post)) by {
         let stable_inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
         assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
@@ -328,9 +329,10 @@ ensures
                 stable_inv
             );
         }
-        entails_implies_leads_to(spec, lifted_always_vrs_set_post(vrs_set).and(always(stable_inv)), lifted_always_composed_post);
+        entails_implies_leads_to(always(stable_vd_post), lifted_always_vrs_set_post(vrs_set).and(always(stable_inv)), lifted_always_composed_post);
         // these helpers are hard to use
         always_double_equality(stable_inv);
+        entails_preserved_by_always(stable_vd_post, stable_inv);
         leads_to_by_borrowing_inv(always(stable_vd_post), lifted_always_vrs_set_post(vrs_set), lifted_always_composed_post, always(stable_inv));
     }
     leads_to_exists_intro(always(stable_vd_post), lifted_always_vrs_set_post, lifted_always_composed_post);
@@ -349,6 +351,10 @@ ensures
         true_pred(),
         spec,
         always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_post)).leads_to(lifted_always_composed_post),
+        spec
+    );
+    temp_pred_equality(
+        true_pred().and(spec),
         spec
     );
     // spec |= ([] stable_vd_post /\ \E |vrs_set| [] vd_post_and_vrs_set_post) ~> [] composed_post
