@@ -39,7 +39,7 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let req = req_msg.content.get_list_request();
     let list_req_filter = |o: DynamicObjectView| {
-        // why changing the order of fields makes a difference
+        // changing the order of fields makes a difference
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
     }; 
@@ -504,8 +504,6 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    // Q: Why this isn't required?
-    // cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
