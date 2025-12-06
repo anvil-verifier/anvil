@@ -650,14 +650,14 @@ pub proof fn spec_entails_always_tla_forall_equality<T, A>(spec: TempPred<T>, a_
         spec.entails(always(tla_forall(a_to_p))) == (forall |a: A| spec.entails(always(#[trigger] a_to_p(a)))),
 {
     if forall |a: A| spec.entails(always(#[trigger] a_to_p(a))) {
-        spec_entails_forall_always_a_to_p::<T, A>(spec, a_to_p);
+        spec_entails_always_tla_forall::<T, A>(spec, a_to_p);
     }
     if spec.entails(always(tla_forall(a_to_p))) {
-        spec_entails_always_tla_forall_a_to_p::<T, A>(spec, a_to_p);
+        forall_spec_entails_always::<T, A>(spec, a_to_p);
     }
 }
 
-proof fn spec_entails_forall_always_a_to_p<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
     ensures spec.entails(always(tla_forall(a_to_p))),
 {
@@ -666,7 +666,7 @@ proof fn spec_entails_forall_always_a_to_p<T, A>(spec: TempPred<T>, a_to_p: spec
     tla_forall_always_equality_variant::<T, A>(a_to_always, a_to_p);
 }
 
-proof fn spec_entails_always_tla_forall_a_to_p<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+proof fn forall_spec_entails_always<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires spec.entails(always(tla_forall(a_to_p))),
     ensures forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
 {
