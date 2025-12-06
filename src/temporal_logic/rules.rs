@@ -779,7 +779,13 @@ pub proof fn leads_to_exists_intro2<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) 
     };
 }
 
-// proved by Copilot
+// leads to proved by conditional witness
+// pre:
+//     forall |a| pre(a) ==> spec |= p(a) ~> q
+//     forall |a| p(a) |= pre(a)
+// post:
+//     spec |= (exists |a| p(a)) ~> q
+// proof body completed purely by Copilot given cheetsheets above
 pub proof fn leads_to_exists_intro_with_pre<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, q: TempPred<T>, pre: spec_fn(A) -> bool)
     requires
         forall |a: A| #[trigger] pre(a) ==> spec.entails(a_to_p(a).leads_to(q)),
