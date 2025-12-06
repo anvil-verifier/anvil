@@ -39,7 +39,7 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let req = req_msg.content.get_list_request();
     let list_req_filter = |o: DynamicObjectView| {
-        // why changing the order of fields makes a difference
+        // changing the order of fields makes a difference
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
     }; 
@@ -512,7 +512,7 @@ requires
 ensures
     filter_obj_keys_managed_by_vd(vd, s) == filter_obj_keys_managed_by_vd(vd, s_prime),
     filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(nv_uid, s))
-        == filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(nv_uid, s_prime))
+        == filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(nv_uid, s_prime)),
 {
     // ==>
     assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(vd, s).contains(k) implies {
@@ -544,6 +544,94 @@ ensures
     }
 }
 
+// next time, we should unify the filters to use obj or key
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_vrs_set_owned_by_vd(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
+    msg: Message
+)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    vd_reconcile_request_only_interferes_with_itself_condition(controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+ensures
+    s.resources().values() // for current_state_match_vd_applied_to_vrs_set in composition proof
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+    == s_prime.resources().values()
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)),
+{
+    // ==>
+    assert forall |obj: DynamicObjectView| {
+        &&& #[trigger] s.resources().values().contains(obj)
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& valid_owned_vrs(VReplicaSetView::unmarshal(obj)->Ok_0, vd)
+    } implies {
+        &&& s_prime.resources().values().contains(obj)
+    } by {
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+            // each_object_in_etcd_has_at_most_one_controller_owner
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+        }
+        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, msg
+        );
+    }
+    // <==
+    assert forall |obj: DynamicObjectView| {
+        &&& #[trigger] s_prime.resources().values().contains(obj)
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& valid_owned_vrs(VReplicaSetView::unmarshal(obj)->Ok_0, vd)
+    } implies {
+        &&& s.resources().values().contains(obj)
+    } by {
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+            // each_object_in_etcd_has_at_most_one_controller_owner
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+        }
+        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, msg
+        );
+    }
+    let vrs_set = s.resources().values()
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+    let vrs_set_prime = s_prime.resources().values()
+        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+    assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies vrs_set_prime.contains(vrs) by {
+        let obj = choose |obj: DynamicObjectView| #![trigger s.resources().values().contains(obj)] {
+            &&& s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj)
+            &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
+        };
+        // interestingly, contains() passes from/to filtered set more easily than seq
+        assert(s_prime.resources().values().contains(obj)); // trigger
+        assert(s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj));
+        assert(s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs));
+    }
+    assert forall |vrs: VReplicaSetView| #[trigger] vrs_set_prime.contains(vrs) implies vrs_set.contains(vrs) by {
+        let obj = choose |obj: DynamicObjectView| #![trigger s_prime.resources().values().contains(obj)] {
+            &&& s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj)
+            &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
+        };
+        assert(s.resources().values().contains(obj)); // trigger
+        assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj));
+        assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs));
+    }
+}
+
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API req msg does not touch the object as the direct result of rely condition and non-interference property.
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
@@ -565,7 +653,7 @@ requires
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())(s),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())(s),
-    helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_State_is indirectly
+    helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_state_is indirectly
     helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)(s),
     helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s),
     helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects()(s),

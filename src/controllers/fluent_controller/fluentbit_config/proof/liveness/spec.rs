@@ -338,7 +338,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
                 spec, fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))
             );
         }
-        spec_entails_always_tla_forall(spec, a_to_p);
+        spec_entails_always_tla_forall_equality(spec, a_to_p);
     });
 }
 
@@ -363,7 +363,7 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_1(sub_resource))) by {
             helper_invariants::lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, sub_resource, fbc);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_1);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_1);
     });
     FBCCluster::lemma_always_no_pending_req_msg_at_reconcile_state(spec, fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init));
 
@@ -375,7 +375,7 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_3(sub_resource))) by {
             helper_invariants::lemma_always_no_update_status_request_msg_in_flight(spec, sub_resource, fbc);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_3);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_3);
     });
     helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, fbc.object_ref());
     FBCCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, fbc.object_ref());
@@ -386,21 +386,21 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_4(sub_resource))) by {
             helper_invariants::lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, fbc);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_4);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_4);
     });
     let a_to_p_5 = |res: SubResource| lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fbc).key));
     assert_by(spec.entails(always(tla_forall(a_to_p_5))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_5(sub_resource))) by {
             FBCCluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, get_request(sub_resource, fbc).key);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_5);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_5);
     });
     let a_to_p_6 = |res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(res, fbc));
     assert_by(spec.entails(always(tla_forall(a_to_p_6))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_6(sub_resource))) by {
             helper_invariants::lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, fbc);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_6);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_6);
     });
 
     entails_always_and_n!(
