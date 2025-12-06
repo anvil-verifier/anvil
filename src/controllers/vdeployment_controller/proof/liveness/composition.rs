@@ -197,7 +197,6 @@ ensures
                 composed_desired_state_preserves_from_s_to_s_prime(vd, controller_id, cluster, vrs_set, s, s_prime);
             }
         }
-        // lifted_vrs_set_pre == lift_state(vrs_set_pre), always(lifted_vrs_set_pre) == lifted_always_vrs_set_pre
         assert(tla_exists(lifted_always_vrs_set_pre) == tla_exists(|vrs_set| always(lift_state(vrs_set_pre(vrs_set)))));
         // [] stable_vd_post |= \E|vrs_set| [] vd_post_and_vrs_set_pre
         entails_exists_stable(always(stable_vd_post), stronger_next, vrs_set_pre);
@@ -295,9 +294,17 @@ ensures
     // spec |= (\E |vrs_set| [] vrs_set_pre) /\ [] stable_vd_post ~> (\E |vrs_set| [] vd_post_and_vrs_set_post) /\ [] stable_vd_post
     assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
         .leads_to(tla_exists(lifted_always_vrs_set_post).and(always(stable_vd_post)))) ) by {
-        temp_pred_equality(
-            tla_exists(lifted_always_vrs_set_pre),
-            tla_exists(|vrs_set| always(lift_state(vrs_set_pre(vrs_set))))
+        let lifted_vrs_set_pre = |vrs_set| lift_state(vrs_set_pre(vrs_set));
+        assert forall |vrs_set| #[trigger] lifted_always_vrs_set_pre(vrs_set)
+            == always(lifted_vrs_set_pre(vrs_set)) by {
+            temp_pred_equality(
+                lifted_always_vrs_set_pre(vrs_set),
+                always(lifted_vrs_set_pre(vrs_set))
+            );
+        }
+        tla_exists_p_tla_exists_q_equality(
+            lifted_always_vrs_set_pre,
+            |vrs_set| always(lifted_vrs_set_pre(vrs_set))
         );
         temp_pred_equality(
             tla_exists(lifted_always_vrs_set_post),
@@ -306,8 +313,8 @@ ensures
         leads_to_exists_always_combine(
             spec,
             stable_vd_post,
-            |vrs_set| lift_state(vrs_set_pre(vrs_set)),
-            lifted_always_vrs_set_post
+            lifted_vrs_set_pre,
+            lifted_vrs_set_post
         );
     }
     // [] stable_vd_post |= \E |vrs_set| [] vd_post_and_vrs_set_post ~> [] composed_post
