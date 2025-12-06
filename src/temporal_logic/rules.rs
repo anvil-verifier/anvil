@@ -646,6 +646,7 @@ proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: spec_
     tla_forall_implies_equality2::<T, A>(p, a_to_q);
 }
 
+// forall and always are commutative
 pub proof fn spec_entails_always_tla_forall_equality<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     ensures
         spec.entails(always(tla_forall(a_to_p))) == (forall |a: A| spec.entails(always(#[trigger] a_to_p(a)))),
@@ -658,6 +659,7 @@ pub proof fn spec_entails_always_tla_forall_equality<T, A>(spec: TempPred<T>, a_
     }
 }
 
+// push forall into always
 proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
     ensures spec.entails(always(tla_forall(a_to_p))),
@@ -667,6 +669,7 @@ proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn
     tla_forall_always_equality_variant::<T, A>(a_to_always, a_to_p);
 }
 
+// lift forall from within always
 proof fn forall_spec_entails_always<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires spec.entails(always(tla_forall(a_to_p))),
     ensures forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
