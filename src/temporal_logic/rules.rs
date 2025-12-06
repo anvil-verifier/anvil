@@ -2059,7 +2059,11 @@ pub proof fn forall_leads_to_always<T, A>(spec: TempPred<T>, p: TempPred<T>, a_t
     };
 }
 
-// free p from forall_leads_to_always
+// lift forall from eventually always
+// pre:
+//     spec |= <>[]tla_forall(a_to_p)
+// post:
+//     forall |a: A|, spec |= <>[]a_to_p(a)
 pub proof fn eventually_always_tla_forall_unfold<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     requires spec.entails(eventually(always(tla_forall(a_to_p)))),
     ensures forall |a: A| spec.entails(eventually(always(#[trigger] a_to_p(a)))),
