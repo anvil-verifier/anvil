@@ -1942,6 +1942,15 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     eventually_proved_by_witness(ex, always(tla_forall(a_to_p)), max_witness);
 }
 
+// push the domain inside state predicates
+// pre:
+//     forall |a: A|, a in domain ==> spec |= []a_to_p(a) ~> []a_to_q(a)
+//     domain.len() > 0 and domain.is_finite()
+//     // to improve stability in predicate matching:
+//     scoped_a_to_p/q == (|t: T| forall |a: A|, a in domain ==> a_to_p/q(a)(t))
+// post:
+//     spec |= []tla_forall(domain.contains(a) ==> a_to_p) ~> []tla_forall(domain.contains(a) ==> a_to_q)
+// The domain set assist in showing type A contains finite elements.
 pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain<T, A>(
     spec: TempPred<T>, a_to_p: spec_fn(A)->StatePred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>,
     scoped_a_to_p: StatePred<T>, scoped_a_to_q: StatePred<T> // workaround for flakiness
