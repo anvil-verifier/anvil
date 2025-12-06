@@ -645,7 +645,7 @@ proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: spec_
     tla_forall_implies_equality2::<T, A>(p, a_to_q);
 }
 
-pub proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
+pub proof fn spec_entails_always_tla_forall_equality<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)->TempPred<T>)
     ensures
         spec.entails(always(tla_forall(a_to_p))) == (forall |a: A| spec.entails(always(#[trigger] a_to_p(a)))),
 {

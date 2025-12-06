@@ -400,7 +400,7 @@ pub proof fn lemma_always_for_all_sub_resource_step_pending_req_in_flight_or_res
                 spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1))
             );
         }
-        spec_entails_always_tla_forall(spec, a_to_p);
+        spec_entails_always_tla_forall_equality(spec, a_to_p);
     });
 }
 
@@ -487,7 +487,7 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_1(sub_resource))) by {
             helper_invariants::lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, sub_resource, zookeeper);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_1);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_1);
     });
     ZKCluster::lemma_always_no_pending_req_msg_at_reconcile_state(spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::Init));
 
@@ -509,7 +509,7 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_3(sub_resource))) by {
             helper_invariants::lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set(spec, sub_resource, zookeeper);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_3);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_3);
     });
     helper_invariants::lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(spec, zookeeper);
     helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, zookeeper.object_ref());
@@ -521,14 +521,14 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_4(sub_resource))) by {
             helper_invariants::lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, zookeeper);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_4);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_4);
     });
     let a_to_p_5 = |res: SubResource| lift_state(ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, zookeeper).key));
     assert_by(spec.entails(always(tla_forall(a_to_p_5))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_5(sub_resource))) by {
             ZKCluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, get_request(sub_resource, zookeeper).key);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_5);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_5);
     });
     helper_invariants::lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec, zookeeper);
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper));
@@ -536,14 +536,14 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_6(sub_resource))) by {
             helper_invariants::lemma_always_object_in_etcd_satisfies_unchangeable(spec, sub_resource, zookeeper);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_6);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_6);
     });
     let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, zookeeper));
     assert_by(spec.entails(always(tla_forall(a_to_p_7))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_7(sub_resource))) by {
             helper_invariants::lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, zookeeper);
         }
-        spec_entails_always_tla_forall(spec, a_to_p_7);
+        spec_entails_always_tla_forall_equality(spec, a_to_p_7);
     });
 
     entails_always_and_n!(
