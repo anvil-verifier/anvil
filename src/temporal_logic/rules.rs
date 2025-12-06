@@ -704,6 +704,12 @@ pub proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>
     };
 }
 
+// combines always leads to
+// pre:
+//     spec |= []p1 ~> []q1
+//     spec |= []p2 ~> []q2
+// post:
+//     spec |= [](p1 /\ p2) ~> [](q1 /\ q2)
 pub proof fn always_leads_to_always_combine<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
     requires
         spec.entails(always(p1).leads_to(always(q1))),
