@@ -454,6 +454,7 @@ proof fn tla_exists_equality<T, A>(f: spec_fn(A, T) -> bool)
     temp_pred_equality::<T>(p, q);
 }
 
+// prove equality of tla_exists predicates with equality of closures
 pub proof fn tla_exists_p_tla_exists_q_equality<T, A>(p: spec_fn(A) -> TempPred<T>, q: spec_fn(A) -> TempPred<T>)
     requires forall |a: A| #[trigger] p(a) == q(a),
     ensures tla_exists(p) == tla_exists(q),
