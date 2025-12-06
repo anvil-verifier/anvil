@@ -281,11 +281,11 @@ ensures
             tla_exists(lifted_always_vrs_set_post),
             tla_exists(|vrs_set| always(lifted_vrs_set_post(vrs_set)))
         );
-        leads_to_exists_always_combine(
+        leads_to_with_always(
             spec,
-            stable_vd_post,
-            lifted_vrs_set_pre,
-            lifted_vrs_set_post
+            tla_exists(lifted_always_vrs_set_pre),
+            tla_exists(lifted_always_vrs_set_post),
+            stable_vd_post
         );
     }
     // [] stable_vd_post |= \E |vrs_set| [] vd_post_and_vrs_set_post ~> [] composed_post
