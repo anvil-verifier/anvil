@@ -221,17 +221,25 @@ ensures
             tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
         );
     }
-    let lifted_always_vrs_set_post = |vrs_set| always(
-        lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
-        .and(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))
-    );
+    let lifted_vrs_set_post = |vrs_set| lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(
+        conjuncted_current_state_matches_vrs(vrs_set)));
+    let lifted_always_vrs_set_post = |vrs_set| always(lifted_vrs_set_post(vrs_set));
     let lifted_always_composed_post = always(lift_state(composed_current_state_matches(vd)));
+    // [] vrs_set_pre == [] current_state_match_vd_applied_to_vrs_set /\ [] conjuncted_desired_state_is_vrs
     assert forall |vrs_set| #[trigger] lifted_always_vrs_set_pre(vrs_set)
         == always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_desired_state_is_vrs(vrs_set)))) by {
         and_eq(current_state_match_vd_applied_to_vrs_set(vrs_set, vd), conjuncted_desired_state_is_vrs(vrs_set));
         temp_pred_equality(
             lifted_always_vrs_set_pre(vrs_set),
             always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_desired_state_is_vrs(vrs_set))))
+        );
+    }
+    // [] vrs_set_post == [] current_state_match_vd_applied_to_vrs_set /\ [] conjuncted_current_state_matches_vrs
+    assert forall |vrs_set| #[trigger] lifted_always_vrs_set_post(vrs_set)
+        == always(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))) by {
+        always_and_equality(
+            lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)),
+            lift_state(conjuncted_current_state_matches_vrs(vrs_set))
         );
     }
     // spec |= \E |vrs_set| [] vd_pre_and_vrs_set_pre ~> \E |vrs_set| [] vd_post_and_vrs_set_post
@@ -287,11 +295,19 @@ ensures
     // spec |= (\E |vrs_set| [] vrs_set_pre) /\ [] stable_vd_post ~> (\E |vrs_set| [] vd_post_and_vrs_set_post) /\ [] stable_vd_post
     assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
         .leads_to(tla_exists(lifted_always_vrs_set_post).and(always(stable_vd_post)))) ) by {
+        temp_pred_equality(
+            tla_exists(lifted_always_vrs_set_pre),
+            tla_exists(|vrs_set| always(lift_state(vrs_set_pre(vrs_set))))
+        );
+        temp_pred_equality(
+            tla_exists(lifted_always_vrs_set_post),
+            tla_exists(|vrs_set| always(lifted_vrs_set_post(vrs_set)))
+        );
         leads_to_exists_always_combine(
             spec,
             stable_vd_post,
             |vrs_set| lift_state(vrs_set_pre(vrs_set)),
-            |vrs_set| lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))
+            lifted_always_vrs_set_post
         );
     }
     assert forall |vrs_set: Set<VReplicaSetView>| always(stable_vd_post).entails(#[trigger] lifted_always_vrs_set_post(vrs_set).leads_to(lifted_always_composed_post)) by {
@@ -319,7 +335,7 @@ ensures
     }
     leads_to_exists_intro(always(stable_vd_post), lifted_always_vrs_set_post, lifted_always_composed_post);
     temp_pred_equality(
-        true_pred(),
+        true_pred().and(always(stable_vd_post)),
         always(stable_vd_post)
     );
     // true |= [] stable_vd_post /\ \E |vrs_set| [] vd_post_and_vrs_set_post ~> [] composed_post
