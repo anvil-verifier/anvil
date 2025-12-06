@@ -739,6 +739,11 @@ pub proof fn always_leads_to_always_combine<T>(spec: TempPred<T>, p1: TempPred<T
     }
 }
 
+// leads to proved by witness
+// pre:
+//     forall |a| spec |= p(a) ~> q
+// post:
+//     spec |= (exists |a| p(a)) ~> q
 pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, q: TempPred<T>)
     requires forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(q)),
     ensures spec.entails(tla_exists(a_to_p).leads_to(q)),
@@ -751,6 +756,11 @@ pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -
     };
 }
 
+// leads to tla_exists proved by witness
+// pre:
+//     forall |a| spec |= p(a) ~> q(a)
+// post:
+//     spec |= (exists |a| p(a)) ~> (exists |a| q(a))
 pub proof fn leads_to_exists_intro2<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
     requires forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(a_to_q(a))),
     ensures spec.entails(tla_exists(a_to_p).leads_to(tla_exists(a_to_q))),
