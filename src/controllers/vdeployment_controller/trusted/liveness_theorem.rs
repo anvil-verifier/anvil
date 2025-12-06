@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, pod_template_spec::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*, controller::types::ReconcileLocalState};
 use crate::temporal_logic::defs::*;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::trusted::{spec_types::*, liveness_theorem as vrs_liveness};
 use crate::vdeployment_controller::{
     model::reconciler::VDeploymentReconcileState,
     trusted::{spec_types::*, util::*, step::VDeploymentReconcileStepView::*},
@@ -11,6 +11,15 @@ use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus !{
+
+// ESR composition
+pub open spec fn composed_vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
+    tla_forall(composed_vd_eventually_stable_reconciliation_per_cr())
+}
+
+pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr() -> spec_fn(VDeploymentView) -> TempPred<ClusterState> {
+    |vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))
+}
 
 pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView, controller_id: int) -> TempPred<ClusterState> {
     always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))
@@ -71,6 +80,24 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
             } else {
                 s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }
+        }
+    }
+}
+
+pub open spec fn composed_current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        s.resources().values().filter(valid_owned_pods(vd, s)).len() == vd.spec.replicas.unwrap_or(1)
+    }
+}
+
+pub open spec fn valid_owned_pods(vd: VDeploymentView, s: ClusterState) -> spec_fn(DynamicObjectView) -> bool {
+    |obj: DynamicObjectView| {
+        &&& s.resources().values().contains(obj)
+        &&& exists |vrs: VReplicaSetView| {
+            &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
+            &&& valid_owned_vrs(vrs, vd)
+            &&& s.resources().contains_key(vrs.object_ref())
+            &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
         }
     }
 }

@@ -16,35 +16,6 @@ use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {
 
-//* ESR composition *//
-
-pub open spec fn composed_current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.resources().values().filter(valid_owned_pods(vd, s)).len() == vd.spec.replicas.unwrap_or(1)
-    }
-}
-
-pub open spec fn valid_owned_pods(vd: VDeploymentView, s: ClusterState) -> spec_fn(DynamicObjectView) -> bool {
-    |obj: DynamicObjectView| {
-        &&& s.resources().values().contains(obj)
-        &&& exists |vrs: VReplicaSetView| {
-            &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
-            &&& valid_owned_vrs(vrs, vd)
-            &&& s.resources().contains_key(vrs.object_ref())
-            &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
-        }
-    }
-}
-
-pub open spec fn composed_vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
-    tla_forall(composed_vd_eventually_stable_reconciliation_per_cr())
-}
-
-// TODO: only talk about vd
-pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr() -> spec_fn(VDeploymentView) -> TempPred<ClusterState> {
-    |vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))
-}
-
 // *** ESR composition helpers ***
 // verus is bad at reasoning about closures
 pub open spec fn desired_state_is_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
