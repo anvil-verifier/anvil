@@ -2134,7 +2134,13 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPre
     };
 }
 
-// similar to init_invariant
+// Prove p leads_to always q by showing that q is preserved.
+// pre:
+//     spec |= [](q /\ next => q')
+//     spec |= []next
+//     spec |= p ~> exists q
+// post:
+//     spec |= p ~> exists []q
 pub proof fn leads_to_exists_stable<T, A>(spec: TempPred<T>, next: ActionPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> StatePred<T>)
     requires
         spec.entails(p.leads_to(tla_exists(|a: A| lift_state(a_to_q(a))))),
