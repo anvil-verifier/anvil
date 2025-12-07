@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     volume::*,
 };
 use crate::vstd_ext::string_view::*;
+use deps_hack::k8s_openapi::api::core::v1::PodSpec;
 use vstd::prelude::*;
 
 verus! {
@@ -205,6 +206,20 @@ impl PodSpecView {
     pub open spec fn with_image_pull_secrets(self, image_pull_secrets: Seq<LocalObjectReferenceView>) -> PodSpecView {
         PodSpecView {
             image_pull_secrets: Some(image_pull_secrets),
+            ..self
+        }
+    }
+
+    pub open spec fn with_hostname(self, hostname: StringView) -> PodSpecView {
+        PodSpecView {
+            hostname: Some(hostname),
+            ..self
+        }
+    }
+
+    pub open spec fn with_subdomain(self, subdomain: StringView) -> PodSpecView {
+        PodSpecView {
+            subdomain: Some(subdomain),
             ..self
         }
     }

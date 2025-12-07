@@ -23,6 +23,13 @@ pub fn i32_to_string(i: i32) -> (s: String)
     i.to_string()
 }
 
+#[verifier(external_body)]
+pub fn u32_to_string(i: u32) -> (s: String) 
+    ensures s@ == int_to_string_view(i as int)
+{
+    i.to_string()
+}
+
 pub uninterp spec fn int_to_string_view(i: int) -> StringView;
 
 #[verifier(external_body)]

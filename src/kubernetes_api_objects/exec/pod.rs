@@ -167,6 +167,20 @@ impl PodSpec {
     {
         self.inner.image_pull_secrets = Some(image_pull_secrets.into_iter().map(|r: LocalObjectReference| r.into_kube()).collect())
     }
+
+    #[verifier(external_body)]
+    pub fn set_hostname(&mut self, hostname: String) 
+        ensures self@ == old(self)@.with_hostname(hostname@)
+    {
+        self.inner.hostname = Some(hostname);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_subdomain(&mut self, subdomain: String)
+        ensures self@ == old(self)@.with_subdomain(subdomain@)
+    {
+        self.inner.subdomain = Some(subdomain);
+    }
 }
 
 }

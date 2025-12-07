@@ -92,7 +92,8 @@ impl VStatefulSetView {
 
         // volumeClaimTemplates
         &&& self.spec.volume_claim_templates is Some ==> (
-            forall | i: int | 0 <= i < self.spec.volume_claim_templates->0.len() ==> #[trigger] self.spec.volume_claim_templates->0[i].state_validation()
+            forall | i: int | 0 <= i < self.spec.volume_claim_templates->0.len() ==> #[trigger] self.spec.volume_claim_templates->0[i].state_validation() 
+                                                                                        && self.spec.volume_claim_templates->0[i].metadata.well_formed_for_namespaced()
         )
 
         // minReadySeconds must be non‑negative if present
