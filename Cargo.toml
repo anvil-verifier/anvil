@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-builtin = { path = "../verus/source/builtin" }
 vstd = { path = "../verus/source/vstd" }
 deps_hack = { path = "src/deps_hack" }
 tungstenite = "0.20.1"
