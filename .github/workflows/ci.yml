@@ -224,7 +224,8 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset admission controller
-        run: alias verus="${HOME}/verus"
+        run: |
+          alias verus="${HOME}/verus"
           ./local-test.sh vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset-admission
@@ -250,7 +251,8 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vstatefulset admission controller
-        run: alias verus="${HOME}/verus"
+        run: |
+          alias verus="${HOME}/verus"
           ./local-test.sh vstatefulset-admission --build
       - name: Run vstatefulset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset-admission
@@ -276,7 +278,8 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vdeployment admission controller
-        run: alias verus="${HOME}/verus"
+        run: |
+          alias verus="${HOME}/verus"
           ./local-test.sh vdeployment-admission --build
       - name: Run vdeployment e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment-admission
@@ -302,7 +305,8 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset controller
-        run: alias verus="${HOME}/verus"
+        run: |
+          alias verus="${HOME}/verus"
           ./local-test.sh vreplicaset --build-remote
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset
@@ -328,7 +332,8 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Deploy vdeployment controller
-        run: alias verus="${HOME}/verus"
+        run: |
+          alias verus="${HOME}/verus"
           ./local-test.sh vdeployment --build
       - name: Run vdeployment e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment
