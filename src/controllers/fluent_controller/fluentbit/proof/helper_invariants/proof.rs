@@ -544,7 +544,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
 
     let resource_key = get_request(SubResource::DaemonSet, fb).key;
     assert forall |s, s_prime: FBCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: FBMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_ApiServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
+        assert forall |msg: FBMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst is APIServer && !msg.src is BuiltinController && msg.content.is_update_status_request()
         implies msg.content.get_update_status_request().key() != resource_key by {
             if s.in_flight().contains(msg) {
                 assert(msg.content.get_update_status_request().key() != resource_key);
@@ -583,7 +583,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         assert(false);
                     },
                     Step::BuiltinControllersStep(_) => {
-                        assert(msg.src.is_BuiltinController());
+                        assert(msg.src is BuiltinController);
                         assert(false);
                     },
                     Step::FailTransientlyStep(_) => {

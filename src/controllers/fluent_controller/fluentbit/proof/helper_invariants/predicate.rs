@@ -77,7 +77,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
 
 pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(FBMessage) -> bool {
     |msg: FBMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_get_response()
         && (
             msg.content.get_get_response().res is Ok
@@ -87,7 +87,7 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(FBMessage)
 
 pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCluster) -> spec_fn(FBMessage) -> bool {
     |msg: FBMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_update_response()
         && (
             msg.content.get_update_response().res is Ok
@@ -100,7 +100,7 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCluster) -> s
 
 pub open spec fn resource_create_response_msg(key: ObjectRef, s: FBCluster) -> spec_fn(FBMessage) -> bool {
     |msg: FBMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_create_response()
         && (
             msg.content.get_create_response().res is Ok
@@ -224,8 +224,8 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_daemon_se
     |s: FBCluster| {
         forall |msg: FBMessage|
             #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_ApiServer()
-            && !msg.src.is_BuiltinController()
+            && msg.dst is APIServer
+            && !msg.src is BuiltinController
             ==> !resource_update_status_request_msg(get_request(SubResource::DaemonSet, fb).key)(msg)
     }
 }

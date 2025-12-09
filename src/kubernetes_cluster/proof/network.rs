@@ -314,8 +314,8 @@ pub open spec fn every_in_flight_req_msg_from_controller_has_valid_controller_id
         forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
             && msg.content.is_APIRequest()
-            && msg.src.is_Controller()
-            ==> self.controller_models.contains_key(msg.src.get_Controller_0())
+            && msg.src is Controller
+            ==> self.controller_models.contains_key(msg.src->Controller_0)
     }
 }
 
@@ -341,8 +341,8 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
                     && msg.content.is_APIRequest()
-                    && msg.src.is_Controller()
-                    implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
+                    && msg.src is Controller
+                    implies self.controller_models.contains_key(msg.src->Controller_0) by {
                     if !s.in_flight().contains(msg) {
                         let controller_result = self.controller(id).next_result(
                             ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator},
@@ -355,8 +355,8 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
                             if msg == elt {
                                 assert(s_prime.in_flight().contains(elt) 
                                 && elt.content.is_APIRequest()
-                                && elt.src.is_Controller());
-                                assert(elt.src.get_Controller_0() == id);
+                                && elt.src is Controller);
+                                assert(elt.src->Controller_0 == id);
                             }
                         }
                     }
@@ -366,8 +366,8 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
                     && msg.content.is_APIRequest()
-                    && msg.src.is_Controller()
-                    implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
+                    && msg.src is Controller
+                    implies self.controller_models.contains_key(msg.src->Controller_0) by {
                     if !s.in_flight().contains(msg) {
                         // TODO: Make an understandable version of this proof.
                         assert(false);

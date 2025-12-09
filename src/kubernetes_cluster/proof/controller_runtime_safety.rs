@@ -843,7 +843,7 @@ pub open spec fn every_msg_from_key_is_pending_req_msg_of(
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             &&& msg.src == HostId::Controller(controller_id, key)
             &&& msg.content.is_APIRequest()
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst is APIServer
             &&& s.in_flight().contains(msg)
         } ==> {
             &&& s.ongoing_reconciles(controller_id).contains_key(key)
@@ -880,7 +880,7 @@ pub proof fn lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of
         ({
             &&& msg.src == HostId::Controller(controller_id, key)
             &&& msg.content.is_APIRequest()
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst is APIServer
             &&& s.in_flight().contains(msg)
         }) ==> ({
             &&& s.ongoing_reconciles(controller_id).contains_key(key)
@@ -890,7 +890,7 @@ pub proof fn lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of
     let requirements_antecedent = |msg: Message, s: ClusterState| {
         &&& msg.src == HostId::Controller(controller_id, key)
         &&& msg.content.is_APIRequest()
-        &&& msg.dst.is_APIServer()
+        &&& msg.dst is APIServer
         &&& s.in_flight().contains(msg)
     };
 

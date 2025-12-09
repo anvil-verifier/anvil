@@ -208,7 +208,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_get_response());
                         assert(msg == handle_get_request_msg(s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
-                        assert(msg.src.is_APIServer() && msg.content.is_get_response());
+                        assert(msg.src is APIServer && msg.content.is_get_response());
                         if msg.content.get_get_response().res is Ok {
                             assert(s.resources().contains_key(req_key));
                             assert(s.resources()[req_key].object_ref() == req_key);
@@ -219,7 +219,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                 Step::DropReqStep(input) => {
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src is APIServer);
                         assert(msg.content.is_get_response());
                         assert(msg.content.get_get_response().res is Err);
                     }
@@ -313,7 +313,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_update_response());
                         assert(msg == handle_update_request_msg(self.installed_types, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
-                        assert(msg.src.is_APIServer() && msg.content.is_update_response());
+                        assert(msg.src is APIServer && msg.content.is_update_response());
                         if msg.content.get_update_response().res is Ok {
                             assert(s.resources().contains_key(req_key));
                             assert(s.resources()[req_key].object_ref() == req_key);
@@ -324,7 +324,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                 Step::DropReqStep(input) => {
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src is APIServer);
                         assert(msg.content.is_update_response());
                         assert(msg.content.get_update_response().res is Err);
                     }
@@ -421,7 +421,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_create_response());
                         assert(msg == handle_create_request_msg(self.installed_types, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
-                        assert(msg.src.is_APIServer() && msg.content.is_create_response());
+                        assert(msg.src is APIServer && msg.content.is_create_response());
                         if msg.content.get_create_response().res is Ok {
                             assert(s_prime.resources()[req_key].object_ref() == req_key);
                         }
@@ -431,7 +431,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                 Step::DropReqStep(input) => {
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src is APIServer);
                         assert(msg.content.is_create_response());
                         assert(msg.content.get_create_response().res is Err);
                     }

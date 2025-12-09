@@ -658,8 +658,8 @@ pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) 
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src.is_BuiltinController()
-            &&& msg.dst.is_APIServer()
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             let req_msg = msg.content.get_delete_request(); 

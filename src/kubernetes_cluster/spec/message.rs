@@ -23,7 +23,6 @@ pub struct Message {
     pub content: MessageContent,
 }
 
-#[is_variant]
 pub enum HostId {
     APIServer,
     BuiltinController,
@@ -216,7 +215,7 @@ pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: St
 pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {
     |msg: Message| {
         &&& msg.rpc_id < rpc_id
-        &&& msg.dst.is_APIServer() && msg.content.is_APIRequest()
+        &&& msg.dst is APIServer && msg.content.is_APIRequest()
     }
 }
 
@@ -459,7 +458,7 @@ macro_rules! declare_is_req_msg_functions {
     ($is_fun:ident, $is_req:ident, $get_req:ident) => {
         verus! {
         pub open spec fn $is_fun(key: ObjectRef) -> spec_fn(Message) -> bool {
-            |msg: Message| msg.dst.is_APIServer() && msg.content.$is_req() && msg.content.$get_req().key() == key
+            |msg: Message| msg.dst is APIServer && msg.content.$is_req() && msg.content.$get_req().key() == key
         }
         }
     };
@@ -501,12 +500,12 @@ verus! {
 
 pub open spec fn update_status_msg_from_bc_for(key: ObjectRef) -> spec_fn(Message) -> bool {
     |msg: Message|
-        resource_update_status_request_msg(key)(msg) && msg.src.is_BuiltinController()
+        resource_update_status_request_msg(key)(msg) && msg.src is BuiltinController
 }
 
 pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
     |msg: Message|
-        msg.dst.is_APIServer()
+        msg.dst is APIServer
         && msg.content.is_create_request()
         && msg.content.get_create_request().obj.metadata.name is Some
         && msg.content.get_create_request().key() == key
@@ -515,7 +514,7 @@ pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message)
 // This is mainly used for reasoning about create requests with generate name
 pub open spec fn resource_create_request_msg_without_name(kind: Kind, namespace: StringView) -> spec_fn(Message) -> bool {
     |msg: Message|
-        msg.dst.is_APIServer()
+        msg.dst is APIServer
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == namespace
         && msg.content.get_create_request().obj.metadata.name is None
@@ -530,7 +529,7 @@ macro_rules! declare_is_ok_resp_msg_functions {
         verus! {
         pub open spec fn $is_ok_fun() -> spec_fn(Message) -> bool {
             |msg: Message|
-                msg.src.is_APIServer() && msg.content.$is_resp() && msg.content.$get_resp().res is Ok
+                msg.src is APIServer && msg.content.$is_resp() && msg.content.$get_resp().res is Ok
         }
 
         pub open spec fn $is_ok_for_fun(key: ObjectRef) -> spec_fn(Message) -> bool {

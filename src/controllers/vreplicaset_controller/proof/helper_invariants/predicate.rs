@@ -169,7 +169,7 @@ pub open spec fn no_other_pending_request_interferes_with_vrs_reconcile(
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.src != HostId::Controller(controller_id, vrs.object_ref())
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             let content = msg.content;
@@ -241,13 +241,13 @@ pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
 // TODO: should not need to be a safety property.
 pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |msg: Message| #![trigger msg.dst.is_APIServer(), msg.content.is_APIRequest()] {
+        forall |msg: Message| #![trigger msg.dst is APIServer, msg.content.is_APIRequest()] {
             let content = msg.content;
             let obj = content.get_create_request().obj;
             &&& s.in_flight().contains(msg)
-            &&& msg.src.is_Controller()
-            &&& msg.src.get_Controller_0() == controller_id
-            &&& msg.dst.is_APIServer()
+            &&& msg.src is Controller
+            &&& msg.src->Controller_0 == controller_id
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
             &&& content.is_create_request()
         } ==> {
@@ -288,7 +288,7 @@ pub open spec fn no_pending_interfering_update_request() -> StatePred<ClusterSta
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
@@ -302,8 +302,8 @@ pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src.is_BuiltinController()
-            &&& msg.dst.is_APIServer()
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             let req = msg.content.get_delete_request(); 
@@ -326,8 +326,8 @@ pub open spec fn no_pending_mutation_request_not_from_controller_on_pods() -> St
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& !(msg.src.is_Controller() || msg.src.is_BuiltinController())
-            &&& msg.dst.is_APIServer()
+            &&& !(msg.src is Controller || msg.src is BuiltinController)
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != PodView::kind()
@@ -376,7 +376,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                 &&& state.reconcile_step.is_AfterListPods() ==> {
                     let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.dst is APIServer
                     &&& req_msg.content.is_list_request()
                     &&& req_msg.content.get_list_request() == ListRequest {
                         kind: PodView::kind(),
@@ -386,7 +386,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                        &&& msg.src.is_APIServer()
+                        &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                         &&& is_ok_resp(msg.content.get_APIResponse_0())
                     } ==> {
@@ -425,10 +425,10 @@ pub open spec fn every_msg_from_vrs_controller_carries_vrs_key(
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
             &&& s.in_flight().contains(msg)
-            &&& msg.src.is_Controller()
-            &&& msg.src.get_Controller_0() == controller_id
+            &&& msg.src is Controller
+            &&& msg.src->Controller_0 == controller_id
         } ==> {
-            msg.src.get_Controller_1().kind == VReplicaSetView::kind()
+            msg.src->Controller_1.kind == VReplicaSetView::kind()
         }
     }
 }

@@ -77,7 +77,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
 
 pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(FBCMessage) -> bool {
     |msg: FBCMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_get_response()
         && (
             msg.content.get_get_response().res is Ok
@@ -87,7 +87,7 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(FBCMessage
 
 pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCCluster) -> spec_fn(FBCMessage) -> bool {
     |msg: FBCMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_update_response()
         && (
             msg.content.get_update_response().res is Ok
@@ -100,7 +100,7 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCCluster) -> 
 
 pub open spec fn resource_create_response_msg(key: ObjectRef, s: FBCCluster) -> spec_fn(FBCMessage) -> bool {
     |msg: FBCMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_create_response()
         && (
             msg.content.get_create_response().res is Ok
@@ -200,7 +200,7 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
     |s: FBCCluster| {
         forall |msg: FBCMessage| !{
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_ApiServer()
+            &&& msg.dst is APIServer
             &&& msg.content.is_delete_request()
             &&& msg.content.get_delete_request().key == get_request(sub_resource, fbc).key
         }

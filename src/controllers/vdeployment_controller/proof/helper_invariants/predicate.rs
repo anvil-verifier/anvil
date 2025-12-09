@@ -174,7 +174,7 @@ pub open spec fn no_other_pending_request_interferes_with_vd_reconcile(
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.src != HostId::Controller(controller_id, vd.object_ref())
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             let content = msg.content;
@@ -260,7 +260,7 @@ pub open spec fn no_pending_interfering_update_request(
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             &&& msg.src != HostId::Controller(controller_id, vd.object_ref()) ==>
@@ -285,8 +285,8 @@ pub open spec fn garbage_collector_does_not_delete_vd_vrs_objects(vd: VDeploymen
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src.is_BuiltinController()
-            &&& msg.dst.is_APIServer()
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             let req = msg.content.get_delete_request(); 
@@ -309,8 +309,8 @@ pub open spec fn no_pending_mutation_request_not_from_controller_on_vrs_objects(
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& !(msg.src.is_Controller() || msg.src.is_BuiltinController())
-            &&& msg.dst.is_APIServer()
+            &&& !(msg.src is Controller || msg.src is BuiltinController)
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         } ==> {
             &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != VReplicaSetView::kind()
@@ -360,7 +360,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                 &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
                     let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.dst is APIServer
                     &&& req_msg.content.is_list_request()
                     &&& req_msg.content.get_list_request() == ListRequest {
                         kind: VReplicaSetView::kind(),
@@ -370,7 +370,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                        &&& msg.src.is_APIServer()
+                        &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                         &&& is_ok_resp(msg.content.get_APIResponse_0())
                     } ==> {
@@ -406,10 +406,10 @@ pub open spec fn every_msg_from_vd_controller_carries_vd_key(
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
             &&& s.in_flight().contains(msg)
-            &&& msg.src.is_Controller()
-            &&& msg.src.get_Controller_0() == controller_id
+            &&& msg.src is Controller
+            &&& msg.src->Controller_0 == controller_id
         } ==> {
-            msg.src.get_Controller_1().kind == VDeploymentView::kind()
+            msg.src->Controller_1.kind == VDeploymentView::kind()
         }
     }
 }

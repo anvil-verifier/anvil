@@ -76,7 +76,7 @@ spec fn effective_delete_request_msg_for_key(key: ObjectRef, msg: Message) -> St
     |s: ClusterState| {
         s.in_flight().contains(msg)
         && s.api_server.resources.contains_key(key)
-        && msg.dst.is_APIServer()
+        && msg.dst is APIServer
         && msg.content.is_delete_request_with_key(key)
         && msg.content.get_delete_request().preconditions->0.uid == s.api_server.resources[key].metadata.uid
         && msg.content.get_delete_request().preconditions->0.resource_version is None
@@ -301,7 +301,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                         let msg = choose |msg| {
                             &&& #[trigger] ex.head().in_flight().contains(msg)
                             &&& ex.head().api_server.resources.contains_key(key)
-                            &&& msg.dst.is_APIServer()
+                            &&& msg.dst is APIServer
                             &&& msg.content.is_delete_request_with_key(key)
                             &&& msg.content.get_delete_request().preconditions->0.uid == ex.head().api_server.resources[key].metadata.uid
                             &&& msg.content.get_delete_request().preconditions->0.resource_version is None

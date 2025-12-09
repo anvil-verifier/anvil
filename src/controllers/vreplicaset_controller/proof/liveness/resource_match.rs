@@ -2666,7 +2666,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                 &&& req_msg_is_list_pods_req(vrs, req_msg)
                 &&& forall |msg| {
                     &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src.is_APIServer()
+                    &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> {
                     resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, msg)
@@ -2768,7 +2768,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 &&& post(s)
                                 &&& stronger_next(s, s_prime)
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                             } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
                                 assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] resp_msg_matches_req_msg(msg, req_msg)));
@@ -2785,7 +2785,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 &&& post(s)
                                 &&& stronger_next(s, s_prime)
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                             } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
                                 if !new_msgs.contains(msg) {
@@ -2917,10 +2917,10 @@ pub proof fn lemma_current_state_matches_is_stable(
                         &&& post(s)
                         &&& stronger_next(s, s_prime)
                         &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& msg.src.is_APIServer()
+                        &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                     } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
-                        assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src.is_APIServer()));
+                        assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
                         if !new_msgs.contains(msg) {
                             assert(s.in_flight().contains(msg));
                         }

@@ -713,14 +713,14 @@ ensures
             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
             seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vd.controller_owner_ref());
         }
-        if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
+        if msg.content.is_APIRequest() && msg.dst is APIServer {
             match msg.src {
                 HostId::Controller(id, cr_key) => {
                     if id == controller_id {
                         assert(cr_key != vd.object_ref());
                         // same controller, other vd
                         // every_msg_from_vd_controller_carries_vd_key
-                        let cr_key = msg.src.get_Controller_1();
+                        let cr_key = msg.src->Controller_1;
                         let other_vd = VDeploymentView {
                             metadata: ObjectMetaView {
                                 name: Some(cr_key.name),
@@ -752,7 +752,7 @@ ensures
                         }
                         VDeploymentReconcileState::marshal_preserves_integrity();
                     } else {
-                        let other_id = msg.src.get_Controller_0();
+                        let other_id = msg.src->Controller_0;
                         // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
                         assert(cluster.controller_models.contains_key(other_id));
                         assert(vd_rely(other_id)(s)); // trigger vd_rely_condition
@@ -812,7 +812,7 @@ ensures
     } by {
         let obj = s_prime.resources()[k];
         // <==
-        if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
+        if msg.content.is_APIRequest() && msg.dst is APIServer {
             // must be a create request
             match msg.content.get_APIRequest_0() {
                 APIRequest::CreateRequest(req) => {

@@ -454,7 +454,7 @@ impl Cluster {
                 let req_msg = input.0;
                 let api_err = input.1;
                 &&& s.req_drop_enabled
-                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.dst is APIServer
                 &&& req_msg.content.is_APIRequest()
                 &&& result(input, s).is_Enabled()
             },

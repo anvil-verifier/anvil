@@ -288,7 +288,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                 }
             );
             assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
-                assert(msg.src.is_ApiServer());
+                assert(msg.src is APIServer);
                 assert(msg.content.is_create_response());
                 if msg.content.get_create_response().res is Ok {
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
@@ -440,7 +440,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
             );
 
             assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
-                assert(msg.src.is_ApiServer());
+                assert(msg.src is APIServer);
                 assert(msg.content.is_update_response());
                 if msg.content.get_update_response().res is Ok {
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
@@ -936,7 +936,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
 
     let resource_key = get_request(SubResource::StatefulSet, zookeeper).key;
     assert forall |s, s_prime: ZKCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_ApiServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
+        assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst is APIServer && !msg.src is BuiltinController && msg.content.is_update_status_request()
         implies msg.content.get_update_status_request().key() != resource_key by {
             if s.in_flight().contains(msg) {
                 assert(msg.content.get_update_status_request().key() != resource_key);
@@ -974,7 +974,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         assert(false);
                     },
                     Step::BuiltinControllersStep(_) => {
-                        assert(msg.src.is_BuiltinController());
+                        assert(msg.src is BuiltinController);
                         assert(false);
                     },
                     Step::FailTransientlyStep(_) => {

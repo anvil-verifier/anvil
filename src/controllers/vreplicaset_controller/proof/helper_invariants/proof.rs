@@ -58,7 +58,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
     let requirements = |msg: Message, s: ClusterState| {
         &&& s.in_flight().contains(msg)
         &&& msg.src != HostId::Controller(controller_id, vrs.object_ref())
-        &&& msg.dst.is_APIServer()
+        &&& msg.dst is APIServer
         &&& msg.content.is_APIRequest()
     } ==> {
         let content = msg.content;
@@ -75,7 +75,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
     let requirements_antecedent = |msg: Message, s: ClusterState| {
         &&& s.in_flight().contains(msg)
         &&& msg.src != HostId::Controller(controller_id, vrs.object_ref())
-        &&& msg.dst.is_APIServer()
+        &&& msg.dst is APIServer
         &&& msg.content.is_APIRequest()
     };
 
@@ -360,11 +360,11 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         msg.content.is_APIRequest() ==>
             match msg.content.get_APIRequest_0() {
                 APIRequest::UpdateRequest(req) =>
-                    msg.src.is_Controller()
+                    msg.src is Controller
                     && !msg.src.is_controller_id(controller_id)
                     && vrs_rely_update_req(req)(s),
                 APIRequest::GetThenUpdateRequest(req) =>
-                    msg.src.is_Controller()
+                    msg.src is Controller
                     && !msg.src.is_controller_id(controller_id)
                     && vrs_rely_get_then_update_req(req)(s),
                 _ => true,
@@ -394,8 +394,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         implies stronger_requirements(msg, s_prime) by {
             if msg.content.is_APIRequest()
                 && msg.content.get_APIRequest_0().is_UpdateRequest() {
-                if msg.src.is_Controller() {
-                    let id = msg.src.get_Controller_0();
+                if msg.src is Controller {
+                    let id = msg.src->Controller_0;
                     PodView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     if id != controller_id {
@@ -406,8 +406,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                 }
             } else if msg.content.is_APIRequest()
                 && msg.content.get_APIRequest_0().is_GetThenUpdateRequest() {
-                if msg.src.is_Controller() {
-                    let id = msg.src.get_Controller_0();
+                if msg.src is Controller {
+                    let id = msg.src->Controller_0;
                     PodView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     if id != controller_id {
@@ -488,8 +488,8 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
 {
     let requirements = |msg: Message, s: ClusterState| {
         ({
-            &&& msg.src.is_BuiltinController()
-            &&& msg.dst.is_APIServer()
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         })
         ==>
@@ -509,8 +509,8 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         })
     };
     let requirements_antecedent = |msg: Message, s: ClusterState| {
-        &&& msg.src.is_BuiltinController()
-        &&& msg.dst.is_APIServer()
+        &&& msg.src is BuiltinController
+        &&& msg.dst is APIServer
         &&& msg.content.is_APIRequest()
     };
 
@@ -620,8 +620,8 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
 {
     let requirements = |msg: Message, s: ClusterState| {
         ({
-            &&& !(msg.src.is_Controller() || msg.src.is_BuiltinController())
-            &&& msg.dst.is_APIServer()
+            &&& !(msg.src is Controller || msg.src is BuiltinController)
+            &&& msg.dst is APIServer
             &&& msg.content.is_APIRequest()
         })
         ==>
@@ -719,7 +719,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
         &&& state.reconcile_step.is_AfterListPods() ==> {
             let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
             &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-            &&& req_msg.dst.is_APIServer()
+            &&& req_msg.dst is APIServer
             &&& req_msg.content.is_list_request()
             &&& req_msg.content.get_list_request() == ListRequest {
                 kind: PodView::kind(),
@@ -729,7 +729,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                 let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                 &&& #[trigger] s.in_flight().contains(msg)
                 &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                &&& msg.src.is_APIServer()
+                &&& msg.src is APIServer
                 &&& resp_msg_matches_req_msg(msg, req_msg)
                 &&& is_ok_resp(msg.content.get_APIResponse_0())
             } ==> {
@@ -855,7 +855,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                         &&& s.in_flight().contains(cr_msg)
                                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                        &&& cr_msg.src.is_APIServer()
+                                        &&& cr_msg.src is APIServer
                                         &&& resp_msg_matches_req_msg(cr_msg, req_msg)});
 
                                     seq_filter_contains_implies_seq_contains(
@@ -914,7 +914,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                     let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                     &&& #[trigger] s_prime.in_flight().contains(msg)
                                     &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                    &&& msg.src.is_APIServer()
+                                    &&& msg.src is APIServer
                                     &&& resp_msg_matches_req_msg(msg, req_msg)
                                     &&& is_ok_resp(msg.content.get_APIResponse_0())
                                     &&& invariant_matrix(key, s)
@@ -938,7 +938,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                                 < s_prime.api_server.resource_version_counter
                                     )
                                 } by {
-                                    assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src.is_APIServer()));
+                                    assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
                                     if !new_msgs.contains(msg) {
                                         assert(s.in_flight().contains(msg));
                                     }
@@ -958,7 +958,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
                                 &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                                 &&& is_ok_resp(msg.content.get_APIResponse_0())
                                 &&& invariant_matrix(key, s)
@@ -1043,7 +1043,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                     let msg_antecedent = {
                                         &&& s.in_flight().contains(msg)
                                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                        &&& msg.src.is_APIServer()
+                                        &&& msg.src is APIServer
                                         &&& resp_msg_matches_req_msg(msg, req_msg)
                                     };
                                     if msg_antecedent {
@@ -1083,7 +1083,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
                                 &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                                 &&& is_ok_resp(msg.content.get_APIResponse_0())
                                 &&& invariant_matrix(key, s)
@@ -1107,7 +1107,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                             < s_prime.api_server.resource_version_counter
                                 )
                             } by {
-                                assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src.is_APIServer()));
+                                assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
                                 if !new_msgs.contains(msg) {
                                     assert(s.in_flight().contains(msg));
                                 }
@@ -1124,7 +1124,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 &&& stronger_next(s, s_prime)
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
                                 &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                                 &&& is_ok_resp(msg.content.get_APIResponse_0())
                             } implies {
@@ -1189,9 +1189,9 @@ pub proof fn lemma_always_every_msg_from_vrs_controller_carries_vrs_key(
         assert forall |msg: Message|
             inv(s)
             && #[trigger] s_prime.in_flight().contains(msg)
-            && msg.src.is_Controller()
-            && msg.src.get_Controller_0() == controller_id
-            implies msg.src.get_Controller_1().kind == VReplicaSetView::kind() by {
+            && msg.src is Controller
+            && msg.src->Controller_0 == controller_id
+            implies msg.src->Controller_1.kind == VReplicaSetView::kind() by {
             if new_msgs.contains(msg) {
             } else {
                 if s.in_flight().contains(msg) {
