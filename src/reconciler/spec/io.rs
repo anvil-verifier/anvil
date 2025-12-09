@@ -72,56 +72,77 @@ impl<T> ResponseView<T> {
 #[macro_export]
 macro_rules! is_some_k_get_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_GetResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse()
+        } else {
+            false
+        }
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_create_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_CreateResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+        } else {
+            false
+        }
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_update_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_UpdateResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+        } else {
+            false
+        }
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_list_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_ListResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_ListResponse()
+        } else {
+            false
+        }
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_delete_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_DeleteResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_DeleteResponse()
+        } else {
+            false
+        }
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_get_then_update_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_GetThenUpdateResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_GetThenUpdateResponse()
+        } else {
+            false
+        }
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_get_then_delete_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.unwrap().is_KResponse()
-        && $r.unwrap().get_KResponse_0().is_GetThenDeleteResponse()
+        if let Some(resp) = $r {
+            resp.is_KResponse() && resp.get_KResponse_0().is_GetThenDeleteResponse()
+        } else {
+            false
+        }
     };
 }
 

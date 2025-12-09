@@ -24,18 +24,16 @@ fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_s
             r@.to_multiset() =~= v@.subrange(0, i as int).to_multiset().filter(f_spec),
             forall |v:V,r:bool| f.ensures((&v,), r) ==> f_spec(v) == r,
     {
-        // This deprecated lemma_seq_properties cannot be replaced by
-        // broadcast use group_seq_properties;
-        proof { lemma_seq_properties::<V>(); }
         let ghost pre_r = r@.to_multiset();
-        assert(
-            v@.subrange(0, i as int + 1)
-            =~=
-            v@.subrange(0, i as int).push(v@[i as int]));
+        proof {
+            broadcast use group_to_multiset_ensures;
+        }
+        assert(v@.subrange(0, i as int + 1) =~= v@.subrange(0, i as int).push(v@[i as int]));
         if f(&v[i]) {
             r.push(v[i].verus_clone());
         }
     }
+    assert(v@.subrange(0, v.len() as int) =~= v@);
     r
 }
 

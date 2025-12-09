@@ -100,7 +100,7 @@ impl VerticalComposition for VDeploymentReconciler {
         }
         let current_state_matches_vrs = |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs);
         assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vrs)));
-        assert(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))))));;
+        assert(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))))));
         assert forall |vrs| #[trigger] spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
             use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))), vrs);
         }
