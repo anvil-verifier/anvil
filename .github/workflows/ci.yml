@@ -294,7 +294,7 @@ jobs:
       - name: Deploy vreplicaset controller
         run: |
           export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vreplicaset --build-remote
+          ./local-test.sh vreplicaset --build
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset
   vdeployment-e2e-test:
