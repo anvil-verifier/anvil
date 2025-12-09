@@ -32,8 +32,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus/
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -67,7 +66,7 @@ jobs:
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh vreplicaset_controller.rs --rlimit 50 --time --verify-module vreplicaset_controller
   vdeployment-verification:
     needs: setup-toolchain
@@ -86,7 +85,7 @@ jobs:
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh vdeployment_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
   vstatefulset-verification:
     needs: setup-toolchain
@@ -105,7 +104,7 @@ jobs:
       - name: Verify vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh vstatefulset_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
   vreplicaset-admission-verification:
     needs: setup-toolchain
@@ -124,7 +123,7 @@ jobs:
       - name: Verify vreplicaset admission controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh vreplicaset_admission_controller.rs --rlimit 50 --time --verify-module vreplicaset_controller
   vstatefulset-admission-verification:
     needs: setup-toolchain
@@ -143,7 +142,7 @@ jobs:
       - name: Verify vstatefulset admission controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh vstatefulset_admission_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
   vdeployment-admission-verification:
     needs: setup-toolchain
@@ -162,7 +161,7 @@ jobs:
       - name: Verify vdeployment admission controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh vdeployment_admission_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
   esr-composition-verification:
     needs: setup-toolchain
@@ -181,7 +180,7 @@ jobs:
       - name: Verify the ESR composition
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh esr_composition.rs --crate-type lib --rlimit 50 --time --verify-module composition
   framework-verification:
     needs: setup-toolchain
@@ -200,7 +199,7 @@ jobs:
       - name: Verify the Anvil framework
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh anvil.rs --crate-type lib --rlimit 50 --time
   vreplicaset-admission-e2e-test:
     needs:
@@ -225,7 +224,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset admission controller
         run: |
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./local-test.sh vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset-admission
@@ -252,7 +251,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vstatefulset admission controller
         run: |
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./local-test.sh vstatefulset-admission --build
       - name: Run vstatefulset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset-admission
@@ -279,7 +278,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vdeployment admission controller
         run: |
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./local-test.sh vdeployment-admission --build
       - name: Run vdeployment e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment-admission
@@ -306,7 +305,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset controller
         run: |
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./local-test.sh vreplicaset --build-remote
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset
@@ -333,7 +332,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Deploy vdeployment controller
         run: |
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./local-test.sh vdeployment --build
       - name: Run vdeployment e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment
@@ -354,5 +353,5 @@ jobs:
       - name: Verify the TLA demo
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:${HOME}/verus"
+          export PATH="$PATH:$HOME/verus"
           ./build.sh tla_demo.rs --crate-type lib --time
