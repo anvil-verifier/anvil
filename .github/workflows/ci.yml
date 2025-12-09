@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -58,8 +58,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -77,8 +76,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -96,8 +94,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -115,8 +112,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -134,8 +130,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -153,8 +148,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |-
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -172,8 +166,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -191,8 +184,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -211,8 +203,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -238,8 +229,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -265,8 +255,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -292,8 +281,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -319,8 +307,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
@@ -345,8 +332,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
