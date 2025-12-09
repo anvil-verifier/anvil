@@ -45,7 +45,7 @@ jobs:
       - name: Download Verus if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/verus-lang/verus/releases/download/release%2F${{ env.verus_release }}/verus-${{ env.verus_release }}-x86-linux.zip
+          wget -q https://github.com/verus-lang/verus/releases/download/release%2F${{ env.verus_release }}/verus-${{ env.verus_release }}-x86-linux.zip
           unzip verus-${{ env.verus_release }}-x86-linux.zip
           rm verus-${{ env.verus_release }}-x86-linux.zip
           mv verus-x86-linux $HOME/verus
