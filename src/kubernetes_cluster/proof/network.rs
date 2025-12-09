@@ -348,7 +348,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
                             ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator},
                             s.controller_and_externals[id].controller
                         );
-                        let outgoing_messages = controller_result.get_Enabled_1().send;
+                        let outgoing_messages = controller_result->Enabled_1.send;
                         assert(outgoing_messages == Multiset::<Message>::empty() || outgoing_messages.len() == 1);
                         if outgoing_messages.len() == 1 {
                             let elt = outgoing_messages.choose();

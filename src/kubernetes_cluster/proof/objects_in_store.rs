@@ -110,7 +110,7 @@ pub open spec fn each_builtin_object_in_etcd_is_well_formed(self) -> StatePred<C
     |s: ClusterState| {
         forall |key: ObjectRef|
             #[trigger] s.resources().contains_key(key)
-            && !key.kind is CustomResourceKind
+            && key.kind !is CustomResourceKind
                 ==> self.etcd_object_is_well_formed(key)(s)
     }
 }
@@ -125,7 +125,7 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
     let invariant = self.each_builtin_object_in_etcd_is_well_formed();
 
     assert forall |s, s_prime| invariant(s) && #[trigger] self.next()(s, s_prime) implies invariant(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] s_prime.resources().contains_key(key) && !key.kind is CustomResourceKind
+        assert forall |key: ObjectRef| #[trigger] s_prime.resources().contains_key(key) && key.kind !is CustomResourceKind
         implies self.etcd_object_is_well_formed(key)(s_prime) by {
             if s.resources().contains_key(key) {
                 assert(self.etcd_object_is_well_formed(key)(s));
@@ -264,7 +264,7 @@ pub open spec fn each_object_in_etcd_is_well_formed<T: CustomResourceView>(self)
     |s: ClusterState| {
         forall |key: ObjectRef|
             #[trigger] s.resources().contains_key(key)
-            && (!key.kind is CustomResourceKind && key.kind == T::kind())
+            && (key.kind !is CustomResourceKind && key.kind == T::kind())
                 ==> self.etcd_object_is_well_formed(key)(s)
     }
 }

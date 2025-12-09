@@ -178,7 +178,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: input,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -219,7 +219,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: None,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -234,7 +234,7 @@ impl Cluster {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
                     network: network_result->Enabled_0,
-                    rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
+                    rpc_id_allocator: host_result->Enabled_1.rpc_id_allocator,
                     ..s
                 }, ())
             },
@@ -268,7 +268,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: input.0,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -291,7 +291,7 @@ impl Cluster {
                 (ClusterState {
                     controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
                     network: network_result->Enabled_0,
-                    rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
+                    rpc_id_allocator: host_result->Enabled_1.rpc_id_allocator,
                     ..s
                 }, ())
             },
@@ -497,7 +497,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: None,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -513,7 +513,7 @@ impl Cluster {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
                     network: network_result->Enabled_0,
-                    rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
+                    rpc_id_allocator: host_result->Enabled_1.rpc_id_allocator,
                     ..s
                 }, ())
             },
@@ -565,7 +565,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: input,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -631,7 +631,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: input,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -655,7 +655,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: None,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -674,7 +674,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: input.1,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 
@@ -696,7 +696,7 @@ impl Cluster {
             );
             let msg_ops = MessageOps {
                 recv: input.1,
-                send: host_result.get_Enabled_1().send,
+                send: host_result->Enabled_1.send,
             };
             let network_result = network().next_result(msg_ops, s.network);
 

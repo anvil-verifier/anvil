@@ -59,11 +59,11 @@ pub enum ResponseView<T> {
 impl<T> ResponseView<T> {
     pub open spec fn is_k_get_response(self) -> bool {
         &&& self is KResponse
-        &&& self->KResponse_0 is GetResponse
+        &&& self.arrow_KResponse_0().is_GetResponse()
     }
 
     pub open spec fn get_k_get_response(self) -> GetResponse {
-        self->KResponse_0->GetResponse_0
+        self.arrow_KResponse_0().arrow_GetResponse_0()
     }
 }
 
@@ -71,7 +71,7 @@ impl<T> ResponseView<T> {
 macro_rules! is_some_k_get_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is GetResponse
+            resp.arrow_KResponse_0().is_GetResponse()
         } else {
             false
         }
@@ -82,7 +82,7 @@ macro_rules! is_some_k_get_resp_view {
 macro_rules! is_some_k_create_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is CreateResponse
+            resp.arrow_KResponse_0().is_CreateResponse()
         } else {
             false
         }
@@ -93,7 +93,7 @@ macro_rules! is_some_k_create_resp_view {
 macro_rules! is_some_k_update_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is UpdateResponse
+            resp.arrow_KResponse_0().is_UpdateResponse()
         } else {
             false
         }
@@ -104,7 +104,7 @@ macro_rules! is_some_k_update_resp_view {
 macro_rules! is_some_k_list_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is ListResponse
+            resp.arrow_KResponse_0().is_ListResponse()
         } else {
             false
         }
@@ -115,7 +115,7 @@ macro_rules! is_some_k_list_resp_view {
 macro_rules! is_some_k_delete_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is DeleteResponse
+            resp.arrow_KResponse_0().is_DeleteResponse()
         } else {
             false
         }
@@ -126,7 +126,7 @@ macro_rules! is_some_k_delete_resp_view {
 macro_rules! is_some_k_get_then_update_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is GetThenUpdateResponse
+            resp.arrow_KResponse_0().is_GetThenUpdateResponse()
         } else {
             false
         }
@@ -137,7 +137,7 @@ macro_rules! is_some_k_get_then_update_resp_view {
 macro_rules! is_some_k_get_then_delete_resp_view {
     ($r:expr) => {
         if let Some(resp) = $r {
-            resp is KResponse && resp->KResponse_0 is GetThenDeleteResponse
+            resp.arrow_KResponse_0().is_GetThenDeleteResponse()
         } else {
             false
         }
@@ -147,49 +147,49 @@ macro_rules! is_some_k_get_then_delete_resp_view {
 #[macro_export]
 macro_rules! extract_some_k_get_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->GetResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_GetResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_create_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->CreateResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_CreateResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_update_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->UpdateResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_UpdateResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_list_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->ListResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_ListResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_delete_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->DeleteResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_DeleteResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_get_then_update_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->GetThenUpdateResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_GetThenUpdateResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_get_then_delete_resp_view {
     ($r:expr) => {
-        $r.unwrap()->KResponse_0->GetThenDeleteResponse_0.res
+        $r.unwrap().arrow_KResponse_0().get_GetThenDeleteResponse_0().res
     };
 }
 
