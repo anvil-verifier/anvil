@@ -103,60 +103,6 @@ jobs:
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
           ./build.sh vstatefulset_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
-  vreplicaset-admission-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Restore Verus cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.home_dir }}/verus
-            ${{ env.home_dir }}/.cargo
-            ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify vreplicaset admission controller
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./build.sh vreplicaset_admission_controller.rs --rlimit 50 --time --verify-module vreplicaset_controller
-  vstatefulset-admission-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Restore Verus cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.home_dir }}/verus
-            ${{ env.home_dir }}/.cargo
-            ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify vstatefulset admission controller
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./build.sh vstatefulset_admission_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
-  vdeployment-admission-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Restore Verus cache
-        uses: actions/cache@v4
-        with:
-          path: |-
-            ${{ env.home_dir }}/verus
-            ${{ env.home_dir }}/.cargo
-            ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify vdeployment admission controller
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./build.sh vdeployment_admission_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
   esr-composition-verification:
     needs: setup-toolchain
     runs-on: ubuntu-22.04
