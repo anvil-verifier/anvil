@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
-set -xeu
-
-env
-which verus
+set -eu
 
 # script dir is root of repo
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
