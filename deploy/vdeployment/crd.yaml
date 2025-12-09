@@ -90,6 +90,7 @@ spec:
                 type: object
               template:
                 description: PodTemplateSpec describes the data a pod should have when created from a template
+                nullable: true
                 properties:
                   metadata:
                     description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
@@ -4767,7 +4768,6 @@ spec:
                 type: object
             required:
             - selector
-            - template
             type: object
         required:
         - spec
