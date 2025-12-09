@@ -215,12 +215,8 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 {
     let spec = provided_spec.and(spec_before_phase_n(i, vrs, cluster, controller_id));
     // assert non-interference property on combined spec.
-    assert forall |other_id| 
-        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))))
-        implies 
-        cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
+    assert forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
+        implies spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
             assert(provided_spec.entails(always(lift_state(vrs_rely(other_id)))));
             entails_and_different_temp(

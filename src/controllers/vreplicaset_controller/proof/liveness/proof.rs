@@ -168,12 +168,8 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id));
     // assert non-interference property on combined spec.
-    assert forall |other_id| 
-        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))))
-        implies 
-        cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
+    assert forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
+        implies spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
             assert(provided_spec.entails(always(lift_state(vrs_rely(other_id)))));
             entails_and_different_temp(
