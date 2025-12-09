@@ -45,7 +45,6 @@ impl<T: View> DeepView for Request<T> {
 // Anyway, the process method in the ExternalAPI, the input type in Request, output type in Response and the handling
 // of external response in reconcile_core are correlative.
 // Developers have the freedom to define them in their own preferred way as long as they make them work well.
-#[is_variant]
 pub enum Response<T: View> {
     KResponse(KubeAPIResponse),
     ExternalResponse(T),
@@ -73,7 +72,7 @@ impl<T: View> DeepView for Response<T> {
 
 impl <T: View> Response<T> {
     pub fn is_external_response(&self) -> (res: bool)
-        ensures res == self.is_ExternalResponse(),
+        ensures res == self is ExternalResponse,
     {
         match self {
             Response::ExternalResponse(_) => true,
@@ -82,8 +81,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn as_external_response_ref(&self) -> (resp: &T)
-        requires self.is_ExternalResponse(),
-        ensures resp == self.get_ExternalResponse_0(),
+        requires self is ExternalResponse,
+        ensures resp == self->ExternalResponse_0,
     {
         match self {
             Response::ExternalResponse(resp) => resp,
@@ -92,8 +91,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn into_external_response(self) -> (resp: T)
-        requires self.is_ExternalResponse(),
-        ensures resp == self.get_ExternalResponse_0(),
+        requires self is ExternalResponse,
+        ensures resp == self->ExternalResponse_0,
     {
         match self {
             Response::ExternalResponse(resp) => resp,
@@ -102,7 +101,7 @@ impl <T: View> Response<T> {
     }
 
     pub fn is_k_response(&self) -> (res: bool)
-        ensures res == self.is_KResponse(),
+        ensures res == self is KResponse,
     {
         match self {
             Response::KResponse(_) => true,
@@ -111,8 +110,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn as_k_response_ref(&self) -> (resp: &KubeAPIResponse)
-        requires self.is_KResponse(),
-        ensures resp == self.get_KResponse_0(),
+        requires self is KResponse,
+        ensures resp == self->KResponse_0,
     {
         match self {
             Response::KResponse(resp) => resp,
@@ -121,8 +120,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn into_k_response(self) -> (resp: KubeAPIResponse)
-        requires self.is_KResponse(),
-        ensures resp == self.get_KResponse_0(),
+        requires self is KResponse,
+        ensures resp == self->KResponse_0,
     {
         match self {
             Response::KResponse(resp) => resp,

@@ -110,7 +110,7 @@ pub open spec fn at_step1_or_step2_state_pred(fb: FluentBitView, step1: FluentBi
 pub open spec fn state_pred_regarding_sub_resource(fb: FluentBitView, sub_resource: SubResource) -> StatePred<FBCluster> {
     FBCluster::at_expected_reconcile_states(
         fb.object_ref(),
-        |s: FluentBitReconcileState| s.reconcile_step.is_AfterKRequestStep() && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
+        |s: FluentBitReconcileState| s.reconcile_step is AfterKRequestStep && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
     )
 }
 

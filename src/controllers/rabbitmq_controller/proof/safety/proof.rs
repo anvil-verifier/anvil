@@ -64,7 +64,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
         if s.resources().contains_key(sts_key) && s_prime.resources().contains_key(sts_key) {
             if s.resources()[sts_key].spec != s_prime.resources()[sts_key].spec {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                let input = step.get_ApiServerStep_0()->0;
+                let input = step->ApiServerStep_0->0;
                 if input.content.is_delete_request() {
                     assert(StatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0.spec == StatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec);
                 } else {
@@ -165,7 +165,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
 // may be assigned (inserted or updated).
 spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
-        obj.kind.is_StatefulSetKind(),
+        obj.kind is StatefulSetKind,
 {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
@@ -184,7 +184,7 @@ spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClust
 
 spec fn replicas_of_rabbitmq(obj: DynamicObjectView) -> int
     recommends
-        obj.kind.is_CustomResourceKind(),
+        obj.kind is CustomResourceKind,
 {
     RabbitmqClusterView::unmarshal(obj)->Ok_0.spec.replicas
 }

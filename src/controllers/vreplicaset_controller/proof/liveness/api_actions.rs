@@ -385,7 +385,7 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
             let filtered_pods = state.filtered_pods.unwrap();
             let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-            let diff = state.reconcile_step.get_AfterDeletePod_0();
+            let diff = state.reconcile_step->AfterDeletePod_0;
             matching_pods(vrs, s_prime.resources()) == matching_pods(vrs, s.resources()).remove(
                 s.resources()[filtered_pod_keys[diff as int]]
             )

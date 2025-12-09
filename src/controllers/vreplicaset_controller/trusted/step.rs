@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[is_variant]
 pub enum VReplicaSetReconcileStep {
     Init,
     AfterListPods,
@@ -35,7 +34,6 @@ impl View for VReplicaSetReconcileStep {
     }
 }
 
-#[is_variant]
 pub enum VReplicaSetRecStepView {
     Init,
     AfterListPods,

@@ -72,7 +72,6 @@ impl ClusterState {
     }
 }
 
-#[is_variant]
 pub enum Step {
     APIServerStep(Option<Message>),
     BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
@@ -188,14 +187,14 @@ impl Cluster {
         Action {
             precondition: |input: Option<Message>, s: ClusterState| {
                 &&& received_msg_destined_for(input, HostId::APIServer)
-                &&& result(input, s).0.is_Enabled()
-                &&& result(input, s).1.is_Enabled()
+                &&& result(input, s).0 is Enabled
+                &&& result(input, s).1 is Enabled
             },
             transition: |input: Option<Message>, s: ClusterState| {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
-                    api_server: host_result.get_Enabled_0(),
-                    network: network_result.get_Enabled_0(),
+                    api_server: host_result->Enabled_0,
+                    network: network_result->Enabled_0,
                     ..s
                 }, ())
             },
@@ -228,13 +227,13 @@ impl Cluster {
         };
         Action {
             precondition: |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
-                &&& result(input, s).0.is_Enabled()
-                &&& result(input, s).1.is_Enabled()
+                &&& result(input, s).0 is Enabled
+                &&& result(input, s).1 is Enabled
             },
             transition: |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
-                    network: network_result.get_Enabled_0(),
+                    network: network_result->Enabled_0,
                     rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
                     ..s
                 }, ())
@@ -280,18 +279,18 @@ impl Cluster {
                 &&& self.controller_models.contains_key(controller_id)
                 &&& input.1 is Some
                 &&& received_msg_destined_for(input.0, HostId::Controller(controller_id, input.1->0))
-                &&& result(input, s).0.is_Enabled()
-                &&& result(input, s).1.is_Enabled()
+                &&& result(input, s).0 is Enabled
+                &&& result(input, s).1 is Enabled
             },
             transition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 let (host_result, network_result) = result(input, s);
                 let controller_and_external_state_prime = ControllerAndExternalState {
-                    controller: host_result.get_Enabled_0(),
+                    controller: host_result->Enabled_0,
                     ..s.controller_and_externals[controller_id]
                 };
                 (ClusterState {
                     controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
-                    network: network_result.get_Enabled_0(),
+                    network: network_result->Enabled_0,
                     rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
                     ..s
                 }, ())
@@ -455,12 +454,12 @@ impl Cluster {
                 let api_err = input.1;
                 &&& s.req_drop_enabled
                 &&& req_msg.dst is APIServer
-                &&& req_msg.content.is_APIRequest()
-                &&& result(input, s).is_Enabled()
+                &&& req_msg.content is APIRequest
+                &&& result(input, s) is Enabled
             },
             transition: |input: (Message, APIError), s: ClusterState| {
                 (ClusterState {
-                    network: result(input, s).get_Enabled_0(),
+                    network: result(input, s)->Enabled_0,
                     ..s
                 }, ())
             }
@@ -507,13 +506,13 @@ impl Cluster {
         Action {
             precondition: |input: PodView, s: ClusterState| {
                 &&& s.pod_monkey_enabled
-                &&& result(input, s).0.is_Enabled()
-                &&& result(input, s).1.is_Enabled()
+                &&& result(input, s).0 is Enabled
+                &&& result(input, s).1 is Enabled
             },
             transition: |input: PodView, s: ClusterState| {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
-                    network: network_result.get_Enabled_0(),
+                    network: network_result->Enabled_0,
                     rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
                     ..s
                 }, ())
@@ -577,18 +576,18 @@ impl Cluster {
                 &&& self.controller_models.contains_key(controller_id)
                 &&& self.controller_models[controller_id].external_model is Some
                 &&& received_msg_destined_for(input, HostId::External(controller_id))
-                &&& result(input, s).0.is_Enabled()
-                &&& result(input, s).1.is_Enabled()
+                &&& result(input, s).0 is Enabled
+                &&& result(input, s).1 is Enabled
             },
             transition: |input: Option<Message>, s: ClusterState| {
                 let (host_result, network_result) = result(input, s);
                 let controller_and_external_state_prime = ControllerAndExternalState {
-                    external: Some(host_result.get_Enabled_0()),
+                    external: Some(host_result->Enabled_0),
                     ..s.controller_and_externals[controller_id]
                 };
                 (ClusterState {
                     controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
-                    network: network_result.get_Enabled_0(),
+                    network: network_result->Enabled_0,
                     ..s
                 }, ())
             },
@@ -637,8 +636,8 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& received_msg_destined_for(input, HostId::APIServer)
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
+            &&& host_result is Enabled
+            &&& network_result is Enabled
         }
     }
 
@@ -660,8 +659,8 @@ impl Cluster {
             };
             let network_result = network().next_result(msg_ops, s.network);
 
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
+            &&& host_result is Enabled
+            &&& network_result is Enabled
         }
     }
 
@@ -682,8 +681,8 @@ impl Cluster {
             &&& self.controller_models.contains_key(input.0)
             &&& input.2 is Some
             &&& received_msg_destined_for(input.1, HostId::Controller(controller_id, input.2->0))
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
+            &&& host_result is Enabled
+            &&& network_result is Enabled
         }
     }
 
@@ -704,8 +703,8 @@ impl Cluster {
             &&& self.controller_models.contains_key(input.0)
             &&& self.controller_models[controller_id].external_model is Some
             &&& received_msg_destined_for(input.1, HostId::External(controller_id))
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
+            &&& host_result is Enabled
+            &&& network_result is Enabled
         }
     }
 

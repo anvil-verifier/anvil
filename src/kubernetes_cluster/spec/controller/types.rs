@@ -66,7 +66,6 @@ pub struct OngoingReconcile {
     pub reconcile_id: ReconcileId,
 }
 
-#[is_variant]
 pub enum ControllerStep {
     RunScheduledReconcile,
     ContinueReconcile,

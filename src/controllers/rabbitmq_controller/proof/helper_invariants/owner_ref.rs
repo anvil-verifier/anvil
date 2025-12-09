@@ -109,7 +109,7 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
     let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-    let input = step.get_ControllerStep_0();
+    let input = step->ControllerStep_0;
     let cr = s.ongoing_reconciles()[input.1->0].triggering_cr;
     if resource_create_request_msg(resource_key)(msg) {
         lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);

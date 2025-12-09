@@ -248,7 +248,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else if resource_update_request_msg(sts_key)(msg) {
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, zookeeper, s, s_prime, msg, step);
-                let resp = step.get_ControllerStep_0().0->0;
+                let resp = step->ControllerStep_0.0->0;
                 assert(ZKCluster::is_ok_get_response_msg()(resp));
             }
         }

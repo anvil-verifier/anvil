@@ -40,7 +40,7 @@ pub open spec fn the_object_in_schedule_satisfies_state_validation() -> StatePre
     |s: FBCluster| {
         forall |key: ObjectRef|
         #[trigger] s.scheduled_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        && key.kind is CustomResourceKind
         && key.kind == FluentBitView::kind()
         ==> s.scheduled_reconciles()[key].state_validation()
     }
@@ -51,7 +51,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<FBCl
     |s: FBCluster| {
         forall |key: ObjectRef|
         #[trigger] s.resources().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        && key.kind is CustomResourceKind
         && key.kind == FluentBitView::kind()
         ==> FluentBitView::unmarshal(s.resources()[key]) is Ok
             && FluentBitView::unmarshal(s.resources()[key])->Ok_0.state_validation()

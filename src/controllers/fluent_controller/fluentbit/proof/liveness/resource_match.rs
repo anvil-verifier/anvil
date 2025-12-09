@@ -121,7 +121,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
         &&& resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, fb, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res is Err
-        &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
     });
     let post_and_req_in_flight = |req_msg| lift_state(|s: FBCluster| {
         &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
@@ -154,7 +154,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg->0)
                     &&& resp_msg.content.get_get_response().res is Err
-                    &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+                    &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
             }
@@ -467,7 +467,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res is Err
-                        &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+                        &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
                     });
                 }
             },
@@ -482,7 +482,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res is Err
-            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+            &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
         });
     }
 
@@ -507,7 +507,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
             &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
             &&& resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, fb, resp_msg)(s)
             &&& resp_msg.content.get_get_response().res is Err
-            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+            &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
         }).leads_to(lift_state(|s: FBCluster| {
             &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
             &&& pending_req_in_flight_at_after_create_resource_step(sub_resource, fb)(s)
@@ -518,7 +518,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
         &&& !s.resources().contains_key(resource_key)
         &&& resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, fb, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res is Err
-        &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
     };
     let post = |s: FBCluster| {
         &&& !s.resources().contains_key(resource_key)

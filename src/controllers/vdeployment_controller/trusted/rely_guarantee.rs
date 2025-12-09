@@ -120,9 +120,9 @@ pub open spec fn vd_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.content.is_APIRequest()
+            &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(other_id)
-        } ==> match msg.content.get_APIRequest_0() {
+        } ==> match msg.content->APIRequest_0 {
             APIRequest::CreateRequest(req) => vd_rely_create_req(req)(s),
             APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_rely_get_then_update_req(req)(s),
@@ -170,9 +170,9 @@ pub open spec fn vd_guarantee(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.content.is_APIRequest()
+            &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(controller_id)
-        } ==> match msg.content.get_APIRequest_0() {
+        } ==> match msg.content->APIRequest_0 {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s),

@@ -68,9 +68,9 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterGetSecret => {
-            let get_secret_resp = resp_o->0.get_KResponse_0().get_GetResponse_0().res;
-            if resp_o is Some && resp_o->0.is_KResponse()
-            && resp_o->0.get_KResponse_0().is_GetResponse()
+            let get_secret_resp = resp_o->0->KResponse_0->GetResponse_0.res;
+            if resp_o is Some && resp_o->0 is KResponse
+            && resp_o->0->KResponse_0 is GetResponse
             && get_secret_resp is Ok {
                 let req_o = APIRequest::GetRequest(GetRequest {
                     key: make_service_account_key(fb),
@@ -119,8 +119,8 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
         FluentBitReconcileStep::AfterKRequestStep(action, resource) => {
             match action {
                 ActionKind::Get => {
-                    if resp_o is Some && resp_o->0.is_KResponse() && resp_o->0.get_KResponse_0().is_GetResponse() {
-                        let get_resp = resp_o->0.get_KResponse_0().get_GetResponse_0().res;
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetResponse {
+                        let get_resp = resp_o->0->KResponse_0->GetResponse_0.res;
                         if get_resp is Ok {
                             // update
                             let new_obj = Builder::update(fb, state, get_resp->Ok_0);
@@ -143,7 +143,7 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
                                 };
                                 (state_prime, None)
                             }
-                        } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                        } else if get_resp->Err_0 is ObjectNotFound {
                             let new_obj = Builder::make(fb, state);
                             if new_obj is Ok {
                                 let req_o = APIRequest::CreateRequest(CreateRequest {
@@ -179,8 +179,8 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
                     }
                 },
                 ActionKind::Create => {
-                    let create_resp = resp_o->0.get_KResponse_0().get_CreateResponse_0().res;
-                    if resp_o is Some && resp_o->0.is_KResponse() && resp_o->0.get_KResponse_0().is_CreateResponse()
+                    let create_resp = resp_o->0->KResponse_0->CreateResponse_0.res;
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is CreateResponse
                     && create_resp is Ok {
                         let next_state = Builder::state_after_create(fb, create_resp->Ok_0, state);
                         if next_state is Ok {
@@ -204,8 +204,8 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
                     }
                 },
                 ActionKind::Update => {
-                    let update_resp = resp_o->0.get_KResponse_0().get_UpdateResponse_0().res;
-                    if resp_o is Some && resp_o->0.is_KResponse() && resp_o->0.get_KResponse_0().is_UpdateResponse()
+                    let update_resp = resp_o->0->KResponse_0->UpdateResponse_0.res;
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is UpdateResponse
                     && update_resp is Ok {
                         let next_state = Builder::state_after_update(fb, update_resp->Ok_0, state);
                         if next_state is Ok {

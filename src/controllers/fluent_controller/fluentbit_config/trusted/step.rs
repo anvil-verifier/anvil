@@ -5,7 +5,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[is_variant]
 pub enum FluentBitConfigReconcileStep {
     Init,
     AfterKRequestStep(ActionKind, SubResource),
@@ -35,7 +34,6 @@ impl std::clone::Clone for SubResource {
     { *self }
 }
 
-#[is_variant]
 pub enum ActionKind {
     Get,
     Create,

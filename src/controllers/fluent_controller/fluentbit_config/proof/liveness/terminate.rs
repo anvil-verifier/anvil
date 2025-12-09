@@ -83,7 +83,7 @@ pub open spec fn at_step_state_pred(fbc: FluentBitConfigView, step: FluentBitCon
 pub open spec fn state_pred_regarding_sub_resource(fbc: FluentBitConfigView, sub_resource: SubResource) -> StatePred<FBCCluster> {
     FBCCluster::at_expected_reconcile_states(
         fbc.object_ref(),
-        |s: FluentBitConfigReconcileState| s.reconcile_step.is_AfterKRequestStep() && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
+        |s: FluentBitConfigReconcileState| s.reconcile_step is AfterKRequestStep && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
     )
 }
 
