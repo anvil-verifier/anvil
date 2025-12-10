@@ -153,18 +153,16 @@ pub open spec fn pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg
         ==> {
             let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
             &&& Self::request_sent_by_controller_with_key(controller_id, key, msg)
-            &&& {
-                ||| s.in_flight().contains(msg)
-                    && !exists |resp_msg: Message| {
-                        &&& #[trigger] s.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, msg)
-                }
-                ||| !s.in_flight().contains(msg)
-                    && exists |resp_msg: Message| {
-                        &&& #[trigger] s.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, msg)
-                }
-            }
+            &&& (s.in_flight().contains(msg)
+                || exists |resp_msg: Message| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                })
+            &&& !(s.in_flight().contains(msg)
+                && exists |resp_msg: Message| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                })
         }
     }
 }
