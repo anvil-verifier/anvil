@@ -119,7 +119,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
-            assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
+            assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
             let pods_or_none = objects_to_pods(objs);
             if pods_or_none.is_none() {
                 return (error_state(state), None);

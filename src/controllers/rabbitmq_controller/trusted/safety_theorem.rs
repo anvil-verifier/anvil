@@ -39,7 +39,7 @@ pub open spec fn stateful_set_not_scaled_down<M: Maker>(rabbitmq: RabbitmqCluste
 }
 
 pub open spec fn replicas_of_stateful_set(obj: DynamicObjectView) -> int
-    recommends obj.kind.is_StatefulSetKind(),
+    recommends obj.kind is StatefulSetKind,
 {
     StatefulSetView::unmarshal(obj)->Ok_0.spec->0.replicas->0
 }

@@ -5,7 +5,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[is_variant]
 pub enum FluentBitReconcileStep {
     Init,
     AfterGetSecret,
@@ -40,7 +39,6 @@ impl std::clone::Clone for SubResource {
     { *self }
 }
 
-#[is_variant]
 pub enum ActionKind {
     Get,
     Create,

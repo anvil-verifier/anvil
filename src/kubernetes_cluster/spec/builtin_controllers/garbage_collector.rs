@@ -19,7 +19,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references->0;
             // The garbage collector is chosen by the top level state machine
-            &&& input.choice.is_GarbageCollector()
+            &&& input.choice is GarbageCollector
             // The object exists in the cluster state
             &&& resources.contains_key(input.key)
             // and it has at least one owner reference

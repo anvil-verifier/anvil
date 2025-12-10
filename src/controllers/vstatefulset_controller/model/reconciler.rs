@@ -191,8 +191,8 @@ pub open spec fn handle_init(vsts: VStatefulSetView, resp_o: DefaultResp, state:
 }
 
 pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o) is Ok {
-        let objs = extract_some_k_list_resp_view!(resp_o)->Ok_0;
+    if is_some_k_list_resp_view(resp_o) && extract_some_k_list_resp_view(resp_o) is Ok {
+        let objs = extract_some_k_list_resp_view(resp_o)->Ok_0;
         let pods_or_none = objects_to_pods(objs);
         if pods_or_none is None {
             (error_state(state), None)
@@ -281,8 +281,8 @@ pub open spec fn handle_get_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, sta
 }
 
 pub open spec fn handle_after_get_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_get_resp_view!(resp_o) {
-        let result = extract_some_k_get_resp_view!(resp_o);
+    if is_some_k_get_resp_view(resp_o) {
+        let result = extract_some_k_get_resp_view(resp_o);
         if result is Ok {
                 // The pvc exists, so we don't do anything to it
                 let state_prime = VStatefulSetReconcileState {
@@ -326,8 +326,8 @@ pub open spec fn handle_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, 
 }
 
 pub open spec fn handle_after_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_create_resp_view!(resp_o) {
-        let result = extract_some_k_create_resp_view!(resp_o);
+    if is_some_k_create_resp_view(resp_o) {
+        let result = extract_some_k_create_resp_view(resp_o);
         if result is Ok || (result is Err && result->Err_0 is ObjectAlreadyExists) {
             handle_after_create_or_skip_pvc_helper(vsts, state)
         } else {
@@ -394,8 +394,8 @@ pub open spec fn handle_create_needed(vsts: VStatefulSetView, resp_o: DefaultRes
 }
 
 pub open spec fn handle_after_create_needed(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_create_resp_view!(resp_o) {
-        let result = extract_some_k_create_resp_view!(resp_o);
+    if is_some_k_create_resp_view(resp_o) {
+        let result = extract_some_k_create_resp_view(resp_o);
         if result is Ok {
             handle_after_create_or_after_update_needed_helper(vsts, state)
         } else {
@@ -431,8 +431,8 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
 }
 
 pub open spec fn handle_after_update_needed(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_get_then_update_resp_view!(resp_o) {
-        let result = extract_some_k_get_then_update_resp_view!(resp_o);
+    if is_some_k_get_then_update_resp_view(resp_o) {
+        let result = extract_some_k_get_then_update_resp_view(resp_o);
         if result is Ok {
             handle_after_create_or_after_update_needed_helper(vsts, state)
         } else {
@@ -516,8 +516,8 @@ pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: Default
 }
 
 pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_get_then_delete_resp_view!(resp_o) {
-        let result = extract_some_k_delete_resp_view!(resp_o);
+    if is_some_k_get_then_delete_resp_view(resp_o) {
+        let result = extract_some_k_delete_resp_view(resp_o);
         if result is Ok {
             let new_condemned_index = state.condemned_index + 1;
             if new_condemned_index < state.condemned.len() {
@@ -560,8 +560,8 @@ pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultR
 }
 
 pub open spec fn handle_after_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_get_then_delete_resp_view!(resp_o) {
-        let result = extract_some_k_delete_resp_view!(resp_o);
+    if is_some_k_get_then_delete_resp_view(resp_o) {
+        let result = extract_some_k_delete_resp_view(resp_o);
         if result is Ok {
             (done_state(state), None)
         } else {

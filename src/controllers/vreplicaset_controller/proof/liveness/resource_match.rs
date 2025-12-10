@@ -2059,7 +2059,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                     let filtered_pods = filter_pods(pods, vrs);
                     let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
                     let s_prime_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
-                    let new_diff = s_prime_state.reconcile_step.get_AfterDeletePod_0();
+                    let new_diff = s_prime_state.reconcile_step->AfterDeletePod_0;
                     helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
                         s, vrs, cluster, controller_id, resp_msg
                     );
@@ -2215,7 +2215,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                 let s_prime_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
                 let filtered_pods = s_prime_state.filtered_pods->0;
                 let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-                let diff = s_prime_state.reconcile_step.get_AfterDeletePod_0();
+                let diff = s_prime_state.reconcile_step->AfterDeletePod_0;
 
                 let msg = input->0;
                 // Case 1: We're processing the get-then-delete request
@@ -2269,7 +2269,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         let s_prime_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
         let filtered_pods = s_prime_state.filtered_pods->0;
         let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-        let diff = s_prime_state.reconcile_step.get_AfterDeletePod_0();
+        let diff = s_prime_state.reconcile_step->AfterDeletePod_0;
 
         let msg = input->0;
         let resp_msg = lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
@@ -2412,7 +2412,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         let s_prime_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
         let filtered_pods = s_prime_state.filtered_pods->0;
         let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-        let diff = s_prime_state.reconcile_step.get_AfterDeletePod_0();
+        let diff = s_prime_state.reconcile_step->AfterDeletePod_0;
 
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
@@ -2446,7 +2446,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         let s_prime_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
         let filtered_pods = s_prime_state.filtered_pods->0;
         let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-        let diff = s_prime_state.reconcile_step.get_AfterDeletePod_0();
+        let diff = s_prime_state.reconcile_step->AfterDeletePod_0;
 
         VReplicaSetReconcileState::marshal_preserves_integrity();
         // maintain quantified 'invariant'.
@@ -2666,7 +2666,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                 &&& req_msg_is_list_pods_req(vrs, req_msg)
                 &&& forall |msg| {
                     &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src.is_APIServer()
+                    &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> {
                     resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, msg)
@@ -2768,7 +2768,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 &&& post(s)
                                 &&& stronger_next(s, s_prime)
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                             } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
                                 assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] resp_msg_matches_req_msg(msg, req_msg)));
@@ -2785,7 +2785,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 &&& post(s)
                                 &&& stronger_next(s, s_prime)
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& msg.src.is_APIServer()
+                                &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                             } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
                                 if !new_msgs.contains(msg) {
@@ -2917,10 +2917,10 @@ pub proof fn lemma_current_state_matches_is_stable(
                         &&& post(s)
                         &&& stronger_next(s, s_prime)
                         &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& msg.src.is_APIServer()
+                        &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                     } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
-                        assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src.is_APIServer()));
+                        assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
                         if !new_msgs.contains(msg) {
                             assert(s.in_flight().contains(msg));
                         }

@@ -1517,7 +1517,7 @@ ensures
                     VReplicaSetView::marshal_preserves_integrity();
                     assert(pending_scale_old_vrs_req_in_flight(vd, controller_id, nv_uid_key.0)(s_prime)) by {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
                         let key = req.key();
                         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                         assert forall |i: int| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
@@ -1622,7 +1622,7 @@ ensures
                     VReplicaSetView::marshal_preserves_integrity();
                     assert(pending_scale_old_vrs_req_in_flight(vd, controller_id, nv_uid_key.0)(s_prime)) by {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
                         let key = req.key();
                         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                         assert forall |i: int| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
@@ -1740,7 +1740,7 @@ ensures
                         }
                     }
                     // etcd object is not touched by other msg
-                    let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
+                    let key = req_msg.content->APIRequest_0->GetThenUpdateRequest_0.key();
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, msg
                     );

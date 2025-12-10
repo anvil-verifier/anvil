@@ -189,7 +189,7 @@ ensures
     VDeploymentView::marshal_preserves_integrity();
     // VReplicaSetView::marshal_spec_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    let req = req_msg.content->APIRequest_0->CreateRequest_0;
     let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr); // vd doesn't have rv
     assert(match_template_without_hash(vd.spec.template)(new_vrs));
     assert(req == CreateRequest {
@@ -713,14 +713,14 @@ ensures
             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
             seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vd.controller_owner_ref());
         }
-        if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
+        if msg.content is APIRequest && msg.dst is APIServer {
             match msg.src {
                 HostId::Controller(id, cr_key) => {
                     if id == controller_id {
                         assert(cr_key != vd.object_ref());
                         // same controller, other vd
                         // every_msg_from_vd_controller_carries_vd_key
-                        let cr_key = msg.src.get_Controller_1();
+                        let cr_key = msg.src->Controller_1;
                         let other_vd = VDeploymentView {
                             metadata: ObjectMetaView {
                                 name: Some(cr_key.name),
@@ -731,7 +731,7 @@ ensures
                         };
                         // so msg can only be list, create or get_then_update
                         assert(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, other_vd)(s));
-                        match msg.content.get_APIRequest_0() {
+                        match msg.content->APIRequest_0 {
                             APIRequest::DeleteRequest(req) => assert(false), // vd controller doesn't send delete req
                             APIRequest::GetThenDeleteRequest(req) => assert(false),
                             APIRequest::GetThenUpdateRequest(req) => {
@@ -752,12 +752,12 @@ ensures
                         }
                         VDeploymentReconcileState::marshal_preserves_integrity();
                     } else {
-                        let other_id = msg.src.get_Controller_0();
+                        let other_id = msg.src->Controller_0;
                         // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
                         assert(cluster.controller_models.contains_key(other_id));
                         assert(vd_rely(other_id)(s)); // trigger vd_rely_condition
                         VDeploymentReconcileState::marshal_preserves_integrity();
-                        match msg.content.get_APIRequest_0() {
+                        match msg.content->APIRequest_0 {
                             APIRequest::DeleteRequest(req) => {},
                             APIRequest::GetThenDeleteRequest(req) => {
                                 if req.key.kind == VReplicaSetView::kind() {
@@ -812,9 +812,9 @@ ensures
     } by {
         let obj = s_prime.resources()[k];
         // <==
-        if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
+        if msg.content is APIRequest && msg.dst is APIServer {
             // must be a create request
-            match msg.content.get_APIRequest_0() {
+            match msg.content->APIRequest_0 {
                 APIRequest::CreateRequest(req) => {
                     // create can only add new object
                     if !s.resources().contains_key(k) {

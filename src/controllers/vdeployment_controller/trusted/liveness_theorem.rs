@@ -74,7 +74,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                 &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
                 &&& forall |msg| {
                     &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src.is_APIServer()
+                    &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s)
             } else {

@@ -40,7 +40,7 @@ pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: spe
             {
                 &&& (!s.in_flight().contains(msg) || requirements(msg, s))
                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                &&& msg.dst.is_APIServer() && msg.content.is_APIRequest()
+                &&& msg.dst is APIServer && msg.content is APIRequest
             } ==> requirements(msg, s_prime)
     }
 }
@@ -50,7 +50,7 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: spec_fn(Message
         forall |msg: Message|
             {
                 &&& #[trigger] s.in_flight().contains(msg)
-                &&& msg.dst.is_APIServer() && msg.content.is_APIRequest()
+                &&& msg.dst is APIServer && msg.content is APIRequest
             } ==> requirements(msg, s)
     }
 }
@@ -138,7 +138,7 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
                 {
                     &&& #[trigger] s.in_flight().contains(msg)
                     &&& msg.rpc_id >= rpc_id
-                    &&& msg.dst.is_APIServer() && msg.content.is_APIRequest()
+                    &&& msg.dst is APIServer && msg.content is APIRequest
                 } ==> requirements(msg, s)
             };
             assert_by(
@@ -409,7 +409,7 @@ proof fn pending_requests_num_decreases(self, spec: TempPred<ClusterState>, rpc_
         }
     }
 
-    if msg.dst.is_APIServer() {
+    if msg.dst is APIServer {
         assert forall |s, s_prime|
             pre(s) && #[trigger] stronger_next(s, s_prime) && self.api_server_next().forward(input)(s, s_prime)
         implies post(s_prime) by {

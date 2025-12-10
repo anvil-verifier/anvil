@@ -176,7 +176,7 @@ pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_o
         ==> {
             forall |msg: Message|
                 #[trigger] s.in_flight().contains(msg)
-                && msg.content.is_APIRequest()
+                && msg.content is APIRequest
                 && msg != pending_req
                 ==> msg.rpc_id != pending_req.rpc_id
         }
@@ -212,7 +212,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
         if s_prime.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some {
             let pending_req = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
             assert forall |msg: Message|
-                #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_APIRequest() && msg != pending_req
+                #[trigger] s_prime.in_flight().contains(msg) && msg.content is APIRequest && msg != pending_req
             implies
                 msg.rpc_id != pending_req.rpc_id
             by {
@@ -260,7 +260,7 @@ pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_o
             ==> {
                 forall |msg: Message|
                     #[trigger] s.in_flight().contains(msg)
-                    && msg.content.is_APIRequest()
+                    && msg.content is APIRequest
                     && msg != pending_req
                     ==> msg.rpc_id != pending_req.rpc_id
             }
@@ -294,7 +294,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
                 ==> {
                     forall |msg: Message|
                         #[trigger] s.in_flight().contains(msg)
-                        && msg.content.is_APIRequest()
+                        && msg.content is APIRequest
                         && msg != pending_req
                         ==> msg.rpc_id != pending_req.rpc_id
                 }
@@ -313,9 +313,9 @@ pub open spec fn every_in_flight_req_msg_from_controller_has_valid_controller_id
     |s: ClusterState| {
         forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
-            && msg.content.is_APIRequest()
-            && msg.src.is_Controller()
-            ==> self.controller_models.contains_key(msg.src.get_Controller_0())
+            && msg.content is APIRequest
+            && msg.src is Controller
+            ==> self.controller_models.contains_key(msg.src->Controller_0)
     }
 }
 
@@ -340,23 +340,23 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
                 let id = input.0;
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
-                    && msg.content.is_APIRequest()
-                    && msg.src.is_Controller()
-                    implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
+                    && msg.content is APIRequest
+                    && msg.src is Controller
+                    implies self.controller_models.contains_key(msg.src->Controller_0) by {
                     if !s.in_flight().contains(msg) {
                         let controller_result = self.controller(id).next_result(
                             ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator},
                             s.controller_and_externals[id].controller
                         );
-                        let outgoing_messages = controller_result.get_Enabled_1().send;
+                        let outgoing_messages = controller_result->Enabled_1.send;
                         assert(outgoing_messages == Multiset::<Message>::empty() || outgoing_messages.len() == 1);
                         if outgoing_messages.len() == 1 {
                             let elt = outgoing_messages.choose();
                             if msg == elt {
                                 assert(s_prime.in_flight().contains(elt) 
-                                && elt.content.is_APIRequest()
-                                && elt.src.is_Controller());
-                                assert(elt.src.get_Controller_0() == id);
+                                && elt.content is APIRequest
+                                && elt.src is Controller);
+                                assert(elt.src->Controller_0 == id);
                             }
                         }
                     }
@@ -365,9 +365,9 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
             _ => {
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
-                    && msg.content.is_APIRequest()
-                    && msg.src.is_Controller()
-                    implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
+                    && msg.content is APIRequest
+                    && msg.src is Controller
+                    implies self.controller_models.contains_key(msg.src->Controller_0) by {
                     if !s.in_flight().contains(msg) {
                         // TODO: Make an understandable version of this proof.
                         assert(false);
@@ -483,7 +483,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(self, s: ClusterSt
         Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()(s), // the invariant
     ensures msg_1.rpc_id != msg_2.rpc_id,
 {
-    if msg_2.content.is_APIResponse() {
+    if msg_2.content is APIResponse {
         let next_step = choose |step| self.next_step(s, s_prime, step);
         match next_step {
             Step::APIServerStep(input) => {
@@ -498,7 +498,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(self, s: ClusterSt
             }
             _ => assert(false),
         }
-    } else if msg_2.content.is_ExternalResponse() {
+    } else if msg_2.content is ExternalResponse {
         let next_step = choose |step| self.next_step(s, s_prime, step);
         match next_step {
             Step::ExternalStep(input) => {

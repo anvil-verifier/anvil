@@ -65,7 +65,7 @@ fn metadata_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObje
 fn valid_object(obj: &DynamicObject) -> (ret: bool)
     requires
         model::unmarshallable_object::<K::V>(obj@),
-        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
+        obj@.kind is CustomResourceKind ==> obj@.kind == K::V::kind(),
     ensures ret == model::valid_object::<K::V>(obj@)
 {
     match obj.kind() {
@@ -92,7 +92,7 @@ fn valid_object(obj: &DynamicObject) -> (ret: bool)
 fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     requires
         model::unmarshallable_object::<K::V>(obj@),
-        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
+        obj@.kind is CustomResourceKind ==> obj@.kind == K::V::kind(),
     ensures ret == model::object_validity_check::<K::V>(obj@)
 {
     if !Self::valid_object(obj) {
@@ -109,7 +109,7 @@ fn valid_transition(obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: bool)
         old_obj@.kind == obj@.kind,
         model::valid_object::<K::V>(obj@),
         model::valid_object::<K::V>(old_obj@),
-        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
+        obj@.kind is CustomResourceKind ==> obj@.kind == K::V::kind(),
     ensures ret == model::valid_transition::<K::V>(obj@, old_obj@)
 {
     match obj.kind() {
@@ -140,7 +140,7 @@ fn object_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObject
         old_obj@.kind == obj@.kind,
         model::valid_object::<K::V>(obj@),
         model::valid_object::<K::V>(old_obj@),
-        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
+        obj@.kind is CustomResourceKind ==> obj@.kind == K::V::kind(),
     ensures ret == model::object_transition_validity_check::<K::V>(obj@, old_obj@)
 {
     if !Self::valid_transition(obj, old_obj) {
@@ -188,7 +188,7 @@ fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -
 fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<APIError>)
     requires
         model::unmarshallable_object::<K::V>(created_obj@),
-        created_obj@.kind.is_CustomResourceKind() ==> created_obj@.kind == K::V::kind(),
+        created_obj@.kind is CustomResourceKind ==> created_obj@.kind == K::V::kind(),
     ensures ret == model::created_object_validity_check::<K::V>(created_obj@)
 {
     if Self::metadata_validity_check(created_obj).is_some() {
@@ -214,7 +214,7 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
         // No integer overflow
         old(s).resource_version_counter < i64::MAX,
         old(s).uid_counter < i64::MAX,
-        req@.obj.kind.is_CustomResourceKind() ==> req@.obj.kind == K::V::kind(),
+        req@.obj.kind is CustomResourceKind ==> req@.obj.kind == K::V::kind(),
     ensures (s@, ret@) == model::handle_create_request::<K::V>(req@, old(s)@)
 {
     // TODO: use if-let?
@@ -344,7 +344,7 @@ fn updated_object_validity_check(updated_obj: &DynamicObject, old_obj: &DynamicO
         model::unmarshallable_object::<K::V>(old_obj@),
         old_obj@.kind == updated_obj@.kind,
         model::valid_object::<K::V>(old_obj@),
-        updated_obj@.kind.is_CustomResourceKind() ==> updated_obj@.kind == K::V::kind(),
+        updated_obj@.kind is CustomResourceKind ==> updated_obj@.kind == K::V::kind(),
     ensures ret == model::updated_object_validity_check::<K::V>(updated_obj@, old_obj@)
 {
     if Self::metadata_validity_check(updated_obj).is_some() {
@@ -371,7 +371,7 @@ pub fn handle_update_request(req: &KubeUpdateRequest, s: &mut ApiServerState) ->
         // The old version has the right key (name, namespace, kind)
         old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
         // All the three preconditions above are proved by the invariant lemma_always_each_object_in_etcd_is_well_formed
-        req@.obj.kind.is_CustomResourceKind() ==> req@.obj.kind == K::V::kind(),
+        req@.obj.kind is CustomResourceKind ==> req@.obj.kind == K::V::kind(),
     ensures (s@, ret@) == model::handle_update_request::<K::V>(req@, old(s)@)
 {
     let request_check_error = Self::update_request_admission_check(req, s);
@@ -438,7 +438,7 @@ pub fn handle_update_status_request(req: &KubeUpdateStatusRequest, s: &mut ApiSe
         // The old version has the right key (name, namespace, kind)
         old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
         // All the three preconditions above are proved by the invariant lemma_always_each_object_in_etcd_is_well_formed
-        req@.obj.kind.is_CustomResourceKind() ==> req@.obj.kind == K::V::kind(),
+        req@.obj.kind is CustomResourceKind ==> req@.obj.kind == K::V::kind(),
     ensures (s@, ret@) == model::handle_update_status_request::<K::V>(req@, old(s)@)
 {
     let request_check_error = Self::update_status_request_admission_check(req, s);

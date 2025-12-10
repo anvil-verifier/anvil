@@ -51,7 +51,7 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
                 &&& !(model.error)(s.ongoing_reconciles[cr_key].local_state)
                 &&& if s.ongoing_reconciles[cr_key].pending_req_msg is Some {
                     &&& input.recv is Some
-                    &&& (input.recv->0.content.is_APIResponse() || input.recv->0.content.is_ExternalResponse())
+                    &&& (input.recv->0.content is APIResponse || input.recv->0.content is ExternalResponse)
                     &&& resp_msg_matches_req_msg(input.recv->0, s.ongoing_reconciles[cr_key].pending_req_msg->0)
                 } else {
                     input.recv is None
@@ -64,10 +64,10 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
             let cr_key = input.scheduled_cr_key->0;
             let reconcile_state = s.ongoing_reconciles[cr_key];
             let resp_o = if input.recv is Some {
-                if input.recv->0.content.is_APIResponse() {
-                    Some(ResponseContent::KubernetesResponse(input.recv->0.content.get_APIResponse_0()))
+                if input.recv->0.content is APIResponse {
+                    Some(ResponseContent::KubernetesResponse(input.recv->0.content->APIResponse_0))
                 } else {
-                    Some(ResponseContent::ExternalResponse(input.recv->0.content.get_ExternalResponse_0()))
+                    Some(ResponseContent::ExternalResponse(input.recv->0.content->ExternalResponse_0))
                 }
             } else {
                 None

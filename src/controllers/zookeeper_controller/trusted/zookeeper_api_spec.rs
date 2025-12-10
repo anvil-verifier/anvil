@@ -78,14 +78,12 @@ pub struct ZKAPISetDataResultView {
     pub res: Result<(), ZKAPIError>,
 }
 
-#[is_variant]
 pub enum ZKAPIInputView {
     ExistsRequest(StringView, StringView, int, Seq<StringView>),
     CreateRequest(StringView, StringView, int, Seq<StringView>, ZKNodeValue),
     SetDataRequest(StringView, StringView, int, Seq<StringView>, ZKNodeValue, ZKNodeVersion),
 }
 
-#[is_variant]
 pub enum ZKAPIOutputView {
     ExistsResponse(ZKAPIExistsResultView),
     CreateResponse(ZKAPICreateResultView),

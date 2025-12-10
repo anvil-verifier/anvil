@@ -5,7 +5,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[is_variant]
 pub enum RabbitmqReconcileStep {
     Init,
     AfterKRequestStep(ActionKind, SubResource),
@@ -35,7 +34,6 @@ pub enum SubResource {
     StatefulSet,
 }
 
-#[is_variant]
 pub enum ActionKind {
     Get,
     Create,

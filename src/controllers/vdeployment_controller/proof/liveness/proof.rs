@@ -377,7 +377,7 @@ ensures
                         assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s));
                         assert forall |resp_msg| {
                             &&& #[trigger] s_prime.in_flight().contains(resp_msg)
-                            &&& resp_msg.src.is_APIServer()
+                            &&& resp_msg.src is APIServer
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                         } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime) by {
                             assert(s.in_flight().contains(resp_msg)) by {
@@ -425,7 +425,7 @@ ensures
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                         assert forall |msg| {
                             &&& #[trigger] s_prime.in_flight().contains(msg)
-                            &&& msg.src.is_APIServer()
+                            &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
                         } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
                             if !new_msgs.contains(msg) {
@@ -509,7 +509,7 @@ ensures
                     let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                     assert forall |msg| {
                         &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& msg.src.is_APIServer()
+                        &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                     } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
                         if !new_msgs.contains(msg) {
@@ -527,7 +527,7 @@ ensures
                 let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                 assert forall |msg| {
                     &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.src.is_APIServer()
+                    &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
                     if !new_msgs.contains(msg) {

@@ -52,7 +52,6 @@ impl<State, Input, Output> Action<State, Input, Output> {
     }
 }
 
-#[is_variant]
 pub enum ActionResult<State, Output> {
     Disabled,
     Enabled(State, Output)

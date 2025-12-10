@@ -5,4 +5,4 @@ pub mod trusted;
 
 use vstd::prelude::*;
 
-verus! { proof fn trivial() ensures true {} }
+verus! { #[verifier(external_body)] proof fn trivial() {} } // makes verus recognize this as a mod

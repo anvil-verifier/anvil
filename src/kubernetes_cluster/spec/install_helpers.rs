@@ -22,7 +22,7 @@ pub open spec fn installed_type<T: CustomResourceView>() -> InstalledType {
 }
 
 pub open spec fn type_is_installed_in_cluster<T: CustomResourceView>(self) -> bool {
-    let string = T::kind().get_CustomResourceKind_0();
+    let string = T::kind()->CustomResourceKind_0;
     &&& self.installed_types.contains_key(string)
     &&& self.installed_types[string] == Self::installed_type::<T>()
 }

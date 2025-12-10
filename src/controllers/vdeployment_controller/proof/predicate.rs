@@ -66,12 +66,12 @@ pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: i
 pub open spec fn req_msg_is_list_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message, s: ClusterState
 ) -> bool {
-    let req = req_msg.content.get_APIRequest_0();
+    let req = req_msg.content->APIRequest_0;
     &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
     &&& req_msg.dst == HostId::APIServer
-    &&& req_msg.content.is_APIRequest()
-    &&& req.is_ListRequest()
-    &&& req.get_ListRequest_0() == ListRequest {
+    &&& req_msg.content is APIRequest
+    &&& req is ListRequest
+    &&& req->ListRequest_0 == ListRequest {
         kind: VReplicaSetView::kind(),
         namespace: vd.metadata.namespace.unwrap(),
     }
@@ -205,12 +205,12 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
 pub open spec fn req_msg_is_create_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message, s: ClusterState
 ) -> bool {
-    let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    let req = req_msg.content->APIRequest_0->CreateRequest_0;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
     &&& req_msg.dst == HostId::APIServer
-    &&& req_msg.content.is_APIRequest()
-    &&& req_msg.content.get_APIRequest_0().is_CreateRequest()
+    &&& req_msg.content is APIRequest
+    &&& req_msg.content->APIRequest_0 is CreateRequest
     &&& req == CreateRequest {
         namespace: vd.metadata.namespace.unwrap(),
         obj: make_replica_set(triggering_cr).marshal() // vd doesn't have rv
@@ -306,7 +306,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid: Uid, pre_update: bool
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+        let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
         let key = req.key();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -315,8 +315,8 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         let local_vrs = state.old_vrs_list[state.old_vrs_index as int];
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
-        &&& req_msg.content.is_APIRequest()
-        &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
+        &&& req_msg.content is APIRequest
+        &&& req_msg.content->APIRequest_0 is GetThenUpdateRequest
         &&& VReplicaSetView::unmarshal(req.obj) is Ok
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
@@ -352,7 +352,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+        let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
         let key = req.key();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -360,8 +360,8 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
-        &&& req_msg.content.is_APIRequest()
-        &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
+        &&& req_msg.content is APIRequest
+        &&& req_msg.content->APIRequest_0 is GetThenUpdateRequest
         &&& VReplicaSetView::unmarshal(req.obj) is Ok
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
@@ -658,9 +658,9 @@ pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) 
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src.is_BuiltinController()
-            &&& msg.dst.is_APIServer()
-            &&& msg.content.is_APIRequest()
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
         } ==> {
             let req_msg = msg.content.get_delete_request(); 
             &&& msg.content.is_delete_request()

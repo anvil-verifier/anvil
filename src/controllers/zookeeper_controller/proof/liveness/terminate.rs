@@ -177,7 +177,7 @@ pub open spec fn at_step1_or_step2_or_step3_state_pred(zookeeper: ZookeeperClust
 pub open spec fn state_pred_regarding_sub_resource(zookeeper: ZookeeperClusterView, sub_resource: SubResource) -> StatePred<ZKCluster> {
     ZKCluster::at_expected_reconcile_states(
         zookeeper.object_ref(),
-        |s: ZookeeperReconcileState| s.reconcile_step.is_AfterKRequestStep() && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
+        |s: ZookeeperReconcileState| s.reconcile_step is AfterKRequestStep && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
     )
 }
 

@@ -51,8 +51,8 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(sel
             if s.in_flight().contains(msg) {
                 assert(s.api_server.resource_version_counter <= s_prime.api_server.resource_version_counter);
             } else {
-                let input = step.get_APIServerStep_0()->0;
-                match input.content.get_APIRequest_0() {
+                let input = step->APIServerStep_0->0;
+                match input.content->APIRequest_0 {
                     APIRequest::GetRequest(req) => {
                         if is_ok_get_response_msg()(msg) {
                             let req_key = req.key;
@@ -111,9 +111,9 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sel
                 }
             } else {
                 let step = choose |step| self.next_step(s, s_prime, step);
-                assert(step.is_APIServerStep());
-                let req = step.get_APIServerStep_0()->0;
-                match req.content.get_APIRequest_0() {
+                assert(step is APIServerStep);
+                let req = step->APIServerStep_0->0;
+                match req.content->APIRequest_0 {
                     APIRequest::GetRequest(_) => {}
                     APIRequest::ListRequest(_) => {}
                     APIRequest::CreateRequest(_) => {}
@@ -137,7 +137,7 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sel
 
 pub open spec fn key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id: int, key: ObjectRef) -> StatePred<ClusterState>
     recommends
-        key.kind.is_CustomResourceKind(),
+        key.kind is CustomResourceKind,
 {
     |s: ClusterState| {
         forall |msg: Message|
@@ -152,7 +152,7 @@ pub open spec fn key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_
 
 pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
-        key.kind.is_CustomResourceKind(),
+        key.kind is CustomResourceKind,
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
@@ -208,7 +208,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_get_response());
                         assert(msg == handle_get_request_msg(s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
-                        assert(msg.src.is_APIServer() && msg.content.is_get_response());
+                        assert(msg.src is APIServer && msg.content.is_get_response());
                         if msg.content.get_get_response().res is Ok {
                             assert(s.resources().contains_key(req_key));
                             assert(s.resources()[req_key].object_ref() == req_key);
@@ -219,7 +219,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                 Step::DropReqStep(input) => {
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src is APIServer);
                         assert(msg.content.is_get_response());
                         assert(msg.content.get_get_response().res is Err);
                     }
@@ -241,7 +241,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
 
 pub open spec fn key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id: int, key: ObjectRef) -> StatePred<ClusterState>
     recommends
-        key.kind.is_CustomResourceKind(),
+        key.kind is CustomResourceKind,
 {
     |s: ClusterState| {
         let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
@@ -258,7 +258,7 @@ pub open spec fn key_of_object_in_matched_ok_update_resp_message_is_same_as_key_
 
 pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
-        key.kind.is_CustomResourceKind(),
+        key.kind is CustomResourceKind,
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
@@ -313,7 +313,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_update_response());
                         assert(msg == handle_update_request_msg(self.installed_types, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
-                        assert(msg.src.is_APIServer() && msg.content.is_update_response());
+                        assert(msg.src is APIServer && msg.content.is_update_response());
                         if msg.content.get_update_response().res is Ok {
                             assert(s.resources().contains_key(req_key));
                             assert(s.resources()[req_key].object_ref() == req_key);
@@ -324,7 +324,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                 Step::DropReqStep(input) => {
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src is APIServer);
                         assert(msg.content.is_update_response());
                         assert(msg.content.get_update_response().res is Err);
                     }
@@ -346,7 +346,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
 
 pub open spec fn key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id: int, key: ObjectRef) -> StatePred<ClusterState>
     recommends
-        key.kind.is_CustomResourceKind(),
+        key.kind is CustomResourceKind,
 {
     |s: ClusterState| {
         let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
@@ -364,7 +364,7 @@ pub open spec fn key_of_object_in_matched_ok_create_resp_message_is_same_as_key_
 
 pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
-        key.kind.is_CustomResourceKind(),
+        key.kind is CustomResourceKind,
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
@@ -421,7 +421,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_create_response());
                         assert(msg == handle_create_request_msg(self.installed_types, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
-                        assert(msg.src.is_APIServer() && msg.content.is_create_response());
+                        assert(msg.src is APIServer && msg.content.is_create_response());
                         if msg.content.get_create_response().res is Ok {
                             assert(s_prime.resources()[req_key].object_ref() == req_key);
                         }
@@ -431,7 +431,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                 Step::DropReqStep(input) => {
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src is APIServer);
                         assert(msg.content.is_create_response());
                         assert(msg.content.get_create_response().res is Err);
                     }

@@ -300,7 +300,7 @@ impl DeepView for KubeAPIRequest {
 //
 // KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
 
-#[is_variant]
+#[is_variant_no_deprecation_warning]
 pub enum KubeAPIResponse {
     GetResponse(KubeGetResponse),
     ListResponse(KubeListResponse),

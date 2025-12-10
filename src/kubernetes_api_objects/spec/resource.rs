@@ -120,7 +120,7 @@ pub open spec fn empty_status() -> EmptyStatusView {
 
 pub trait CustomResourceView: ResourceView {
     proof fn kind_is_custom_resource()
-        ensures Self::kind().is_CustomResourceKind();
+        ensures Self::kind() is CustomResourceKind;
 
     // The following spec and proof state that validation is only determined by spec and status.
     // That is, validation is not affected by the metadata.
