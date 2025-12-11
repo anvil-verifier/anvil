@@ -9,7 +9,7 @@ set -eu
 
 app=$(echo "$1" | tr '_' '-')
 app_filename=$(echo "$app" | tr '-' '_')
-dockerfile="docker/controller/Dockerfile"
+dockerfile="docker/controller/Dockerfile.local"
 build_controller=0
 
 if [ $# -gt 1 ]; then
