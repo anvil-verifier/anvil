@@ -1,0 +1,31 @@
+FROM ubuntu:22.04 AS builder
+
+ARG VERUS_VER
+ARG APP
+WORKDIR /
+
+SHELL ["/bin/bash", "-c"]
+
+RUN mkdir /anvil
+COPY . /anvil
+RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev
+
+# install Verus
+RUN wget -q "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VER}/verus-${VERUS_VER}-x86-linux.zip"
+RUN unzip "verus-${VERUS_VER}-x86-linux.zip"
+ENV PATH="${PATH}:/verus-x86-linux"
+
+# install Rust
+RUN curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+
+# build controller
+RUN . "$HOME/.cargo/env" && cd /anvil && ./build.sh ${APP}_controller.rs --no-verify
+RUN mv /anvil/src/${APP}_controller /anvil/src/controller
+
+# =============================================================================
+
+FROM ubuntu:22.04
+
+COPY --from=builder /anvil/src/controller /usr/local/bin/controller
+
+ENTRYPOINT ["/usr/local/bin/controller", "run"]
