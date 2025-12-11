@@ -16,7 +16,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vreplicaset controller image
         run: |
-          cp docker/controller/Dockerfile.publish .
+          cp docker/controller/Dockerfile.publish Dockerfile
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vreplicaset .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
       - name: Push vreplicaset controller image
@@ -35,7 +35,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vdeployment controller image
         run: |
-          cp docker/controller/Dockerfile.publish .
+          cp docker/controller/Dockerfile.publish Dockerfile
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vdeployment .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:${{ github.sha }}
       - name: Push vdeployment controller image
