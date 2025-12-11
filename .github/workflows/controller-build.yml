@@ -42,60 +42,60 @@ jobs:
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:${{ github.sha }}
-#  build-vreplicaset-admission-controller:
-#    runs-on: ubuntu-22.04
-#    permissions:
-#      contents: read
-#      packages: write
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v3
-#      - name: Log into registry ghcr.io
-#        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-#      - name: Build vreplicaset admission controller image
-#        run: |
-#          cp docker/controller/Dockerfile.publish .
-#          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vreplicaset_admission .
-#          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
-#      - name: Push vreplicaset admission controller image
-#        run: |
-#          docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest
-#          docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
-#  build-vstatefulset-admission-controller:
-#    runs-on: ubuntu-22.04
-#    permissions:
-#      contents: read
-#      packages: write
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v3
-#      - name: Log into registry ghcr.io
-#        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-#      - name: Build vstatefulset admission controller image
-#        run: |
-#          cp docker/controller/Dockerfile.publish .
-#          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vstatefulset_admission .
-#          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
-#      - name: Push vstatefulset admission controller image
-#        run: |
-#          docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest
-#          docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
-#  build-vdeployment-admission-controller:
-#    runs-on: ubuntu-22.04
-#    permissions:
-#      contents: read
-#      packages: write
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v3
-#      - name: Log into registry ghcr.io
-#        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-#      - name: Build vdeployment admission controller image
-#        run: |
-#          cp docker/controller/Dockerfile.publish .
-#          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vdeployment_admission .
-#          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:${{ github.sha }}
-#      - name: Push vdeployment admission controller image
-#        run: |
-#          docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest
-#          docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:${{ github.sha }}
+  build-vreplicaset-admission-controller:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build vreplicaset admission controller image
+        run: |
+          cp docker/controller/Dockerfile.publish .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vreplicaset_admission .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
+      - name: Push vreplicaset admission controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
+  build-vstatefulset-admission-controller:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build vstatefulset admission controller image
+        run: |
+          cp docker/controller/Dockerfile.publish .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vstatefulset_admission .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
+      - name: Push vstatefulset admission controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
+  build-vdeployment-admission-controller:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build vdeployment admission controller image
+        run: |
+          cp docker/controller/Dockerfile.publish .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vdeployment_admission .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:${{ github.sha }}
+      - name: Push vdeployment admission controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:${{ github.sha }}
