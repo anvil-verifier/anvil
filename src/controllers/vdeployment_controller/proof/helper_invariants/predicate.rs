@@ -372,8 +372,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
             &&& msg.content.get_list_response().res is Ok
             &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
             &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                let owners = resp_objs[i].metadata.owner_references->0;
-                let controller_owners = owners.filter(controller_owner_filter());
+                let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
                 &&& resp_objs[i].metadata.namespace.is_some()
                 &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
                 &&& resp_objs[i].kind == VReplicaSetView::kind()
@@ -397,8 +396,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
         } ==> {
             let resp_obj = msg.content.get_create_response().res.unwrap();
             let new_vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
-            let owners = new_vrs.metadata.owner_references->0;
-            let controller_owners = owners.filter(controller_owner_filter());
+            let controller_owners = new_vrs.metadata.owner_references->0.filter(controller_owner_filter());
             &&& msg.content.is_create_response()
             &&& msg.content.get_create_response().res is Ok
             &&& VReplicaSetView::unmarshal(resp_obj) is Ok
