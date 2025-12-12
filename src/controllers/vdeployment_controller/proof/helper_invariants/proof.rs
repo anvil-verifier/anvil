@@ -1093,8 +1093,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                             assert(cr_msg.content.get_list_response().res is Ok);
                             assert(vrs_list_or_none is Some);
                             assert forall |i| #![trigger filtered_vrs_list[i]] 0 <= i < filtered_vrs_list.len() implies {
-                                let owners = filtered_vrs_list[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(controller_owner_filter());
+                                let controller_owners = filtered_vrs_list[i].metadata.owner_references->0.filter(controller_owner_filter());
                                 &&& filtered_vrs_list[i].metadata.owner_references is Some
                                 &&& filtered_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                                 &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
@@ -1127,11 +1126,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                 assert(objs.contains(objs[idx1]));
                                 assert(objs[idx1].metadata == vrs_list[idx1].metadata);
                                 // Show owner reference properties.
-                                let owners = filtered_vrs_list[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(
-                                    |o: OwnerReferenceView| o.controller is Some && o.controller->0
-                                );
-                                assert(owners.contains(triggering_cr.controller_owner_ref()));
+                                let controller_owners = filtered_vrs_list[i].metadata.owner_references->0.filter(controller_owner_filter());
                                 assert(triggering_cr.controller_owner_ref().controller is Some);
                                 assert(triggering_cr.controller_owner_ref().controller->0);
                                 assert(controller_owners.contains(triggering_cr.controller_owner_ref()));
@@ -1156,8 +1151,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                 assert(controller_owners == seq![triggering_cr.controller_owner_ref()]);
                             }
                             assert forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() implies {
-                                let owners = old_vrs_list[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(controller_owner_filter());
+                                let controller_owners = old_vrs_list[i].metadata.owner_references->0.filter(controller_owner_filter());
                                 &&& old_vrs_list[i].metadata.owner_references is Some
                                 &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                                 &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
@@ -1174,7 +1168,14 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                             }
                         }
                         if reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
-                            assume(false);
+                            let resp_obj = cr_msg.content.get_create_response().res.unwrap();
+                            let new_vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
+                            let controller_owners = new_vrs.metadata.owner_references->0.filter(controller_owner_filter());
+                            assert({
+                                &&& new_vrs.metadata.owner_references is Some
+                                &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                                &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+                            });
                         }
                         // prove that the newly sent message has no response.
                         if s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some {
