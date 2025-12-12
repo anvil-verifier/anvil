@@ -1038,7 +1038,8 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
 )
@@ -1235,11 +1236,10 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                     let current_req_msg = req_msg_opt.unwrap();
                     let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                     let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                     if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                         assert forall |msg| {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                             &&& #[trigger] s_prime.in_flight().contains(msg)
                             &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                             &&& msg.src is APIServer
@@ -1279,8 +1279,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                         |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()
                                     );
                                     assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() implies {
-                                        let owners = resp_objs[i].metadata.owner_references->0;
-                                        let controller_owners = owners.filter(controller_owner_filter());
+                                        let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
                                         &&& resp_objs[i].metadata.namespace.is_some()
                                         &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
                                         &&& resp_objs[i].kind == VReplicaSetView::kind()
@@ -1328,8 +1327,87 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                             }
                         }
                     }
+                    // similar to api_actions::lemma_create_new_vrs_request_returns_ok
                     if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
-                        assume(false);
+                        assert forall |msg| {
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies {
+                            let resp_obj = msg.content.get_create_response().res.unwrap();
+                            let new_vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
+                            let controller_owners = new_vrs.metadata.owner_references->0.filter(controller_owner_filter());
+                            &&& msg.content.is_create_response()
+                            &&& msg.content.get_create_response().res is Ok
+                            &&& VReplicaSetView::unmarshal(resp_obj) is Ok
+                            &&& new_vrs.metadata.owner_references is Some
+                            &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                            &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+                        } by {
+                            let resp_obj = msg.content.get_create_response().res.unwrap();
+                            let new_vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
+                            let controller_owners = new_vrs.metadata.owner_references->0.filter(controller_owner_filter());
+                            if (new_msgs.contains(msg)) {
+                                if current_req_msg == req_msg {
+                                    // emulate handle_create_request
+                                    let req = req_msg.content->APIRequest_0->CreateRequest_0;
+                                    assert(req == CreateRequest {
+                                        namespace: triggering_cr.metadata.namespace.unwrap(),
+                                        obj: make_replica_set(triggering_cr).marshal()
+                                    });
+                                    assert(create_request_admission_check(cluster.installed_types, req, s.api_server) is None) by {
+                                        // harden assertions
+                                        VReplicaSetView::marshal_preserves_integrity();
+                                        assert(req.obj.metadata.generate_name is Some);
+                                        assert(req.obj.metadata.namespace is Some);
+                                        assert(req.namespace == req.obj.metadata.namespace->0);
+                                        assert(unmarshallable_object(req.obj, cluster.installed_types));
+                                        assert(req.obj.metadata.name is None);
+                                    }
+                                    let created_obj = DynamicObjectView {
+                                        kind: req.obj.kind,
+                                        metadata: ObjectMetaView {
+                                            name: Some(generate_name(s.api_server)),
+                                            namespace: Some(req.namespace),
+                                            resource_version: Some(s.api_server.resource_version_counter),
+                                            uid: Some(s.api_server.uid_counter),
+                                            deletion_timestamp: None,
+                                            ..req.obj.metadata
+                                        },
+                                        spec: req.obj.spec,
+                                        status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
+                                    };
+                                    assert(!s.resources().contains_key(created_obj.object_ref())) by {
+                                        assert(created_obj.object_ref().name == generate_name(s.api_server));
+                                        generated_name_is_unique(s.api_server);
+                                        if s.resources().contains_key(created_obj.object_ref()) {
+                                            assert(false);
+                                        }
+                                    }
+                                    assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
+                                        assert(metadata_validity_check(created_obj) is None) by {
+                                            assert(created_obj.metadata.owner_references is Some);
+                                            assert(created_obj.metadata.owner_references->0.len() == 1);
+                                        }
+                                        assert(valid_object(created_obj, cluster.installed_types)) by {
+                                            assume(false);
+                                        }
+                                    }
+                                    assert(resp_obj == created_obj);
+                                    assert(resp_obj.kind == VReplicaSetView::kind());
+                                    assert(resp_obj.metadata.owner_references is Some);
+                                    assert(resp_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+                                        assert(make_replica_set(triggering_cr).metadata.owner_references == Some(seq![triggering_cr.controller_owner_ref()]));
+                                        lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
+                                        assert(req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]);
+                                    }
+                                    assert(resp_obj.metadata == new_vrs.metadata);
+                                } else {
+                                    assert(s.in_flight().contains(current_req_msg));
+                                    assert(current_req_msg.rpc_id != req_msg.rpc_id);
+                                }
+                            }
+                        }
                     }
                 },
                 Step::BuiltinControllersStep(..) => {

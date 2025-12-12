@@ -355,7 +355,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
     // response objects imply the properties above
     &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
         let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
+        &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
         &&& req_msg.dst is APIServer
         &&& req_msg.content.is_list_request()
         &&& req_msg.content.get_list_request() == ListRequest {
@@ -382,7 +382,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
     }
     &&& state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS ==> {
         let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
+        &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
         &&& req_msg.dst is APIServer
         &&& req_msg.content.is_create_request()
         &&& req_msg.content.get_create_request() == CreateRequest {
