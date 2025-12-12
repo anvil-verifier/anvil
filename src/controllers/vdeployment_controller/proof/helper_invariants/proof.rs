@@ -1081,7 +1081,6 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                         let reconcile_step = state.reconcile_step;
                         let cr_msg = step->ControllerStep_0.1->0;
                         if reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
-                            assume(false);
                             let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                             let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                             let objs = cr_msg.content.get_list_response().res.unwrap();
@@ -1140,42 +1139,25 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                 assert(controller_owners[0] == triggering_cr.controller_owner_ref());
                                 assert(controller_owners == seq![triggering_cr.controller_owner_ref()]);
                             }
-                            let new_vrs_list = filtered_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template));
-                            assert forall |i| #![trigger new_vrs_list[i]] 0 <= i < new_vrs_list.len() implies {
-                                let owners = new_vrs_list[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(
-                                    |o: OwnerReferenceView| o.controller is Some && o.controller->0
-                                );
-                                &&& new_vrs_list[i].metadata.owner_references is Some
-                                &&& new_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                                &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
-                            } by {
-                                assert(new_vrs_list.contains(new_vrs_list[i]));
-                                seq_filter_contains_implies_seq_contains(
-                                    filtered_vrs_list,
-                                    match_template_without_hash(triggering_cr.spec.template),
-                                    new_vrs_list[i]
-                                );
-                            }
-                            let state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                            if new_vrs_list.len() == 0 {
-                                assert(new_vrs is None);
-                                assert(state_prime.new_vrs == None::<VReplicaSetView>);
-                                assert(state_prime.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS);
-                                assume(false);
-                            }
                             if new_vrs is Some {
-                                let owners = new_vrs_list[0].metadata.owner_references->0;
+                                let owners = new_vrs->0.metadata.owner_references->0;
                                 let controller_owners = owners.filter(controller_owner_filter());
-                                assert(new_vrs->0 == new_vrs_list.first());
-                                assert(new_vrs_list.first() == new_vrs_list[0]);
+                                assert(filtered_vrs_list.contains(new_vrs->0)) by {
+                                    seq_filter_is_a_subset_of_original_seq(
+                                        filtered_vrs_list,
+                                        match_template_without_hash(triggering_cr.spec.template)
+                                    );
+                                    let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+                                    seq_filter_is_a_subset_of_original_seq(
+                                        filtered_vrs_list.filter(match_template_without_hash(triggering_cr.spec.template)),
+                                        nonempty_vrs_filter
+                                    );
+                                }
                                 assert(controller_owners == seq![triggering_cr.controller_owner_ref()]);
                             }
                             assert forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() implies {
                                 let owners = old_vrs_list[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(
-                                    |o: OwnerReferenceView| o.controller is Some && o.controller->0
-                                );
+                                let controller_owners = owners.filter(controller_owner_filter());
                                 &&& old_vrs_list[i].metadata.owner_references is Some
                                 &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                                 &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
