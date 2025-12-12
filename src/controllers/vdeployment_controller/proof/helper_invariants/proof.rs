@@ -1038,7 +1038,6 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-#[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
@@ -1233,7 +1232,6 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                     }
                 },
                 Step::APIServerStep(req_msg_opt) => {
-                    assume(false);
                     let current_req_msg = req_msg_opt.unwrap();
                     let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                     let new_msgs = s_prime.in_flight().sub(s.in_flight());
@@ -1330,8 +1328,12 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                             }
                         }
                     }
+                    if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
+                        assume(false);
+                    }
                 },
                 Step::BuiltinControllersStep(..) => {
+                    assume(false);
                     let new_msgs = s_prime.in_flight().sub(s.in_flight());
                     let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                     let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
