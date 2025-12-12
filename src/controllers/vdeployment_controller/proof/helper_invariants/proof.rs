@@ -1172,30 +1172,6 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     old_vrs_list[i]
                                 );
                             }
-                            // need a lot of the assertion to get the proof to go through.
-                            assert({
-                                let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                                let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-                                let new_vrs = state.new_vrs.unwrap();
-                                let old_vrs_list = state.old_vrs_list;
-                                &&& triggering_cr.object_ref() == key
-                                &&& triggering_cr.metadata().well_formed_for_namespaced()
-                                &&& forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() ==> {
-                                    let owners = old_vrs_list[i].metadata.owner_references->0;
-                                    let controller_owners = owners.filter(controller_owner_filter());
-                                    &&& old_vrs_list[i].metadata.owner_references is Some
-                                    &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                                    &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
-                                }
-                                &&& state.new_vrs is Some ==> {
-                                    let new_vrs = state.new_vrs->0;
-                                    let owners = new_vrs.metadata.owner_references->0;
-                                    let controller_owners = owners.filter(controller_owner_filter());
-                                    &&& new_vrs.metadata.owner_references is Some
-                                    &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                                    &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
-                                }
-                            });
                         }
                         if reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
                             assume(false);
