@@ -48,6 +48,68 @@ impl View for VStatefulSetReconcileState {
     }
 }
 
+pub struct VStatefulSetReconciler {}
+
+impl Reconciler for VStatefulSetReconciler {
+    type S = VStatefulSetReconcileState;
+    type K = VStatefulSet;
+    type EReq = VoidEReq;
+    type EResp = VoidEResp;
+    type M = model_reconciler::VStatefulSetReconciler;
+
+    fn reconcile_init_state() -> Self::S {
+        reconcile_init_state()
+    }
+
+    fn reconcile_core(cr: &Self::K, resp_o: Option<Response<Self::EResp>>, state: Self::S) -> (Self::S, Option<Request<Self::EReq>>)
+    {
+        reconcile_core(cr, resp_o, state)   
+    }
+
+    fn reconcile_done(state: &Self::S) -> bool
+    {
+        reconcile_done(state)
+    }
+
+    fn reconcile_error(state: &Self::S) -> bool
+    {        
+        reconcile_error(state)
+    }
+
+}
+
+pub fn reconcile_init_state() -> (state: VStatefulSetReconcileState)
+    ensures state@ == model_reconciler::reconcile_init_state()
+{
+    VStatefulSetReconcileState {
+        reconcile_step: VStatefulSetReconcileStep::Init,
+        needed: Vec::new(),
+        needed_index: 0,
+        condemned: Vec::new(),
+        condemned_index: 0,
+        pvcs: Vec::new(),
+        pvc_index: 0
+    }
+}
+
+pub fn reconcile_done(state: &VStatefulSetReconcileState) -> (res: bool)
+    ensures res == model_reconciler::reconcile_done(state@)
+{
+    match state.reconcile_step {
+        VStatefulSetReconcileStep::Done => true,
+        _ => false,
+    }
+}
+
+pub fn reconcile_error(state: &VStatefulSetReconcileState) -> (res: bool)
+    ensures res == model_reconciler::reconcile_error(state@)
+{
+    match state.reconcile_step {
+        VStatefulSetReconcileStep::Error => true,
+        _ => false
+    }
+}
+
 pub fn reconcile_core(
     vsts: &VStatefulSet,
     resp_o: Option<Response<VoidEResp>>,
@@ -870,14 +932,6 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: u32) -> (resul
 
     let (mut new_volumes, templates) = if vsts.spec().volume_claim_templates().is_some() {
         let templates = vsts.spec().volume_claim_templates().unwrap();
-        // let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
-        //     name: templates.deep_view()[i].metadata.name->0,
-        //     persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
-        //         claim_name: pvcs[i].metadata.name->0,
-        //         read_only: Some(false),
-        //     }),
-        //     ..VolumeView::default()
-        // });
         let mut new_volumes: Vec<Volume> = Vec::new();
         let len = templates.len();
         for i in 0..len
@@ -901,6 +955,7 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: u32) -> (resul
     } else {
         (Vec::new(), Vec::new())
     };
+
     let mut filtered_current_volumes = Vec::new();
     for i in 0..current_volumes.len() {
         let vol = &current_volumes[i];
