@@ -84,7 +84,20 @@ implement_field_wrapper_type!(
     ObjectFieldSelectorView
 );
 
+implement_field_wrapper_type!(
+    PersistentVolumeClaimVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimVolumeSource,
+    PersistentVolumeClaimVolumeSourceView
+);
+
 impl Volume {
+    #[verifier(external_body)]
+    pub fn name(&self) -> (res: String)
+        ensures res@ == self@.name
+    {
+        self.inner.name.clone()
+    }
+
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
@@ -135,6 +148,14 @@ impl Volume {
     {
         self.inner.empty_dir = Some(empty_dir.into_kube());
     }
+
+    #[verifier(external_body)]
+    pub fn set_persistent_volume_claim_source(&mut self, pvc: PersistentVolumeClaimVolumeSource)
+        ensures self@ == old(self)@.with_persistent_volume_claim_source(pvc@),
+    {
+        self.inner.persistent_volume_claim = Some(pvc.into_kube());
+    }
+
 }
 
 impl HostPathVolumeSource {
@@ -284,6 +305,22 @@ impl ObjectFieldSelector {
         ensures self@ == old(self)@.with_api_version(api_version@),
     {
         self.inner.api_version = Some(api_version);
+    }
+}
+
+impl PersistentVolumeClaimVolumeSource {
+    #[verifier(external_body)]
+    pub fn set_claim_name(&mut self, claim_name: String) 
+        ensures self@ == old(self)@.with_claim_name(claim_name@)
+    {
+        self.inner.claim_name = claim_name;
+    }
+
+    #[verifier(external_body)]
+    pub fn set_read_only(&mut self, read_only: bool)
+        ensures self@ == old(self)@.with_read_only(read_only)
+    {
+        self.inner.read_only = Some(read_only);
     }
 }
 

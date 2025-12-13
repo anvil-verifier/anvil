@@ -855,45 +855,64 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
 
 // TODO: finish implementing this
 #[verifier(external_body)]
-pub fn update_storage(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
+pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: u32) -> (result: Pod)
     requires
         vsts@.well_formed(),
     ensures
         result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat),
 {
-    // let pvcs = make_pvcs(vsts, ordinal);
-    // let current_templates = if pod.spec().unwrap().inner().volumes() is Some {
-    //     pod.spec().unwrap().volumes().unwrap()
-    // } else {
-    //     Vec::new()
-    // };
-    // let new_volumes = if vsts.spec().volume_claim_templates() is Some {
-    //     let templates = vsts.spec().volume_claim_templates().unwrap();
-    //     let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
-    //         name: templates.deep_view()[i].metadata.name->0,
-    //         persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
-    //             claim_name: pvcs[i].metadata.name->0,
-    //             read_only: Some(false),
-    //         }),
-    //         ..VolumeView::default()
-    //     });
-    //     let new_volumes: Vec<Volume> = Vec::new();
-    //     let len = templates.len();
-    //     for i in 0..len
-    //         invariant
-    //             vsts@.well_formed(),
-    //             new_volumes.deep_view() == new_volumes_spec.take(i)
-    //     {
-    //         proof {
-    //             // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
-    //             assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
-    //         }
-    //         let vol = Volume::default();
-    //         vol.set_name(templates[i].metadata().name().unwrap());
-    //     }
-    // } else {
-    //     Vec::new()
-    // };
+    let pvcs = make_pvcs(vsts, ordinal);
+    let current_volumes = if pod.spec().unwrap().volumes().is_some() {
+        pod.spec().unwrap().volumes().unwrap()
+    } else {
+        Vec::new()
+    };
+
+    let (mut new_volumes, templates) = if vsts.spec().volume_claim_templates().is_some() {
+        let templates = vsts.spec().volume_claim_templates().unwrap();
+        // let ghost new_volumes_spec = Seq::new(templates@.len(), |i| VolumeView {
+        //     name: templates.deep_view()[i].metadata.name->0,
+        //     persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+        //         claim_name: pvcs[i].metadata.name->0,
+        //         read_only: Some(false),
+        //     }),
+        //     ..VolumeView::default()
+        // });
+        let mut new_volumes: Vec<Volume> = Vec::new();
+        let len = templates.len();
+        for i in 0..len
+            invariant
+                vsts@.well_formed(),
+                new_volumes.deep_view() == new_volumes_spec.take(i)
+        {
+            proof {
+                // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
+                assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+            }
+            let mut vol = Volume::default();
+            vol.set_name(templates[i].metadata().name().unwrap());
+            let mut pvc = PersistentVolumeClaimVolumeSource::default();
+            pvc.set_claim_name(pvcs[i].metadata().name().unwrap());
+            pvc.set_read_only(false);
+            vol.set_persistent_volume_claim_source(pvc);
+            new_volumes.push(vol);
+        }
+        (new_volumes, templates)
+    } else {
+        (Vec::new(), Vec::new())
+    };
+    let mut filtered_current_volumes = Vec::new();
+    for i in 0..current_volumes.len() {
+        let vol = &current_volumes[i];
+        if templates.iter().all(|template: &PersistentVolumeClaim| vol.name() != template.metadata().name().unwrap()) {
+            filtered_current_volumes.push(vol.clone());
+        }
+    }
+
+    let mut old_spec = pod.spec().unwrap();
+    new_volumes.extend(filtered_current_volumes);
+    old_spec.set_volumes(new_volumes);
+    pod.set_spec(old_spec);
     pod
 }
 
@@ -916,20 +935,6 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Po
     updated_pod.set_spec(pod_spec);
 
     updated_pod
-
-    // let updated_pod = update_identity(vsts, pod, ordinal);
-    // let old_spec = updated_pod.spec().unwrap();
-    // updated_pod.set_spec(PodSpec {
-    // })
-    // Pod {
-    //     spec: Some(PodSpec {
-    //         hostname: updated_pod.metadata().name(),
-    //         subdomain: Some(vsts.spec().service_name()),
-    //         ..updated_pod.spec().unwrap()
-    //     }),
-    //     ..updated_pod
-    // }
-
 }
 
 // TODO: implement this
@@ -1404,8 +1409,14 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: u32) -> (
     pvc_template_name.concat("-").concat(pod_name(vsts_name, ordinal).as_str())
 }
 
-// TODO: implement this
 #[verifier(external_body)]
+pub fn pod_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
+    requires vsts@.well_formed()
+    ensures res == model_reconciler::pod_matches(vsts@, pod@)
+{
+    pod.spec() == vsts.spec().template().spec()
+}
+
 pub fn get_largest_ordinal_of_unmatched_pods(
     vsts: &VStatefulSet,
     pods: &Vec<Option<Pod>>,
@@ -1413,23 +1424,74 @@ pub fn get_largest_ordinal_of_unmatched_pods(
     requires
         vsts@.well_formed(),
     ensures
-        (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods(
+        (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(
             vsts@,
             pods.deep_view(),
-        ) is None) || (result.is_some() && model_reconciler::get_largest_ordinal_of_unmatched_pods(
+        ) is None) || (result.is_some() && model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(
             vsts@,
             pods.deep_view(),
         ) is Some && result.unwrap() as nat
-            == model_reconciler::get_largest_ordinal_of_unmatched_pods(vsts@, pods.deep_view())->0),
+            == model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(vsts@, pods.deep_view())->0),
 {
-    // let ordinals = Seq::new(pods.len(), |i: int| i as nat);
-    // let filtered = ordinals.filter(|ordinal: nat| pods[ordinal as nat] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
-    // if filtered.len() > 0 {
-    //     Some(filtered.last())
-    // } else {
-    //     None
-    // }
-    None
+    let ghost model_ordinals = Seq::new(pods.deep_view().len(), |i: int| i as u32);
+
+    let mut ordinals: Vec<u32> = Vec::new();
+
+    proof {
+        assert_seqs_equal!(ordinals.deep_view(), model_ordinals.take(0));
+    }
+
+    let mut ord: u32 = 0;
+    assume(pods.len() < u32::MAX);
+    while (ord as usize) < pods.len() 
+        invariant 
+        ordinals.deep_view() =~= model_ordinals.take(ord as int)
+        && ord <= pods.len()
+        && pods.len() < u32::MAX
+        decreases pods.len() - ord as usize
+    {
+        ordinals.push(ord);
+        ord += 1;
+        proof {
+            assume(ordinals.deep_view() == model_ordinals.take(ord as int));
+        }
+    }
+
+    proof {
+        assert(model_ordinals.take(pods.len() as int) == model_ordinals);
+        assert(ordinals.deep_view() == model_ordinals);
+    }
+
+    let ghost model_pred = |ordinal: u32| pods.deep_view()[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods.deep_view()[ordinal as int]->0);
+
+    let mut ordinals_filtered: Vec<u32> = Vec::new();
+    for idx in 0..ordinals.len() 
+        invariant 
+            ordinals_filtered.deep_view() == model_ordinals.take(idx as int).filter(model_pred)
+            && vsts@.well_formed()
+
+    {
+        let ordinal = ordinals[idx];
+        assume(ordinal < pods.len());
+        if pods[ordinal as usize].is_some() && !pod_matches(vsts, pods[ordinal as usize].clone().unwrap()) {
+            ordinals_filtered.push(ordinal);
+        }
+        proof {
+            assume(ordinals_filtered.deep_view() == model_ordinals.take(idx + 1 as int).filter(model_pred));
+        }
+    }
+
+    proof {
+        assume(ordinals.len() == model_ordinals.len());
+        assert(model_ordinals.take(ordinals.len() as int) == model_ordinals);
+        assert(ordinals_filtered.deep_view() == model_ordinals.filter(model_pred));
+    }
+
+    if ordinals_filtered.len() > 0 {
+        Some(ordinals_filtered[ordinals_filtered.len() - 1])
+    } else {
+        None
+    }
 }
 
 } // verus!

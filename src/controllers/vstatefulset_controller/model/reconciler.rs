@@ -803,9 +803,22 @@ pub open spec fn is_the_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView
         ==> other_ordinal <= ordinal
 }
 
+// if exists |p: | ...
+//  choose 
+
 pub open spec fn get_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<nat> {
     let filtered = Seq::new(pods.len(), |i: int| i as nat)
                                 .filter(|ordinal: nat| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
+    if filtered.len() > 0 {
+        Some(filtered.last())
+    } else {
+        None
+    }
+}
+
+pub open spec fn get_largest_ordinal_of_unmatched_pods_u32(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<u32> {
+    let filtered = Seq::new(pods.len(), |i: int| i as u32)
+                                .filter(|ordinal: u32| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
     if filtered.len() > 0 {
         Some(filtered.last())
     } else {
