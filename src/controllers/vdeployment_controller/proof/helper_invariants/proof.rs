@@ -1038,8 +1038,10 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
+// we should avoid proving invariants with this complexity directly. It's near Verus' extreme and hardening assertions are non-trivial
+// if this gets flaky enough to fail the proof, we should separate the reasoning for each step into different sub-proofs
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
 )
@@ -1072,19 +1074,17 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
         VDeploymentView::marshal_preserves_integrity();
         if s.ongoing_reconciles(controller_id).contains_key(key) {
             let step = choose |step| cluster.next_step(s, s_prime, step);
+            let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+            let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+            let reconcile_step = state.reconcile_step;
             match step {
                 Step::ControllerStep((id, _, cr_key_opt)) => {
                     let cr_key = cr_key_opt->0;
                     if id == controller_id && cr_key == key {
-                        let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                        let reconcile_step = state.reconcile_step;
                         let cr_msg = step->ControllerStep_0.1->0;
                         if reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
-                            let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                             let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                             let objs = cr_msg.content.get_list_response().res.unwrap();
-                            let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
                             let vrs_list_or_none = objects_to_vrs_list(objs);
                             let vrs_list = vrs_list_or_none.unwrap();
                             let filtered_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, triggering_cr));
@@ -1192,37 +1192,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                         }
                     } else {
                         let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                        let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-                        if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                            // TODO: simplify this hardening proof
-                            assert forall |msg| {
-                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
-                                &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                                &&& msg.src is APIServer
-                                &&& resp_msg_matches_req_msg(msg, req_msg)
-                            } implies {
-                                let resp_objs = msg.content.get_list_response().res.unwrap();
-                                &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res is Ok
-                                &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
-                                &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>{
-                                    let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
-                                    &&& resp_objs[i].metadata.namespace.is_some()
-                                    &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                                    &&& resp_objs[i].kind == VReplicaSetView::kind()
-                                    &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
-                                }
-                            } by {
-                                assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
-                                if !new_msgs.contains(msg) {
-                                    assert(s.in_flight().contains(msg));
-                                }
-                            }
-                        }
-                        if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
+                        if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                             let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                             assert(forall |msg| {
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
@@ -1234,10 +1204,8 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                 },
                 Step::APIServerStep(req_msg_opt) => {
                     let current_req_msg = req_msg_opt.unwrap();
-                    let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                     let new_msgs = s_prime.in_flight().sub(s.in_flight());
                     let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                     if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                         assert forall |msg| {
                             &&& #[trigger] s_prime.in_flight().contains(msg)
@@ -1411,73 +1379,29 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                     }
                 },
                 Step::BuiltinControllersStep(..) => {
-                    assume(false);
                     let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                    let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                    let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-                    if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                    if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                        assert forall |msg| {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
+                        assert(forall |msg| {
                             &&& #[trigger] s_prime.in_flight().contains(msg)
-                            &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } implies {
-                            let resp_objs = msg.content.get_list_response().res.unwrap();
-                            &&& msg.content.is_list_response()
-                            &&& msg.content.get_list_response().res is Ok
-                            &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
-                            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                                let owners = resp_objs[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(controller_owner_filter());
-                                &&& resp_objs[i].metadata.namespace.is_some()
-                                &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                                &&& resp_objs[i].kind == VReplicaSetView::kind()
-                                &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
-                            }
-                        } by {
-                            assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
-                            if !new_msgs.contains(msg) {
-                                assert(s.in_flight().contains(msg));
-                            }
-                        }
-                    }
-                    if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
-                        assume(false);
+                        } ==> s.in_flight().contains(msg));
                     }
                 },
-                _ => {
+                Step::DropReqStep(input) => {
                     assume(false);
-                    let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                    let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-                    if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
-                        assert forall |msg| {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
+                },
+                _ => {
+                    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                    if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
+                        assert(forall |msg| {
                             &&& #[trigger] s_prime.in_flight().contains(msg)
-                            &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } implies {
-                            let resp_objs = msg.content.get_list_response().res.unwrap();
-                            &&& msg.content.is_list_response()
-                            &&& msg.content.get_list_response().res is Ok
-                            &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
-                            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                                let owners = resp_objs[i].metadata.owner_references->0;
-                                let controller_owners = owners.filter(controller_owner_filter());
-                                &&& resp_objs[i].metadata.namespace.is_some()
-                                &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                                &&& resp_objs[i].kind == VReplicaSetView::kind()
-                                &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
-                            }
-                        } by {
-                            let resp_objs = msg.content.get_list_response().res.unwrap();
-                            if s.in_flight().contains(msg) {} // needed for trigger.
-                        }
-                    }
-                    if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS {
-                        assume(false);
+                        } ==> s.in_flight().contains(msg));
                     }
                 }
             }
