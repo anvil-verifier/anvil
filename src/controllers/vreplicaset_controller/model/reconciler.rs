@@ -75,17 +75,17 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
             }
         },
         VReplicaSetRecStepView::AfterListPods => {
-            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o) is Ok) {
+            if !(is_some_k_list_resp_view(resp_o) && extract_some_k_list_resp_view(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
-                let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
+                let objs = extract_some_k_list_resp_view(resp_o).unwrap();
                 let pods_or_none = objects_to_pods(objs);
                 if pods_or_none.is_none() {
                     (error_state(state), None)
                 } else {
                     let pods = pods_or_none.unwrap();
                     let filtered_pods = filter_pods(pods, v_replica_set);
-                    let replicas = v_replica_set.spec.replicas.unwrap_or(0);
+                    let replicas = v_replica_set.spec.replicas.unwrap_or(1);
                     if replicas < 0 {
                         (error_state(state), None)
                     } else {
@@ -136,7 +136,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
         },
         VReplicaSetRecStepView::AfterCreatePod(diff) => {
             let diff = *diff;
-            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o) is Ok) {
+            if !(is_some_k_create_resp_view(resp_o) && extract_some_k_create_resp_view(resp_o) is Ok) {
                 (error_state(state), None)
             } else if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
@@ -159,7 +159,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
         },
         VReplicaSetRecStepView::AfterDeletePod(diff) => {
             let diff = *diff;
-            if !(is_some_k_get_then_delete_resp_view!(resp_o) && extract_some_k_get_then_delete_resp_view!(resp_o) is Ok) {
+            if !(is_some_k_get_then_delete_resp_view(resp_o) && extract_some_k_get_then_delete_resp_view(resp_o) is Ok) {
                 (error_state(state), None)
             } else if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {

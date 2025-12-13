@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
@@ -67,7 +67,7 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
     )
 }
 
-proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
@@ -168,12 +168,8 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id));
     // assert non-interference property on combined spec.
-    assert forall |other_id| 
-        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))))
-        implies 
-        cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
+    assert forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
+        implies spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
             assert(provided_spec.entails(always(lift_state(vrs_rely(other_id)))));
             entails_and_different_temp(
@@ -234,7 +230,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         true_pred::<ClusterState>().satisfied_by(ex) implies #[trigger] exists_num_diff_pods_is.satisfied_by(ex) by {
             let s = ex.head();
             let pods = matching_pods(vrs, s.resources());
-            let diff = pods.len() - vrs.spec.replicas.unwrap_or(0);
+            let diff = pods.len() - vrs.spec.replicas.unwrap_or(1);
 
             // Instantiate exists statement.
             assert((|diff| lift_state(num_diff_pods_is(vrs, diff)))(diff).satisfied_by(ex));

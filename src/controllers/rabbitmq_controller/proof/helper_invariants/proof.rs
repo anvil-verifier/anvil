@@ -325,7 +325,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
     let key = rabbitmq.object_ref();
     let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg->0;
     assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
-        assert(msg.src.is_ApiServer());
+        assert(msg.src is APIServer);
         assert(msg.content.is_create_response());
         if msg.content.get_create_response().res is Ok {
             assert(RMQCluster::is_ok_create_response_msg()(msg));
@@ -336,7 +336,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
-                    match req_msg.content.get_APIRequest_0() {
+                    match req_msg.content->APIRequest_0 {
                         APIRequest::CreateRequest(_) => {
                             if !s.in_flight().contains(msg) {
                                 let req = input->0;
@@ -503,7 +503,7 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
     let key = rabbitmq.object_ref();
     let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg->0;
     assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
-        assert(msg.src.is_ApiServer());
+        assert(msg.src is APIServer);
         assert(msg.content.is_update_response());
         if msg.content.get_update_response().res is Ok {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -512,7 +512,7 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                     let req_msg = input->0;
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
-                    match req_msg.content.get_APIRequest_0() {
+                    match req_msg.content->APIRequest_0 {
                         APIRequest::UpdateRequest(_) => {
                             if !s.in_flight().contains(msg) {
                                 assert(msg.content.get_update_response().res->Ok_0.object_ref() == req_msg.content.get_update_request().key());
@@ -715,7 +715,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
-                    let resp = step.get_ControllerStep_0().0->0;
+                    let resp = step->ControllerStep_0.0->0;
                     assert(RMQCluster::is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
                     assert(resp.content.get_get_response().res->Ok_0.metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
@@ -1013,7 +1013,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
 
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     assert forall |s, s_prime: RMQCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_ApiServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
+        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst is APIServer && !msg.src is BuiltinController && msg.content.is_update_status_request()
         implies msg.content.get_update_status_request().key() != resource_key by {
             if s.in_flight().contains(msg) {
                 assert(msg.content.get_update_status_request().key() != resource_key);
@@ -1048,7 +1048,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         assert(false);
                     },
                     Step::ApiServerStep(_) => {
-                        assert(!msg.content.is_APIRequest());
+                        assert(!msg.content is APIRequest);
                         assert(!msg.content.is_update_status_request());
                         assert(false);
                     },
@@ -1057,11 +1057,11 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         assert(false);
                     },
                     Step::BuiltinControllersStep(_) => {
-                        assert(msg.src.is_BuiltinController());
+                        assert(msg.src is BuiltinController);
                         assert(false);
                     },
                     Step::FailTransientlyStep(_) => {
-                        assert(!msg.content.is_APIRequest());
+                        assert(!msg.content is APIRequest);
                         assert(!msg.content.is_update_status_request());
                         assert(false);
                     },
@@ -1196,13 +1196,13 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                 }
                 if resource_update_request_msg(resource_key)(msg) {
                     lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
-                    assert(step.get_ControllerStep_0().0->0.content.is_get_response());
-                    assert(step.get_ControllerStep_0().0->0.content.get_get_response().res is Ok);
+                    assert(step->ControllerStep_0.0->0.content.is_get_response());
+                    assert(step->ControllerStep_0.0->0.content.get_get_response().res is Ok);
                     assert(update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res->Ok_0
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step->ControllerStep_0.0->0.content.get_get_response().res->Ok_0
                     ) is Ok);
                     assert(msg.content.get_update_request().obj == update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res->Ok_0
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step->ControllerStep_0.0->0.content.get_get_response().res->Ok_0
                     )->Ok_0);
                     assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
@@ -1231,8 +1231,8 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(s
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
-        step.is_ControllerStep(),
-        step.get_ControllerStep_0().1->0 == rabbitmq.object_ref(),
+        step is ControllerStep,
+        step->ControllerStep_0.1->0 == rabbitmq.object_ref(),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
         RMQCluster::pending_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
@@ -1245,15 +1245,15 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(s
     hide(update_server_config_map);
     hide(update_plugins_config_map);
     hide(update_erlang_secret);
-    let cr_key = step.get_ControllerStep_0().1->0;
+    let cr_key = step->ControllerStep_0.1->0;
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert(step.is_ControllerStep());
+    assert(step is ControllerStep);
     assert(s.ongoing_reconciles().contains_key(cr_key));
     let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
     let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-    assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
     match local_step_prime {
         RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
             match action {
@@ -1266,7 +1266,7 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(s
         },
         _ => {}
     }
-    assert(local_step_prime.is_AfterKRequestStep() && local_step_prime.get_AfterKRequestStep_0() == ActionKind::Update);
+    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
     match sub_resource {
         SubResource::ServerConfigMap => {
@@ -1363,8 +1363,8 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(s
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
-        step.is_ControllerStep(),
-        step.get_ControllerStep_0().1->0 == rabbitmq.object_ref(),
+        step is ControllerStep,
+        step->ControllerStep_0.1->0 == rabbitmq.object_ref(),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         RMQCluster::pending_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
@@ -1372,15 +1372,15 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(s
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
-    let cr_key = step.get_ControllerStep_0().1->0;
+    let cr_key = step->ControllerStep_0.1->0;
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert(step.is_ControllerStep());
+    assert(step is ControllerStep);
     assert(s.ongoing_reconciles().contains_key(cr_key));
     let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
     let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-    assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
     match local_step_prime {
         RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
             match action {
@@ -1393,7 +1393,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(s
         },
         _ => {}
     }
-    assert(local_step_prime.is_AfterKRequestStep() && local_step_prime.get_AfterKRequestStep_0() == ActionKind::Create);
+    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
     match sub_resource {
         SubResource::ServerConfigMap => {

@@ -5,61 +5,37 @@
 ## Requires kind to be installed and the prerequisites of deploy.sh.
 ## Usage: ./local-test.sh <controller_name> [--no-build]
 
-set -xeu
+set -eu
 
 app=$(echo "$1" | tr '_' '-')
 app_filename=$(echo "$app" | tr '-' '_')
-build_controller="no"
-dockerfile_path="docker/controller/Dockerfile.local"
+dockerfile="docker/controller/Dockerfile.local"
+build_controller=0
 
 if [ $# -gt 1 ]; then
     if  [ "$2" == "--build" ]; then # chain build.sh
-        if [ ! -f "${VERUS_DIR}/source/target-verus/release/verus" ]; then
-            echo "Verus not found. Please set VERUS_DIR correct"
-            exit 1
-        fi
-        build_controller="local"
-    elif [ "$2" == "--build-remote" ]; then
-        build_controller="remote"
-    fi
-fi
-
-case "$build_controller" in
-    local)
+        command -v verus; # if not set quit by set -e
+        build_controller=1
         echo "Building $app controller binary"
         shift 2
         ./build.sh "${app_filename}_controller.rs" "--no-verify" $@
         echo "Building $app controller image"
-        docker build -f $dockerfile_path -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
-        ;;
-    remote)
-        echo "Building $app controller image using builder"
-        dockerfile_path="docker/controller/Dockerfile.remote"
-        docker build -f $dockerfile_path -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
-        ;;
-    no)
+        docker build -f $dockerfile -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+    else
         echo "Use existing $app controller image"
-        ;;
-esac
+    fi
+fi
 
 # for VDeployment, need to deploy VReplicaSet as a dependency
 if [ "$app" == "vdeployment" ]; then
-    case "$build_controller" in
-        local)
-            echo "Building vreplicaset controller binary"
-            ./build.sh "vreplicaset_controller.rs" "--no-verify" $@
-            echo "Building vreplicaset controller image"
-            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
-            ;;
-        remote)
-            echo "Building vreplicaset controller image using builder"
-            dockerfile_path="docker/controller/Dockerfile.remote"
-            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
-            ;;
-        no)
-            echo "Use existing vreplicaset controller image"
-            ;;
-    esac
+    if [ $build_controller == 1 ]; then
+        echo "Building vreplicaset controller binary"
+        ./build.sh "vreplicaset_controller.rs" "--no-verify" $@
+        echo "Building vreplicaset controller image"
+        docker build -f $dockerfile -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
+    else
+        echo "Use existing vreplicaset controller image"
+    fi
 fi
 
 # Setup cluster, deploy the controller as a pod to the kind cluster, using the image just loaded

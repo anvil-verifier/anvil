@@ -6,12 +6,10 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-#[is_variant]
 pub enum BuiltinControllersStep {
     RunGarbageCollector,
 }
 
-#[is_variant]
 pub enum BuiltinControllerChoice {
     GarbageCollector,
 }

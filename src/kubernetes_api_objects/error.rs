@@ -5,7 +5,6 @@ use vstd::prelude::*;
 verus! {
 
 // TODO: implement other error types
-#[is_variant]
 pub enum APIError {
     BadRequest,
     Conflict,
@@ -43,7 +42,7 @@ impl std::fmt::Debug for APIError {
 
 impl APIError {
     pub fn is_object_not_found(&self) -> (res: bool)
-        ensures res <==> self.is_ObjectNotFound(),
+        ensures res <==> self is ObjectNotFound,
     {
         match self {
             APIError::ObjectNotFound => true,

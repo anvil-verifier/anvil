@@ -191,6 +191,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
 
 // TODO: investigate flaky proof
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
         spec.entails(always(lift_action(self.next()))),
@@ -446,7 +447,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceVi
             let unmarshal_result =
                 T::unmarshal(s.resources()[key]);
             #[trigger] s.resources().contains_key(key)
-            && key.kind.is_CustomResourceKind()
+            && key.kind is CustomResourceKind
             && key.kind == T::kind()
             ==> unmarshal_result is Ok
                 && unmarshal_result.unwrap().state_validation()
@@ -492,7 +493,7 @@ pub open spec fn cr_objects_in_schedule_satisfy_state_validation<T: CustomResour
             let unmarshal_result =
                 T::unmarshal(s.scheduled_reconciles(controller_id)[key]);
             #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
-            && key.kind.is_CustomResourceKind()
+            && key.kind is CustomResourceKind
             && key.kind == T::kind()
             ==> unmarshal_result is Ok
                 && unmarshal_result.unwrap().state_validation()
@@ -535,7 +536,7 @@ pub open spec fn cr_objects_in_reconcile_satisfy_state_validation<T: CustomResou
             let unmarshal_result =
                 T::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr);
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            && key.kind.is_CustomResourceKind()
+            && key.kind is CustomResourceKind
             && key.kind == T::kind()
             ==> unmarshal_result is Ok
                 && unmarshal_result.unwrap().state_validation()
@@ -581,7 +582,7 @@ pub open spec fn cr_states_are_unmarshallable<S: Marshallable, K: CustomResource
             let unmarshal_result =
                 S::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state);
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            && key.kind.is_CustomResourceKind()
+            && key.kind is CustomResourceKind
             && key.kind == K::kind()
             ==> unmarshal_result is Ok
         }
@@ -842,8 +843,8 @@ pub open spec fn every_msg_from_key_is_pending_req_msg_of(
     |s: ClusterState| {
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             &&& msg.src == HostId::Controller(controller_id, key)
-            &&& msg.content.is_APIRequest()
-            &&& msg.dst.is_APIServer()
+            &&& msg.content is APIRequest
+            &&& msg.dst is APIServer
             &&& s.in_flight().contains(msg)
         } ==> {
             &&& s.ongoing_reconciles(controller_id).contains_key(key)
@@ -879,8 +880,8 @@ pub proof fn lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of
     let requirements = |msg: Message, s: ClusterState| {
         ({
             &&& msg.src == HostId::Controller(controller_id, key)
-            &&& msg.content.is_APIRequest()
-            &&& msg.dst.is_APIServer()
+            &&& msg.content is APIRequest
+            &&& msg.dst is APIServer
             &&& s.in_flight().contains(msg)
         }) ==> ({
             &&& s.ongoing_reconciles(controller_id).contains_key(key)
@@ -889,8 +890,8 @@ pub proof fn lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of
     };
     let requirements_antecedent = |msg: Message, s: ClusterState| {
         &&& msg.src == HostId::Controller(controller_id, key)
-        &&& msg.content.is_APIRequest()
-        &&& msg.dst.is_APIServer()
+        &&& msg.content is APIRequest
+        &&& msg.dst is APIServer
         &&& s.in_flight().contains(msg)
     };
 

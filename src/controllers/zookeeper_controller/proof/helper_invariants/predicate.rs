@@ -41,7 +41,7 @@ pub open spec fn the_object_in_schedule_satisfies_state_validation() -> StatePre
     |s: ZKCluster| {
         forall |key: ObjectRef|
         #[trigger] s.scheduled_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        && key.kind is CustomResourceKind
         && key.kind == ZookeeperClusterView::kind()
         ==> s.scheduled_reconciles()[key].state_validation()
     }
@@ -52,7 +52,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<ZKCl
     |s: ZKCluster| {
         forall |key: ObjectRef|
         #[trigger] s.resources().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        && key.kind is CustomResourceKind
         && key.kind == ZookeeperClusterView::kind()
         ==> ZookeeperClusterView::unmarshal(s.resources()[key]) is Ok
             && ZookeeperClusterView::unmarshal(s.resources()[key])->Ok_0.state_validation()
@@ -78,7 +78,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
 
 pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(ZKMessage) -> bool {
     |msg: ZKMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_get_response()
         && (
             msg.content.get_get_response().res is Ok
@@ -88,7 +88,7 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(ZKMessage)
 
 pub open spec fn resource_update_response_msg(key: ObjectRef, s: ZKCluster) -> spec_fn(ZKMessage) -> bool {
     |msg: ZKMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_update_response()
         && (
             msg.content.get_update_response().res is Ok
@@ -101,7 +101,7 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: ZKCluster) -> s
 
 pub open spec fn resource_create_response_msg(key: ObjectRef, s: ZKCluster) -> spec_fn(ZKMessage) -> bool {
     |msg: ZKMessage|
-        msg.src.is_ApiServer()
+        msg.src is APIServer
         && msg.content.is_create_response()
         && (
             msg.content.get_create_response().res is Ok
@@ -259,8 +259,8 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
     |s: ZKCluster| {
         forall |msg: ZKMessage|
             #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_ApiServer()
-            && !msg.src.is_BuiltinController()
+            && msg.dst is APIServer
+            && !msg.src is BuiltinController
             ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg)
     }
 }

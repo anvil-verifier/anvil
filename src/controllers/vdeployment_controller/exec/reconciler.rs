@@ -12,7 +12,7 @@ use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 use deps_hack::tracing::{error, info};
 use vstd::{map::*, prelude::*, seq_lib::*, set::*};
-// for assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
+// for assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
 use crate::reconciler::spec::io::*;
 
 verus! {
@@ -130,7 +130,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
-            assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
+            assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
             let vrs_list_or_none = objects_to_vrs_list(objs);
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);

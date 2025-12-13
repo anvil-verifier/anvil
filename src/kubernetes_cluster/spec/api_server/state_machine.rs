@@ -739,9 +739,9 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
 
 pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
-        msg.content.is_APIRequest(),
+        msg.content is APIRequest,
 {
-    match msg.content.get_APIRequest_0() {
+    match msg.content->APIRequest_0 {
         APIRequest::GetRequest(_) => handle_get_request_msg(msg, s),
         APIRequest::ListRequest(_) => handle_list_request_msg(msg, s),
         APIRequest::CreateRequest(_) => handle_create_request_msg(installed_types, msg, s),
@@ -757,7 +757,7 @@ pub open spec fn handle_request(installed_types: InstalledTypes) -> APIServerAct
     Action {
         precondition: |input: APIServerActionInput, s: APIServerState| {
             &&& input.recv is Some
-            &&& input.recv->0.content.is_APIRequest()
+            &&& input.recv->0.content is APIRequest
         },
         transition: |input: APIServerActionInput, s: APIServerState| {
             let (s_prime, etcd_resp) = transition_by_etcd(installed_types, input.recv->0, s);

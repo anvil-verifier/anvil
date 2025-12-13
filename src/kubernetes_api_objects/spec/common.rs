@@ -16,7 +16,6 @@ pub type ResourceVersion = int;
 // make GenerateNameCounter an int, instead of String, so that it is easy to compare in spec/proof
 pub type GenerateNameCounter = int;
 
-#[is_variant]
 pub enum Kind {
     ConfigMapKind,
     CustomResourceKind(StringView),

@@ -51,14 +51,12 @@ impl View for ZKAPISetDataResult {
     open spec fn view(&self) -> ZKAPISetDataResultView { ZKAPISetDataResultView {res: self.res} }
 }
 
-#[is_variant]
 pub enum ZKAPIInput {
     ExistsRequest(String, String, i32, Vec<String>),
     CreateRequest(String, String, i32, Vec<String>, String),
     SetDataRequest(String, String, i32, Vec<String>, String, i32),
 }
 
-#[is_variant]
 pub enum ZKAPIOutput {
     ExistsResponse(ZKAPIExistsResult),
     CreateResponse(ZKAPICreateResult),

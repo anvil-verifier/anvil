@@ -15,13 +15,13 @@ impl Cluster {
 
 pub open spec fn has_pending_k8s_api_req_msg(controller_id: int, s: ClusterState, key: ObjectRef) -> bool {
     &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-    &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.content.is_APIRequest()
+    &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.content is APIRequest
 }
 
 pub open spec fn has_pending_req_msg(controller_id: int, s: ClusterState, key: ObjectRef) -> bool {
     &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-    &&& (s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.content.is_APIRequest()
-        || s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.content.is_ExternalRequest())
+    &&& (s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.content is APIRequest
+        || s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.content is ExternalRequest)
 }
 
 pub open spec fn pending_req_msg_is(controller_id: int, s: ClusterState, key: ObjectRef, req: Message) -> bool {
@@ -44,11 +44,11 @@ pub open spec fn request_sent_by_controller(controller_id: int, msg: Message) ->
     &&& {
         ||| {
             &&& msg.dst == HostId::APIServer
-            &&& msg.content.is_APIRequest()
+            &&& msg.content is APIRequest
         }
         ||| {
             &&& msg.dst == HostId::External(controller_id)
-            &&& msg.content.is_ExternalRequest()
+            &&& msg.content is ExternalRequest
         }
     }
 }
@@ -58,11 +58,11 @@ pub open spec fn request_sent_by_controller_with_key(controller_id: int, key: Ob
     &&& {
         ||| {
             &&& msg.dst == HostId::APIServer
-            &&& msg.content.is_APIRequest()
+            &&& msg.content is APIRequest
         }
         ||| {
             &&& msg.dst == HostId::External(controller_id)
-            &&& msg.content.is_ExternalRequest()
+            &&& msg.content is ExternalRequest
         }
     }
 }
@@ -543,7 +543,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
             lift_state(Self::every_in_flight_msg_has_unique_id()),
             lift_state(Self::there_is_the_controller_state(controller_id))
         );
-        if req_msg.content.is_APIRequest() {
+        if req_msg.content is APIRequest {
             let input = Some(req_msg);
             assert forall |s, s_prime| pre_1(s) && #[trigger] stronger_next(s, s_prime)
             && self.api_server_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
@@ -569,7 +569,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
                 }
             };
             self.lemma_pre_leads_to_post_by_api_server(spec, input, stronger_next, APIServerStep::HandleRequest, pre_1, post_1);
-        } else if req_msg.content.is_ExternalRequest() {
+        } else if req_msg.content is ExternalRequest {
             if self.controller_models[controller_id].external_model is Some {
                 let stronger_next_for_external = |s, s_prime| {
                     &&& stronger_next(s, s_prime)

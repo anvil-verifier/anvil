@@ -138,7 +138,7 @@ pub fn reconcile_helper<
     requires
         fb@.well_formed(),
         Builder::requirements(fb@),
-        state.reconcile_step.is_AfterKRequestStep(),
+        state.reconcile_step is AfterKRequestStep,
     ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(fb@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();

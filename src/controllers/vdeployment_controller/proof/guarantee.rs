@@ -76,9 +76,9 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)
                     &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content.is_APIRequest()
+                    &&& msg.content is APIRequest
                     &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content.get_APIRequest_0() {
+                } implies match msg.content->APIRequest_0 {
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s_prime),
                     APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s_prime),
@@ -93,9 +93,9 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)
                     &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content.is_APIRequest()
+                    &&& msg.content is APIRequest
                     &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content.get_APIRequest_0() {
+                } implies match msg.content->APIRequest_0 {
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s_prime),
                     APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s_prime),
@@ -147,9 +147,9 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)
                     &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content.is_APIRequest()
+                    &&& msg.content is APIRequest
                     &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content.get_APIRequest_0() {
+                } implies match msg.content->APIRequest_0 {
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s_prime),
                     APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s_prime),

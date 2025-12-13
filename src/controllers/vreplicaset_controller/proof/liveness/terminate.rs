@@ -59,7 +59,7 @@ pub proof fn reconcile_eventually_terminates(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                 )
             ))))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
@@ -67,7 +67,7 @@ pub proof fn reconcile_eventually_terminates(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             ))))),
     ensures
@@ -139,7 +139,7 @@ pub proof fn reconcile_eventually_terminates(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                 )
         )))) by {
             always_tla_forall_apply::<ClusterState, VReplicaSetView>(
@@ -149,7 +149,7 @@ pub proof fn reconcile_eventually_terminates(
                     controller_id,
                     vrs.object_ref(),
                     unwrap_local_state_closure(
-                        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                        |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                     )
                 )),
                 vrs
@@ -162,7 +162,7 @@ pub proof fn reconcile_eventually_terminates(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
         )))) by {
             always_tla_forall_apply::<ClusterState, VReplicaSetView>(
@@ -172,7 +172,7 @@ pub proof fn reconcile_eventually_terminates(
                     controller_id,
                     vrs.object_ref(),
                     unwrap_local_state_closure(
-                        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                        |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                     )
                 )),
                 vrs
@@ -283,7 +283,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                 )
             )))),
         spec.entails(always(
@@ -291,7 +291,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             )))),
     ensures
@@ -488,7 +488,7 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                 )
             )))),
         spec.entails(always(
@@ -496,7 +496,7 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             )))),
         // The next state will lead to reconcile_idle
@@ -593,7 +593,7 @@ pub proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                 )
             )))),
     ensures
@@ -679,7 +679,7 @@ pub proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             )))),
     ensures
@@ -947,7 +947,7 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
                 )
             )))),
     ensures
@@ -962,7 +962,7 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
         controller_id,
         vrs.object_ref(),
         unwrap_local_state_closure(
-            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+            |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
         )
     ));
     let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
@@ -990,7 +990,7 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             )))),
     ensures
@@ -1005,7 +1005,7 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
         controller_id,
         vrs.object_ref(),
         unwrap_local_state_closure(
-            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+            |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
         )
     ));
     let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(

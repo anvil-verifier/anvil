@@ -102,7 +102,7 @@ pub open spec fn at_step_state_pred(rabbitmq: RabbitmqClusterView, step: Rabbitm
 pub open spec fn state_pred_regarding_sub_resource(rabbitmq: RabbitmqClusterView, sub_resource: SubResource) -> StatePred<RMQCluster> {
     RMQCluster::at_expected_reconcile_states(
         rabbitmq.object_ref(),
-        |s: RabbitmqReconcileState| s.reconcile_step.is_AfterKRequestStep() && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
+        |s: RabbitmqReconcileState| s.reconcile_step is AfterKRequestStep && s.reconcile_step.get_AfterKRequestStep_1() == sub_resource
     )
 }
 

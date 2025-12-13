@@ -174,11 +174,11 @@ pub open spec fn no_other_pending_request_interferes_with_vd_reconcile(
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.src != HostId::Controller(controller_id, vd.object_ref())
-            &&& msg.dst.is_APIServer()
-            &&& msg.content.is_APIRequest()
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
         } ==> {
             let content = msg.content;
-            match content.get_APIRequest_0() {
+            match content->APIRequest_0 {
                 APIRequest::CreateRequest(req) => no_other_pending_create_request_interferes_with_vd_reconcile(req, vd)(s),
                 APIRequest::UpdateRequest(req) => no_other_pending_update_request_interferes_with_vd_reconcile(req, vd)(s),
                 APIRequest::UpdateStatusRequest(req) => no_other_pending_update_status_request_interferes_with_vd_reconcile(req, vd)(s),
@@ -242,9 +242,9 @@ pub open spec fn vd_reconcile_request_only_interferes_with_itself(
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.content.is_APIRequest()
+            &&& msg.content is APIRequest
             &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
-        } ==> match msg.content.get_APIRequest_0() {
+        } ==> match msg.content->APIRequest_0 {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vd_reconcile_create_request_only_interferes_with_itself(req, vd)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_reconcile_get_then_update_request_only_interferes_with_itself(req, vd)(s),
@@ -260,11 +260,11 @@ pub open spec fn no_pending_interfering_update_request(
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_APIServer()
-            &&& msg.content.is_APIRequest()
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
         } ==> {
             &&& msg.src != HostId::Controller(controller_id, vd.object_ref()) ==>
-                match msg.content.get_APIRequest_0() {
+                match msg.content->APIRequest_0 {
                     APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
                     APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s),
                     _ => true,
@@ -285,9 +285,9 @@ pub open spec fn garbage_collector_does_not_delete_vd_vrs_objects(vd: VDeploymen
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src.is_BuiltinController()
-            &&& msg.dst.is_APIServer()
-            &&& msg.content.is_APIRequest()
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
         } ==> {
             let req = msg.content.get_delete_request(); 
             &&& msg.content.is_delete_request()
@@ -309,9 +309,9 @@ pub open spec fn no_pending_mutation_request_not_from_controller_on_vrs_objects(
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& !(msg.src.is_Controller() || msg.src.is_BuiltinController())
-            &&& msg.dst.is_APIServer()
-            &&& msg.content.is_APIRequest()
+            &&& !(msg.src is Controller || msg.src is BuiltinController)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
         } ==> {
             &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != VReplicaSetView::kind()
             &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != VReplicaSetView::kind()
@@ -360,7 +360,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                 &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
                     let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.dst is APIServer
                     &&& req_msg.content.is_list_request()
                     &&& req_msg.content.get_list_request() == ListRequest {
                         kind: VReplicaSetView::kind(),
@@ -370,9 +370,9 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                        &&& msg.src.is_APIServer()
+                        &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                        &&& is_ok_resp(msg.content.get_APIResponse_0())
+                        &&& is_ok_resp(msg.content->APIResponse_0)
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.is_list_response()
@@ -406,10 +406,10 @@ pub open spec fn every_msg_from_vd_controller_carries_vd_key(
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
             &&& s.in_flight().contains(msg)
-            &&& msg.src.is_Controller()
-            &&& msg.src.get_Controller_0() == controller_id
+            &&& msg.src is Controller
+            &&& msg.src->Controller_0 == controller_id
         } ==> {
-            msg.src.get_Controller_1().kind == VDeploymentView::kind()
+            msg.src->Controller_1.kind == VDeploymentView::kind()
         }
     }
 }
@@ -441,25 +441,43 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     }
 }
 
-pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub open spec fn vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
         let scheduled_cr = VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap();
-        &&& scheduled_cr.spec == vd.spec
+
+        // make them explicit to Verus
+        &&& vd.metadata.uid is Some
+        &&& vd.metadata.name is Some
+        &&& vd.metadata.namespace is Some
+        // required by vd.spec.selector.matches
+        &&& vd.spec.template.metadata is Some
+        &&& vd.spec.template.metadata->0.labels is Some
+        // required by ESR
+        &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd)(s)
+        // required by controller_owner_ref
         &&& scheduled_cr.metadata.uid->0 == vd.metadata.uid->0
         &&& scheduled_cr.metadata.name->0 == vd.metadata.name->0
+        // required by requests/responses and filters
         &&& scheduled_cr.metadata.namespace->0 == vd.metadata.namespace->0
     }
 }
 
-pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(
+pub open spec fn vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        // make them explicit to Verus
+        &&& vd.metadata.uid is Some
+        &&& vd.metadata.name is Some
+        &&& vd.metadata.namespace is Some
+        // required by vd.spec.selector.matches
+        &&& vd.spec.template.metadata is Some
+        &&& vd.spec.template.metadata->0.labels is Some
         // required by ESR
-        &&& triggering_cr.spec == vd.spec
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)(s)
         // required by controller_owner_ref
         &&& triggering_cr.metadata.uid->0 == vd.metadata.uid->0
         &&& triggering_cr.metadata.name->0 == vd.metadata.name->0

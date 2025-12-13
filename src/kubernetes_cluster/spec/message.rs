@@ -23,7 +23,6 @@ pub struct Message {
     pub content: MessageContent,
 }
 
-#[is_variant]
 pub enum HostId {
     APIServer,
     BuiltinController,
@@ -58,7 +57,6 @@ impl RPCIdAllocator {
 }
 
 // Each MessageContent is a request/response.
-#[is_variant]
 pub enum MessageContent {
     APIRequest(APIRequest),
     APIResponse(APIResponse),
@@ -98,25 +96,25 @@ pub open spec fn pod_monkey_req_msg(rpc_id: RPCId, msg_content: MessageContent) 
 
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
     ||| {
-        &&& resp_msg.content.is_APIResponse()
-        &&& req_msg.content.is_APIRequest()
+        &&& resp_msg.content is APIResponse
+        &&& req_msg.content is APIRequest
         &&& resp_msg.dst == req_msg.src
         &&& resp_msg.src == req_msg.dst
         &&& resp_msg.rpc_id == req_msg.rpc_id
-        &&& match resp_msg.content.get_APIResponse_0() {
-            APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
-            APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
-            APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
-            APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
-            APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
-            APIResponse::UpdateStatusResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateStatusRequest(),
-            APIResponse::GetThenDeleteResponse(_) => req_msg.content.get_APIRequest_0().is_GetThenDeleteRequest(),
-            APIResponse::GetThenUpdateResponse(_) => req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest(),
+        &&& match resp_msg.content->APIResponse_0 {
+            APIResponse::GetResponse(_) => req_msg.content->APIRequest_0 is GetRequest,
+            APIResponse::ListResponse(_) => req_msg.content->APIRequest_0 is ListRequest,
+            APIResponse::CreateResponse(_) => req_msg.content->APIRequest_0 is CreateRequest,
+            APIResponse::DeleteResponse(_) => req_msg.content->APIRequest_0 is DeleteRequest,
+            APIResponse::UpdateResponse(_) => req_msg.content->APIRequest_0 is UpdateRequest,
+            APIResponse::UpdateStatusResponse(_) => req_msg.content->APIRequest_0 is UpdateStatusRequest,
+            APIResponse::GetThenDeleteResponse(_) => req_msg.content->APIRequest_0 is GetThenDeleteRequest,
+            APIResponse::GetThenUpdateResponse(_) => req_msg.content->APIRequest_0 is GetThenUpdateRequest,
         }
     }
     ||| {
-        &&& resp_msg.content.is_ExternalResponse()
-        &&& req_msg.content.is_ExternalRequest()
+        &&& resp_msg.content is ExternalResponse
+        &&& req_msg.content is ExternalRequest
         &&& resp_msg.dst == req_msg.src
         &&& resp_msg.src == req_msg.dst
         &&& resp_msg.rpc_id == req_msg.rpc_id
@@ -124,9 +122,9 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
 }
 
 pub open spec fn form_matched_err_resp_msg(req_msg: Message, err: APIError) -> Message
-    recommends req_msg.content.is_APIRequest(),
+    recommends req_msg.content is APIRequest,
 {
-    match req_msg.content.get_APIRequest_0() {
+    match req_msg.content->APIRequest_0 {
         APIRequest::GetRequest(_) => form_get_resp_msg(req_msg, GetResponse{res: Err(err)}),
         APIRequest::ListRequest(_) => form_list_resp_msg(req_msg, ListResponse{res: Err(err)}),
         APIRequest::CreateRequest(_) => form_create_resp_msg(req_msg, CreateResponse{res: Err(err)}),
@@ -148,7 +146,7 @@ pub open spec fn form_msg(src: HostId, dst: HostId, rpc_id: RPCId, msg_content: 
 }
 
 pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalResponse) -> Message
-    recommends req_msg.content.is_ExternalRequest(),
+    recommends req_msg.content is ExternalRequest,
 {
     form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::ExternalResponse(resp))
 }
@@ -216,7 +214,7 @@ pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: St
 pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {
     |msg: Message| {
         &&& msg.rpc_id < rpc_id
-        &&& msg.dst.is_APIServer() && msg.content.is_APIRequest()
+        &&& msg.dst is APIServer && msg.content is APIRequest
     }
 }
 
@@ -245,11 +243,11 @@ macro_rules! declare_message_content_req_helper_methods {
         impl MessageContent {
             pub open spec fn $is_fun(self) -> bool {
                 &&& self is APIRequest
-                &&& self.get_APIRequest_0() is $req_type
+                &&& self->APIRequest_0 is $req_type
             }
 
             pub open spec fn $get_fun(self) -> $req_type {
-                self.get_APIRequest_0().$project()
+                self->APIRequest_0.$project()
             }
         }
         }
@@ -262,8 +260,8 @@ macro_rules! declare_message_content_req_helper_methods_with_key {
         impl MessageContent {
             pub open spec fn $is_fun(self, key: ObjectRef) -> bool {
                 &&& self is APIRequest
-                &&& self.get_APIRequest_0() is $req_type
-                &&& self.get_APIRequest_0().$project().key() == key
+                &&& self->APIRequest_0 is $req_type
+                &&& self->APIRequest_0.$project().key() == key
             }
         }
         }
@@ -276,11 +274,11 @@ macro_rules! declare_message_content_resp_helper_methods {
         impl MessageContent {
             pub open spec fn $is_fun(self) -> bool {
                 &&& self is APIResponse
-                &&& self.get_APIResponse_0() is $resp_type
+                &&& self->APIResponse_0 is $resp_type
             }
 
             pub open spec fn $get_fun(self) -> $resp_type {
-                self.get_APIResponse_0().$project()
+                self->APIResponse_0.$project()
             }
         }
         }
@@ -459,7 +457,7 @@ macro_rules! declare_is_req_msg_functions {
     ($is_fun:ident, $is_req:ident, $get_req:ident) => {
         verus! {
         pub open spec fn $is_fun(key: ObjectRef) -> spec_fn(Message) -> bool {
-            |msg: Message| msg.dst.is_APIServer() && msg.content.$is_req() && msg.content.$get_req().key() == key
+            |msg: Message| msg.dst is APIServer && msg.content.$is_req() && msg.content.$get_req().key() == key
         }
         }
     };
@@ -501,12 +499,12 @@ verus! {
 
 pub open spec fn update_status_msg_from_bc_for(key: ObjectRef) -> spec_fn(Message) -> bool {
     |msg: Message|
-        resource_update_status_request_msg(key)(msg) && msg.src.is_BuiltinController()
+        resource_update_status_request_msg(key)(msg) && msg.src is BuiltinController
 }
 
 pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
     |msg: Message|
-        msg.dst.is_APIServer()
+        msg.dst is APIServer
         && msg.content.is_create_request()
         && msg.content.get_create_request().obj.metadata.name is Some
         && msg.content.get_create_request().key() == key
@@ -515,7 +513,7 @@ pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message)
 // This is mainly used for reasoning about create requests with generate name
 pub open spec fn resource_create_request_msg_without_name(kind: Kind, namespace: StringView) -> spec_fn(Message) -> bool {
     |msg: Message|
-        msg.dst.is_APIServer()
+        msg.dst is APIServer
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == namespace
         && msg.content.get_create_request().obj.metadata.name is None
@@ -530,7 +528,7 @@ macro_rules! declare_is_ok_resp_msg_functions {
         verus! {
         pub open spec fn $is_ok_fun() -> spec_fn(Message) -> bool {
             |msg: Message|
-                msg.src.is_APIServer() && msg.content.$is_resp() && msg.content.$get_resp().res is Ok
+                msg.src is APIServer && msg.content.$is_resp() && msg.content.$get_resp().res is Ok
         }
 
         pub open spec fn $is_ok_for_fun(key: ObjectRef) -> spec_fn(Message) -> bool {

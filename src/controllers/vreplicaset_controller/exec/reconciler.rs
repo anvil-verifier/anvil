@@ -119,14 +119,14 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
-            assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
+            assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
             let pods_or_none = objects_to_pods(objs);
             if pods_or_none.is_none() {
                 return (error_state(state), None);
             }
             let pods = pods_or_none.unwrap();
             let filtered_pods = filter_pods(pods, v_replica_set);
-            let replicas = v_replica_set.spec().replicas().unwrap_or(0);
+            let replicas = v_replica_set.spec().replicas().unwrap_or(1);
             if replicas < 0 {
                 return (error_state(state), None);
             }

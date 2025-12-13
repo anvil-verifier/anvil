@@ -5,7 +5,6 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-#[is_variant]
 pub enum ZookeeperReconcileStep {
     Init,
     AfterKRequestStep(ActionKind, SubResource),
@@ -28,14 +27,12 @@ impl std::clone::Clone for ZookeeperReconcileStep {
     { *self }
 }
 
-#[is_variant]
 pub enum ActionKind {
     Get,
     Update,
     Create,
 }
 
-#[is_variant]
 pub enum SubResource {
     HeadlessService,
     ClientService,
@@ -44,7 +41,6 @@ pub enum SubResource {
     StatefulSet,
 }
 
-#[is_variant]
 pub enum ZKAPIError {
     ZKNodeExistsFailed,
     ZKNodeCreateAlreadyExists,
@@ -54,7 +50,7 @@ pub enum ZKAPIError {
 
 impl ZKAPIError {
     pub fn is_create_already_exists(&self) -> (res: bool)
-        ensures res <==> self.is_ZKNodeCreateAlreadyExists(),
+        ensures res <==> self is ZKNodeCreateAlreadyExists,
     {
         match self {
             ZKAPIError::ZKNodeCreateAlreadyExists => true,

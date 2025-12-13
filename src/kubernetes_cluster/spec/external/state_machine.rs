@@ -7,9 +7,9 @@ verus! {
 
 pub open spec fn transition_by_external(model: ExternalModel, req_msg: Message, resources: StoredState, s: ExternalState) -> (ExternalState, Message)
     recommends
-        req_msg.content.is_ExternalRequest(),
+        req_msg.content is ExternalRequest,
 {
-    let (inner_s_prime, resp) = (model.transition)(req_msg.content.get_ExternalRequest_0(), s.state, resources);
+    let (inner_s_prime, resp) = (model.transition)(req_msg.content->ExternalRequest_0, s.state, resources);
     let s_prime = ExternalState {
         state: inner_s_prime,
         ..s
@@ -22,7 +22,7 @@ pub open spec fn handle_external_request(model: ExternalModel) -> ExternalAction
     Action {
         precondition: |input: ExternalActionInput, s: ExternalState| {
             &&& input.recv is Some
-            &&& input.recv->0.content.is_ExternalRequest()
+            &&& input.recv->0.content is ExternalRequest
         },
         transition: |input: ExternalActionInput, s: ExternalState| {
             let req_msg = input.recv->0;
