@@ -564,7 +564,6 @@ pub open spec fn local_state_is(
     }
 }
 
-// TODO: replace vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
 pub open spec fn local_state_is_valid_and_coherent_with_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& local_state_is_coherent_with_etcd(vd, controller_id)(s)
