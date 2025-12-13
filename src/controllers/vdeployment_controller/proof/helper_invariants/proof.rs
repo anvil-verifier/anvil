@@ -1191,7 +1191,6 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                             }
                         }
                     } else {
-                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
                         if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                             let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                             assert(forall |msg| {
@@ -1378,23 +1377,21 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                         }
                     }
                 },
-                Step::BuiltinControllersStep(..) => {
-                    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                Step::DropReqStep(dropped_msg_opt) => {
                     let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                    if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                        assert(forall |msg| {
-                            &&& #[trigger] s_prime.in_flight().contains(msg)
-                            &&& msg.src is APIServer
-                            &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } ==> s.in_flight().contains(msg));
+                    if dropped_msg_opt.0 == req_msg {
+                        assume(false);
+                    } else {
+                        if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
+                            assert(forall |msg| {
+                                &&& #[trigger] s_prime.in_flight().contains(msg)
+                                &&& msg.src is APIServer
+                                &&& resp_msg_matches_req_msg(msg, req_msg)
+                            } ==> s.in_flight().contains(msg));
+                        }
                     }
                 },
-                Step::DropReqStep(input) => {
-                    assume(false);
-                },
                 _ => {
-                    let new_msgs = s_prime.in_flight().sub(s.in_flight());
                     let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                     if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                         assert(forall |msg| {
