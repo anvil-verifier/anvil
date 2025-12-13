@@ -78,6 +78,7 @@ impl Reconciler for VStatefulSetReconciler {
 
 }
 
+#[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: VStatefulSetReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state()
 {
@@ -354,7 +355,7 @@ pub fn handle_after_get_pvc(
         ),
 {
     if is_some_k_get_resp!(resp_o) {
-        assert(is_some_k_get_resp_view!(resp_o.deep_view()));
+        assert(is_some_k_get_resp_view(resp_o.deep_view()));
         let result = extract_some_k_get_resp!(resp_o);
         if result.is_ok() {
             let state_prime = VStatefulSetReconcileState {
