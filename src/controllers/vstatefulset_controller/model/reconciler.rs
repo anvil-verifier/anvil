@@ -508,7 +508,7 @@ pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: Default
 
 pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view(resp_o) {
-        let result = extract_some_k_delete_resp_view(resp_o);
+        let result = extract_some_k_get_then_delete_resp_view(resp_o);
         if result is Ok {
             let new_condemned_index = state.condemned_index + 1;
             if new_condemned_index < state.condemned.len() {
@@ -558,7 +558,7 @@ pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultR
 
 pub open spec fn handle_after_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view(resp_o) {
-        let result = extract_some_k_delete_resp_view(resp_o);
+        let result = extract_some_k_get_then_delete_resp_view(resp_o);
         if result is Ok {
             (done_state(state), None)
         } else {

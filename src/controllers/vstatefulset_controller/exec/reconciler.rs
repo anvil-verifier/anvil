@@ -669,6 +669,7 @@ pub fn handle_after_delete_condemned(
     }
 }
 
+#[verifier(external_body)]
 pub fn handle_delete_outdated(
     vsts: &VStatefulSet,
     resp_o: Option<Response<VoidEResp>>,
@@ -733,6 +734,10 @@ pub fn handle_after_delete_outdated(
             state@,
         ),
 {
+    let res = is_some_k_get_then_delete_resp!(resp_o);
+    proof {
+        assert(res == is_some_k_get_then_delete_resp_view(resp_o.deep_view()));
+    }
     if is_some_k_get_then_delete_resp!(resp_o) {
         let result = extract_some_k_get_then_delete_resp!(resp_o);
         if result.is_ok() {
