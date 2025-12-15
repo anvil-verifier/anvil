@@ -15,6 +15,7 @@ src/*.d
 src/*.rlib
 tools/*.json
 vreplicaset_controller.*.txt
+vstatefulset_controller.*.txt
 certs
 verify.sh
 format.sh
