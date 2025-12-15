@@ -8,6 +8,14 @@ use crate::vstd_ext::map_lib::*;
 
 verus! {
 
+pub proof fn lemma_filter_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
+ensures
+    forall |a: A| #[trigger] s.filter(f).contains(a) ==> {
+        &&& f(a)
+        &&& s.contains(a)
+    }
+{}
+
 pub proof fn finite_set_to_finite_filtered_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
     requires s.finite(),
     ensures s.filter(f).finite(),
@@ -47,7 +55,7 @@ pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: Set<A>)
     }
 }
 
-proof fn element_in_finite_set_exists_in_set_to_seq<A>(s: Set<A>, e: A)
+pub proof fn element_in_finite_set_exists_in_set_to_seq<A>(s: Set<A>, e: A)
     requires s.finite(), s.contains(e),
     ensures s.to_seq().contains(e),
     decreases s.len()
@@ -65,7 +73,7 @@ proof fn element_in_finite_set_exists_in_set_to_seq<A>(s: Set<A>, e: A)
     }
 }
 
-proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
+pub proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
     requires s.finite(), s.to_seq().contains(e),
     ensures s.contains(e),
     decreases s.len()

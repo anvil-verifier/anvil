@@ -1251,16 +1251,14 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     &&& resp_objs[i].kind == VReplicaSetView::kind()
                                     &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
                                 } by {
-                                    // Tricky reasoning about .to_seq
                                     let selector = |o: DynamicObjectView| {
                                         &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
                                         &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                     };
                                     let selected_elements = s.resources().values().filter(selector);
                                     lemma_values_finite(s.resources());
-                                    assert(resp_objs == selected_elements.to_seq());
-                                    finite_set_to_seq_contains_all_set_elements(selected_elements);
-                                    assert(resp_objs.contains(resp_objs[i]));
+                                    element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
+                                    lemma_filter_set(s.resources().values(), selector);
                                 }
                             } else {
                                 assert(s.in_flight().contains(current_req_msg));
