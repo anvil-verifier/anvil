@@ -111,6 +111,15 @@ pub fn reconcile_error(state: &VStatefulSetReconcileState) -> (res: bool)
     }
 }
 
+pub fn indices_in_bounds(state: &VStatefulSetReconcileState) -> (res: bool) 
+    ensures res == model_reconciler::indices_in_bounds(state@)
+{
+    state.pvc_index < u32::MAX as usize
+    && state.needed_index < u32::MAX as usize
+    && state.condemned_index < u32::MAX as usize
+    && state.needed.len() < u32::MAX as usize
+}
+
 pub fn reconcile_core(
     vsts: &VStatefulSet,
     resp_o: Option<Response<VoidEResp>>,
@@ -125,9 +134,10 @@ pub fn reconcile_core(
             state@,
         ),
 {
-    assume(state.pvc_index < usize::MAX);
-    assume(state.needed_index < u32::MAX);
-    assume(state.condemned_index < usize::MAX);
+
+    if !indices_in_bounds(&state) {
+        return (error_state(state), None);
+    }
 
     match state.reconcile_step {
         VStatefulSetReconcileStep::Init => { handle_init(vsts, resp_o, state) },
@@ -321,7 +331,9 @@ pub fn handle_get_pvc(
 {
     if state.pvc_index < state.pvcs.len() {
         // TODO: what to do about this?
-        assume(state.pvcs[state.pvc_index as int]@.metadata.name is Some);
+        if state.pvcs[state.pvc_index].metadata().name().is_none() {
+            return (error_state(state), None);
+        }
 
         let req = KubeAPIRequest::GetRequest(
             KubeGetRequest {
@@ -677,6 +689,7 @@ pub fn handle_delete_outdated(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
+        state.needed.len() < u32::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_outdated(
             vsts@,
@@ -1484,6 +1497,7 @@ pub fn get_largest_ordinal_of_unmatched_pods(
 ) -> (result: Option<u32>)
     requires
         vsts@.well_formed(),
+        pods.len() < u32::MAX
     ensures
         (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(
             vsts@,
@@ -1503,7 +1517,7 @@ pub fn get_largest_ordinal_of_unmatched_pods(
     }
 
     let mut ord: u32 = 0;
-    assume(pods.len() < u32::MAX);
+
     while (ord as usize) < pods.len() 
         invariant 
         ordinals.deep_view() =~= model_ordinals.take(ord as int)

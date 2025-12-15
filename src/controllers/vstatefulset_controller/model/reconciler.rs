@@ -75,6 +75,13 @@ pub open spec fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
     }
 }
 
+pub open spec fn indices_in_bounds(state: VStatefulSetReconcileState) -> bool {
+    state.needed_index < u32::MAX
+    && state.condemned_index < u32::MAX
+    && state.pvc_index < u32::MAX
+    && state.needed.len() < u32::MAX
+}
+
 // The VSTS controller manages pods and volumes to run stateful, distributed applications.
 // The controller does two things: managing replicas and versions.
 //
@@ -95,57 +102,62 @@ pub open spec fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
 // be done by the next round of reconcile---the controller will get [pod-0, ...pod-3] by list,
 // and then it will create a new pod-4 with the new template, and then delete the next outdated pod.
 pub open spec fn reconcile_core(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    match state.reconcile_step {
-        VStatefulSetReconcileStepView::Init => {
-            handle_init(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterListPod => {
-            handle_after_list_pod(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::GetPVC => {
-            handle_get_pvc(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterGetPVC => {
-            handle_after_get_pvc(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::CreatePVC => {
-            handle_create_pvc(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterCreatePVC => {
-            handle_after_create_pvc(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::SkipPVC => {
-            handle_skip_pvc(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::CreateNeeded => {
-            handle_create_needed(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterCreateNeeded => {
-            handle_after_create_needed(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::UpdateNeeded => {
-            handle_update_needed(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterUpdateNeeded => {
-            handle_after_update_needed(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::DeleteCondemned => {
-            handle_delete_condemned(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterDeleteCondemned => {
-            handle_after_delete_condemned(vsts, resp_o, state)
-        },
-        // At this point, we should have desired number of replicas running (tho with old versions).
-        // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
-        // reconcile will do the remaining jobs to start a new one (and delete the next old one).
-        VStatefulSetReconcileStepView::DeleteOutdated => {
-            handle_delete_outdated(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterDeleteOutdated => {
-            handle_after_delete_outdated(vsts, resp_o, state)
-        },
-        _ => {
-            (state, None)
+    
+    if !indices_in_bounds(state) {
+        (error_state(state), None)
+    } else {
+        match state.reconcile_step {
+            VStatefulSetReconcileStepView::Init => {
+                handle_init(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterListPod => {
+                handle_after_list_pod(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::GetPVC => {
+                handle_get_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterGetPVC => {
+                handle_after_get_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::CreatePVC => {
+                handle_create_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterCreatePVC => {
+                handle_after_create_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::SkipPVC => {
+                handle_skip_pvc(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::CreateNeeded => {
+                handle_create_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterCreateNeeded => {
+                handle_after_create_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::UpdateNeeded => {
+                handle_update_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterUpdateNeeded => {
+                handle_after_update_needed(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::DeleteCondemned => {
+                handle_delete_condemned(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterDeleteCondemned => {
+                handle_after_delete_condemned(vsts, resp_o, state)
+            },
+            // At this point, we should have desired number of replicas running (tho with old versions).
+            // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
+            // reconcile will do the remaining jobs to start a new one (and delete the next old one).
+            VStatefulSetReconcileStepView::DeleteOutdated => {
+                handle_delete_outdated(vsts, resp_o, state)
+            },
+            VStatefulSetReconcileStepView::AfterDeleteOutdated => {
+                handle_after_delete_outdated(vsts, resp_o, state)
+            },
+            _ => {
+                (state, None)
+            }
         }
     }
 }
@@ -241,7 +253,7 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
 }
 
 pub open spec fn handle_get_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if state.pvc_index < state.pvcs.len() {
+    if state.pvc_index < state.pvcs.len() && state.pvcs[state.pvc_index as int].metadata.name is Some {
         let req = APIRequest::GetRequest(GetRequest {
             key: ObjectRef {
                 kind: PersistentVolumeClaimView::kind(),
