@@ -1205,24 +1205,24 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                 let current_req_msg = req_msg_opt.unwrap();
                 let new_msgs = s_prime.in_flight().sub(s.in_flight());
                 let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                let well_formed_resp_objs = |resp_objs: Seq<DynamicObjectView>| (forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                    let owners = resp_objs[i].metadata.owner_references->0;
+                    let controller_owners = owners.filter(controller_owner_filter());
+                    &&& resp_objs[i].metadata.namespace.is_some()
+                    &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                    &&& resp_objs[i].kind == VReplicaSetView::kind()
+                    &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
+                });
                 if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                     assert forall |msg| {
                         &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                         &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                         &&& is_ok_resp(msg.content->APIResponse_0)
                     } implies {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
-                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                            let owners = resp_objs[i].metadata.owner_references->0;
-                            let controller_owners = owners.filter(controller_owner_filter());
-                            &&& resp_objs[i].metadata.namespace.is_some()
-                            &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            &&& resp_objs[i].kind == VReplicaSetView::kind()
-                            &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
-                        }
+                        &&& well_formed_resp_objs(resp_objs)
                     } by {
                         if (new_msgs.contains(msg)) {
                             if current_req_msg == req_msg {
@@ -1258,10 +1258,9 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     };
                                     let selected_elements = s.resources().values().filter(selector);
                                     lemma_values_finite(s.resources());
+                                    assert(resp_objs == selected_elements.to_seq());
                                     finite_set_to_seq_contains_all_set_elements(selected_elements);
-                                    assert(resp_objs =~= selected_elements.to_seq());
-                                    assert(selected_elements.to_seq().contains(resp_objs[i]));
-                                    assert(selected_elements.contains(resp_objs[i]));
+                                    assert(resp_objs.contains(resp_objs[i]));
                                 }
                             } else {
                                 assert(s.in_flight().contains(current_req_msg));
@@ -1281,14 +1280,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     &&& msg.content.get_list_response().res is Ok
                                     &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0
                                 });
-                                assert(forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                                    let owners = resp_objs[i].metadata.owner_references->0;
-                                    let controller_owners = owners.filter(controller_owner_filter());
-                                    &&& resp_objs[i].metadata.namespace.is_some()
-                                    &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                                    &&& resp_objs[i].kind == VReplicaSetView::kind()
-                                    &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
-                                });
+                                assert(well_formed_resp_objs(resp_objs));
                             }
                         }
                     }
