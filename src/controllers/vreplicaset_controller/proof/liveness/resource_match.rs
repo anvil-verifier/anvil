@@ -2598,10 +2598,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     );
 }
 
-// TODO: investigate flaky proof; higher priority since even very
-// unrelated changes in the verification environment seem to affect it.
-#[verifier(spinoff_prover)]
-#[verifier(external_body)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>,
     vrs: VReplicaSetView,
@@ -2650,33 +2646,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& current_state_matches(vrs)(s)
         &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
     };
-    let post = |s: ClusterState| {
-       // let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
-        &&& current_state_matches(vrs)(s)
-        &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
-            &&& {
-                ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
-                ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s)
-                ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
-                ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Error)(s)
-            }
-            &&& at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) ==> {
-                let req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-                &&& s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some
-                &&& req_msg_is_list_pods_req(vrs, req_msg)
-                &&& forall |msg| {
-                    &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src is APIServer
-                    &&& resp_msg_matches_req_msg(msg, req_msg)
-                } ==> {
-                    resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, msg)
-                }
-            }
-            &&& !at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) ==> {
-                s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is None
-            }
-        }
-    };
+    let post = stronger_current_state_matches(vrs, controller_id);
     let final_post = current_state_matches(vrs);
 
     entails_implies_leads_to(spec, lift_state(pre_post), lift_state(post));
@@ -2746,192 +2716,226 @@ pub proof fn lemma_current_state_matches_is_stable(
     );
 
     assert forall |s, s_prime: ClusterState| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        VReplicaSetView::marshal_preserves_integrity();
-        VReplicaSetReconcileState::marshal_preserves_integrity();
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let msg = input->0;
-                let new_msgs = s_prime.in_flight().sub(s.in_flight());
-
-                if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
-                    if !Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg) {
-                        lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
-                            s, s_prime, vrs, cluster, controller_id, msg,
-                        );
-
-                        // Maintain quantified invariant.
-                        if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-                            
-                            assert forall |msg| {
-                                &&& post(s)
-                                &&& stronger_next(s, s_prime)
-                                &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& msg.src is APIServer
-                                &&& resp_msg_matches_req_msg(msg, req_msg)
-                            } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
-                                assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] resp_msg_matches_req_msg(msg, req_msg)));
-                                if !new_msgs.contains(msg) {
-                                    assert(s.in_flight().contains(msg));
-                                }
-                            }
-                        }
-                    } else {
-                        if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-                            
-                            assert forall |msg| {
-                                &&& post(s)
-                                &&& stronger_next(s, s_prime)
-                                &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& msg.src is APIServer
-                                &&& resp_msg_matches_req_msg(msg, req_msg)
-                            } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
-                                if !new_msgs.contains(msg) {
-                                    assert(s.in_flight().contains(msg));
-                                } else {
-                                    lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
-                                        s, s_prime, vrs, cluster, controller_id, req_msg,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
-                        s, s_prime, vrs, cluster, controller_id, msg,
-                    );
-                }
-            },
-            Step::ControllerStep(input) => {
-                if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
-                    && input.0 == controller_id
-                    && input.2 == Some(vrs.object_ref()) {
-                    let resp_msg = input.1->0;
-                    if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
-                        // adapted from 'lemma_filtered_pods_set_equals_matching_pods'.
-
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
-                        let resp_pods = objects_to_pods(resp_objs).unwrap();
-                        let filtered_objs = resp_objs.filter(|obj| owned_selector_match_is(vrs, obj));
-                        let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
-                        let filter_pods_pred = |pod: PodView| 
-                            pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-                            && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                            && pod.metadata.deletion_timestamp is None;
-                        assert(filtered_pods.no_duplicates()) by {
-                            assert(objects_to_pods(resp_objs).unwrap().no_duplicates());
-                            seq_filter_preserves_no_duplicates(objects_to_pods(resp_objs).unwrap(), filter_pods_pred);
-                        }
-                        assert(filtered_pods == objects_to_pods(resp_objs).unwrap().filter(filter_pods_pred));
-                        PodView::marshal_preserves_integrity();
-                        // get rid of s.resources
-                        // now we only need to prove
-                        // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
-                        // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
-                        assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
-                        filtered_objs.lemma_to_set_map_commutes(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
-                        assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
-                        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
-                            // get rid of objects_to_pods
-                            true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
-                            assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]) is Ok);
-                            PodView::marshal_preserves_integrity();
-                            PodView::marshal_preserves_metadata();
-                            assert(resp_pods.len() == resp_objs.len());
-                            // prove 2 filters are equal
-                            true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
-                            assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
-                                &&& #[trigger] resp_objs[i].kind == PodView::kind()
-                                &&& #[trigger] resp_objs[i].metadata.namespace is Some
-                                &&& #[trigger] resp_objs[i].metadata.namespace == vrs.metadata.namespace
-                            });
-                            assert(forall |i: int| 0 <= i < resp_objs.len() ==>
-                                #[trigger] owned_selector_match_is(vrs, resp_objs[i]) == #[trigger] filter_pods_pred(resp_pods[i]));
-                            PodView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) =~= filtered_pods) by {
-                                assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i] == resp_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
-                                    // spec and status are encoded nestedly
-                                    assert(PodView::unmarshal(resp_objs[i]) is Ok);
-                                    assert(PodView::unmarshal(resp_objs[i])->Ok_0 == resp_pods[i]);
-                                }
-                                assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)) by {
-                                    commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
-                                }
-                                assert(filtered_objs.len() == filtered_pods.len());
-                                assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
-                                    assert(filtered_pods == resp_pods.filter(filter_pods_pred));
-                                    assert(PodView::unmarshal(filtered_objs[i]) is Ok) by {
-                                        assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj) is Ok) by {
-                                            true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
-                                        }
-                                        true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
-                                    }
-                                    assert(PodView::unmarshal(filtered_objs[i])->Ok_0 == filtered_pods[i]);
-                                }
-                                assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
-                                assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0));
-                            }
-                        }
-                        assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len()) by {
-                            assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
-                            assert(resp_objs.no_duplicates());
-                            seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                            assert(filtered_objs.no_duplicates());
-                            filtered_objs.unique_seq_to_set();
-                            assert(matching_pods(vrs, s.resources()).len() == filtered_objs.len());
-                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods);
-                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).len() == filtered_pods.len());
-                            assert(filtered_pods.len() == filtered_pods.len());
-                        }
-                    }
-                    if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s) {
-                         // prove that the newly sent message has no response.
-                         if s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-                            assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
-                            assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
-                            assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
-                                && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
-                                && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
-                                && msg != req_msg
-                                implies msg.rpc_id != req_msg.rpc_id by {
-                                if !s.in_flight().contains(msg) {} // need this to invoke trigger.
-                            }
-                        }
-                    }
-                } else if !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
-                    // this empty case speeds up verification.
-                }
-            },
-            _ => {
-                let new_msgs = s_prime.in_flight().sub(s.in_flight());
-
-                // Maintain quantified invariant.
-                if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
-                    let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-                    
-                    assert forall |msg| {
-                        &&& post(s)
-                        &&& stronger_next(s, s_prime)
-                        &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& msg.src is APIServer
-                        &&& resp_msg_matches_req_msg(msg, req_msg)
-                    } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
-                        assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
-                        if !new_msgs.contains(msg) {
-                            assert(s.in_flight().contains(msg));
-                        }
-                    }
-                }
-            }
-        }
+        lemma_stronger_current_state_matches_preserves_from_s_to_s_prime(vrs, cluster, controller_id, s, s_prime);
     }
 
     leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
     leads_to_always_enhance(spec, true_pred(), p, lift_state(post), lift_state(final_post));
 }
 
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(50))]
+pub proof fn lemma_stronger_current_state_matches_preserves_from_s_to_s_prime(
+    vrs: VReplicaSetView, cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next()(s, s_prime),
+    Cluster::desired_state_is(vrs)(s),
+    Cluster::there_is_the_controller_state(controller_id)(s),
+    Cluster::crash_disabled(controller_id)(s),
+    Cluster::req_drop_disabled()(s),
+    Cluster::pod_monkey_disabled()(s),
+    Cluster::every_in_flight_msg_has_unique_id()(s),
+    Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
+    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
+    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)(s),
+    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
+    cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+    cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
+    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s),
+    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime),
+    Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s),
+    forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+        ==> #[trigger] vrs_rely(other_id)(s),
+    Cluster::etcd_is_finite()(s),
+    helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s),
+    helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
+    stronger_current_state_matches(vrs, controller_id)(s),
+ensures
+    stronger_current_state_matches(vrs, controller_id)(s_prime),
+{
+    VReplicaSetView::marshal_preserves_integrity();
+    VReplicaSetReconcileState::marshal_preserves_integrity();
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    match step {
+        Step::APIServerStep(input) => {
+            let msg = input->0;
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
+                if !Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg) {
+                    lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                        s, s_prime, vrs, cluster, controller_id, msg,
+                    );
+
+                    // Maintain quantified invariant.
+                    if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                        
+                        assert forall |msg| {
+                            &&& stronger_current_state_matches(vrs, controller_id)(s)
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
+                            assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] resp_msg_matches_req_msg(msg, req_msg)));
+                            if !new_msgs.contains(msg) {
+                                assert(s.in_flight().contains(msg));
+                            }
+                        }
+                    }
+                } else {
+                    if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                        
+                        assert forall |msg| {
+                            &&& stronger_current_state_matches(vrs, controller_id)(s)
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
+                            if !new_msgs.contains(msg) {
+                                assert(s.in_flight().contains(msg));
+                            } else {
+                                lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
+                                    s, s_prime, vrs, cluster, controller_id, req_msg,
+                                );
+                            }
+                        }
+                    }
+                }
+            } else {
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                    s, s_prime, vrs, cluster, controller_id, msg,
+                );
+            }
+        },
+        Step::ControllerStep(input) => {
+            if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                && input.0 == controller_id
+                && input.2 == Some(vrs.object_ref()) {
+                let resp_msg = input.1->0;
+                if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
+                    // adapted from 'lemma_filtered_pods_set_equals_matching_pods'.
+
+                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                    let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
+                    let resp_pods = objects_to_pods(resp_objs).unwrap();
+                    let filtered_objs = resp_objs.filter(|obj| owned_selector_match_is(vrs, obj));
+                    let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
+                    let filter_pods_pred = |pod: PodView| 
+                        pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+                        && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                        && pod.metadata.deletion_timestamp is None;
+                    assert(filtered_pods.no_duplicates()) by {
+                        assert(objects_to_pods(resp_objs).unwrap().no_duplicates());
+                        seq_filter_preserves_no_duplicates(objects_to_pods(resp_objs).unwrap(), filter_pods_pred);
+                    }
+                    assert(filtered_pods == objects_to_pods(resp_objs).unwrap().filter(filter_pods_pred));
+                    PodView::marshal_preserves_integrity();
+                    // get rid of s.resources
+                    // now we only need to prove
+                    // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
+                    // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
+                    assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
+                    filtered_objs.lemma_to_set_map_commutes(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
+                    assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
+                    assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
+                        // get rid of objects_to_pods
+                        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
+                        assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]) is Ok);
+                        PodView::marshal_preserves_integrity();
+                        PodView::marshal_preserves_metadata();
+                        assert(resp_pods.len() == resp_objs.len());
+                        // prove 2 filters are equal
+                        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
+                        assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
+                            &&& #[trigger] resp_objs[i].kind == PodView::kind()
+                            &&& #[trigger] resp_objs[i].metadata.namespace is Some
+                            &&& #[trigger] resp_objs[i].metadata.namespace == vrs.metadata.namespace
+                        });
+                        assert(forall |i: int| 0 <= i < resp_objs.len() ==>
+                            #[trigger] owned_selector_match_is(vrs, resp_objs[i]) == #[trigger] filter_pods_pred(resp_pods[i]));
+                        PodView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) =~= filtered_pods) by {
+                            assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i] == resp_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
+                                // spec and status are encoded nestedly
+                                assert(PodView::unmarshal(resp_objs[i]) is Ok);
+                                assert(PodView::unmarshal(resp_objs[i])->Ok_0 == resp_pods[i]);
+                            }
+                            assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)) by {
+                                commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
+                            }
+                            assert(filtered_objs.len() == filtered_pods.len());
+                            assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
+                                assert(filtered_pods == resp_pods.filter(filter_pods_pred));
+                                assert(PodView::unmarshal(filtered_objs[i]) is Ok) by {
+                                    assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj) is Ok) by {
+                                        true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
+                                    }
+                                    true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
+                                }
+                                assert(PodView::unmarshal(filtered_objs[i])->Ok_0 == filtered_pods[i]);
+                            }
+                            assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
+                            assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0));
+                        }
+                    }
+                    assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len()) by {
+                        assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
+                        assert(resp_objs.no_duplicates());
+                        seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                        assert(filtered_objs.no_duplicates());
+                        filtered_objs.unique_seq_to_set();
+                        assert(matching_pods(vrs, s.resources()).len() == filtered_objs.len());
+                        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods);
+                        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).len() == filtered_pods.len());
+                        assert(filtered_pods.len() == filtered_pods.len());
+                    }
+                }
+                if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s) {
+                        // prove that the newly sent message has no response.
+                        if s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                        assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                        assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
+                        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                            && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                            && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                            && msg != req_msg
+                            implies msg.rpc_id != req_msg.rpc_id by {
+                            if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                        }
+                    }
+                }
+            } else if !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
+                // this empty case speeds up verification.
+            }
+        },
+        _ => {
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+            // Maintain quantified invariant.
+            if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
+                let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                
+                assert forall |msg| {
+                    &&& stronger_current_state_matches(vrs, controller_id)(s)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
+                    assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
+                    if !new_msgs.contains(msg) {
+                        assert(s.in_flight().contains(msg));
+                    }
+                }
+            }
+        }
+    }
+}
 }
