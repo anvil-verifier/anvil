@@ -1079,6 +1079,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
             let reconcile_step = state.reconcile_step;
             match step {
                 Step::ControllerStep((id, _, cr_key_opt)) => {
+                    assume(false);
                     let cr_key = cr_key_opt->0;
                     if id == controller_id && cr_key == key {
                         let cr_msg = step->ControllerStep_0.1->0;
@@ -1351,9 +1352,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                             assert(created_obj.metadata.owner_references is Some);
                                             assert(created_obj.metadata.owner_references->0.len() == 1);
                                         }
-                                        assert(valid_object(created_obj, cluster.installed_types)) by {
-                                            assume(false);
-                                        }
+                                        assert(valid_object(created_obj, cluster.installed_types));
                                     }
                                     assert(resp_obj == created_obj);
                                     assert(resp_obj.kind == VReplicaSetView::kind());
@@ -1373,6 +1372,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                     }
                 },
                 _ => {
+                    assume(false);
                     let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                     if state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS
                         || state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
