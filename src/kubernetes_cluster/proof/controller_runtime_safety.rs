@@ -263,7 +263,6 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                 // (note A: pending msg in flight, \Ex.B(x): exists response in flight).
                 match next_step {
                     Step::APIServerStep(input) => {
-                        assume(false);
                         if input == Some(pending_req_msg) {
                             let resp_msg = transition_by_etcd(self.installed_types, pending_req_msg, s.api_server).1;
                             assert(s_prime.in_flight().contains(resp_msg));
