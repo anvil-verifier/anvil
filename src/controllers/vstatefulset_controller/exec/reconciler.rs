@@ -16,8 +16,6 @@ use crate::{
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
     vstatefulset_controller::trusted::step::*, vstd_ext::string_view::u32_to_string,
 };
-use std::collections::BTreeSet;
-use vstd::relations::{sorted_by, total_ordering};
 use vstd::{prelude::*, seq_lib::*};
 
 verus! {
