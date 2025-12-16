@@ -189,8 +189,10 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
-// TODO: investigate flaky proof
-#[verifier(spinoff_prover)]
+// see https://github.com/verus-lang/verus/issues/2038
+// currently every branch in match is proved, but the combination of them fails
+// we need to fix this after that feature to isolate reasoning about different branches is added,
+// or separate this proof into multiple sub proofs as the last resort
 #[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
@@ -289,6 +291,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                                 }
                             }
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     Step::BuiltinControllersStep(input) => {
                         if s.in_flight().contains(pending_req_msg) {
@@ -311,6 +314,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                             assert(s_prime.in_flight().contains(resp));
                             assert(!s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     Step::ControllerStep(input) => {
                         let input_controller_id = input.0;
@@ -350,6 +354,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                                 if s.in_flight().contains(resp_msg) {}
                             }
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     Step::ExternalStep(input) => {
                         if input.0 == controller_id && input.1 == Some(pending_req_msg) {
@@ -378,6 +383,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                                 }
                             }
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     _ => {
                         assert(requirements(ky, s_prime));

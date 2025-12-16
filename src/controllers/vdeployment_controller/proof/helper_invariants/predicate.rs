@@ -326,73 +326,85 @@ pub open spec fn no_pending_mutation_request_not_from_controller_on_vrs_objects(
 
 pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |key: ObjectRef|
-            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            ==> {
-                let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-                let new_vrs = state.new_vrs.unwrap();
-                let old_vrs_list = state.old_vrs_list;
-                &&& triggering_cr.object_ref() == key
-                &&& triggering_cr.metadata().well_formed_for_namespaced()
-                &&& forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() ==> {
-                    let owners = old_vrs_list[i].metadata.owner_references->0;
-                    let controller_owners = owners.filter(
-                        |o: OwnerReferenceView| o.controller is Some && o.controller->0
-                    );
-                    &&& old_vrs_list[i].metadata.owner_references is Some
-                    &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                    &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
-                }
-                &&& state.new_vrs is Some ==> {
-                    let new_vrs = state.new_vrs->0;
-                    let owners = new_vrs.metadata.owner_references->0;
-                    let controller_owners = owners.filter(
-                        |o: OwnerReferenceView| o.controller is Some && o.controller->0
-                    );
-                    &&& new_vrs.metadata.owner_references is Some
-                    &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                    &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
-                }
-                // Special case: a stronger property implying the above property
-                // after filtering holds on a list response to the
-                // appropriate request. 
-                &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
-                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                    &&& req_msg.dst is APIServer
-                    &&& req_msg.content.is_list_request()
-                    &&& req_msg.content.get_list_request() == ListRequest {
-                        kind: VReplicaSetView::kind(),
-                        namespace: triggering_cr.metadata.namespace.unwrap(),
-                    }
-                    &&& forall |msg| {
-                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
-                        &&& #[trigger] s.in_flight().contains(msg)
-                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                        &&& msg.src is APIServer
-                        &&& resp_msg_matches_req_msg(msg, req_msg)
-                        &&& is_ok_resp(msg.content->APIResponse_0)
-                    } ==> {
-                        let resp_objs = msg.content.get_list_response().res.unwrap();
-                        &&& msg.content.is_list_response()
-                        &&& msg.content.get_list_response().res is Ok
-                        &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
-                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                            let owners = resp_objs[i].metadata.owner_references->0;
-                            let controller_owners = owners.filter(
-                                |o: OwnerReferenceView| o.controller is Some && o.controller->0
-                            );
-                            &&& resp_objs[i].metadata.namespace.is_some()
-                            &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            &&& resp_objs[i].kind == VReplicaSetView::kind()
-                            &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
-                        }
-                    }
-                }
-            }
+        &&& forall |key: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            ==> vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key(controller_id, key, s)
     }
 }
+
+pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
+    let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+    let old_vrs_list = state.old_vrs_list;
+    &&& triggering_cr.object_ref() == key
+    &&& triggering_cr.metadata().well_formed_for_namespaced()
+    &&& forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() ==> {
+        let owners = old_vrs_list[i].metadata.owner_references->0;
+        let controller_owners = owners.filter(controller_owner_filter());
+        &&& old_vrs_list[i].metadata.owner_references is Some
+        &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+        &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+    }
+    &&& state.new_vrs is Some ==> {
+        let new_vrs = state.new_vrs->0;
+        let owners = new_vrs.metadata.owner_references->0;
+        let controller_owners = owners.filter(controller_owner_filter());
+        &&& new_vrs.metadata.owner_references is Some
+        &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+        &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+    }
+    // response objects imply the properties above
+    &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
+        let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+        &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+        &&& req_msg.dst is APIServer
+        &&& req_msg.content.is_list_request()
+        &&& req_msg.content.get_list_request() == ListRequest {
+            kind: VReplicaSetView::kind(),
+            namespace: triggering_cr.metadata.namespace.unwrap(),
+        }
+        &&& forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is APIServer
+            &&& resp_msg_matches_req_msg(msg, req_msg)
+            &&& is_ok_resp(msg.content->APIResponse_0)
+        } ==> {
+            let resp_objs = msg.content.get_list_response().res.unwrap();
+            &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
+            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
+                &&& resp_objs[i].metadata.namespace.is_some()
+                &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                &&& resp_objs[i].kind == VReplicaSetView::kind()
+                &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
+            }
+        }
+    }
+    &&& state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS ==> {
+        let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+        &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+        &&& req_msg.dst is APIServer
+        &&& req_msg.content.is_create_request()
+        &&& req_msg.content.get_create_request() == CreateRequest {
+            namespace: triggering_cr.metadata.namespace.unwrap(),
+            obj: make_replica_set(triggering_cr).marshal()
+        }
+        &&& forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is APIServer
+            &&& resp_msg_matches_req_msg(msg, req_msg)
+            &&& is_ok_resp(msg.content->APIResponse_0)
+        } ==> {
+            let resp_obj = msg.content.get_create_response().res.unwrap();
+            let new_vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
+            let controller_owners = new_vrs.metadata.owner_references->0.filter(controller_owner_filter());
+            &&& VReplicaSetView::unmarshal(resp_obj) is Ok
+            &&& new_vrs.metadata.owner_references is Some
+            &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+            &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+        }
+    }
+}
+
 //
 // TODO: See if we can split up this invariant into smaller ones.
 // Both parts are necessary outside of this proof, but maybe for presentation purposes it 
