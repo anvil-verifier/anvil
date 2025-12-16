@@ -8,6 +8,7 @@ use crate::kubernetes_cluster::spec::{
     controller::types::*,
     message::*,
 };
+use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
@@ -2726,6 +2727,8 @@ pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
 )
 requires
     cluster.next()(s, s_prime),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
     Cluster::desired_state_is(vrs)(s),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::crash_disabled(controller_id)(s),
@@ -2812,42 +2815,48 @@ ensures
             }
         },
         Step::ControllerStep(input) => {
-            assume(false);
-            if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
-                && input.0 == controller_id && input.2 == Some(vrs.object_ref()) {
-                let resp_msg = input.1->0;
-                if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
-                    // adapted from 'lemma_filtered_pods_set_equals_matching_pods'.
-                    assume(({
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
-                        let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-                        &&& filtered_pods.no_duplicates()
-                        &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
-                        &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)
-                        &&& filtered_pod_keys.no_duplicates()
-                    }));
-                } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s) {
-                    // prove that the newly sent message has no response.
-                    if s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-                        assert(s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is None);
-                        assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
-                        assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)) by {
-                            assert(s_prime.in_flight().contains(req_msg));
-                            assert(!s.in_flight().contains(req_msg));
+            if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
+                if input.0 == controller_id && input.2 == Some(vrs.object_ref()) {
+                    if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
+                        let resp_msg = input.1->0;
+                        assume(false);
+                        // adapted from 'lemma_filtered_pods_set_equals_matching_pods'.
+                        assume(({
+                            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                            let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
+                            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                            &&& filtered_pods.no_duplicates()
+                            &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
+                            &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)
+                            &&& filtered_pod_keys.no_duplicates()
+                        }));
+                    } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s) {
+                        // prove that the newly sent message has no response.
+                        if s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some {
+                            let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                            assert(s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is None);
+                            assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                            assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)) by {
+                                assert(s_prime.in_flight().contains(req_msg));
+                                assert(!s.in_flight().contains(req_msg));
+                            }
+                            assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                                && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                                && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                                && msg != req_msg
+                                implies msg.rpc_id != req_msg.rpc_id by {
+                                if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                            }
                         }
-                        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
-                            && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
-                            && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
-                            && msg != req_msg
-                            implies msg.rpc_id != req_msg.rpc_id by {
-                            if !s.in_flight().contains(msg) {} // need this to invoke trigger.
-                        }
+                    } else {
+                        assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                     }
+                } else {
+                    assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                 }
-            } else {}
-            assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
+            } else {
+                assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
+            }
         },
         _ => {
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
