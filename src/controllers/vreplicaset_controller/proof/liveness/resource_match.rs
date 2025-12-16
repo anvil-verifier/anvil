@@ -2842,15 +2842,9 @@ ensures
                                 if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                             }
                         }
-                    } else {
-                        assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                     }
-                } else {
-                    assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                 }
-            } else {
-                assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
-            }
+            } else {}
         },
         _ => {
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
