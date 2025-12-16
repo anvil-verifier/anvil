@@ -191,7 +191,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
 
 // TODO: investigate flaky proof
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
         spec.entails(always(lift_action(self.next()))),
@@ -263,6 +263,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                 // (note A: pending msg in flight, \Ex.B(x): exists response in flight).
                 match next_step {
                     Step::APIServerStep(input) => {
+                        assume(false);
                         if input == Some(pending_req_msg) {
                             let resp_msg = transition_by_etcd(self.installed_types, pending_req_msg, s.api_server).1;
                             assert(s_prime.in_flight().contains(resp_msg));
@@ -289,6 +290,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                                 }
                             }
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     Step::BuiltinControllersStep(input) => {
                         if s.in_flight().contains(pending_req_msg) {
@@ -311,8 +313,10 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                             assert(s_prime.in_flight().contains(resp));
                             assert(!s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     Step::ControllerStep(input) => {
+                        assume(false);
                         let input_controller_id = input.0;
                         let input_cr_key = input.2->0;
                         if input_controller_id != controller_id || input_cr_key != key {
@@ -350,6 +354,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                                 if s.in_flight().contains(resp_msg) {}
                             }
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     Step::ExternalStep(input) => {
                         if input.0 == controller_id && input.1 == Some(pending_req_msg) {
@@ -378,6 +383,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
                                 }
                             }
                         }
+                        assert(requirements(ky, s_prime));
                     }
                     _ => {
                         assert(requirements(ky, s_prime));
