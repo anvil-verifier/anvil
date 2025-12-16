@@ -76,11 +76,10 @@ impl Reconciler for VStatefulSetReconciler {
 
 }
 
-#[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: VStatefulSetReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state()
 {
-    VStatefulSetReconcileState {
+    let init_state = VStatefulSetReconcileState {
         reconcile_step: VStatefulSetReconcileStep::Init,
         needed: Vec::new(),
         needed_index: 0,
@@ -88,7 +87,14 @@ pub fn reconcile_init_state() -> (state: VStatefulSetReconcileState)
         condemned_index: 0,
         pvcs: Vec::new(),
         pvc_index: 0
+    };
+    proof {
+        let model_init_state = model_reconciler::reconcile_init_state();
+        assert(init_state.needed.deep_view() == model_init_state.needed);
+        assert(init_state.condemned.deep_view() == model_init_state.condemned);
+        assert(init_state.pvcs.deep_view() == model_init_state.pvcs);
     }
+    init_state
 }
 
 pub fn reconcile_done(state: &VStatefulSetReconcileState) -> (res: bool)
