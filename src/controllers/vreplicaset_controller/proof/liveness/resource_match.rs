@@ -2720,6 +2720,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     leads_to_always_enhance(spec, true_pred(), p, lift_state(post), lift_state(final_post));
 }
 
+// to reduce flakiness in lemma_current_state_matches_is_stable
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     vrs: VReplicaSetView, cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
 )
