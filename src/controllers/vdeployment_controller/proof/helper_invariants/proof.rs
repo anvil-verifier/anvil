@@ -1033,6 +1033,12 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
                 lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime(
                     cluster, controller_id, s, s_prime, key
                 );
+            } else { // RunScheduledReconcile
+                VDeploymentView::marshal_preserves_integrity();
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                assert(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(triggering_cr, controller_id)(s_prime));
+                helper_lemmas::lemma_cr_fields_eq_to_cr_predicates_eq(triggering_cr, controller_id, s_prime);
             }
         }
     }
