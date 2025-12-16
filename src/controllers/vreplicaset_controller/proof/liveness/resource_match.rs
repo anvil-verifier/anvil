@@ -2819,17 +2819,13 @@ ensures
                 if input.0 == controller_id && input.2 == Some(vrs.object_ref()) {
                     if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
                         let resp_msg = input.1->0;
-                        assume(false);
-                        // adapted from 'lemma_filtered_pods_set_equals_matching_pods'.
-                        assume(({
-                            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                            let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
-                            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-                            &&& filtered_pods.no_duplicates()
-                            &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
-                            &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)
-                            &&& filtered_pod_keys.no_duplicates()
-                        }));
+                        assert(resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s)) by {
+                            let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                            assert(s.in_flight().contains(resp_msg));
+                            assert(resp_msg_matches_req_msg(resp_msg, msg));
+                            assert(resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, resp_msg));
+                        }
+                        helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(s, vrs, cluster, controller_id, resp_msg);
                     } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s) {
                         // prove that the newly sent message has no response.
                         if s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some {
