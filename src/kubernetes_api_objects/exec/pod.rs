@@ -78,6 +78,18 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
+    pub fn volumes(&self) -> (volumes: Option<Vec<Volume>>) 
+        ensures volumes.deep_view() == self@.volumes
+    {
+        match &self.inner.volumes {
+            Some(vols) => {
+                Some(vols.into_iter().map(|v| Volume::from_kube(v.clone())).collect())
+            }
+            None => None
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_volumes(&mut self, volumes: Vec<Volume>)
         ensures self@ == old(self)@.with_volumes(volumes.deep_view()),
     {
@@ -166,6 +178,29 @@ impl PodSpec {
         ensures self@ == old(self)@.with_image_pull_secrets(image_pull_secrets.deep_view()),
     {
         self.inner.image_pull_secrets = Some(image_pull_secrets.into_iter().map(|r: LocalObjectReference| r.into_kube()).collect())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_hostname(&mut self, hostname: String) 
+        ensures self@ == old(self)@.with_hostname(hostname@)
+    {
+        self.inner.hostname = Some(hostname);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_subdomain(&mut self, subdomain: String)
+        ensures self@ == old(self)@.with_subdomain(subdomain@)
+    {
+        self.inner.subdomain = Some(subdomain);
+    }
+}
+
+impl PartialEq for PodSpec {
+    #[verifier(external_body)]
+    fn eq(&self, other: &Self) -> (equal: bool) 
+        ensures equal == (self@ == other@)
+    {
+        self.inner == other.inner
     }
 }
 

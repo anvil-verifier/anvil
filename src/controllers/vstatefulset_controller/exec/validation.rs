@@ -71,14 +71,17 @@ impl VStatefulSet {
             for idx in 0..vct.len()
                 invariant
                     0 <= idx <= vct.len(),
-                    forall |i: int| 0 <= i < idx ==> #[trigger] vct[i]@.state_validation(),
+                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.well_formed_for_namespaced(),
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
                     self@.spec.volume_claim_templates is Some,
                     vct_view == self@.spec.volume_claim_templates->0,
             {
                 let pvc_sv = vct[idx].spec().is_some();
+                let pvc_metadata_sv = vct[idx].metadata().well_formed_for_namespaced();
                 assert(pvc_sv == vct_view[idx as int].state_validation());
-                if !pvc_sv {
+                assert(pvc_metadata_sv == vct_view[idx as int].metadata.well_formed_for_namespaced());
+                
+                if !pvc_sv || !pvc_metadata_sv {
                     return false;
                 }
             }

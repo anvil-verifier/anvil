@@ -78,6 +78,13 @@ impl VolumeView {
             ..self
         }
     }
+
+    pub open spec fn with_persistent_volume_claim_source(self, pvc: PersistentVolumeClaimVolumeSourceView) -> VolumeView {
+        VolumeView {
+            persistent_volume_claim: Some(pvc),
+            ..self
+        }
+    }
 }
 
 pub struct EmptyDirVolumeSourceView {
@@ -367,6 +374,20 @@ impl PersistentVolumeClaimVolumeSourceView {
         PersistentVolumeClaimVolumeSourceView {
             claim_name: ""@,
             read_only: None,
+        }
+    }
+
+    pub open spec fn with_claim_name(self, claim_name: StringView) -> PersistentVolumeClaimVolumeSourceView {
+        PersistentVolumeClaimVolumeSourceView {
+            claim_name: claim_name,
+            ..self
+        }
+    }
+
+    pub open spec fn with_read_only(self, read_only: bool) -> PersistentVolumeClaimVolumeSourceView {
+        PersistentVolumeClaimVolumeSourceView {
+            read_only: Some(read_only),
+            ..self
         }
     }
 }

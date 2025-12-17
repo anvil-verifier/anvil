@@ -1,5 +1,6 @@
 # Except this file
 !.gitignore
+
 .vscode/
 src/*_controller
 src/*.long-type-*.txt
@@ -14,4 +15,5 @@ src/*.d
 src/*.rlib
 tools/*.json
 vreplicaset_controller.*.txt
+vstatefulset_controller.*.txt
 certs

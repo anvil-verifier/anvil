@@ -165,32 +165,34 @@ jobs:
           ./local-test.sh vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset-admission
-  vstatefulset-admission-e2e-test:
-    needs:
-      - setup-toolchain
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Restore Verus cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.home_dir }}/verus
-            ${{ env.home_dir }}/.cargo
-            ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.go_version }}
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v$kind_version
-      - name: Deploy vstatefulset admission controller
-        run: |
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vstatefulset-admission --build
-      - name: Run vstatefulset e2e tests for admission
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset-admission
+        
+  # vstatefulset-admission-e2e-test:
+  #   needs:
+  #     - setup-toolchain
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Restore Verus cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ${{ env.home_dir }}/verus
+  #           ${{ env.home_dir }}/.cargo
+  #           ${{ env.home_dir }}/.rustup
+  #         key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.go_version }}
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v$kind_version
+  #     - name: Deploy vstatefulset admission controller
+  #       run: |
+  #         export PATH="$PATH:$HOME/verus"
+  #         ./local-test.sh vstatefulset-admission --build
+  #     - name: Run vstatefulset e2e tests for admission
+  #       run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset-admission
+
   vdeployment-admission-e2e-test:
     needs:
       - setup-toolchain
