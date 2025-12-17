@@ -389,7 +389,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
 
     // Fifth, prove that reconcile init state can reach AfterListPods.
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
-        spec, controller_id, vrs.marshal(), 
+        spec, controller_id, vrs.object_ref(), 
         at_step_closure(VReplicaSetRecStepView::Init), 
         |rs: ReconcileLocalState| (at_step_closure(VReplicaSetRecStepView::AfterListPods)(rs) || at_step_closure(VReplicaSetRecStepView::Done)(rs))
     );
@@ -532,8 +532,8 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
         spec, vrs, cluster, controller_id, 0
     );
 
-    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vrs.marshal(), at_step_closure(VReplicaSetRecStepView::AfterCreatePod(0)), state_after_create_or_delete);
-    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vrs.marshal(), at_step_closure(VReplicaSetRecStepView::AfterDeletePod(0)), state_after_create_or_delete);
+    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterCreatePod(0)), state_after_create_or_delete);
+    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterDeletePod(0)), state_after_create_or_delete);
 
     // this block soley to get this through verus.
     let zero: nat = 0;
@@ -619,7 +619,7 @@ pub proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
         spec, vrs, cluster, controller_id, n
     );
 
-    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.marshal(), at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n)), state_after_create);
+    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n)), state_after_create);
 
     // this block soley to get this through verus.
     temp_pred_equality(
@@ -705,7 +705,7 @@ pub proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
         spec, vrs, cluster, controller_id, n
     );
 
-    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.marshal(), at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n)), state_after_delete);
+    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n)), state_after_delete);
 
     // this block soley to get this through verus.
     temp_pred_equality(
@@ -877,7 +877,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
         lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods)))
     );
-    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.marshal(), at_step_closure(VReplicaSetRecStepView::AfterListPods), state_after_list_pods);
+    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods), state_after_list_pods);
 
     leads_to_trans_n!(
         spec,

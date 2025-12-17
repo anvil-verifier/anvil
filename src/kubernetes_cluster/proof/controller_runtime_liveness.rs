@@ -270,10 +270,10 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init(self, sp
 //
 // This lemma is useful when proving reconcile termination. If we have proved that state b leads to idle,
 // and state b is the successor of state a, then by applying this lemma we can get a leads to idle.
-pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        self.reconcile_model(controller_id).kind == cr.object_ref().kind,
+        self.reconcile_model(controller_id).kind == cr_key.kind,
         spec.entails(always(lift_action(self.next()))),
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
@@ -281,8 +281,8 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(sel
         spec.entails(always(lift_state(Self::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
-        spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr_key)))),
+        spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr_key, current_state)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
         // If external model does not exist, then the controller never sends it request messages.
         self.controller_models[controller_id].external_model is None ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
@@ -293,22 +293,22 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(sel
         // Given any input cr, resp_o and local state s, current state will transition to next state.
         forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] next_state((self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
         // Next state leads to idle.
-        spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr.object_ref())))),
-    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr.object_ref())))),
+        spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr_key)))),
+    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr_key)))),
 {
-    self.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, cr, current_state, next_state);
+    self.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, cr_key, current_state, next_state);
     leads_to_trans_n!(
         spec,
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)),
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)),
-        lift_state(Self::reconcile_idle(controller_id, cr.object_ref()))
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)),
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)),
+        lift_state(Self::reconcile_idle(controller_id, cr_key))
     );
 }
 
-pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        self.reconcile_model(controller_id).kind == cr.object_ref().kind,
+        self.reconcile_model(controller_id).kind == cr_key.kind,
         spec.entails(always(lift_action(self.next()))),
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
@@ -316,65 +316,65 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
         spec.entails(always(lift_state(Self::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
-        spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr_key)))),
+        spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr_key, current_state)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
         self.controller_models[controller_id].external_model is None ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         self.controller_models[controller_id].external_model is Some ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
         forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] next_state((self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
-    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)).leads_to(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)))),
+    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)).leads_to(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)))),
 {
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
-        &&& Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)(s)
-        &&& Self::has_pending_req_msg(controller_id, s, cr.object_ref())
-        &&& Self::request_sent_by_controller_with_key(controller_id, cr.object_ref(), s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
-        &&& (s.in_flight().contains(s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+        &&& Self::at_expected_reconcile_states(controller_id, cr_key, current_state)(s)
+        &&& Self::has_pending_req_msg(controller_id, s, cr_key)
+        &&& Self::request_sent_by_controller_with_key(controller_id, cr_key, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
+        &&& (s.in_flight().contains(s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
             || exists |resp_msg: Message| {
                 #[trigger] s.in_flight().contains(resp_msg)
-                && resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+                && resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
             })
     };
-    temp_pred_equality(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
-    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
+    temp_pred_equality(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr_key, current_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
+    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
 
-    let req_in_flight = Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state);
-    let resp_in_flight = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state);
+    let req_in_flight = Self::pending_req_in_flight_at_reconcile_state(controller_id, cr_key, current_state);
+    let resp_in_flight = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state);
 
-    self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr, current_state, next_state);
-    self.lemma_from_pending_req_in_flight_at_some_state_to_next_state(spec, controller_id, cr, current_state, next_state);
+    self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
+    self.lemma_from_pending_req_in_flight_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
 
-    or_leads_to_combine(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)));
+    or_leads_to_combine(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)));
     temp_pred_equality(lift_state(req_in_flight).or(lift_state(resp_in_flight)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
     leads_to_trans_n!(
         spec,
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)),
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)),
         lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight),
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state))
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state))
     );
 }
 
-pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, init_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, init_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        self.reconcile_model(controller_id).kind == cr.object_ref().kind,
+        self.reconcile_model(controller_id).kind == cr_key.kind,
         spec.entails(always(lift_action(self.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Self::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr.object_ref(), init_state)))),
+        spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr_key, init_state)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
         forall |s| (#[trigger] init_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
         forall |input_cr, resp_o, s| init_state(s) ==> next_state(#[trigger] (self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
-        spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr.object_ref())))),
-    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr.object_ref())))),
+        spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr_key)))),
+    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)).leads_to(lift_state(Self::reconcile_idle(controller_id, cr_key)))),
 {
     let no_pending_req = |s| {
-        &&& Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)(s)
-        &&& Self::no_pending_req_msg(controller_id, s, cr.object_ref())
+        &&& Self::at_expected_reconcile_states(controller_id, cr_key, init_state)(s)
+        &&& Self::no_pending_req_msg(controller_id, s, cr_key)
     };
-    temp_pred_equality(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr.object_ref(), init_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)).implies(lift_state(no_pending_req)));
-    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)), lift_state(no_pending_req));
+    temp_pred_equality(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr_key, init_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)).implies(lift_state(no_pending_req)));
+    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)), lift_state(no_pending_req));
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::crash_disabled(controller_id)(s)
@@ -386,20 +386,20 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: T
         lift_state(Self::crash_disabled(controller_id)),
         lift_state(Self::there_is_the_controller_state(controller_id))
     );
-    self.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(cr.object_ref())), stronger_next, ControllerStep::ContinueReconcile, no_pending_req, Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state));
+    self.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(cr_key)), stronger_next, ControllerStep::ContinueReconcile, no_pending_req, Self::at_expected_reconcile_states(controller_id, cr_key, next_state));
     leads_to_trans_n!(
         spec,
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)),
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)),
         lift_state(no_pending_req),
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)),
-        lift_state(Self::reconcile_idle(controller_id, cr.object_ref()))
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)),
+        lift_state(Self::reconcile_idle(controller_id, cr_key))
     );
 }
 
-pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        self.reconcile_model(controller_id).kind == cr.object_ref().kind,
+        self.reconcile_model(controller_id).kind == cr_key.kind,
         spec.entails(always(lift_action(self.next()))),
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
@@ -407,54 +407,54 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(self, 
         spec.entails(always(lift_state(Self::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr_key)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
         self.controller_models[controller_id].external_model is None ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         self.controller_models[controller_id].external_model is Some ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
         forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] next_state((self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
-    ensures spec.entails(lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)).leads_to(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)))),
+    ensures spec.entails(lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr_key, current_state)).leads_to(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)))),
 {
-    self.lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(spec, controller_id, cr, current_state);
-    self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr, current_state, next_state);
+    self.lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(spec, controller_id, cr_key, current_state);
+    self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
     leads_to_trans_n!(
         spec,
-        lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)),
-        lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state)),
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state))
+        lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr_key, current_state)),
+        lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state)),
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state))
     );
 }
 
-pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        self.reconcile_model(controller_id).kind == cr.object_ref().kind,
+        self.reconcile_model(controller_id).kind == cr_key.kind,
         spec.entails(always(lift_action(self.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Self::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr_key)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
         forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] next_state((self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
-    ensures spec.entails(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state)).leads_to(lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)))),
+    ensures spec.entails(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state)).leads_to(lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)))),
 {
-    let pre = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state);
-    let post = Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state);
+    let pre = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state);
+    let post = Self::at_expected_reconcile_states(controller_id, cr_key, next_state);
     let known_resp_in_flight = |resp| lift_state(
         |s| {
-            Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)(s)
-            && Self::has_pending_req_msg(controller_id, s, cr.object_ref())
-            && Self::request_sent_by_controller_with_key(controller_id, cr.object_ref(), s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+            Self::at_expected_reconcile_states(controller_id, cr_key, current_state)(s)
+            && Self::has_pending_req_msg(controller_id, s, cr_key)
+            && Self::request_sent_by_controller_with_key(controller_id, cr_key, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
             && s.in_flight().contains(resp)
-            && resp_msg_matches_req_msg(resp, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+            && resp_msg_matches_req_msg(resp, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
         }
     );
     assert forall |msg| spec.entails(#[trigger] known_resp_in_flight(msg).leads_to(lift_state(post))) by {
         let stronger_next = |s, s_prime| {
             &&& self.next()(s, s_prime)
             &&& Self::crash_disabled(controller_id)(s)
-            &&& Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())(s)
+            &&& Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr_key)(s)
             &&& Self::every_in_flight_msg_has_unique_id()(s)
             &&& Self::there_is_the_controller_state(controller_id)(s)
         };
@@ -462,18 +462,18 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             spec, lift_action(stronger_next),
             lift_action(self.next()),
             lift_state(Self::crash_disabled(controller_id)),
-            lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())),
+            lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr_key)),
             lift_state(Self::every_in_flight_msg_has_unique_id()),
             lift_state(Self::there_is_the_controller_state(controller_id))
         );
         let resp_in_flight_state = |s: ClusterState| {
-            Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)(s)
-            && Self::has_pending_req_msg(controller_id, s, cr.object_ref())
-            && Self::request_sent_by_controller_with_key(controller_id, cr.object_ref(), s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+            Self::at_expected_reconcile_states(controller_id, cr_key, current_state)(s)
+            && Self::has_pending_req_msg(controller_id, s, cr_key)
+            && Self::request_sent_by_controller_with_key(controller_id, cr_key, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
             && s.in_flight().contains(msg)
-            && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+            && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
         };
-        let input = (Some(msg), Some(cr.object_ref()));
+        let input = (Some(msg), Some(cr_key));
         self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_in_flight_state, post);
     };
     leads_to_exists_intro(spec, known_resp_in_flight, lift_state(post));
@@ -485,7 +485,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
                 let s = ex.head();
                 let msg = choose |resp_msg: Message| {
                     #[trigger] s.in_flight().contains(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0)
+                    && resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0)
                 };
                 assert(known_resp_in_flight(msg).satisfied_by(ex));
             }
@@ -505,10 +505,10 @@ pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_
 
 // this has dependency over the "no request message to external not owned by the controller",
 // which will be completed in another PR on controller state machine
-pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        self.reconcile_model(controller_id).kind == cr.object_ref().kind,
+        self.reconcile_model(controller_id).kind == cr_key.kind,
         spec.entails(always(lift_action(self.next()))),
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| self.external_next().weak_fairness((controller_id, i)))),
@@ -519,15 +519,15 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
         self.controller_models[controller_id].external_model is None ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         self.controller_models[controller_id].external_model is Some ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
-    ensures spec.entails(lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)).leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state)))),
+    ensures spec.entails(lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr_key, current_state)).leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state)))),
 {
-    let pre = Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state);
+    let pre = Self::pending_req_in_flight_at_reconcile_state(controller_id, cr_key, current_state);
     assert forall |req_msg: Message| spec.entails(
-        lift_state(#[trigger] Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state, req_msg))
-            .leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state)))
+        lift_state(#[trigger] Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr_key, current_state, req_msg))
+            .leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state)))
     ) by {
-        let pre_1 = Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state, req_msg);
-        let post_1 = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state);
+        let pre_1 = Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr_key, current_state, req_msg);
+        let post_1 = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state);
         let stronger_next = |s, s_prime| {
             &&& self.next()(s, s_prime)
             &&& Self::crash_disabled(controller_id)(s)
@@ -614,14 +614,14 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
             assert(spec.entails(lift_state(pre_1).leads_to(lift_state(post_1))));
         }
     }
-    let msg_2_temp = |msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state, msg));
-    leads_to_exists_intro(spec, msg_2_temp, lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state)));
+    let msg_2_temp = |msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr_key, current_state, msg));
+    leads_to_exists_intro(spec, msg_2_temp, lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state)));
     assert_by(
-        tla_exists(|msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state, msg))) == lift_state(pre),
+        tla_exists(|msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr_key, current_state, msg))) == lift_state(pre),
         {
             assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex) implies
             tla_exists(msg_2_temp).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg->0;
+                let req_msg = ex.head().ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                 assert(msg_2_temp(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(lift_state(pre), tla_exists(msg_2_temp));

@@ -74,12 +74,12 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCluster>, fb: Flue
         lift_state(reconcile_idle)
     );
     FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, fb, at_step_closure(FluentBitReconcileStep::AfterGetSecret),
+        spec, fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret),
         at_step1_or_step2_closure(after_get_k_request_step(SubResource::ServiceAccount), FluentBitReconcileStep::Error)
     );
 
     // Fourth, prove that reconcile init state can reach the state after get secret.
-    FBCluster::lemma_from_init_state_to_next_state_to_reconcile_idle(spec, fb, at_step_closure(FluentBitReconcileStep::Init), at_step_closure(FluentBitReconcileStep::AfterGetSecret));
+    FBCluster::lemma_from_init_state_to_next_state_to_reconcile_idle(spec, fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init), at_step_closure(FluentBitReconcileStep::AfterGetSecret));
 
     // Finally, combine all cases.
     or_leads_to_combine_and_equality!(
@@ -154,8 +154,8 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         lift_state(at_step_state_pred(fb, FluentBitReconcileStep::Error));
         lift_state(|s: FBCluster| { !s.ongoing_reconciles().contains_key(fb.object_ref()) })
     );
-    FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, fb, at_step_closure(after_create_k_request_step(sub_resource)), state_after_create_or_update);
-    FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, fb, at_step_closure(after_update_k_request_step(sub_resource)), state_after_create_or_update);
+    FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, fb.object_ref(), at_step_closure(after_create_k_request_step(sub_resource)), state_after_create_or_update);
+    FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, fb.object_ref(), at_step_closure(after_update_k_request_step(sub_resource)), state_after_create_or_update);
 
     let state_after_get = |s: FluentBitReconcileState| {
         s.reconcile_step == after_create_k_request_step(sub_resource)
@@ -169,7 +169,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         lift_state(at_step_state_pred(fb, FluentBitReconcileStep::Error));
         lift_state(|s: FBCluster| { !s.ongoing_reconciles().contains_key(fb.object_ref()) })
     );
-    FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, fb, at_step_closure(after_get_k_request_step(sub_resource)), state_after_get);
+    FBCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, fb.object_ref(), at_step_closure(after_get_k_request_step(sub_resource)), state_after_get);
     or_leads_to_combine_and_equality!(
         spec, lift_state(state_pred_regarding_sub_resource(fb, sub_resource)),
         lift_state(at_step_state_pred(fb, after_get_k_request_step(sub_resource))),
