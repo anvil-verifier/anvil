@@ -191,7 +191,7 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
         } else {
             let pods = pods_or_none->0;
             let filtered_pods = filter_pods(pods, vsts);
-            let replicas = if vsts.spec.replicas is Some { vsts.spec.replicas->0 } else { 0 };
+            let replicas = if vsts.spec.replicas is Some { vsts.spec.replicas->0 } else { 1 }; // 1 by default
             if replicas >= 0 {
                 let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas as nat, filtered_pods);
                 let needed_index = 0;
