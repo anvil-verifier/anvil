@@ -147,8 +147,8 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
         lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
     );
-    RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, rabbitmq, at_step_closure(after_create_k_request_step(sub_resource)), state_after_create_or_update);
-    RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, rabbitmq, at_step_closure(after_update_k_request_step(sub_resource)), state_after_create_or_update);
+    RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, rabbitmq.object_ref(), at_step_closure(after_create_k_request_step(sub_resource)), state_after_create_or_update);
+    RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, rabbitmq.object_ref(), at_step_closure(after_update_k_request_step(sub_resource)), state_after_create_or_update);
 
     let state_after_get = |s: RabbitmqReconcileState| {
         s.reconcile_step == after_create_k_request_step(sub_resource)
@@ -162,7 +162,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
         lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
     );
-    RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, rabbitmq, at_step_closure(after_get_k_request_step(sub_resource)), state_after_get);
+    RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, rabbitmq.object_ref(), at_step_closure(after_get_k_request_step(sub_resource)), state_after_get);
     or_leads_to_combine_and_equality!(
         spec, lift_state(state_pred_regarding_sub_resource(rabbitmq, sub_resource)),
         lift_state(at_step_state_pred(rabbitmq, after_get_k_request_step(sub_resource))),

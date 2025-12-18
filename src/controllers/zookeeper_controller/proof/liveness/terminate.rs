@@ -69,7 +69,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, zookeeper, at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus),
+        spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus),
         at_step1_or_step2_closure(ZookeeperReconcileStep::Done, ZookeeperReconcileStep::Error)
     );
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, zookeeper, SubResource::StatefulSet, ZookeeperReconcileStep::AfterUpdateStatus);
@@ -80,7 +80,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, zookeeper, at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode),
+        spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode),
         at_step1_or_step2_closure(after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)
     );
 
@@ -90,7 +90,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, zookeeper, at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode),
+        spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode),
         at_step1_or_step2_closure(after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)
     );
 
@@ -100,7 +100,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, zookeeper, at_step_closure(ZookeeperReconcileStep::AfterCreateZKParentNode),
+        spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKParentNode),
         at_step1_or_step2_closure(ZookeeperReconcileStep::AfterCreateZKNode, ZookeeperReconcileStep::Error)
     );
 
@@ -110,7 +110,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, zookeeper, at_step_closure(ZookeeperReconcileStep::AfterExistsZKNode),
+        spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterExistsZKNode),
         at_step1_or_step2_or_step3_closure(ZookeeperReconcileStep::AfterUpdateZKNode, ZookeeperReconcileStep::AfterCreateZKParentNode, ZookeeperReconcileStep::Error)
     );
 
@@ -120,7 +120,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, zookeeper, at_step_closure(ZookeeperReconcileStep::AfterExistsStatefulSet),
+        spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterExistsStatefulSet),
         at_step1_or_step2_or_step3_closure(ZookeeperReconcileStep::AfterExistsZKNode, after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)
     );
 
@@ -222,8 +222,8 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
         lift_state(|s: ZKCluster| { !s.ongoing_reconciles().contains_key(zookeeper.object_ref()) })
     );
-    ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, zookeeper, at_step_closure(after_create_k_request_step(sub_resource)), state_after_create_or_update);
-    ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, zookeeper, at_step_closure(after_update_k_request_step(sub_resource)), state_after_create_or_update);
+    ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, zookeeper.object_ref(), at_step_closure(after_create_k_request_step(sub_resource)), state_after_create_or_update);
+    ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, zookeeper.object_ref(), at_step_closure(after_update_k_request_step(sub_resource)), state_after_create_or_update);
 
     let state_after_get = |s: ZookeeperReconcileState| {
         s.reconcile_step == after_create_k_request_step(sub_resource)
@@ -237,7 +237,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
         lift_state(|s: ZKCluster| { !s.ongoing_reconciles().contains_key(zookeeper.object_ref()) })
     );
-    ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, zookeeper, at_step_closure(after_get_k_request_step(sub_resource)), state_after_get);
+    ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, zookeeper.object_ref(), at_step_closure(after_get_k_request_step(sub_resource)), state_after_get);
     or_leads_to_combine_and_equality!(
         spec, lift_state(state_pred_regarding_sub_resource(zookeeper, sub_resource)),
         lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(sub_resource))),

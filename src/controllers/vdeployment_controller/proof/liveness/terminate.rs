@@ -327,7 +327,7 @@ ensures
     assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))] at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero))](s)
         ==> at_step_or![Error, Done]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, controller_id, vd.marshal(),
+        spec, controller_id, vd.object_ref(),
         at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero))],
         at_step_or![Error, Done]
     );
@@ -358,7 +358,7 @@ ensures
                 spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(n)
             );
             cluster.lemma_from_some_state_to_arbitrary_next_state(
-                spec, controller_id, vd.marshal(),
+                spec, controller_id, vd.object_ref(),
                 at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))],
                 scale_down_old_vrs_rank_n((n - 1) as nat)
             );
@@ -431,7 +431,7 @@ ensures
     // AfterEnsureNewVRS is similar to init on no pending req/resp is needed for the transition to next step
     // let me borrow this lemma for init here
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
-        spec, controller_id, vd.marshal(),
+        spec, controller_id, vd.object_ref(),
         at_step_or![AfterEnsureNewVRS],
         at_step_or![AfterScaleDownOldVRS, Error, Done]
     );
@@ -446,7 +446,7 @@ ensures
         at_step_or![AfterScaleNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                              ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, controller_id, vd.marshal(),
+        spec, controller_id, vd.object_ref(),
         at_step_or![AfterScaleNewVRS],
         at_step_or![AfterEnsureNewVRS, Error]
     );
@@ -455,7 +455,7 @@ ensures
         at_step_or![AfterCreateNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                               ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, controller_id, vd.marshal(),
+        spec, controller_id, vd.object_ref(),
         at_step_or![AfterCreateNewVRS],
         at_step_or![AfterEnsureNewVRS, Error]
     );
@@ -471,13 +471,13 @@ ensures
         at_step_or![AfterListVRS](s) ==> at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error]
                                          ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-        spec, controller_id, vd.marshal(),
+        spec, controller_id, vd.object_ref(),
         at_step_or![AfterListVRS],
         at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error]
     );
     // 7, Init ~> idle
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
-        spec, controller_id, vd.marshal(),
+        spec, controller_id, vd.object_ref(),
         at_step_or![Init],
         at_step_or![AfterListVRS]
     );
