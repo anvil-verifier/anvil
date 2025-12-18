@@ -238,11 +238,7 @@ pub fn handle_after_list_pod(
         } else {
             let pods = pods_or_none.unwrap();
             let filtered_pods = filter_pods(pods, vsts);
-            let replicas = if vsts.spec().replicas().is_some() {
-                vsts.spec().replicas().unwrap()
-            } else {
-                0
-            };
+            let replicas = vsts.spec().replicas().unwrap_or(1);
             if replicas >= 0 {
                 let (needed, condemned) = partition_pods(
                     vsts.metadata().name().unwrap(),
