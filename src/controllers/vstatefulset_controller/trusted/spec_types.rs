@@ -1,5 +1,5 @@
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{label_selector::*, pod_template_spec::*, prelude::*};
+use crate::kubernetes_api_objects::spec::{label_selector::*, pod_template_spec::*, persistent_volume_claim::*, prelude::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -7,7 +7,7 @@ verus! {
 
 pub struct VStatefulSetView {
     pub metadata: ObjectMetaView,
-    pub spec: StatefulSetSpecView,
+    pub spec: VStatefulSetSpecView,
     pub status: Option<StatefulSetStatusView>,
 }
 
@@ -34,7 +34,7 @@ impl VStatefulSetView {
         }
     }
 
-    pub open spec fn with_spec(self, spec: StatefulSetSpecView) -> VStatefulSetView {
+    pub open spec fn with_spec(self, spec: VStatefulSetSpecView) -> VStatefulSetView {
         VStatefulSetView {
             spec: spec,
             ..self
@@ -121,7 +121,7 @@ impl VStatefulSetView {
     pub open spec fn _transition_validation(self, old_obj: VStatefulSetView) -> bool { true }
 }
 
-implement_resource_view_trait!(VStatefulSetView, StatefulSetSpecView, StatefulSetSpecView::default(),
+implement_resource_view_trait!(VStatefulSetView, VStatefulSetSpecView, VStatefulSetSpecView::default(),
     Option<StatefulSetStatusView>, None, VStatefulSetView::_kind(), _state_validation, _transition_validation);
 
 impl CustomResourceView for VStatefulSetView {
@@ -136,6 +136,94 @@ impl CustomResourceView for VStatefulSetView {
     }
 
     proof fn validation_result_determined_by_spec_and_status() {}
+}
+
+pub struct VStatefulSetSpecView {
+    pub service_name: StringView,
+    pub selector: LabelSelectorView,
+    pub template: PodTemplateSpecView,
+    pub replicas: Option<int>,
+    pub update_strategy: Option<StatefulSetUpdateStrategyView>,
+    pub pod_management_policy: Option<StringView>,
+    pub revision_history_limit: Option<int>,
+    pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
+    pub min_ready_seconds: Option<int>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
+    pub ordinals: Option<StatefulSetOrdinalsView>,
+}
+
+impl VStatefulSetSpecView {
+    pub open spec fn default() -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            service_name: StringView::empty(),
+            selector: LabelSelectorView::default(),
+            template: PodTemplateSpecView::default(),
+            replicas: None,
+            update_strategy: None,
+            pod_management_policy: None,
+            revision_history_limit: None,
+            volume_claim_templates: None,
+            min_ready_seconds: None,
+            persistent_volume_claim_retention_policy: None,
+            ordinals: None,
+        }
+    }
+
+    pub open spec fn with_replicas(self, replicas: int) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            replicas: Some(replicas),
+            ..self
+        }
+    }
+
+    pub open spec fn with_selector(self, selector: LabelSelectorView) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            selector,
+            ..self
+        }
+    }
+
+    pub open spec fn with_service_name(self, service_name: StringView) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            service_name,
+            ..self
+        }
+    }
+
+    pub open spec fn with_template(self, template: PodTemplateSpecView) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            template,
+            ..self
+        }
+    }
+
+    pub open spec fn with_volume_claim_templates(self, volume_claim_templates: Seq<PersistentVolumeClaimView>) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            volume_claim_templates: Some(volume_claim_templates),
+            ..self
+        }
+    }
+
+    pub open spec fn with_pod_management_policy(self, pod_management_policy: StringView) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            pod_management_policy: Some(pod_management_policy),
+            ..self
+        }
+    }
+
+    pub open spec fn with_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            persistent_volume_claim_retention_policy: Some(pvc_retention_policy),
+            ..self
+        }
+    }
+
+    pub open spec fn without_pvc_retention_policy(self) -> VStatefulSetSpecView {
+        VStatefulSetSpecView {
+            persistent_volume_claim_retention_policy: None,
+            ..self
+        }
+    }
 }
 
 }
