@@ -118,10 +118,8 @@ pub fn reconcile_error(state: &VStatefulSetReconcileState) -> (res: bool)
 pub fn indices_in_bounds(state: &VStatefulSetReconcileState) -> (res: bool) 
     ensures res == model_reconciler::indices_in_bounds(state@)
 {
-    state.pvc_index < u32::MAX as usize
-    && state.needed_index < u32::MAX as usize
-    && state.condemned_index < u32::MAX as usize
-    && state.needed.len() < u32::MAX as usize
+    state.needed_index <= u32::MAX as usize
+    && state.needed.len() <= u32::MAX as usize
 }
 
 pub fn reconcile_core(
@@ -416,6 +414,7 @@ pub fn handle_create_pvc(
         );
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterCreatePVC,
+            pvc_index: state.pvc_index + 1,
             ..state
         };
         (state_prime, Some(Request::KRequest(req)))
@@ -431,7 +430,6 @@ pub fn handle_after_create_pvc(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.pvc_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_pvc(
             vsts@,
@@ -459,7 +457,6 @@ pub fn handle_skip_pvc(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.pvc_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_skip_pvc(
             vsts@,
@@ -467,7 +464,15 @@ pub fn handle_skip_pvc(
             state@,
         ),
 {
-    handle_after_create_or_skip_pvc_helper(vsts, state)
+    if state.pvc_index < state.pvcs.len() {
+        let state_prime = VStatefulSetReconcileState {
+            pvc_index: state.pvc_index + 1,
+            ..state
+        };
+        handle_after_create_or_skip_pvc_helper(vsts, state_prime)
+    } else {
+        (error_state(state), None)
+    }
 }
 
 pub fn handle_create_needed(
@@ -477,7 +482,7 @@ pub fn handle_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index < u32::MAX,
+        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_create_needed(
             vsts@,
@@ -493,8 +498,12 @@ pub fn handle_create_needed(
                 obj: make_pod(&vsts, state.needed_index as u32).marshal(),
             },
         );
+
+        let new_needed_index = state.needed_index + 1;
+
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterCreateNeeded,
+            needed_index: new_needed_index,
             ..state
         };
         (state_prime, Some(Request::KRequest(req)))
@@ -511,7 +520,7 @@ pub fn handle_after_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index < u32::MAX,
+        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_needed(
             vsts@,
@@ -565,8 +574,12 @@ pub fn handle_update_needed(
                 obj: new_pod.marshal(),
             },
         );
+
+        let new_needed_index = state.needed_index + 1;
+
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterUpdateNeeded,
+            needed_index: new_needed_index,
             ..state
         };
         (state_prime, None)
@@ -583,7 +596,7 @@ pub fn handle_after_update_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index < u32::MAX,
+        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_update_needed(
             vsts@,
@@ -630,10 +643,15 @@ pub fn handle_delete_condemned(
                 owner_ref: vsts.controller_owner_ref(),
             },
         );
+
+        let new_condemned_index = state.condemned_index + 1;
+
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::AfterDeleteCondemned,
+            condemned_index: new_condemned_index,
             ..state
         };
+
         (state_prime, Some(Request::KRequest(req)))
     } else {
         // This should be unreachable
@@ -648,7 +666,6 @@ pub fn handle_after_delete_condemned(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.condemned_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_delete_condemned(
             vsts@,
@@ -659,7 +676,7 @@ pub fn handle_after_delete_condemned(
     if is_some_k_get_then_delete_resp!(resp_o) {
         let result = extract_some_k_get_then_delete_resp!(resp_o);
         if result.is_ok() {
-            let new_condemned_index = state.condemned_index + 1;
+            let new_condemned_index = state.condemned_index;
             if new_condemned_index < state.condemned.len() {
                 (
                     VStatefulSetReconcileState {
@@ -689,7 +706,7 @@ pub fn handle_delete_outdated(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed.len() < u32::MAX
+        state.needed.len() <= u32::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_outdated(
             vsts@,
@@ -770,14 +787,13 @@ pub fn handle_after_create_or_skip_pvc_helper(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.pvc_index < usize::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_or_skip_pvc_helper(
             vsts@,
             state@,
         ),
 {
-    let new_pvc_index = state.pvc_index + 1;
+    let new_pvc_index = state.pvc_index;
     if new_pvc_index < state.pvcs.len() {
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::GetPVC,
@@ -815,12 +831,12 @@ pub fn handle_after_create_or_after_update_needed_helper(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index < u32::MAX,
+        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view())
             == model_reconciler::handle_after_create_or_after_update_needed_helper(vsts@, state@),
 {
-    let new_needed_index = state.needed_index + 1;
+    let new_needed_index = state.needed_index;
     if new_needed_index < state.needed.len() {
         // There are more pods to create/update
         let new_pvcs = make_pvcs(&vsts, new_needed_index as u32);
@@ -990,7 +1006,6 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: u32) -> (resul
     pod
 }
 
-// TODO: implement this
 pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
     requires
         vsts@.well_formed(),

@@ -76,10 +76,8 @@ pub open spec fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
 }
 
 pub open spec fn indices_in_bounds(state: VStatefulSetReconcileState) -> bool {
-    state.needed_index < u32::MAX
-    && state.condemned_index < u32::MAX
-    && state.pvc_index < u32::MAX
-    && state.needed.len() < u32::MAX
+    state.needed_index <= u32::MAX
+    && state.needed.len() <= u32::MAX
 }
 
 // The VSTS controller manages pods and volumes to run stateful, distributed applications.
@@ -308,6 +306,7 @@ pub open spec fn handle_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, 
         });
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStepView::AfterCreatePVC,
+            pvc_index: state.pvc_index + 1,
             ..state
         };
         (state_prime, Some(RequestView::KRequest(req)))
@@ -332,11 +331,20 @@ pub open spec fn handle_after_create_pvc(vsts: VStatefulSetView, resp_o: Default
 }
 
 pub open spec fn handle_skip_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    handle_after_create_or_skip_pvc_helper(vsts, state)
+    if state.pvc_index < state.pvcs.len() {
+        // skip is done here, no AfterSkipPVC state
+        let state_prime = VStatefulSetReconcileState {
+            pvc_index: state.pvc_index + 1,
+            ..state
+        };
+        handle_after_create_or_skip_pvc_helper(vsts, state_prime)
+    } else {
+        (error_state(state), None)
+    }
 }
 
 pub open spec fn handle_after_create_or_skip_pvc_helper(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    let new_pvc_index = state.pvc_index + 1;
+    let new_pvc_index = state.pvc_index;
     if new_pvc_index < state.pvcs.len() {
         (VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStepView::GetPVC,
@@ -376,6 +384,7 @@ pub open spec fn handle_create_needed(vsts: VStatefulSetView, resp_o: DefaultRes
         });
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStepView::AfterCreateNeeded,
+            needed_index: state.needed_index + 1,
             ..state
         };
         (state_prime, Some(RequestView::KRequest(req)))
@@ -416,6 +425,7 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
             });
             let state_prime = VStatefulSetReconcileState {
                 reconcile_step: VStatefulSetReconcileStepView::AfterUpdateNeeded,
+                needed_index: state.needed_index + 1,
                 ..state
             };
             (state_prime, None)
@@ -443,7 +453,7 @@ pub open spec fn handle_after_update_needed(vsts: VStatefulSetView, resp_o: Defa
 }
 
 pub open spec fn handle_after_create_or_after_update_needed_helper(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    let new_needed_index = state.needed_index + 1;
+    let new_needed_index = state.needed_index;
     if new_needed_index < state.needed.len() {
         // There are more pods to create/update
         let new_pvcs = make_pvcs(vsts, new_needed_index);
@@ -506,6 +516,7 @@ pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: Default
             });
             let state_prime = VStatefulSetReconcileState {
                 reconcile_step: VStatefulSetReconcileStepView::AfterDeleteCondemned,
+                condemned_index: state.condemned_index + 1,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req)))
@@ -522,7 +533,7 @@ pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: D
     if is_some_k_get_then_delete_resp_view(resp_o) {
         let result = extract_some_k_get_then_delete_resp_view(resp_o);
         if result is Ok {
-            let new_condemned_index = state.condemned_index + 1;
+            let new_condemned_index = state.condemned_index;
             if new_condemned_index < state.condemned.len() {
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::DeleteCondemned,
