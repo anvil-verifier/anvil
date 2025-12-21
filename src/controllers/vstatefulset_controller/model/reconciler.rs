@@ -603,7 +603,7 @@ pub open spec fn objects_to_pods(objs: Seq<DynamicObjectView>) -> Option<Seq<Pod
 }
 
 pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
-    parent_name + "-"@ + int_to_string_view(ordinal as int)
+    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + parent_name + "-"@ + int_to_string_view(ordinal as int)
 }
 
 pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<PodView> {
