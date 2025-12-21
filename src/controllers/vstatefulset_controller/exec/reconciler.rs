@@ -1457,7 +1457,7 @@ pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
 {
     // we don't have executable CustomResource kind, hardcoded as a temporary solution
     let prefix = "vstatefulset".to_string().concat("-"); // "vstatefulset-" fails proof
-    prefix.concat(parent_name.as_str()).concat("-").concat(u32_to_string(ordinal).as_str())
+    prefix.concat(parent_name.as_str()).concat("-").concat(usize_to_string(ordinal).as_str())
 }
 
 pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) -> (result: String)
