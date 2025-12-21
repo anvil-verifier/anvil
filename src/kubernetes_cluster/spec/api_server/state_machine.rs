@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{api_server::types::*, message::*};
+use crate::kubernetes_cluster::spec::{api_server::types::*, message::*, cluster::Cluster};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::vstd_ext::string_view::*;
@@ -255,6 +255,17 @@ pub uninterp spec fn generate_name(s: APIServerState) -> StringView;
 pub proof fn generated_name_is_unique(s: APIServerState)
     ensures
         forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s),
+{}
+
+// to avoid generating a name that may collide with objects to be created by CR(VSTS) controller
+pub open spec fn has_prefix(name: StringView, prefix: StringView) -> bool {
+    name.len() >= prefix.len() && name.take(prefix.len() as int) == prefix
+}
+
+#[verifier(external_body)]
+pub proof fn generated_name_has_no_cr_prefix(cluster: Cluster, s: APIServerState)
+    ensures
+        forall |cr: StringView| #[trigger] cluster.installed_types.contains_key(cr) ==> !has_prefix(generate_name(s), cr + "-@"@),
 {}
 
 #[verifier(inline)]

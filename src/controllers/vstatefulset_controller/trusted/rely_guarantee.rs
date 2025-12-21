@@ -1,5 +1,6 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, persistent_volume_claim::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
+use crate::kubernetes_cluster::spec::api_server::state_machine::has_prefix;
 use crate::vstatefulset_controller::{
     trusted::spec_types::*,
     model::reconciler::*
@@ -41,9 +42,10 @@ pub open spec fn interfere_create_req(req: CreateRequest) -> bool {
 pub open spec fn interfere_create_pod_req(req: CreateRequest) -> bool {
     let owner_references = req.obj.metadata.owner_references->0;
     &&& req.obj.metadata.owner_references is Some
+    &&& req.obj.metadata.name is Some ==> !has_prefix(req.obj.metadata.name->0, VStatefulSetView::kind()->CustomResourceKind_0 + "-"@)// "vstatefulset-"@)
+    // .. is None ==> generated_name_has_no_cr_prefix
     &&& exists |vsts: VStatefulSetView| {
         &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
-        &&& exists |ord: nat| req.obj.metadata.name->0 == #[trigger] pod_name(vsts.metadata.name->0, ord)
     }
 }
 
@@ -208,7 +210,7 @@ pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
     let owner_references = req.obj.metadata.owner_references->0;
     &&& req.obj.kind == PodView::kind() ==> exists |vsts: VStatefulSetView| {
         &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
-        &&& exists |ord: nat| req.obj.metadata.name->0 == #[trigger] pod_name(vsts.metadata.name->0, ord)
+        &&& has_prefix(req.obj.metadata.name->0, vsts.metadata.name->0 + "-"@) // "vstatefulset-"@)
     }
     &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |vsts: VStatefulSetView|
         #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
