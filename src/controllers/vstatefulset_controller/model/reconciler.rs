@@ -100,62 +100,57 @@ pub open spec fn indices_in_bounds(state: VStatefulSetReconcileState) -> bool {
 // be done by the next round of reconcile---the controller will get [pod-0, ...pod-3] by list,
 // and then it will create a new pod-4 with the new template, and then delete the next outdated pod.
 pub open spec fn reconcile_core(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    
-    if !indices_in_bounds(state) {
-        (error_state(state), None)
-    } else {
-        match state.reconcile_step {
-            VStatefulSetReconcileStepView::Init => {
-                handle_init(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterListPod => {
-                handle_after_list_pod(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::GetPVC => {
-                handle_get_pvc(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterGetPVC => {
-                handle_after_get_pvc(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::CreatePVC => {
-                handle_create_pvc(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterCreatePVC => {
-                handle_after_create_pvc(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::SkipPVC => {
-                handle_skip_pvc(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::CreateNeeded => {
-                handle_create_needed(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterCreateNeeded => {
-                handle_after_create_needed(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::UpdateNeeded => {
-                handle_update_needed(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterUpdateNeeded => {
-                handle_after_update_needed(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::DeleteCondemned => {
-                handle_delete_condemned(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterDeleteCondemned => {
-                handle_after_delete_condemned(vsts, resp_o, state)
-            },
-            // At this point, we should have desired number of replicas running (tho with old versions).
-            // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
-            // reconcile will do the remaining jobs to start a new one (and delete the next old one).
-            VStatefulSetReconcileStepView::DeleteOutdated => {
-                handle_delete_outdated(vsts, resp_o, state)
-            },
-            VStatefulSetReconcileStepView::AfterDeleteOutdated => {
-                handle_after_delete_outdated(vsts, resp_o, state)
-            },
-            _ => {
-                (state, None)
-            }
+    match state.reconcile_step {
+        VStatefulSetReconcileStepView::Init => {
+            handle_init(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterListPod => {
+            handle_after_list_pod(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::GetPVC => {
+            handle_get_pvc(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterGetPVC => {
+            handle_after_get_pvc(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::CreatePVC => {
+            handle_create_pvc(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterCreatePVC => {
+            handle_after_create_pvc(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::SkipPVC => {
+            handle_skip_pvc(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::CreateNeeded => {
+            handle_create_needed(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterCreateNeeded => {
+            handle_after_create_needed(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::UpdateNeeded => {
+            handle_update_needed(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterUpdateNeeded => {
+            handle_after_update_needed(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::DeleteCondemned => {
+            handle_delete_condemned(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterDeleteCondemned => {
+            handle_after_delete_condemned(vsts, resp_o, state)
+        },
+        // At this point, we should have desired number of replicas running (tho with old versions).
+        // The next step DeleteOutdated deletes the old replica with largest ordinal, and the next
+        // reconcile will do the remaining jobs to start a new one (and delete the next old one).
+        VStatefulSetReconcileStepView::DeleteOutdated => {
+            handle_delete_outdated(vsts, resp_o, state)
+        },
+        VStatefulSetReconcileStepView::AfterDeleteOutdated => {
+            handle_after_delete_outdated(vsts, resp_o, state)
+        },
+        _ => {
+            (state, None)
         }
     }
 }
@@ -839,9 +834,9 @@ pub open spec fn get_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, p
     }
 }
 
-pub open spec fn get_largest_ordinal_of_unmatched_pods_u32(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<u32> {
-    let filtered = Seq::new(pods.len(), |i: int| i as u32)
-                                .filter(|ordinal: u32| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
+pub open spec fn get_largest_ordinal_of_unmatched_pods_usize(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<usize> {
+    let filtered = Seq::new(pods.len(), |i: int| i as usize)
+                                .filter(|ordinal: usize| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
     if filtered.len() > 0 {
         Some(filtered.last())
     } else {

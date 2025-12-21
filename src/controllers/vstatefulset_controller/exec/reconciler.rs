@@ -14,7 +14,7 @@ use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
-    vstatefulset_controller::trusted::step::*, vstd_ext::string_view::u32_to_string,
+    vstatefulset_controller::trusted::step::*, vstd_ext::string_view::usize_to_string,
 };
 use vstd::{prelude::*, seq_lib::*};
 
@@ -115,13 +115,6 @@ pub fn reconcile_error(state: &VStatefulSetReconcileState) -> (res: bool)
     }
 }
 
-pub fn indices_in_bounds(state: &VStatefulSetReconcileState) -> (res: bool) 
-    ensures res == model_reconciler::indices_in_bounds(state@)
-{
-    state.needed_index <= u32::MAX as usize
-    && state.needed.len() <= u32::MAX as usize
-}
-
 pub fn reconcile_core(
     vsts: &VStatefulSet,
     resp_o: Option<Response<VoidEResp>>,
@@ -136,11 +129,6 @@ pub fn reconcile_core(
             state@,
         ),
 {
-
-    if !indices_in_bounds(&state) {
-        return (error_state(state), None);
-    }
-
     match state.reconcile_step {
         VStatefulSetReconcileStep::Init => { handle_init(vsts, resp_o, state) },
         VStatefulSetReconcileStep::AfterListPod => { handle_after_list_pod(vsts, resp_o, state) },
@@ -240,7 +228,7 @@ pub fn handle_after_list_pod(
             if replicas >= 0 {
                 let (needed, condemned) = partition_pods(
                     vsts.metadata().name().unwrap(),
-                    replicas as u32,
+                    replicas as usize,
                     filtered_pods,
                 );
                 let needed_index = 0;
@@ -482,7 +470,6 @@ pub fn handle_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_create_needed(
             vsts@,
@@ -495,7 +482,7 @@ pub fn handle_create_needed(
             KubeCreateRequest {
                 api_resource: Pod::api_resource(),
                 namespace: vsts.metadata().namespace().unwrap(),
-                obj: make_pod(&vsts, state.needed_index as u32).marshal(),
+                obj: make_pod(&vsts, state.needed_index).marshal(),
             },
         );
 
@@ -520,7 +507,6 @@ pub fn handle_after_create_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_create_needed(
             vsts@,
@@ -547,7 +533,6 @@ pub fn handle_update_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_update_needed(
             vsts@,
@@ -562,7 +547,7 @@ pub fn handle_update_needed(
             return (error_state(state), None)
         }
 
-        let ordinal = state.needed_index as u32;
+        let ordinal = state.needed_index;
         let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
 
         let req = KubeAPIRequest::GetThenUpdateRequest(
@@ -596,7 +581,6 @@ pub fn handle_after_update_needed(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_after_update_needed(
             vsts@,
@@ -706,7 +690,6 @@ pub fn handle_delete_outdated(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed.len() <= u32::MAX
     ensures
         (res.0@, res.1.deep_view()) == model_reconciler::handle_delete_outdated(
             vsts@,
@@ -831,7 +814,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
 ) -> (res: (VStatefulSetReconcileState, Option<Request<VoidEReq>>))
     requires
         vsts@.well_formed(),
-        state.needed_index <= u32::MAX,
     ensures
         (res.0@, res.1.deep_view())
             == model_reconciler::handle_after_create_or_after_update_needed_helper(vsts@, state@),
@@ -839,7 +821,7 @@ pub fn handle_after_create_or_after_update_needed_helper(
     let new_needed_index = state.needed_index;
     if new_needed_index < state.needed.len() {
         // There are more pods to create/update
-        let new_pvcs = make_pvcs(&vsts, new_needed_index as u32);
+        let new_pvcs = make_pvcs(&vsts, new_needed_index);
         let new_pvc_index = 0;
         if new_pvcs.len() > 0 {
             // There is at least one pvc for the next pod to handle
@@ -920,7 +902,7 @@ pub fn error_state(state: VStatefulSetReconcileState) -> (result: VStatefulSetRe
     VStatefulSetReconcileState { reconcile_step: VStatefulSetReconcileStep::Error, ..state }
 }
 
-pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
+pub fn make_pod(vsts: &VStatefulSet, ordinal: usize) -> (pod: Pod)
     requires
         vsts@.well_formed(),
     ensures
@@ -952,13 +934,13 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: u32) -> (pod: Pod)
 
 // TODO: finish implementing this
 #[verifier(external_body)]
-pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: u32) -> (result: Pod)
+pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         vsts@.well_formed(),
     ensures
         result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat),
 {
-    let pvcs = make_pvcs(vsts, ordinal);
+    let pvcs = make_pvcs(vsts, ordinal as usize);
     let current_volumes = if pod.spec().unwrap().volumes().is_some() {
         pod.spec().unwrap().volumes().unwrap()
     } else {
@@ -1006,7 +988,7 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: u32) -> (resul
     pod
 }
 
-pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
+pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         vsts@.well_formed(),
         pod@.metadata.name is Some,
@@ -1027,7 +1009,7 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Po
 }
 
 // TODO: implement this
-pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: Pod)
+pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         vsts@.well_formed(),
         pod@.metadata.name is Some,
@@ -1039,13 +1021,13 @@ pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: u32) -> (result: 
     let mut meta = pod.metadata();
     let mut labels = meta.labels().unwrap_or(StringMap::empty());
     labels.insert("statefulset.kubernetes.io/pod-name".to_string(), meta.name().unwrap());
-    labels.insert("apps.kubernetes.io/pod-index".to_string(), u32_to_string(ordinal));
+    labels.insert("apps.kubernetes.io/pod-index".to_string(), usize_to_string(ordinal));
     meta.set_labels(labels);
     result.set_metadata(meta);
     result
 }
 
-pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: PersistentVolumeClaim)
+pub fn make_pvc(vsts: &VStatefulSet, ordinal: usize, i: usize) -> (pvc: PersistentVolumeClaim)
     requires
         vsts@.well_formed() && vsts@.spec.volume_claim_templates is Some && i
             < vsts@.spec.volume_claim_templates->0.len(),
@@ -1096,7 +1078,7 @@ pub fn make_pvc(vsts: &VStatefulSet, ordinal: u32, i: usize) -> (pvc: Persistent
     pvc
 }
 
-pub fn make_pvcs(vsts: &VStatefulSet, ordinal: u32) -> (pvcs: Vec<PersistentVolumeClaim>)
+pub fn make_pvcs(vsts: &VStatefulSet, ordinal: usize) -> (pvcs: Vec<PersistentVolumeClaim>)
     requires
         vsts@.well_formed(),
     ensures
@@ -1135,7 +1117,7 @@ pub fn make_pvcs(vsts: &VStatefulSet, ordinal: u32) -> (pvcs: Vec<PersistentVolu
     }
 }
 
-pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: u32) -> (result: Option<Pod>)
+pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (result: Option<Pod>)
     ensures
         result.deep_view() == model_reconciler::get_pod_with_ord(
             parent_name@,
@@ -1210,12 +1192,10 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: u32) -> (resu
     }
 }
 
-pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (result: (
+pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (result: (
     Vec<Option<Pod>>,
     Vec<Pod>,
 ))
-    requires
-        replicas <= i32::MAX,
     ensures
         result.0.deep_view() == model_reconciler::partition_pods(
             parent_name@,
@@ -1241,7 +1221,6 @@ pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (re
     let mut i = 0;
     while i < replicas
         invariant
-            replicas <= i32::MAX,
             i <= replicas,
             needed.deep_view() == model_reconciler::partition_pods(
                 parent_name@,
@@ -1254,8 +1233,6 @@ pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (re
         needed.push(pod_or_none);
 
         proof {
-            assert((i as i32) as int == i as int);  // this is needed due to some ugly type conversions
-
             let needed_model: Seq<Option<PodView>> = Seq::new(
                 replicas as nat,
                 |ord: int|
@@ -1294,7 +1271,6 @@ pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (re
 
     for i in 0..pods.len()
         invariant
-            replicas <= i32::MAX,
             condemned.deep_view() == pods.deep_view().take(i as int).filter(
                 |pod: PodView|
                     model_reconciler::get_ordinal(parent_name@, pod) is Some
@@ -1307,7 +1283,6 @@ pub fn partition_pods(parent_name: String, replicas: u32, pods: Vec<Pod>) -> (re
             condemned.push(pod.clone());
         }
         proof {
-            assert(replicas as i32 == replicas);
             let spec_filter = |pod: PodView|
                 model_reconciler::get_ordinal(parent_name@, pod) is Some
                     && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas;
@@ -1484,14 +1459,14 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
     filtered_pods
 }
 
-pub fn pod_name(parent_name: String, ordinal: u32) -> (result: String)
+pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
     ensures
         result@ == model_reconciler::pod_name(parent_name@, ordinal as nat),
 {
-    parent_name.concat("-").concat(u32_to_string(ordinal).as_str())
+    parent_name.concat("-").concat(usize_to_string(ordinal).as_str())
 }
 
-pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: u32) -> (result: String)
+pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) -> (result: String)
     ensures
         result@ == model_reconciler::pvc_name(pvc_template_name@, vsts_name@, ordinal as nat),
 {
@@ -1509,36 +1484,34 @@ pub fn pod_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
 pub fn get_largest_ordinal_of_unmatched_pods(
     vsts: &VStatefulSet,
     pods: &Vec<Option<Pod>>,
-) -> (result: Option<u32>)
+) -> (result: Option<usize>)
     requires
         vsts@.well_formed(),
-        pods.len() < u32::MAX
     ensures
-        (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(
+        (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods_usize(
             vsts@,
             pods.deep_view(),
-        ) is None) || (result.is_some() && model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(
+        ) is None) || (result.is_some() && model_reconciler::get_largest_ordinal_of_unmatched_pods_usize(
             vsts@,
             pods.deep_view(),
         ) is Some && result.unwrap() as nat
-            == model_reconciler::get_largest_ordinal_of_unmatched_pods_u32(vsts@, pods.deep_view())->0),
+            == model_reconciler::get_largest_ordinal_of_unmatched_pods_usize(vsts@, pods.deep_view())->0),
 {
-    let ghost model_ordinals = Seq::new(pods.deep_view().len(), |i: int| i as u32);
+    let ghost model_ordinals = Seq::new(pods.deep_view().len(), |i: int| i as usize);
 
-    let mut ordinals: Vec<u32> = Vec::new();
+    let mut ordinals: Vec<usize> = Vec::new();
 
     proof {
         assert_seqs_equal!(ordinals.deep_view(), model_ordinals.take(0));
     }
 
-    let mut ord: u32 = 0;
+    let mut ord: usize = 0;
 
-    while (ord as usize) < pods.len() 
+    while ord < pods.len() 
         invariant 
         ordinals.deep_view() =~= model_ordinals.take(ord as int)
         && ord <= pods.len()
-        && pods.len() < u32::MAX
-        decreases pods.len() - ord as usize
+        decreases pods.len() - ord
     {
         ordinals.push(ord);
         ord += 1;
@@ -1552,9 +1525,9 @@ pub fn get_largest_ordinal_of_unmatched_pods(
         assert(ordinals.deep_view() == model_ordinals);
     }
 
-    let ghost model_pred = |ordinal: u32| pods.deep_view()[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods.deep_view()[ordinal as int]->0);
+    let ghost model_pred = |ordinal: usize| pods.deep_view()[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods.deep_view()[ordinal as int]->0);
 
-    let mut ordinals_filtered: Vec<u32> = Vec::new();
+    let mut ordinals_filtered: Vec<usize> = Vec::new();
     for idx in 0..ordinals.len() 
         invariant 
             ordinals_filtered.deep_view() == model_ordinals.take(idx as int).filter(model_pred)
@@ -1563,7 +1536,7 @@ pub fn get_largest_ordinal_of_unmatched_pods(
     {
         let ordinal = ordinals[idx];
         assume(ordinal < pods.len());
-        if pods[ordinal as usize].is_some() && !pod_matches(vsts, pods[ordinal as usize].clone().unwrap()) {
+        if pods[ordinal].is_some() && !pod_matches(vsts, pods[ordinal].clone().unwrap()) {
             ordinals_filtered.push(ordinal);
         }
         proof {

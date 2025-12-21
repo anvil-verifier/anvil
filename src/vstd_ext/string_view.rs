@@ -24,7 +24,7 @@ pub fn i32_to_string(i: i32) -> (s: String)
 }
 
 #[verifier(external_body)]
-pub fn u32_to_string(i: u32) -> (s: String) 
+pub fn usize_to_string(i: usize) -> (s: String) 
     ensures s@ == int_to_string_view(i as int)
 {
     i.to_string()
