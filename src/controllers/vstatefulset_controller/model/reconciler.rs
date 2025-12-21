@@ -75,11 +75,6 @@ pub open spec fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
     }
 }
 
-pub open spec fn indices_in_bounds(state: VStatefulSetReconcileState) -> bool {
-    state.needed_index <= u32::MAX
-    && state.needed.len() <= u32::MAX
-}
-
 // The VSTS controller manages pods and volumes to run stateful, distributed applications.
 // The controller does two things: managing replicas and versions.
 //
