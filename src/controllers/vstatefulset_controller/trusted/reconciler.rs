@@ -11,7 +11,7 @@ use vstd::prelude::*;
 verus! {
 
     #[verifier(external_body)]
-    pub fn get_ordinal(parent_name: &String, pod: &Pod) -> (ordinal: Option<u32>)
+    pub fn get_ordinal(parent_name: &String, pod: &Pod) -> (ordinal: Option<usize>)
         ensures (
             (ordinal@ matches Some(v1) && model_reconciler::get_ordinal(parent_name@, pod@) matches Some(v2) && v1 == v2)
             || (ordinal@ matches None && model_reconciler::get_ordinal(parent_name@, pod@) matches None)
@@ -19,7 +19,7 @@ verus! {
     {
         pod.metadata()
             .name()
-            .and_then(|name| name[parent_name.len() + 1..].parse::<u32>().ok())
+            .and_then(|name| name[parent_name.len() + 1..].parse::<usize>().ok())
     }
 
     #[verifier(external_body)]
