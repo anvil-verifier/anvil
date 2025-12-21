@@ -661,12 +661,11 @@ pub fn handle_after_delete_condemned(
     if is_some_k_get_then_delete_resp!(resp_o) {
         let result = extract_some_k_get_then_delete_resp!(resp_o);
         if result.is_ok() {
-            let condemned_index = state.condemned_index;
-            if condemned_index < state.condemned.len() {
+            if state.condemned_index < state.condemned.len() {
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
-                        needed_index: condemned_index,
+                        needed_index: state.condemned_index,
                         ..state
                     },
                     None,
@@ -777,11 +776,9 @@ pub fn handle_after_create_or_skip_pvc_helper(
             state@,
         ),
 {
-    let pvc_index = state.pvc_index;
-    if pvc_index < state.pvcs.len() {
+    if state.pvc_index < state.pvcs.len() {
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStep::GetPVC,
-            pvc_index,
             ..state
         };
         (state_prime, None)
@@ -791,14 +788,12 @@ pub fn handle_after_create_or_skip_pvc_helper(
             if state.needed[state.needed_index].is_none() {
                 let state_prime = VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
-                    pvc_index,
                     ..state
                 };
                 (state_prime, None)
             } else {
                 let state_prime = VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
-                    pvc_index,
                     ..state
                 };
                 (state_prime, None)
@@ -819,17 +814,15 @@ pub fn handle_after_create_or_after_update_needed_helper(
         (res.0@, res.1.deep_view())
             == model_reconciler::handle_after_create_or_after_update_needed_helper(vsts@, state@),
 {
-    let needed_index = state.needed_index;
-    if needed_index < state.needed.len() {
+    if state.needed_index < state.needed.len() {
         // There are more pods to create/update
-        let new_pvcs = make_pvcs(&vsts, needed_index);
+        let new_pvcs = make_pvcs(&vsts, state.needed_index);
         let new_pvc_index = 0;
         if new_pvcs.len() > 0 {
             // There is at least one pvc for the next pod to handle
             (
                 VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStep::GetPVC,
-                    needed_index,
                     pvcs: new_pvcs,
                     pvc_index: new_pvc_index,
                     ..state
@@ -837,12 +830,11 @@ pub fn handle_after_create_or_after_update_needed_helper(
                 None,
             )
         } else {
-            if state.needed[needed_index].is_none() {
+            if state.needed[state.needed_index].is_none() {
                 // Create the pod
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
-                        needed_index,
                         pvcs: new_pvcs,
                         pvc_index: new_pvc_index,
                         ..state
@@ -853,7 +845,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
-                        needed_index,
                         pvcs: new_pvcs,
                         pvc_index: new_pvc_index,
                         ..state
@@ -867,7 +858,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
             (
                 VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
-                    needed_index,
                     ..state
                 },
                 None,
