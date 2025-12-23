@@ -59,6 +59,13 @@ requires
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts_key, lift_step(AfterDeleteOutdated))))),
 ensures
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts_key)))),
-{}
+{
+    // error state and done state will lead to termination
+    
+    let post = |key: ObjectRef|
+        true_pred().leads_to(lift_state(
+            |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
+        ));
+}
 
 }
