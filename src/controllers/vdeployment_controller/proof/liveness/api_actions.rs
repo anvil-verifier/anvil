@@ -192,6 +192,8 @@ ensures
     let req = req_msg.content->APIRequest_0->CreateRequest_0;
     let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr); // vd doesn't have rv
     assert(match_template_without_hash(vd.spec.template)(new_vrs));
+    let generate_name_field = vd.metadata.name->0 + "-"@ + int_to_string_view(triggering_cr.metadata.resource_version->0);
+    assert(new_vrs.metadata.generate_name == Some(generate_name_field));
     assert(req == CreateRequest {
         namespace: vd.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
@@ -214,7 +216,6 @@ ensures
         spec: req.obj.spec,
         status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
     };
-    let generate_name_field = vd.metadata.name->0 + "-"@ + int_to_string_view(vd.metadata.resource_version->0);
     assert(!s.resources().contains_key(created_obj.object_ref())) by {
         assert(created_obj.object_ref().name == generate_name(s.api_server, generate_name_field));
         generated_name_spec(s.api_server, new_vrs.metadata.generate_name.unwrap());
