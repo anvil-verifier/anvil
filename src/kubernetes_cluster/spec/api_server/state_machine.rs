@@ -244,29 +244,27 @@ pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, i
     }
 }
 
-pub uninterp spec fn generate_name(s: APIServerState) -> StringView;
+pub uninterp spec fn generate_name(s: APIServerState, generate_name: StringView) -> StringView;
 
-// TODO: This should be a spec ensures of the generate_name above
 // NOTE: In the actual implementation, the API server might fail to generate a unique name
 // after a number of attempts. For the sake of liveness, we simplify that behavior and assume
 // that the API server is always able to find a unique name by random generation in our model.
 // For more details, see the implementation: https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L432-L443
-#[verifier(external_body)]
-pub proof fn generated_name_is_unique(s: APIServerState)
-    ensures
-        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s),
-{}
-
-// to avoid generating a name that may collide with objects to be created by CR(VSTS) controller
-pub open spec fn has_prefix(name: StringView, prefix: StringView) -> bool {
-    name.len() > prefix.len() && name.take((prefix.len() + 1) as int) == prefix + "-@"@
-}
 
 #[verifier(external_body)]
-pub proof fn generated_name_has_no_cr_prefix(cluster: Cluster, s: APIServerState)
+pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringView)
     ensures
-        forall |cr: StringView| #[trigger] cluster.installed_types.contains_key(cr) ==> !has_prefix(generate_name(s), cr),
+        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s, generate_name_field),
+        exists |suffix| #[trigger] generate_name(s, generate_name_field) == generate_name_field + suffix,
 {}
+
+// TODO: add fine grained support for namespace and kind
+// #[verifier(external_body)]
+// pub proof fn generated_name_spec(s: APIServerState, generate_name: StringView, kind: Kind, namespace: StringView)
+//     ensures
+//         forall |key| #[trigger] s.resources.contains_key(key) ==> (key != ObjectRef { name: generate_name(s, generate_name, kind, namespace), namespace: namespace, kind: kind }),
+//         exists |suffix| generate_name(s, generate_name, kind, namespace) = generate_name + suffix,
+// {}
 
 #[verifier(inline)]
 pub open spec fn handle_create_request(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> (APIServerState, CreateResponse) {
@@ -278,11 +276,11 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
             kind: req.obj.kind,
             metadata: ObjectMetaView {
                 // Set name for new object if name is not provided, here we generate
-                // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+                // a unique name. The uniqueness is guaranteed by generated_name_spec.
                 name: if req.obj.metadata.name is Some {
                     req.obj.metadata.name
                 } else {
-                    Some(generate_name(s))
+                    Some(generate_name(s, req.obj.metadata.generate_name.unwrap()))
                 },
                 namespace: Some(req.namespace), // Set namespace for new object
                 resource_version: Some(s.resource_version_counter), // Set rv for new object
@@ -295,15 +293,15 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
         };
         if s.resources.contains_key(created_obj.object_ref()) {
             // Note 1: You might find this branch redundant since we already have
-            // generated_name_is_unique which guarantees that the created_obj's
+            // generated_name_spec which guarantees that the created_obj's
             // key is different from any existing keys even if name was not provided.
-            // But we still add this branch just to avoid calling generated_name_is_unique
+            // But we still add this branch just to avoid calling generated_name_spec
             // when we want to show that create without a provided name does not override
             // an existing object when writing proofs.
             //
             // Note 2: Adding this branch also means that if we want to prove the object
             // is eventually created by a create request without the name provided,
-            // we need to explicitly call generated_name_is_unique to show that
+            // we need to explicitly call generated_name_spec to show that
             // we do not fall into this branch.
             (s, CreateResponse{res: Err(APIError::ObjectAlreadyExists)})
         } else if created_object_validity_check(created_obj, installed_types) is Some {

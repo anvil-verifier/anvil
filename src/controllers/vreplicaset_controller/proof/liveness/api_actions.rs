@@ -311,7 +311,7 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     let created_obj = new_obj_in_etcd(s, cluster, msg.content.get_create_request());
 
     PodView::marshal_preserves_integrity();
-    generated_name_is_unique(s.api_server);
+    generated_name_spec(s.api_server, vrs.metadata.name.unwrap() + "-"@);
 
     // reasoning about owner_references to prove that 
     // our request creates a vrs-owned pod.

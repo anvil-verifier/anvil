@@ -666,7 +666,7 @@ pub open spec fn make_pod(vsts: VStatefulSetView, ordinal: nat) -> PodView {
     let pod = PodView {
         metadata: {
             ObjectMetaView {
-                name: Some(pod_name(vsts.metadata.name->0, ordinal)),
+                generate_name: Some(pod_name(vsts.metadata.name->0, ordinal)),
                 labels: vsts.spec.template.metadata->0.labels,
                 annotations: vsts.spec.template.metadata->0.annotations,
                 finalizers: vsts.spec.template.metadata->0.finalizers,

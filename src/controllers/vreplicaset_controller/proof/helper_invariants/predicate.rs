@@ -258,11 +258,11 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
                 kind: req.obj.kind,
                 metadata: ObjectMetaView {
                     // Set name for new object if name is not provided, here we generate
-                    // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+                    // a unique name. The uniqueness is guaranteed by generated_name_spec.
                     name: if req.obj.metadata.name is Some {
                         req.obj.metadata.name
                     } else {
-                        Some(generate_name(s.api_server))
+                        Some(generate_name(s.api_server, req.obj.metadata.generate_name.unwrap()))
                     },
                     namespace: Some(req.namespace), // Set namespace for new object
                     resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
