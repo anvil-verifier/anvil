@@ -32,6 +32,10 @@ pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
     }
 }
 
+pub open spec fn has_vsts_prefix(name: StringView) -> bool {
+    exists |suffix| #[trigger] name == VStatefulSetView::kind()->CustomResourceKind_0 + suffix
+}
+
 pub open spec fn interfere_create_req(req: CreateRequest) -> bool {
     &&& req.obj.kind == PodView::kind() ==> interfere_create_pod_req(req)
     &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> interfere_create_pvc_req(req)
@@ -40,13 +44,18 @@ pub open spec fn interfere_create_req(req: CreateRequest) -> bool {
 // Other controllers don't create Pod owned by a VSTS.
 // and should not create Pods with prefix of "vsts.metadata.name-"
 pub open spec fn interfere_create_pod_req(req: CreateRequest) -> bool {
-    let owner_references = req.obj.metadata.owner_references->0;
-    &&& req.obj.metadata.owner_references is Some
-    &&& req.obj.metadata.name is Some ==> exists |suffix| #[trigger] req.obj.metadata.name.unwrap() == "vstatefulset" + suffix,
-    &&& req.obj.metadata.name is None ==> req.obj.metadata.generate_name == Some("vstatefulset"),
-    // .. is None ==> generated_name_has_no_cr_prefix
-    &&& exists |vsts: VStatefulSetView| {
-        &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
+    ||| {
+        let owner_references = req.obj.metadata.owner_references->0;
+        &&& req.obj.metadata.owner_references is Some
+        &&& exists |vsts: VStatefulSetView| {
+            &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
+        }
+    }
+    ||| if req.obj.metadata.name is Some {
+        has_vsts_prefix(req.obj.metadata.name->0)
+    } else {
+        &&& req.obj.metadata.generate_name is Some
+        &&& has_vsts_prefix(req.obj.metadata.generate_name->0)
     }
 }
 
@@ -211,7 +220,8 @@ pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
     let owner_references = req.obj.metadata.owner_references->0;
     &&& req.obj.kind == PodView::kind() ==> exists |vsts: VStatefulSetView| {
         &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
-        &&& has_prefix(req.obj.metadata.name->0, VStatefulSetView::kind()->CustomResourceKind_0) // "vstatefulset-"@)
+        &&& req.obj.metadata.generate_name is Some
+        &&& has_vsts_prefix(req.obj.metadata.generate_name->0)
     }
     &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |vsts: VStatefulSetView|
         #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
