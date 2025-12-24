@@ -42,7 +42,7 @@ pub open spec fn interfere_create_req(req: CreateRequest) -> bool {
 }
 
 // Other controllers don't create Pod owned by a VSTS.
-// and should not create Pods with prefix of "vsts.metadata.name-"
+// and should not create Pods with prefix of "vstatefulset-"
 pub open spec fn interfere_create_pod_req(req: CreateRequest) -> bool {
     ||| {
         let owner_references = req.obj.metadata.owner_references->0;
