@@ -28,7 +28,8 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             // 2. Bound PVCs exist
             &&& forall |i: int| #![trigger vsts.spec.volume_claim_templates->0[i]] 0 <= i < pvc_template_cnt ==> {
                 let pvc_template_name = vsts.spec.volume_claim_templates->0[i].metadata.name->0;
-                &&& exists |obj| #[trigger] s.resources().contains_value(obj) && bound_dyn_pvc_filter(pvc_template_name, vsts, ord)(obj)
+                &&& exists |obj| #[trigger] s.resources().contains_value(obj)
+                &&& bound_dyn_pvc_filter(pvc_template_name, vsts, ord)(obj)
             }
         }
         // 3. No condemned pod in etcd
