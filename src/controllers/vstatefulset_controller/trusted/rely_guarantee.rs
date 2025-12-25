@@ -71,7 +71,7 @@ pub open spec fn pvc_name_match(name: StringView, vsts: VStatefulSetView) -> boo
     }
 }
 
-// create a PVC to be owned by a VSTS
+// create a PVC with name matching VSTS's naming convention
 pub open spec fn interfere_create_pvc_req(req: CreateRequest) -> bool {
     exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
 }
@@ -208,7 +208,7 @@ pub open spec fn vsts_guarantee(controller_id: int) -> StatePred<ClusterState> {
             APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
             APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
             APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-            // Update, UpdateStatus and Delete requests do not guarantee
+            // No Update, UpdateStatus and Delete requests submitted
             _ => true,
         }
     }
@@ -218,10 +218,11 @@ pub open spec fn vsts_guarantee(controller_id: int) -> StatePred<ClusterState> {
 // and only creates PVC matching its PVC templates
 pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
     let owner_references = req.obj.metadata.owner_references->0;
-    &&& req.obj.kind == PodView::kind() ==> exists |vsts: VStatefulSetView| {
-        &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
-        &&& req.obj.metadata.generate_name is Some
-        &&& has_vsts_prefix(req.obj.metadata.generate_name->0)
+    &&& req.obj.kind == PodView::kind() ==> {
+        &&& req.obj.metadata.name is Some
+        &&& has_vsts_prefix(req.obj.metadata.name->0)
+        &&& exists |vsts: VStatefulSetView| #[trigger]
+            owner_references.contains(vsts.controller_owner_ref())
     }
     &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |vsts: VStatefulSetView|
         #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
@@ -230,6 +231,7 @@ pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
 // VSTS controller Only updates Pod owned by itself and does not update PVC
 pub open spec fn vsts_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     &&& req.obj.kind == PodView::kind()
+    &&& has_vsts_prefix(req.obj.metadata.name->0)
     &&& exists |vsts: VStatefulSetView| {
         &&& req.owner_ref == #[trigger] vsts.controller_owner_ref()
         // do not change ownership
