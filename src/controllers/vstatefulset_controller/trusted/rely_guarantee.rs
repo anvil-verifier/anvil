@@ -33,7 +33,7 @@ pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
 }
 
 pub open spec fn has_vsts_prefix(name: StringView) -> bool {
-    exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + suffix
+    exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
 
 pub open spec fn interfere_create_req(req: CreateRequest) -> bool {
