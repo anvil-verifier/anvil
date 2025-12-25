@@ -59,29 +59,64 @@ requires
 ensures
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
 {
-    let reconcile_terminated = lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()));
+    let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref());
 
-    // reconcile_idle leads to itself
-    entails_implies_leads_to(spec, reconcile_terminated, reconcile_terminated);
+    // First, prove that reconcile_done \/ reconcile_error \/ reconcile_idle ~> reconcile_idle.
+    // Here we simply apply a cluster lemma which uses the wf1 of end_reconcile action.
+    cluster.lemma_reconcile_error_leads_to_reconcile_idle(spec, controller_id, vsts.object_ref());
+    cluster.lemma_reconcile_done_leads_to_reconcile_idle(spec, controller_id, vsts.object_ref());
+    temp_pred_equality(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Done, None, None, None)), lift_state(cluster.reconciler_reconcile_done(controller_id, vsts.object_ref())));
+    temp_pred_equality(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Error, None, None, None)), lift_state(cluster.reconciler_reconcile_error(controller_id, vsts.object_ref())));
+    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
-    // Assume all states lead to termination
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Init, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterListPod, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::GetPVC, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterGetPVC, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::CreatePVC, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterCreatePVC, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::SkipPVC, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::CreateNeeded, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterCreateNeeded, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::UpdateNeeded, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterUpdateNeeded, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::DeleteCondemned, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteCondemned, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::DeleteOutdated, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteOutdated, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Done, None, None, None)).leads_to(reconcile_terminated)));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Error, None, None, None)).leads_to(reconcile_terminated)));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::GetPVC, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterGetPVC, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::CreatePVC, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterCreatePVC, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::SkipPVC, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::CreateNeeded, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterCreateNeeded, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::UpdateNeeded, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterUpdateNeeded, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::DeleteCondemned, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteCondemned, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::DeleteOutdated, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteOutdated, None, None, None)).leads_to(lift_state(reconcile_idle))));
+
+    // Prove AfterListPod | Done ~> reconcile_idle
+    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterListPod, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    assert(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Done, None, None, None))
+        .leads_to(lift_state(reconcile_idle))));
+    or_leads_to_combine_n!(
+        spec,
+        lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterListPod, None, None, None)),
+        lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Done, None, None, None));
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(),
+        |rs: ReconcileLocalState| (lift_step(AfterListPod)(rs) || lift_step(Done)(rs)))),
+        lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterListPod, None, None, None)).or(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Done, None, None, None)))
+    );
+    assert(spec.entails(lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(),
+        |rs: ReconcileLocalState| (lift_step(AfterListPod)(rs) || lift_step(Done)(rs))))
+        .leads_to(lift_state(reconcile_idle))));
+
+    // Need some extra statements to prove the lemma
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+
+    // Prove that reconcile init state can reach AfterListPod | Done
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        lift_step(Init),
+        |rs: ReconcileLocalState| (lift_step(AfterListPod)(rs) || lift_step(Done)(rs))
+    );
+
+    // Needed to show Init ~> Done
+    temp_pred_equality(
+        lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Init, None, None, None)),
+        lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), lift_step(Init)))
+    );
 
     // Call the lemma to establish the equality
     lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts, controller_id);
@@ -90,7 +125,7 @@ ensures
     or_leads_to_combine_and_equality!(
         spec,
         true_pred(),
-        reconcile_terminated,
+        lift_state(reconcile_idle),
         lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Init, None, None, None)),
         lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterListPod, None, None, None)),
         lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::GetPVC, None, None, None)),
@@ -108,7 +143,7 @@ ensures
         lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteOutdated, None, None, None)),
         lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Done, None, None, None)),
         lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::Error, None, None, None));
-        reconcile_terminated
+        lift_state(reconcile_idle)
     );
 }
 
