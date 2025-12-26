@@ -28,7 +28,7 @@ use crate::vreplicaset_controller::{
         spec_types::*,
     }
 };
-use crate::vstd_ext::{seq_lib::*, set_lib::*};
+use crate::vstd_ext::{seq_lib::*, set_lib::*, string_view::int_to_string_view};
 use vstd::{map_lib::*, multiset::*, prelude::*};
 
 verus! {
@@ -1326,10 +1326,11 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     assert(unmarshallable_object(req.obj, cluster.installed_types));
                                     assert(req.obj.metadata.name is None);
                                 }
+                                let generate_name_field = triggering_cr.metadata.name->0 + "-"@ + int_to_string_view(triggering_cr.metadata.resource_version->0);
                                 let created_obj = DynamicObjectView {
                                     kind: req.obj.kind,
                                     metadata: ObjectMetaView {
-                                        name: Some(generate_name(s.api_server)),
+                                        name: Some(generate_name(s.api_server, generate_name_field)),
                                         namespace: Some(req.namespace),
                                         resource_version: Some(s.api_server.resource_version_counter),
                                         uid: Some(s.api_server.uid_counter),
@@ -1340,8 +1341,8 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
                                 };
                                 assert(!s.resources().contains_key(created_obj.object_ref())) by {
-                                    assert(created_obj.object_ref().name == generate_name(s.api_server));
-                                    generated_name_is_unique(s.api_server);
+                                    assert(created_obj.object_ref().name == generate_name(s.api_server, generate_name_field));
+                                    generated_name_spec(s.api_server, generate_name_field);
                                     if s.resources().contains_key(created_obj.object_ref()) {
                                         assert(false);
                                     }

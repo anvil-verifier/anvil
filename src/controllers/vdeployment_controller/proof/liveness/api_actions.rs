@@ -15,7 +15,7 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
-use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*};
+use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::int_to_string_view};
 
 verus! {
 
@@ -192,6 +192,8 @@ ensures
     let req = req_msg.content->APIRequest_0->CreateRequest_0;
     let new_vrs = lemma_make_replica_set_passes_match_template_without_hash(triggering_cr); // vd doesn't have rv
     assert(match_template_without_hash(vd.spec.template)(new_vrs));
+    let generate_name_field = vd.metadata.name->0 + "-"@ + int_to_string_view(triggering_cr.metadata.resource_version->0);
+    assert(new_vrs.metadata.generate_name == Some(generate_name_field));
     assert(req == CreateRequest {
         namespace: vd.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
@@ -204,7 +206,7 @@ ensures
     let created_obj = DynamicObjectView {
         kind: req.obj.kind,
         metadata: ObjectMetaView {
-            name: Some(generate_name(s.api_server)),
+            name: Some(generate_name(s.api_server, new_vrs.metadata.generate_name.unwrap())),
             namespace: Some(req.namespace),
             resource_version: Some(s.api_server.resource_version_counter),
             uid: Some(s.api_server.uid_counter),
@@ -215,8 +217,8 @@ ensures
         status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
     };
     assert(!s.resources().contains_key(created_obj.object_ref())) by {
-        assert(created_obj.object_ref().name == generate_name(s.api_server));
-        generated_name_is_unique(s.api_server);
+        assert(created_obj.object_ref().name == generate_name(s.api_server, generate_name_field));
+        generated_name_spec(s.api_server, new_vrs.metadata.generate_name.unwrap());
         if s.resources().contains_key(created_obj.object_ref()) {
             assert(false);
         }
@@ -251,7 +253,7 @@ ensures
             }
             assert(created_obj.metadata.uid->0 == s.api_server.uid_counter); // etcd_object_is_weakly_well_formed
             assert(vds_prime.old_vrs_list[i].object_ref() != key) by {
-                generated_name_is_unique(s.api_server);
+                generated_name_spec(s.api_server, generate_name_field);
             }
         }
     }
