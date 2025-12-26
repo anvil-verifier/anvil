@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub proof fn reconcile_eventually_terminates_on_vss_object(
+pub proof fn reconcile_eventually_terminates_on_vsts_object(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
@@ -81,8 +81,9 @@ ensures
     assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterUpdateNeeded, None, None, None)).leads_to(lift_state(reconcile_idle))));
     assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::DeleteCondemned, None, None, None)).leads_to(lift_state(reconcile_idle))));
     assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteCondemned, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    
     assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::DeleteOutdated, None, None, None)).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteOutdated, None, None, None)).leads_to(lift_state(reconcile_idle))));
+    // assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteOutdated, None, None, None)).leads_to(lift_state(reconcile_idle))));
 
     // Prove AfterListPod | Done ~> reconcile_idle
     assume(spec.entails(lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterListPod, None, None, None)).leads_to(lift_state(reconcile_idle))));
@@ -110,6 +111,30 @@ ensures
         spec, controller_id, vsts.object_ref(),
         lift_step(Init),
         |rs: ReconcileLocalState| (lift_step(AfterListPod)(rs) || lift_step(Done)(rs))
+    );
+
+    assume(spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), lift_step(AfterDeleteOutdated))))));
+
+    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vsts.object_ref(), lift_step(AfterDeleteOutdated), |rs: ReconcileLocalState| (lift_step(Error)(rs) || lift_step(Done)(rs)));
+
+    let error_or_done = Cluster::at_expected_reconcile_states(
+        controller_id, vsts.object_ref(),
+        |rs: ReconcileLocalState| (lift_step(Error)(rs) || lift_step(Done)(rs))
+    );
+
+    assert(spec.entails(lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), lift_step(AfterDeleteOutdated))).leads_to(lift_state(error_or_done))));
+    assume(spec.entails(lift_state(error_or_done).leads_to(lift_state(reconcile_idle))));
+
+    leads_to_trans_n!(
+        spec, 
+        lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), lift_step(AfterDeleteOutdated))), 
+        lift_state(error_or_done),
+        lift_state(reconcile_idle)
+    );
+
+    temp_pred_equality(
+        lift_state(at_step_state_pred(controller_id, vsts, VStatefulSetReconcileStepView::AfterDeleteOutdated, None, None, None)),
+        lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), lift_step(AfterDeleteOutdated)))
     );
 
     // Needed to show Init ~> Done
@@ -150,14 +175,18 @@ ensures
 pub open spec fn at_step_state_pred(controller_id: int, vsts: VStatefulSetView, step: VStatefulSetReconcileStepView, needed_index: Option<nat>, condemned_index: Option<nat>, pvc_index: Option<nat>) -> StatePred<ClusterState> {
     Cluster::at_expected_reconcile_states(
         controller_id, vsts.object_ref(),
-        |s: ReconcileLocalState| {
+        at_step_closure(step, needed_index, condemned_index, pvc_index)
+    )
+}
+
+pub open spec fn at_step_closure(step: VStatefulSetReconcileStepView, needed_index: Option<nat>, condemned_index: Option<nat>, pvc_index: Option<nat>) -> spec_fn(ReconcileLocalState) -> bool {
+    |s: ReconcileLocalState| {
             let unmarshalled_state = VStatefulSetReconcileState::unmarshal(s).unwrap();
             unmarshalled_state.reconcile_step == step &&
             (needed_index is None || needed_index->0 == unmarshalled_state.needed_index) &&
             (condemned_index is None || condemned_index->0 == unmarshalled_state.condemned_index) &&
             (pvc_index is None || pvc_index->0 == unmarshalled_state.pvc_index)
-        }
-    )
+    }
 }
 
 #[verifier(external_body)]
