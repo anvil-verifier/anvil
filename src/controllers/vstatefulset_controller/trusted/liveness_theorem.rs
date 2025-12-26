@@ -29,6 +29,8 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             &&& PodView::unmarshal_spec(obj.spec) is Ok
             &&& PodView::unmarshal_spec(obj.spec)->Ok_0 == vsts.spec.template.spec
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
             // 2. Bound PVCs exist
             &&& forall |i: int| #![trigger vsts.spec.volume_claim_templates->0[i]] 0 <= i < pvc_template_cnt ==> {
                 let pvc_key = ObjectRef {
