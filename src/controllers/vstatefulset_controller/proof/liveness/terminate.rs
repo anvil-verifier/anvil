@@ -72,45 +72,59 @@ requires
 ensures
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
 {
+    macro_rules! lift_at_step_or {
+        [$($tail:tt)*] => {
+            lift_state(lift_local(controller_id, vsts, at_step_or![$($tail)*]))
+        }
+    }
+
+    macro_rules! at_expected_states {
+        [$($tail:tt)*] => {
+            lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), at_step_or![$($tail)*]))
+        }
+    }
+
     let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref());
+    let reconcile_done = cluster.reconciler_reconcile_done(controller_id, vsts.object_ref());
+    let reconcile_error = cluster.reconciler_reconcile_error(controller_id, vsts.object_ref());
 
     // First, prove that reconcile_done \/ reconcile_error \/ reconcile_idle ~> reconcile_idle.
     // Here we simply apply a cluster lemma which uses the wf1 of end_reconcile action.
     cluster.lemma_reconcile_error_leads_to_reconcile_idle(spec, controller_id, vsts.object_ref());
     cluster.lemma_reconcile_done_leads_to_reconcile_idle(spec, controller_id, vsts.object_ref());
-    temp_pred_equality(lift_state(lift_local(controller_id, vsts, at_step_or![Done])), lift_state(cluster.reconciler_reconcile_done(controller_id, vsts.object_ref())));
-    temp_pred_equality(lift_state(lift_local(controller_id, vsts, at_step_or![Error])), lift_state(cluster.reconciler_reconcile_error(controller_id, vsts.object_ref())));
+    temp_pred_equality(lift_at_step_or![Done], lift_state(reconcile_done));
+    temp_pred_equality(lift_at_step_or![Error], lift_state(reconcile_error));
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterGetPVC])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![CreatePVC])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreatePVC])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![SkipPVC])).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![GetPVC].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![AfterGetPVC].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![CreatePVC].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![AfterCreatePVC].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![SkipPVC].leads_to(lift_state(reconcile_idle))));
 
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![CreateNeeded])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![UpdateNeeded])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteCondemned])).leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![CreateNeeded].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![AfterCreateNeeded].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![UpdateNeeded].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![AfterUpdateNeeded].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![AfterDeleteCondemned].leads_to(lift_state(reconcile_idle))));
 
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])).leads_to(lift_state(reconcile_idle))));
-    // assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])).leads_to(lift_state(reconcile_idle))));
+    assume(spec.entails(lift_at_step_or![DeleteOutdated].leads_to(lift_state(reconcile_idle))));
+    // assume(spec.entails(lift_at_step_or![AfterDeleteOutdated].leads_to(lift_state(reconcile_idle))));
 
     // Prove AfterListPod | Done ~> reconcile_idle
-    assume(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])).leads_to(lift_state(reconcile_idle))));
-    assert(spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![Done]))
+    assume(spec.entails(lift_at_step_or![AfterListPod].leads_to(lift_state(reconcile_idle))));
+    assert(spec.entails(lift_at_step_or![Done]
         .leads_to(lift_state(reconcile_idle))));
     or_leads_to_combine_n!(
         spec,
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![Done]));
+        lift_at_step_or![AfterListPod],
+        lift_at_step_or![Done];
         lift_state(reconcile_idle)
     );
     temp_pred_equality(
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod, Done])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])).or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
+        lift_at_step_or![AfterListPod, Done],
+        lift_at_step_or![AfterListPod].or(lift_at_step_or![Done])
     );
 
     // Need some extra statements to prove the lemma
@@ -123,37 +137,20 @@ ensures
         at_step_or![AfterListPod, Done]
     );
 
-    assume(spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))));
-    assume(spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))));
-
     cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated], at_step_or![Error, Done]);
 
-    let error_or_done = Cluster::at_expected_reconcile_states(
-        controller_id, vsts.object_ref(),
-        at_step_or![Error, Done]
-    );
-
-    assert(spec.entails(lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])).leads_to(lift_state(error_or_done))));
-    assume(spec.entails(lift_state(error_or_done).leads_to(lift_state(reconcile_idle))));
-
-    leads_to_trans_n!(
-        spec,
-        lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])),
-        lift_state(error_or_done),
+    or_leads_to_combine_and_equality!(spec,
+        lift_at_step_or![Error, Done],
+        lift_state(reconcile_error),
+        lift_state(reconcile_done);
         lift_state(reconcile_idle)
     );
 
-
-
-    temp_pred_equality(
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])),
-        lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))
-    );
-
-    // Needed to show Init ~> Done
-    temp_pred_equality(
-        lift_state(lift_local(controller_id, vsts, at_step_or![Init])),
-        lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), at_step_or![Init]))
+    leads_to_trans_n!(
+        spec,
+        at_expected_states![AfterDeleteOutdated],
+        lift_at_step_or![Error, Done],
+        lift_state(reconcile_idle)
     );
 
     // Call the lemma to establish the equality
@@ -164,23 +161,23 @@ ensures
         spec,
         true_pred(),
         lift_state(reconcile_idle),
-        lift_state(lift_local(controller_id, vsts, at_step_or![Init])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterGetPVC])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![CreatePVC])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreatePVC])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![SkipPVC])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![CreateNeeded])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![UpdateNeeded])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![DeleteCondemned])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![Done])),
-        lift_state(lift_local(controller_id, vsts, at_step_or![Error]));
+        lift_at_step_or![Init],
+        lift_at_step_or![AfterListPod],
+        lift_at_step_or![GetPVC],
+        lift_at_step_or![AfterGetPVC],
+        lift_at_step_or![CreatePVC],
+        lift_at_step_or![AfterCreatePVC],
+        lift_at_step_or![SkipPVC],
+        lift_at_step_or![CreateNeeded],
+        lift_at_step_or![AfterCreateNeeded],
+        lift_at_step_or![UpdateNeeded],
+        lift_at_step_or![AfterUpdateNeeded],
+        lift_at_step_or![DeleteCondemned],
+        lift_at_step_or![AfterDeleteCondemned],
+        lift_at_step_or![DeleteOutdated],
+        lift_at_step_or![AfterDeleteOutdated],
+        lift_at_step_or![Done],
+        lift_at_step_or![Error];
         lift_state(reconcile_idle)
     );
 }
