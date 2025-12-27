@@ -1,3 +1,3 @@
 pub mod liveness;
 pub mod predicate;
-pub mod helper_lemmas;
+pub mod shield_lemmas;
