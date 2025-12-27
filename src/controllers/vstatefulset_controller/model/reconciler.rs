@@ -709,7 +709,7 @@ pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: 
 }
 
 pub open spec fn pvc_name(pvc_template_name: StringView, vsts_name: StringView, ordinal: nat) -> StringView {
-    pvc_template_name + "-"@ + pod_name(vsts_name, ordinal)
+    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pvc_template_name + "-"@ + pod_name(vsts_name, ordinal)
 }
 
 pub open spec fn make_pvc(vsts: VStatefulSetView, ordinal: nat, i: int) -> PersistentVolumeClaimView {
