@@ -889,8 +889,6 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
@@ -923,10 +921,6 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
-        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vd_rely(other_id)(s)
-        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vd_rely(other_id)(s_prime)
     };
 
     helper_lemmas::vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(
@@ -945,8 +939,7 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vd_rely_condition_action(cluster, controller_id)
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
