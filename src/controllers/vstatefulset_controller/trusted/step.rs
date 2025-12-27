@@ -73,4 +73,11 @@ verus! {
         Done,
         Error,
     }
+
+    // eq_step is a workaround for verifier limitations with enum equality
+    impl VStatefulSetReconcileStepView {
+        pub open spec fn eq_step(self, other: VStatefulSetReconcileStepView) -> bool {
+            self == other
+        }
+    }
 }
