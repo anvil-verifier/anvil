@@ -78,11 +78,7 @@ ensures
         }
     }
 
-    macro_rules! at_expected_states {
-        [$($tail:tt)*] => {
-            lift_state(Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), at_step_or![$($tail)*]))
-        }
-    }
+    VStatefulSetReconcileState::marshal_preserves_integrity();
 
     let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref());
     let reconcile_done = cluster.reconciler_reconcile_done(controller_id, vsts.object_ref());
@@ -110,7 +106,10 @@ ensures
     assume(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle))));
     assume(spec.entails(lift_at_step_or![AfterDeleteCondemned].leads_to(lift_state(reconcile_idle))));
 
-    VStatefulSetReconcileState::marshal_preserves_integrity();
+    assert(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle)))) by {
+        let delete_condemned_with_index = |n: nat| lift_at_step_or![(DeleteCondemned, condemned_index(n))];
+
+    };
 
     // Prove AfterDeleteOutdated -> Idle first
     cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated], at_step_or![Error, Done]);
@@ -124,7 +123,7 @@ ensures
 
     leads_to_trans_n!(
         spec,
-        at_expected_states![AfterDeleteOutdated],
+        lift_at_step_or![AfterDeleteOutdated],
         lift_at_step_or![Error, Done],
         lift_state(reconcile_idle)
     );
@@ -132,14 +131,14 @@ ensures
     // Prove DeleteOutdated -> Idle (goes to AfterDeleteOutdated, Error, or Done)
     or_leads_to_combine_n!(
         spec,
-        at_expected_states![AfterDeleteOutdated],
+        lift_at_step_or![AfterDeleteOutdated],
         lift_at_step_or![Error],
         lift_at_step_or![Done];
         lift_state(reconcile_idle)
     );
     temp_pred_equality(
         lift_at_step_or![AfterDeleteOutdated, Error, Done],
-        at_expected_states![AfterDeleteOutdated].or(lift_at_step_or![Error]).or(lift_at_step_or![Done])
+        lift_at_step_or![AfterDeleteOutdated].or(lift_at_step_or![Error]).or(lift_at_step_or![Done])
     );
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
         spec, controller_id, vsts.object_ref(),
@@ -159,14 +158,14 @@ ensures
         lift_at_step_or![CreateNeeded],
         lift_at_step_or![UpdateNeeded],
         lift_at_step_or![DeleteCondemned],
-        at_expected_states![DeleteOutdated],
+        lift_at_step_or![DeleteOutdated],
         lift_at_step_or![Error],
         lift_at_step_or![Done];
         lift_state(reconcile_idle)
     );
     leads_to_trans_n!(
         spec,
-        at_expected_states![AfterListPod],
+        lift_at_step_or![AfterListPod],
         lift_at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated, Error, Done],
         lift_state(reconcile_idle)
     );
@@ -176,13 +175,13 @@ ensures
         .leads_to(lift_state(reconcile_idle))));
     or_leads_to_combine_n!(
         spec,
-        at_expected_states![AfterListPod],
+        lift_at_step_or![AfterListPod],
         lift_at_step_or![Done];
         lift_state(reconcile_idle)
     );
     temp_pred_equality(
         lift_at_step_or![AfterListPod, Done],
-        at_expected_states![AfterListPod].or(lift_at_step_or![Done])
+        lift_at_step_or![AfterListPod].or(lift_at_step_or![Done])
     );
 
     // Prove that reconcile init state can reach AfterListPod | Done
