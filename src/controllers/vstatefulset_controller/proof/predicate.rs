@@ -8,5 +8,7 @@ use vstd::prelude::*;
 
 verus! {
 
+// just to make Verus happy
+pub uninterp spec fn dummy<T>(t: T) -> bool;
 
 }

@@ -29,6 +29,57 @@ pub open spec fn pvc_index(n: nat) -> spec_fn(VStatefulSetReconcileState) -> boo
     |s: VStatefulSetReconcileState| s.pvc_index == n
 }
 
+pub open spec fn needed_len(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
+    |s: VStatefulSetReconcileState| s.needed.len() == n
+}
+
+pub open spec fn condemned_len(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
+    |s: VStatefulSetReconcileState| s.condemned.len() == n
+}
+
+pub open spec fn pvc_len(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
+    |s: VStatefulSetReconcileState| s.pvcs.len() == n
+}
+
+pub open spec fn needed_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
+    |s: VStatefulSetReconcileState| s.needed_index == index && s.needed.len() == len
+}
+
+pub open spec fn condemned_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
+    |s: VStatefulSetReconcileState| s.condemned_index == index && s.condemned.len() == len
+}
+
+pub open spec fn pvc_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
+    |s: VStatefulSetReconcileState| s.pvc_index == index && s.pvcs.len() == len
+}
+
+pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int,
+    step: VStatefulSetReconcileStepView, pred: spec_fn(VStatefulSetReconcileState) -> bool
+)
+requires
+    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, vsts.object_ref(), at_step_or![step]
+    )))),
+ensures
+    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, vsts.object_ref(), at_step_or![(step, pred)]
+    )))),
+{
+    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, vsts.object_ref(), at_step_or![step]
+    ));
+    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, vsts.object_ref(), at_step_or![(step, pred)]
+    ));
+    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
+        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
+        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
+        assert(always(pre).satisfied_by(ex));
+        assert(forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) ==> post.satisfied_by(ex.suffix(i)));
+    }
+}
+
 pub proof fn reconcile_eventually_terminates_on_vsts_object(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -107,8 +158,120 @@ ensures
     assume(spec.entails(lift_at_step_or![AfterDeleteCondemned].leads_to(lift_state(reconcile_idle))));
 
     assert(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle)))) by {
-        let delete_condemned_with_index = |n: nat| lift_at_step_or![(DeleteCondemned, condemned_index(n))];
+        let delete_condemned_with_index_and_len = |n: nat, l: nat| lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated];
 
+        // Step 1: Prove AfterDeleteCondemned(n, l) with n < l leads to AfterDeleteCondemned(n+1, l) | Error | DeleteOutdated
+        assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
+            n < l ==> spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(delete_condemned_with_index_and_len(n + 1 as nat, l))) by {
+
+            let n_plus_1 = n + 1 as nat;
+
+            // The state delete_condemned_with_index_and_len(n, l) is:
+            // AfterDeleteCondemned with condemned_index==n && condemned.len()==l, OR Error, OR DeleteOutdated
+            // We need to show each of these leads to delete_condemned_with_index_and_len(n+1, l)
+
+            // Error and DeleteOutdated trivially lead to the target state
+            entails_implies_leads_to(spec, lift_at_step_or![Error], delete_condemned_with_index_and_len(n_plus_1, l));
+            entails_implies_leads_to(spec, lift_at_step_or![DeleteOutdated], delete_condemned_with_index_and_len(n_plus_1, l));
+
+            // Show AfterDeleteCondemned(n, l) leads to the target
+            // This happens in two steps:
+            // 1. AfterDeleteCondemned(n, l) ~> DeleteCondemned | Error | DeleteOutdated
+            // 2. DeleteCondemned ~> AfterDeleteCondemned(n+1, l) | Error
+
+            // Step 1: AfterDeleteCondemned(n, l) transitions to DeleteCondemned | Error | DeleteOutdated
+            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))](s) ==>
+                at_step_or![DeleteCondemned, Error, DeleteOutdated]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+            // Use the lemma to lift pending_req from AfterDeleteCondemned to AfterDeleteCondemned(n, l)
+            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+                spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
+            );
+
+            cluster.lemma_from_some_state_to_arbitrary_next_state(
+                spec, controller_id, vsts.object_ref(),
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                at_step_or![DeleteCondemned, Error, DeleteOutdated]
+            );
+
+            // Step 2: DeleteCondemned with index n ~> AfterDeleteCondemned(n+1, l) | Error
+            // From reconciler.rs line 500: handle_delete_condemned increments condemned_index before transitioning
+            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))](s) ==>
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+            // Note: DeleteCondemned has no_pending_req (line 86 precondition), not pending_req
+            // So we cannot use lemma_from_pending_req here. But looking at the preconditions,
+            // DeleteCondemned sends a request, so after the transition it's in flight.
+            // We need a different approach - assume for now
+            assume(spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id, vsts.object_ref(), at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))]
+            )))));
+
+            cluster.lemma_from_some_state_to_arbitrary_next_state(
+                spec, controller_id, vsts.object_ref(),
+                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]
+            );
+
+            // The lemma above shows DeleteCondemned(n, l) ~> AfterDeleteCondemned(n+1, l) | Error
+            // We need to show this leads to the full target state (which already includes Error)
+            temp_pred_equality(
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error],
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l))].or(lift_at_step_or![Error])
+            );
+
+            entails_implies_leads_to(
+                spec,
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error],
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+
+            leads_to_trans_n!(
+                spec,
+                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error],
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+
+            // For general DeleteCondemned (without index constraint), assume it leads to target
+            // TODO: This needs more careful reasoning - we only care about DeleteCondemned(n, l)
+            assume(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(delete_condemned_with_index_and_len(n_plus_1, l))));
+
+            // Combine: AfterDeleteCondemned(n, l) ~> DeleteCondemned | Error | DeleteOutdated ~> target
+            temp_pred_equality(
+                lift_at_step_or![DeleteCondemned, Error, DeleteOutdated],
+                lift_at_step_or![DeleteCondemned].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
+            );
+
+            or_leads_to_combine_and_equality!(spec,
+                lift_at_step_or![DeleteCondemned, Error, DeleteOutdated],
+                lift_at_step_or![DeleteCondemned],
+                lift_at_step_or![Error],
+                lift_at_step_or![DeleteOutdated];
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+
+            leads_to_trans_n!(
+                spec,
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![DeleteCondemned, Error, DeleteOutdated],
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+
+            // Combine all three branches
+            or_leads_to_combine_and_equality!(spec,
+                delete_condemned_with_index_and_len(n, l),
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![Error],
+                lift_at_step_or![DeleteOutdated];
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+        };
+
+        // TODO: Steps 2 and 3 to complete the overall proof
+        assume(false);
     };
 
     // Prove AfterDeleteOutdated -> Idle first
