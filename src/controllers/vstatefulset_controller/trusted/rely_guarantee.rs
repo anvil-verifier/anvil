@@ -3,7 +3,8 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::state_machine::*;
 use crate::vstatefulset_controller::{
     trusted::spec_types::*,
-    model::reconciler::*
+    model::reconciler::*,
+    proof::predicate::*
 };
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -21,11 +22,11 @@ pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
             &&& msg.src.is_controller_id(other_id)
         } ==> match (msg.content->APIRequest_0) {
             // they are written in negation form for better composability
-            APIRequest::CreateRequest(req) => !interfere_create_req(req),
-            APIRequest::UpdateRequest(req) => !interfere_update_req(req)(s),
-            APIRequest::GetThenUpdateRequest(req) => !interfere_get_then_update_req(req),
-            APIRequest::DeleteRequest(req) => !interfere_delete_req(req)(s),
-            APIRequest::GetThenDeleteRequest(req) => !interfere_get_then_delete_req(req),
+            APIRequest::CreateRequest(req) => rely_create_req(req),
+            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
+            APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
+            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
+            APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
             // UpdateStatus and Get/List requests do not interfere
             _ => true,
         }
@@ -36,9 +37,12 @@ pub open spec fn has_vsts_prefix(name: StringView) -> bool {
     exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
 
-pub open spec fn interfere_create_req(req: CreateRequest) -> bool {
-    &&& req.obj.kind == PodView::kind() ==> interfere_create_pod_req(req)
-    &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> interfere_create_pvc_req(req)
+pub open spec fn rely_create_req(req: CreateRequest) -> bool {
+    match req.obj.kind {
+        Kind::PodKind => !interfere_create_pod_req(req),
+        Kind::PersistentVolumeClaimKind => !interfere_create_pvc_req(req),
+        _ => true,
+    }
 }
 
 // Other controllers don't create Pod owned by a VSTS.
@@ -76,10 +80,11 @@ pub open spec fn interfere_create_pvc_req(req: CreateRequest) -> bool {
     exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
 }
 
-pub open spec fn interfere_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& req.obj.kind == PodView::kind() ==> interfere_update_pod_req(req)(s)
-        &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> interfere_update_pvc_req(req)(s)
+pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
+    match req.obj.kind {
+        Kind::PodKind => not!(interfere_update_pod_req(req)),
+        Kind::PersistentVolumeClaimKind => not!(interfere_update_pvc_req(req)),
+        _ => |s: ClusterState| true,
     }
 }
 
@@ -118,9 +123,12 @@ pub open spec fn interfere_update_pvc_req(req: UpdateRequest) -> StatePred<Clust
     }
 }
 
-pub open spec fn interfere_get_then_update_req(req: GetThenUpdateRequest) -> bool {
-    &&& req.obj.kind == PodView::kind() ==> interfere_get_then_update_pod_req(req)
-    // GetThenUpdate on PVC will fail because PVC owned by VSTS in etcd has no owner reference
+pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
+    match req.obj.kind {
+        Kind::PodKind => !interfere_get_then_update_pod_req(req),
+        _ => true, // GetThenUpdate on PVC will fail because PVC owned by VSTS in etcd has no owner reference
+    }
+    
 }
 
 // Other controllers don't try to delete pod owned by a VSTS.
@@ -132,7 +140,7 @@ pub open spec fn interfere_get_then_update_pod_req(req: GetThenUpdateRequest) ->
         // to achieve exclusive ownerships
         &&& req.owner_ref.controller is Some
         &&& req.owner_ref.controller->0
-        &&& req.owner_ref.kind != VStatefulSetView::kind()
+        &&& req.owner_ref.kind == VStatefulSetView::kind()
     }
     ||| {
         // Prevents 2): where other controllers update pods so they become owned by a VSTS.
@@ -141,10 +149,11 @@ pub open spec fn interfere_get_then_update_pod_req(req: GetThenUpdateRequest) ->
     }
 }
 
-pub open spec fn interfere_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& req.key.kind == PodView::kind() ==> interfere_delete_pod_req(req)(s)
-        &&& req.key.kind == PersistentVolumeClaimView::kind() ==> interfere_delete_pvc_req(req)(s)
+pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
+    match req.key.kind {
+        Kind::PodKind => not!(interfere_delete_pod_req(req)),
+        Kind::PersistentVolumeClaimKind => not!(interfere_delete_pvc_req(req)),
+        _ => |s: ClusterState| true,
     }
 }
 
@@ -184,16 +193,18 @@ pub open spec fn interfere_delete_pvc_req(req: DeleteRequest) -> StatePred<Clust
     }
 }
 
-pub open spec fn interfere_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
-    &&& req.key.kind == PodView::kind() ==> interfere_get_then_delete_pod_req(req)
-    // GetThenDelete on PVC will fail because PVC owned by VSTS in etcd has
+pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
+    match req.key.kind {
+        Kind::PodKind => !interfere_get_then_delete_pod_req(req),
+        _ => true, // GetThenDelete on PVC will fail because PVC owned by VSTS in etcd has no owner reference
+    }
 }
 
 // Other controllers don't try to delete pod owned by a VSTS.
 pub open spec fn interfere_get_then_delete_pod_req(req: GetThenDeleteRequest) -> bool {
     &&& req.owner_ref.controller is Some
     &&& req.owner_ref.controller->0
-    &&& req.owner_ref.kind != VStatefulSetView::kind()
+    &&& req.owner_ref.kind == VStatefulSetView::kind()
 }
 
 // VSTS Guarantee Condition

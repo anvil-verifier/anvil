@@ -58,4 +58,61 @@ pub use at_step_or_internal;
 pub use at_step_or;
 pub use at_step;
 
+// usage: and!(pred1, pred2, ...)
+#[macro_export]
+macro_rules! and {
+    ($($tokens:tt)+) => {
+        closure_to_fn_spec(|s| {
+            and_internal!(s, $($tokens)+)
+        })
+    };
+}
+
+macro_rules! and_internal {
+    ($s:expr, $head:expr) => {
+        $head($s)
+    };
+
+    ($s:expr, $head:expr, $($tail:tt)+) => {
+        and_internal!($s, $head) && and_internal!($s, $($tail)+)
+    };
+}
+
+// usage: or!(pred1, pred2, ...)
+#[macro_export]
+macro_rules! or {
+    ($($tokens:tt)+) => {
+        closure_to_fn_spec(|s| {
+            or_internal!(s, $($tokens)+)
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! or_internal {
+    ($s:expr, $head:expr) => {
+        $head($s)
+    };
+
+    ($s:expr, $head:expr, $($tail:tt)+) => {
+        or_internal!($s, $head) || or_internal!($s, $($tail)+)
+    };
+}
+
+#[macro_export]
+macro_rules! not {
+    ( $pred:expr ) => {
+        closure_to_fn_spec(|s| {
+            ! $pred(s)
+        })
+    };
+}
+
+
+pub use or;
+pub use or_internal;
+pub use and;
+pub use and_internal;
+pub use not;
+
 }
