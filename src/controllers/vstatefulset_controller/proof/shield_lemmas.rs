@@ -7,8 +7,8 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    proof::{helper_invariants, predicate::*},
-    trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
+    proof::predicate::*,
+    trusted::{rely_guarantee::*, spec_types::*, liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
@@ -30,18 +30,20 @@ pub open spec fn no_interfering_request_across_vsts(vsts_key: ObjectRef, control
         } ==> match msg.content->APIRequest_0 {
             APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
             APIRequest::CreateRequest(req) => {
-                &&& req.kind == PodView::kind() ==> {
+                &&& req.obj.kind == PodView::kind() ==> {
                     // these 2 may not be necessary
                     // &&& req.namespace == vsts_key.namespace
                     // &&& req.obj.kind == PodView::kind()
                     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
                 }
-                &&& req.kind == PersistentVolumeClaimView::kind() ==> {
+                &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> {
                     // it's indeed possible for PVC name to collide
                     // https://github.com/kubernetes/kubernetes/issues/41153
                     // TODO: fix it in our controller
+                    false
                 }
-            }
+            },
+            _ => true
         }
     }
 
