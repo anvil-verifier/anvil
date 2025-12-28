@@ -181,95 +181,7 @@ ensures
     assume(spec.entails(lift_at_step_or![UpdateNeeded].leads_to(lift_state(reconcile_idle))));
     assume(spec.entails(lift_at_step_or![AfterUpdateNeeded].leads_to(lift_state(reconcile_idle))));
     
-    assume(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![AfterDeleteCondemned].leads_to(lift_state(reconcile_idle))));
-
-    assert(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle)))) by {
-        let delete_condemned_with_index_and_len = |n: nat, l: nat| lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated];
-        
-
-        // Step 1: Prove AfterDeleteCondemned(n, l) with n < l leads to AfterDeleteCondemned(n+1, l) | Error | DeleteOutdated
-        assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
-            n < l ==> spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(delete_condemned_with_index_and_len(n + 1 as nat, l))) by {
-
-            let n_plus_1 = n + 1 as nat;
-
-            entails_implies_leads_to(spec, lift_at_step_or![Error], delete_condemned_with_index_and_len(n_plus_1, l));
-            entails_implies_leads_to(spec, lift_at_step_or![DeleteOutdated], delete_condemned_with_index_and_len(n_plus_1, l));
-
-            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))](s) ==>
-                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
-
-            // Use the lemma to lift pending_req from AfterDeleteCondemned to AfterDeleteCondemned(n, l)
-            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
-            );
-
-            cluster.lemma_from_some_state_to_arbitrary_next_state(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
-                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated]
-            );
-
-            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))](s) ==>
-                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
-
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, DeleteCondemned, condemned_index_and_len(n, l));
-            
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
-                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]
-            );
-
-            entails_implies_leads_to(spec, lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error], delete_condemned_with_index_and_len(n_plus_1, l));
-            
-            leads_to_trans(
-                spec,
-                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
-                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error],
-                delete_condemned_with_index_and_len(n_plus_1, l)
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
-                lift_at_step_or![Error],
-                lift_at_step_or![DeleteOutdated];
-                delete_condemned_with_index_and_len(n_plus_1, l)
-            );
-
-            temp_pred_equality(
-                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated],
-                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
-            );
-
-            leads_to_trans(
-                spec,
-                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
-                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated],
-                delete_condemned_with_index_and_len(n_plus_1, l)
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
-                lift_at_step_or![Error],
-                lift_at_step_or![DeleteOutdated];
-                delete_condemned_with_index_and_len(n_plus_1, l)
-            );
-
-            temp_pred_equality(
-                delete_condemned_with_index_and_len(n, l),
-                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
-            );
-        };
-
-        // TODO: Steps 2 and 3 to complete the overall proof
-        assume(false);
-    };
+    // assume(spec.entails(lift_at_step_or![DeleteCondemned].leads_to(lift_state(reconcile_idle))));
 
     // Prove AfterDeleteOutdated -> Idle first
     cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated], at_step_or![Error, Done]);
@@ -313,7 +225,148 @@ ensures
         at_step_or![AfterListPod],
         at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated, Error, Done]
     );
-    or_leads_to_combine_and_equality!(spec,
+
+    assert(spec.entails(lift_at_step_or![AfterDeleteCondemned].leads_to(lift_state(reconcile_idle)))) by {
+        let delete_condemned_with_index_and_len = |n: nat, l: nat| lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated];
+
+        assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
+            n < l implies spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(delete_condemned_with_index_and_len(n + 1 as nat, l))) by {
+            let n_plus_1 = n + 1 as nat;
+            entails_implies_leads_to(spec, lift_at_step_or![Error], delete_condemned_with_index_and_len(n_plus_1, l));
+            entails_implies_leads_to(spec, lift_at_step_or![DeleteOutdated], delete_condemned_with_index_and_len(n_plus_1, l));
+            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))](s) ==>
+                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+                spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
+            );
+            cluster.lemma_from_some_state_to_arbitrary_next_state(
+                spec, controller_id, vsts.object_ref(),
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated]
+            );
+            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))](s) ==>
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+            lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, DeleteCondemned, condemned_index_and_len(n, l));
+            cluster.lemma_from_some_state_to_next_state_no_req(
+                spec, controller_id, vsts.object_ref(),
+                at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]
+            );
+            entails_implies_leads_to(spec, lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error], delete_condemned_with_index_and_len(n_plus_1, l));
+            leads_to_trans(
+                spec,
+                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error],
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+            or_leads_to_combine_n!(
+                spec,
+                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![Error],
+                lift_at_step_or![DeleteOutdated];
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+            temp_pred_equality(
+                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated],
+                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
+            );
+            leads_to_trans(
+                spec,
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated],
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+            or_leads_to_combine_n!(
+                spec,
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![Error],
+                lift_at_step_or![DeleteOutdated];
+                delete_condemned_with_index_and_len(n_plus_1, l)
+            );
+            temp_pred_equality(
+                delete_condemned_with_index_and_len(n, l),
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
+            );
+        };
+
+        assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
+            n >= l implies spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(reconcile_idle))) by {
+            assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))](s) ==>
+                at_step_or![Error, DeleteOutdated]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+                spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
+            );
+            cluster.lemma_from_some_state_to_arbitrary_next_state(
+                spec, controller_id, vsts.object_ref(),
+                at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                at_step_or![Error, DeleteOutdated]
+            );
+            temp_pred_equality(lift_at_step_or![Error], lift_state(reconcile_error));
+            or_leads_to_combine_and_equality!(
+                spec,
+                lift_at_step_or![Error, DeleteOutdated],
+                lift_state(reconcile_error),
+                lift_at_step_or![DeleteOutdated];
+                lift_state(reconcile_idle)
+            );
+            leads_to_trans_n!(
+                spec,
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![Error, DeleteOutdated],
+                lift_state(reconcile_idle)
+            );
+            or_leads_to_combine_n!(
+                spec,
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
+                lift_at_step_or![Error],
+                lift_at_step_or![DeleteOutdated];
+                lift_state(reconcile_idle)
+            );
+            temp_pred_equality(
+                delete_condemned_with_index_and_len(n, l),
+                lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
+            );
+        };
+
+        leads_to_greater_than_or_eq(spec, delete_condemned_with_index_and_len);
+
+        assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
+            spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(reconcile_idle))) by {
+            if n >= l {
+            } else {
+                leads_to_trans_n!(
+                    spec,
+                    delete_condemned_with_index_and_len(n, l),
+                    delete_condemned_with_index_and_len(l, l),
+                    lift_state(reconcile_idle)
+                );
+            }
+        };
+
+        lemma_delete_condemned_union_equiv(spec, vsts, controller_id, delete_condemned_with_index_and_len);
+    };
+
+    or_leads_to_combine_n!(
+        spec,
+        lift_at_step_or![AfterDeleteCondemned],
+        lift_at_step_or![Error];
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(
+        lift_at_step_or![AfterDeleteCondemned, Error],
+        lift_at_step_or![AfterDeleteCondemned].or(lift_at_step_or![Error])
+    );
+
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![DeleteCondemned],
+        at_step_or![AfterDeleteCondemned, Error]
+    );
+
+        or_leads_to_combine_and_equality!(spec,
         lift_at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated, Error, Done],
         lift_at_step_or![GetPVC],
         lift_at_step_or![CreateNeeded],
@@ -352,10 +405,7 @@ ensures
         at_step_or![AfterListPod, Done]
     );
 
-    // Call the lemma to establish the equality
     lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts, controller_id);
-
-    // Use or_leads_to_combine_and_equality to combine all the individual leads_to proofs
     or_leads_to_combine_and_equality!(
         spec,
         true_pred(),
@@ -380,6 +430,20 @@ ensures
         lift_state(reconcile_idle)
     );
 }
+
+#[verifier(external_body)]
+proof fn lemma_delete_condemned_union_equiv(
+    spec: TempPred<ClusterState>,
+    vsts: VStatefulSetView,
+    controller_id: int,
+    delete_condemned_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
+)
+    requires
+        forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
+            spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
+    ensures
+        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
+{}
 
 #[verifier(external_body)]
 proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetView, controller_id: int)
