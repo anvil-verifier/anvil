@@ -97,7 +97,7 @@ impl VStatefulSetView {
                 &&& pvc_template.state_validation() 
                 &&& pvc_template.metadata.well_formed_for_namespaced()
                 // fix https://github.com/kubernetes/kubernetes/issues/41153 
-                &&& !pvc_template.metadata.name->0.contains('-'@)
+                &&& dash_free(pvc_template.metadata.name->0)
             }
         )
 
