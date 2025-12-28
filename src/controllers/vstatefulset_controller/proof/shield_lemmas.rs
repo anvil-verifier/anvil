@@ -22,32 +22,34 @@ pub open spec fn no_interfering_request_between_vsts(vsts_key: ObjectRef, contro
     |s: ClusterState| {
         let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].triggering_cr).unwrap();
         forall |msg| {
-            &&& #[trigger] s.in_flight().contains(msg)
+            &&& #[trigger] s.in_flight().contains(msg) 
             &&& msg.content is APIRequest
             &&& msg.src == HostId::Controller(controller_id, vsts_key)
             &&& s.ongoing_reconciles(controller_id).contains_key(vsts_key)
         } ==> match msg.content->APIRequest_0 {
             APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
             APIRequest::CreateRequest(req) => {
+                &&& req.namespace == vsts_key.namespace
                 &&& req.obj.kind == PodView::kind() ==> {
-                    // these 2 may not be necessary
-                    // &&& req.namespace == vsts_key.namespace
-                    // &&& req.obj.kind == PodView::kind()
                     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
                     &&& exists |ord: nat| req.obj.metadata.name == Some(#[trigger] pod_name(vsts_key.name, ord))
                 }
-                &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |i: (int, nat)| // PVC template index, ordinal
-                    req.obj.metadata.name == Some(#[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0].metadata.name->0, vsts_key.name, i.1))
+                &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> {
+                    &&& exists |i: (int, nat)| // PVC template index, ordinal
+                        req.obj.metadata.name == Some(#[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0].metadata.name->0, vsts_key.name, i.1))
+                }
             },
             APIRequest::GetThenDeleteRequest(req) => {
+                &&& req.key().namespace == vsts_key.namespace
                 &&& req.key().kind == PodView::kind()
+                &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts_key.name, ord)
                 &&& req.owner_ref == vsts.controller_owner_ref()
             },
             APIRequest::GetThenUpdateRequest(req) => {
-                &&& req.obj.kind == PodView::kind()
-                &&& req.owner_ref == vsts.controller_owner_ref()
-                &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts_key.name, ord)
                 &&& req.namespace == vsts_key.namespace
+                &&& req.obj.kind == PodView::kind()
+                &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts_key.name, ord)
+                &&& req.owner_ref == vsts.controller_owner_ref()
             },
             // VSTS controller will not issue DeleteRequest, UpdateRequest
             _ => true
