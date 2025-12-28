@@ -34,6 +34,7 @@ pub open spec fn no_interfering_request_between_vsts(vsts_key: ObjectRef, contro
                     // &&& req.namespace == vsts_key.namespace
                     // &&& req.obj.kind == PodView::kind()
                     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
+                    &&& exists |ord: nat| req.obj.metadata.name == Some(#[trigger] pod_name(vsts_key.name, ord))
                 }
                 &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |i: (int, nat)| // PVC template index, ordinal
                     req.obj.metadata.name == Some(pvc_name(vsts.spec.volume_claim_templates->0[i.0].metadata.name->0, vsts_key.name, i.1))
