@@ -92,8 +92,13 @@ impl VStatefulSetView {
 
         // volumeClaimTemplates
         &&& self.spec.volume_claim_templates is Some ==> (
-            forall | i: int | 0 <= i < self.spec.volume_claim_templates->0.len() ==> #[trigger] self.spec.volume_claim_templates->0[i].state_validation() 
-                                                                                        && self.spec.volume_claim_templates->0[i].metadata.well_formed_for_namespaced()
+            forall | i: int | #![trigger self.spec.volume_claim_templates->0[i]] 0 <= i < self.spec.volume_claim_templates->0.len() ==> {
+                let pvc_template = self.spec.volume_claim_templates->0[i];
+                &&& pvc_template.state_validation() 
+                &&& pvc_template.metadata.well_formed_for_namespaced()
+                // fix https://github.com/kubernetes/kubernetes/issues/41153 
+                &&& !pvc_template.metadata.name->0.contains('-'@)
+            }
         )
 
         // minReadySeconds must be non‑negative if present
