@@ -18,8 +18,7 @@ verus! {
 
 // In addition to rely conditions, we also need to prove vsts controller's internal guarantee:
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
-
-pub open spec fn no_interfering_request_across_vsts(vsts_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn no_interfering_request_between_vsts(vsts_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].triggering_cr).unwrap();
         forall |msg| {
@@ -36,17 +35,23 @@ pub open spec fn no_interfering_request_across_vsts(vsts_key: ObjectRef, control
                     // &&& req.obj.kind == PodView::kind()
                     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
                 }
-                &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> {
-                    // it's indeed possible for PVC name to collide
-                    // https://github.com/kubernetes/kubernetes/issues/41153
-                    // TODO: fix it in our controller
-                    false
-                }
+                &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |i: (int, nat)| // PVC template index, ordinal
+                    req.obj.metadata.name == Some(pvc_name(vsts.spec.volume_claim_templates->0[i.0].metadata.name->0, vsts_key.name, i.1))
             },
+            APIRequest::GetThenDeleteRequest(req) => {
+                &&& req.key().kind == PodView::kind()
+                &&& req.owner_ref == vsts.controller_owner_ref()
+            },
+            APIRequest::GetThenUpdateRequest(req) => {
+                &&& req.obj.kind == PodView::kind()
+                &&& req.owner_ref == vsts.controller_owner_ref()
+                &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts_key.name, ord)
+                &&& req.namespace == vsts_key.namespace
+            },
+            // VSTS controller will not issue DeleteRequest, UpdateRequest
             _ => true
         }
     }
-
 }
     
 }
