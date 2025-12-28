@@ -21,6 +21,20 @@ pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq
     }
 }
 
+pub proof fn seq_unequal_preserved_by_add_prefix<A>(prefix: Seq<A>, s1: Seq<A>, s2: Seq<A>)
+    requires s1 != s2
+    ensures prefix + s1 != prefix + s2
+{
+    assert(!(s1 =~= s2));
+    if s1.len() == s2.len() {
+        let witness_idx = choose |i: int| 0 <= i < s1.len() && s1[i] != s2[i];
+        let offset = prefix.len();
+        assert((prefix + s1)[witness_idx + offset] != (prefix + s2)[witness_idx + offset]);
+    } else {
+        assert((prefix + s1).len() != (prefix + s2).len());
+    }
+}
+
 pub proof fn seq_equal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A>)
     ensures s1 == s2 <==> s1 + suffix == s2 + suffix
 {
