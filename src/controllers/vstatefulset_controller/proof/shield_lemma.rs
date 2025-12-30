@@ -2,7 +2,8 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
     cluster::*, 
-    message::*
+    message::*,
+    api_server::{state_machine::*, types::InstalledTypes},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
@@ -106,8 +107,7 @@ ensures
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
     } ==> {
         &&& s_prime.resources().contains_key(k)
-        // TODO: weaken to allow status update requests
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
     forall |k: ObjectRef| { // <==
         let obj = s_prime.resources()[k];
@@ -118,8 +118,7 @@ ensures
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
     } ==> {
         &&& s.resources().contains_key(k)
-        // TODO: weaken to allow status update requests
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
     forall |k: ObjectRef| { // ==>
         let obj = s.resources()[k];
@@ -129,7 +128,7 @@ ensures
         &&& pvc_name_match(obj.metadata.name->0, vsts)
     } ==> {
         &&& s_prime.resources().contains_key(k)
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
     forall |k: ObjectRef| { // <==
         let obj = s_prime.resources()[k];
@@ -139,7 +138,7 @@ ensures
         &&& pvc_name_match(obj.metadata.name->0, vsts)
     } ==> {
         &&& s.resources().contains_key(k)
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
 {
     assert forall |k: ObjectRef| { // ==>
@@ -151,9 +150,12 @@ ensures
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
     } implies {
         &&& s_prime.resources().contains_key(k)
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     } by {
-        let post = s_prime.resources().contains_key(k) && s_prime.resources()[k] == s.resources()[k];
+        let post = {
+            &&& s_prime.resources().contains_key(k)
+            &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+        };
         let obj = s.resources()[k];
         PodView::marshal_preserves_integrity();
         assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
@@ -161,89 +163,102 @@ ensures
             seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
         }
         if msg.content is APIRequest && msg.dst is APIServer {
-            match msg.src {
-                HostId::Controller(id, cr_key) => {
-                    if id == controller_id {
-                        assert(cr_key != vsts.object_ref());
-                        // same controller, other vsts
-                        let cr_key = msg.src->Controller_1;
-                        let other_vsts = VStatefulSetView {
-                            metadata: ObjectMetaView {
-                                name: Some(cr_key.name),
-                                namespace: Some(cr_key.namespace),
-                                ..make_vsts().metadata
-                            },
-                            ..make_vsts()
-                        };
-                        // so msg can only be list, create or get_then_update
-                        assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
-                        // every_msg_from_vsts_controller_carries_vsts_key
-                        if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
-                            assert(cr_key == vsts.object_ref());
-                        }
-                        match msg.content->APIRequest_0 {
-                            APIRequest::DeleteRequest(req) => assert(false), // vsts controller doesn't send delete req
-                            APIRequest::GetThenDeleteRequest(req) => admit(),
-                            APIRequest::GetThenUpdateRequest(req) => {
-                                // controller_owner_ref does not carry namespace, while object_ref does
-                                // so object_ref != is not enough to prove controller_owner_ref !=
-                                if cr_key.namespace == vsts.metadata.namespace->0 {
-                                    assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
+            if !{ // if request fails, trivial
+                let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                &&& resp_msg.content is APIResponse
+                &&& is_ok_resp(resp_msg.content->APIResponse_0)
+            } {
+                assert(s_prime.resources() == s.resources());
+                assert(post);
+            }
+            else { // if request succeeds
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id == controller_id {
+                            assert(cr_key != vsts.object_ref());
+                            // same controller, other vsts
+                            let cr_key = msg.src->Controller_1;
+                            let other_vsts = VStatefulSetView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..make_vsts().metadata
+                                },
+                                ..make_vsts()
+                            };
+                            // so msg can only be list, create or get_then_update
+                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            // every_msg_from_vsts_controller_carries_vsts_key
+                            if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
+                                assert(cr_key == vsts.object_ref());
+                            }
+                            match msg.content->APIRequest_0 {
+                                APIRequest::DeleteRequest(req) => assert(false), // vsts controller doesn't send delete req
+                                APIRequest::GetThenDeleteRequest(req) => admit(),
+                                APIRequest::GetThenUpdateRequest(req) => {
+                                    // controller_owner_ref does not carry namespace, while object_ref does
+                                    // so object_ref != is not enough to prove controller_owner_ref !=
+                                    if cr_key.namespace == vsts.metadata.namespace->0 {
+                                        assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                            if obj.metadata.owner_references_contains(req.owner_ref) {
+                                                assert(req.owner_ref != vsts.controller_owner_ref());
+                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                            }
+                                        }
+                                    } // or else, namespace is different, so should not be touched at all
+                                },
+                                _ => {},
+                            }
+                            assert(post);
+                        } else {
+                            let other_id = msg.src->Controller_0;
+                            // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
+                            assert(cluster.controller_models.contains_key(other_id));
+                            assert(vsts_rely(other_id, cluster.installed_types)(s)); // trigger vd_rely_condition
+                            VStatefulSetReconcileState::marshal_preserves_integrity();
+                            match msg.content->APIRequest_0 {
+                                APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {
+                                    assert(post);
+                                },
+                                APIRequest::GetThenDeleteRequest(req) => {
+                                    if req.key.kind == Kind::PodKind {
                                         if obj.metadata.owner_references_contains(req.owner_ref) {
+                                            // then the singleton does not match
                                             assert(req.owner_ref != vsts.controller_owner_ref());
                                             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                         }
                                     }
-                                } // or else, namespace is different, so should not be touched at all
-                            },
-                            _ => {},
-                        }
-                        assert(post);
-                    } else {
-                        let other_id = msg.src->Controller_0;
-                        // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
-                        assert(cluster.controller_models.contains_key(other_id));
-                        assert(vsts_rely(other_id, cluster.installed_types)(s)); // trigger vd_rely_condition
-                        VStatefulSetReconcileState::marshal_preserves_integrity();
-                        match msg.content->APIRequest_0 {
-                            APIRequest::DeleteRequest(req) => {
-                                assert(post);
-                            },
-                            APIRequest::UpdateRequest(req) => {
-                                assert(post);
-                            },
-                            APIRequest::GetThenDeleteRequest(req) => {
-                                if req.key.kind == Kind::PodKind {
-                                    if obj.metadata.owner_references_contains(req.owner_ref) {
-                                        // then the singleton does not match
-                                        assert(req.owner_ref != vsts.controller_owner_ref());
-                                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                    }
-                                }
-                            },
-                            APIRequest::GetThenUpdateRequest(req) => {
-                                if req.obj.kind == Kind::PodKind {
-                                    // rely condition
-                                    assert({
-                                        &&& req.owner_ref.controller is Some
-                                        &&& req.owner_ref.controller->0
-                                        &&& req.owner_ref.kind != VStatefulSetView::kind()
-                                    });
-                                    assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                        if obj.metadata.owner_references_contains(req.owner_ref) {
-                                            assert(req.owner_ref != vsts.controller_owner_ref());
-                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                    assert(post);
+                                },
+                                APIRequest::GetThenUpdateRequest(req) => {
+                                    if req.obj.kind == Kind::PodKind {
+                                        // rely condition
+                                        assert(req.owner_ref.kind != VStatefulSetView::kind());
+                                        assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                            if obj.metadata.owner_references_contains(req.owner_ref) {
+                                                assert(req.owner_ref != vsts.controller_owner_ref());
+                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                            }
                                         }
                                     }
-                                }
-                                assert(post);
-                            },
-                            _ => {},
+                                    assert(post);
+                                },
+                                APIRequest::UpdateStatusRequest(req) => {
+                                    if req.obj.kind == Kind::PodKind {
+                                        let new_obj = s_prime.resources()[req.key()];
+                                        assert(weakly_eq(new_obj, obj));
+                                    }
+                                    assert(post);
+                                },
+                                _ => { // Read-only requests
+                                    assert(post);
+                                },
+                            }
+                            assert(post);
                         }
-                        assert(post);
-                    }
-                },
-                _ => {},
+                    },
+                    _ => {},
+                }
             }
         }
     }

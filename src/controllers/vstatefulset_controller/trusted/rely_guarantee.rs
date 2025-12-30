@@ -140,8 +140,8 @@ pub open spec fn rely_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool
         // an object can has multiple owners, but only one controller owner
         // We force requests from other controllers to carry the controller owner reference
         // to achieve exclusive ownerships
-        ||| req.owner_ref.kind != VStatefulSetView::kind()
-        ||| !{
+        &&& req.owner_ref.kind != VStatefulSetView::kind()
+        &&& !{
             // Prevents 3): where other controllers update pods so they become owned by a VSTS.
             &&& req.obj.metadata.owner_references is Some
             &&& exists |vsts: VStatefulSetView| req.obj.metadata.owner_references->0.contains(#[trigger] vsts.controller_owner_ref())

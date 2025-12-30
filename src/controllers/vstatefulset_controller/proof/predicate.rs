@@ -1,7 +1,7 @@
-use crate::kubernetes_api_objects::spec::resource::*;
-use crate::kubernetes_cluster::spec::{cluster::*, controller::types::ReconcileLocalState};
+use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
+use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
-use crate::vstatefulset_controller::model::reconciler::VStatefulSetReconcileState;
+use crate::vstatefulset_controller::model::{reconciler::VStatefulSetReconcileState, install::*};
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
@@ -9,6 +9,20 @@ verus! {
 
 // just to make Verus happy
 pub uninterp spec fn dummy<T>(t: T) -> bool;
+
+// allow status and rv updates
+pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView) -> bool {
+    &&& obj.metadata.name == obj_prime.metadata.name
+    &&& obj.metadata.namespace == obj_prime.metadata.namespace
+    &&& obj.metadata.labels == obj_prime.metadata.labels
+    &&& obj.metadata.uid == obj_prime.metadata.uid
+    &&& obj.metadata.owner_references == obj_prime.metadata.owner_references
+    // &&& obj.metadata.annotations == obj_prime.metadata.annotations
+    // &&& obj.metadata.finalizers == obj_prime.metadata.finalizers
+    &&& obj.metadata.deletion_timestamp == obj_prime.metadata.deletion_timestamp
+    &&& obj.kind == obj_prime.kind
+    &&& obj.spec == obj_prime.spec
+}
 
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
@@ -68,6 +82,7 @@ macro_rules! and {
     };
 }
 
+#[macro_export]
 macro_rules! and_internal {
     ($s:expr, $head:expr) => {
         $head($s)
