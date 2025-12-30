@@ -69,10 +69,7 @@ pub open spec fn interfere_create_pod_req(req: CreateRequest) -> bool {
 // Because even if there is no such pod running in cluster,
 // PVC matching VSTS's template shouldn't be touched
 pub open spec fn pvc_name_match(name: StringView, vsts: VStatefulSetView) -> bool {
-    &&& exists |i: (PersistentVolumeClaimView, nat)| { // PVC, ordinal
-        &&& #[trigger] vsts.spec.volume_claim_templates->0.contains(i.0)
-        &&& name == pvc_name(i.0.metadata.name->0, vsts.metadata.name->0, i.1)
-    }
+    exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts.metadata.name->0, i.1)
 }
 
 // create a PVC with name matching VSTS's naming convention
