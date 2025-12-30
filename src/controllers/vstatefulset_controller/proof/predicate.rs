@@ -12,14 +12,7 @@ pub uninterp spec fn dummy<T>(t: T) -> bool;
 
 // allow status and rv updates
 pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView) -> bool {
-    &&& obj.metadata.name == obj_prime.metadata.name
-    &&& obj.metadata.namespace == obj_prime.metadata.namespace
-    &&& obj.metadata.labels == obj_prime.metadata.labels
-    &&& obj.metadata.uid == obj_prime.metadata.uid
-    &&& obj.metadata.owner_references == obj_prime.metadata.owner_references
-    // &&& obj.metadata.annotations == obj_prime.metadata.annotations
-    // &&& obj.metadata.finalizers == obj_prime.metadata.finalizers
-    &&& obj.metadata.deletion_timestamp == obj_prime.metadata.deletion_timestamp
+    &&& obj.metadata.without_resource_version() == obj_prime.metadata.without_resource_version()
     &&& obj.kind == obj_prime.kind
     &&& obj.spec == obj_prime.spec
 }

@@ -129,6 +129,13 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn without_resource_version(self) -> ObjectMetaView {
+        ObjectMetaView {
+            resource_version: None,
+            ..self
+        }
+    }
+
     pub open spec fn with_owner_references(self, owner_references: Seq<OwnerReferenceView>) -> ObjectMetaView {
         ObjectMetaView {
             owner_references: Some(owner_references),
