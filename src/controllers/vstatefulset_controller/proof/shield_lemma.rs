@@ -92,7 +92,7 @@ requires
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())(s),
     forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
-    forall |other_id| vsts_rely(other_id)(s),
+    forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
     every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     vsts.well_formed(),
@@ -203,7 +203,7 @@ ensures
                         let other_id = msg.src->Controller_0;
                         // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
                         assert(cluster.controller_models.contains_key(other_id));
-                        assert(vsts_rely(other_id)(s)); // trigger vd_rely_condition
+                        assert(vsts_rely(other_id, cluster.installed_types)(s)); // trigger vd_rely_condition
                         VStatefulSetReconcileState::marshal_preserves_integrity();
                         match msg.content->APIRequest_0 {
                             APIRequest::DeleteRequest(req) => {
