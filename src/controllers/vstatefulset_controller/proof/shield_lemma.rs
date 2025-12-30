@@ -166,7 +166,6 @@ ensures
                     if id == controller_id {
                         assert(cr_key != vsts.object_ref());
                         // same controller, other vsts
-                        // every_msg_from_vsts_controller_carries_vsts_key
                         let cr_key = msg.src->Controller_1;
                         let other_vsts = VStatefulSetView {
                             metadata: ObjectMetaView {
@@ -178,11 +177,9 @@ ensures
                         };
                         // so msg can only be list, create or get_then_update
                         assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
-                        assert(cr_key.namespace != vsts.metadata.namespace->0 || cr_key.name != vsts.metadata.name->0) by {
-                            assert(cr_key.kind == VStatefulSetView::kind());
-                            if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
-                                assert(cr_key == vsts.object_ref());
-                            }
+                        // every_msg_from_vsts_controller_carries_vsts_key
+                        if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
+                            assert(cr_key == vsts.object_ref());
                         }
                         match msg.content->APIRequest_0 {
                             APIRequest::DeleteRequest(req) => assert(false), // vsts controller doesn't send delete req
@@ -209,14 +206,18 @@ ensures
                         assert(vsts_rely(other_id)(s)); // trigger vd_rely_condition
                         VStatefulSetReconcileState::marshal_preserves_integrity();
                         match msg.content->APIRequest_0 {
-                            APIRequest::DeleteRequest(req) => {},
+                            APIRequest::DeleteRequest(req) => {
+                                assert(post);
+                            },
+                            APIRequest::UpdateRequest(req) => {
+                                assert(post);
+                            },
                             APIRequest::GetThenDeleteRequest(req) => {
                                 if req.key.kind == Kind::PodKind {
-                                    assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                        if obj.metadata.owner_references_contains(req.owner_ref) {
-                                            assert(req.owner_ref != vsts.controller_owner_ref());
-                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        }
+                                    if obj.metadata.owner_references_contains(req.owner_ref) {
+                                        // then the singleton does not match
+                                        assert(req.owner_ref != vsts.controller_owner_ref());
+                                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                     }
                                 }
                             },
@@ -235,6 +236,7 @@ ensures
                                         }
                                     }
                                 }
+                                assert(post);
                             },
                             _ => {},
                         }

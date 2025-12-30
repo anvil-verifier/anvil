@@ -122,24 +122,24 @@ pub open spec fn interfere_update_pvc_req(req: UpdateRequest) -> StatePred<Clust
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     match req.obj.kind {
-        Kind::PodKind => !interfere_get_then_update_pod_req(req),
+        Kind::PodKind => rely_get_then_update_pod_req(req),
         _ => true, // GetThenUpdate on PVC will fail because PVC owned by VSTS in etcd has no owner reference
     }
     
 }
 
 // Other controllers don't try to delete pod owned by a VSTS.
-pub open spec fn interfere_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool {
-    ||| {
+pub open spec fn rely_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool {
+    &&& {
         // Prevents 1): where other controllers update pod owned by a VSTS.
         // an object can has multiple owners, but only one controller owner
         // We force requests from other controllers to carry the controller owner reference
         // to achieve exclusive ownerships
         &&& req.owner_ref.controller is Some
         &&& req.owner_ref.controller->0
-        &&& req.owner_ref.kind == VStatefulSetView::kind()
+        &&& req.owner_ref.kind != VStatefulSetView::kind()
     }
-    ||| {
+    &&& !{
         // Prevents 2): where other controllers update pods so they become owned by a VSTS.
         &&& req.obj.metadata.owner_references is Some
         &&& exists |vsts: VStatefulSetView| req.obj.metadata.owner_references->0.contains(#[trigger] vsts.controller_owner_ref())
@@ -148,24 +148,29 @@ pub open spec fn interfere_get_then_update_pod_req(req: GetThenUpdateRequest) ->
 
 pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     match req.key.kind {
-        Kind::PodKind => not!(interfere_delete_pod_req(req)),
+        Kind::PodKind =>rely_delete_pod_req(req),
         Kind::PersistentVolumeClaimKind => not!(interfere_delete_pvc_req(req)),
         _ => |s: ClusterState| true,
     }
 }
 
 // Other controllers don't try to delete a pod owned by a VSTS
-pub open spec fn interfere_delete_pod_req(req: DeleteRequest) -> StatePred<ClusterState> {
+pub open spec fn rely_delete_pod_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& req.preconditions is Some
-        &&& req.preconditions->0.resource_version is Some
-        &&& {
-            let etcd_obj = s.resources()[req.key];
-            let owner_references = etcd_obj.metadata.owner_references->0;
-            &&& s.resources().contains_key(req.key)
+        let etcd_obj = s.resources()[req.key];
+        // either the object does not exist
+        ||| !s.resources().contains_key(req.key)
+        // or tried to delete with stale rv
+        ||| {
+            &&& req.preconditions is Some
+            &&& req.preconditions->0.resource_version is Some
             &&& etcd_obj.metadata.resource_version is Some
             &&& etcd_obj.metadata.resource_version
-                == req.preconditions->0.resource_version
+                != req.preconditions->0.resource_version
+        }
+        // or that object does not belong to any VSTS
+        ||| {
+            let owner_references = etcd_obj.metadata.owner_references->0;
             &&& etcd_obj.metadata.owner_references is Some
             &&& exists |vsts: VStatefulSetView| #[trigger] owner_references.contains(vsts.controller_owner_ref())
         }
@@ -192,16 +197,16 @@ pub open spec fn interfere_delete_pvc_req(req: DeleteRequest) -> StatePred<Clust
 
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
     match req.key.kind {
-        Kind::PodKind => !interfere_get_then_delete_pod_req(req),
+        Kind::PodKind => rely_get_then_delete_pod_req(req),
         _ => true, // GetThenDelete on PVC will fail because PVC owned by VSTS in etcd has no owner reference
     }
 }
 
 // Other controllers don't try to delete pod owned by a VSTS.
-pub open spec fn interfere_get_then_delete_pod_req(req: GetThenDeleteRequest) -> bool {
+pub open spec fn rely_get_then_delete_pod_req(req: GetThenDeleteRequest) -> bool {
     &&& req.owner_ref.controller is Some
     &&& req.owner_ref.controller->0
-    &&& req.owner_ref.kind == VStatefulSetView::kind()
+    &&& req.owner_ref.kind != VStatefulSetView::kind()
 }
 
 // VSTS Guarantee Condition
