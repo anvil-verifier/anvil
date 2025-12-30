@@ -34,7 +34,7 @@ pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> St
                 APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
                 APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
                 APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
-                // UpdateStatus and Get/List requests do not interfere
+                // Get/List requests do not interfere
                 _ => true,
             }
         }

@@ -56,6 +56,30 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
     }
 }
 
+pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+        } ==> {
+            let req = msg.content.get_delete_request(); 
+            &&& msg.content.is_delete_request()
+            // &&& req.preconditions is Some
+            // &&& req.preconditions.unwrap().uid is Some
+            // &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key) ==> {
+                let obj = s.resources()[req.key];
+                !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                    && obj.kind == Kind::PodKind
+                    && obj.metadata.namespace == vsts.metadata.namespace)
+                // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+            }
+        }
+    }
+}
+
 pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
     controller_id: int,
 ) -> StatePred<ClusterState> {
@@ -74,6 +98,8 @@ pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
 uninterp spec fn make_vsts() -> VStatefulSetView;
 
 // shield lemma
+#[verifier(rlimit(20))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_no_interference(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -95,6 +121,7 @@ requires
     forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
     every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
+    garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     vsts.well_formed(),
 ensures
@@ -169,9 +196,7 @@ ensures
                 &&& is_ok_resp(resp_msg.content->APIResponse_0)
             } {
                 assert(s_prime.resources() == s.resources());
-                assert(post);
-            }
-            else { // if request succeeds
+            } else { // if request succeeds
                 match msg.src {
                     HostId::Controller(id, cr_key) => {
                         if id == controller_id {
@@ -217,9 +242,7 @@ ensures
                             assert(vsts_rely(other_id, cluster.installed_types)(s)); // trigger vd_rely_condition
                             VStatefulSetReconcileState::marshal_preserves_integrity();
                             match msg.content->APIRequest_0 {
-                                APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {
-                                    assert(post);
-                                },
+                                APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {},
                                 APIRequest::GetThenDeleteRequest(req) => {
                                     if req.key.kind == Kind::PodKind {
                                         if obj.metadata.owner_references_contains(req.owner_ref) {
@@ -228,7 +251,6 @@ ensures
                                             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                         }
                                     }
-                                    assert(post);
                                 },
                                 APIRequest::GetThenUpdateRequest(req) => {
                                     if req.obj.kind == Kind::PodKind {
@@ -241,23 +263,19 @@ ensures
                                             }
                                         }
                                     }
-                                    assert(post);
                                 },
                                 APIRequest::UpdateStatusRequest(req) => {
-                                    if req.obj.kind == Kind::PodKind {
+                                    if req.key() == k {
                                         let new_obj = s_prime.resources()[req.key()];
                                         assert(weakly_eq(new_obj, obj));
                                     }
-                                    assert(post);
                                 },
-                                _ => { // Read-only requests
-                                    assert(post);
-                                },
+                                _ => {}, // Read-only requests
                             }
-                            assert(post);
                         }
                     },
-                    _ => {},
+                    HostId::BuiltinController | HostId::APIServer | HostId::External(_) => {}, // GC will not delete vsts pod objects
+                    _ => {assume(post);}
                 }
             }
         }

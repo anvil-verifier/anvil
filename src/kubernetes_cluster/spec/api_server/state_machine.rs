@@ -468,7 +468,7 @@ pub open spec fn update_request_admission_check(installed_types: InstalledTypes,
 
 pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let updated_obj = DynamicObjectView {
-        kind: req.obj.kind,
+        kind: old_obj.kind,
         metadata: ObjectMetaView {
             namespace: Some(req.namespace), // Overwrite namespace since it might not be provided
             resource_version: old_obj.metadata.resource_version, // Overwrite rv since it might not be provided
@@ -570,7 +570,7 @@ pub open spec fn update_status_request_admission_check(installed_types: Installe
 
 pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let status_updated_object = DynamicObjectView {
-        kind: req.obj.kind,
+        kind: old_obj.kind,
         metadata: old_obj.metadata, // Ignore any change to metadata
         spec: old_obj.spec, // Ignore any change to spec
         status: req.obj.status,
