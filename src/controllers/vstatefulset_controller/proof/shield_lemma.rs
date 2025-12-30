@@ -50,10 +50,25 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
                 &&& req.owner_ref == vsts.controller_owner_ref()
             },
             // VSTS controller will not issue DeleteRequest, UpdateRequest
-            _ => true
+            _ => false
         }
     }
 }
+
+pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
+    controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
+            let content = msg.content;
+            &&& s.in_flight().contains(msg)
+            &&& msg.src.is_controller_id(controller_id)
+        } ==> {
+            msg.src->Controller_1.kind == VStatefulSetView::kind()
+        }
+    }
+}
+
 
 uninterp spec fn make_vsts() -> VStatefulSetView;
 
@@ -78,7 +93,9 @@ requires
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())(s),
     forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     forall |other_id| vsts_rely(other_id)(s),
+    every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
+    vsts.well_formed(),
 ensures
     forall |k: ObjectRef| { // ==>
         let obj = s.resources()[k];
@@ -149,7 +166,7 @@ ensures
                     if id == controller_id {
                         assert(cr_key != vsts.object_ref());
                         // same controller, other vsts
-                        // every_msg_from_vd_controller_carries_vd_key
+                        // every_msg_from_vsts_controller_carries_vsts_key
                         let cr_key = msg.src->Controller_1;
                         let other_vsts = VStatefulSetView {
                             metadata: ObjectMetaView {
@@ -161,6 +178,12 @@ ensures
                         };
                         // so msg can only be list, create or get_then_update
                         assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                        assert(cr_key.namespace != vsts.metadata.namespace->0 || cr_key.name != vsts.metadata.name->0) by {
+                            assert(cr_key.kind == VStatefulSetView::kind());
+                            if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
+                                assert(cr_key == vsts.object_ref());
+                            }
+                        }
                         match msg.content->APIRequest_0 {
                             APIRequest::DeleteRequest(req) => assert(false), // vsts controller doesn't send delete req
                             APIRequest::GetThenDeleteRequest(req) => admit(),
