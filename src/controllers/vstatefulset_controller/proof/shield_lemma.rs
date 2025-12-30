@@ -118,6 +118,9 @@ requires
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())(s),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())(s),
+    Cluster::crash_disabled(controller_id)(s),
+    Cluster::pod_monkey_disabled()(s),
+    Cluster::req_drop_disabled()(s),
     forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
     every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
@@ -196,6 +199,7 @@ ensures
                 &&& is_ok_resp(resp_msg.content->APIResponse_0)
             } {
                 assert(s_prime.resources() == s.resources());
+                assert(post);
             } else { // if request succeeds
                 match msg.src {
                     HostId::Controller(id, cr_key) => {
@@ -272,12 +276,16 @@ ensures
                                 },
                                 _ => {}, // Read-only requests
                             }
+                            assert(post);
                         }
                     },
-                    HostId::BuiltinController | HostId::APIServer | HostId::External(_) => {}, // GC will not delete vsts pod objects
-                    _ => {assume(post);}
+                    HostId::BuiltinController => {assert(post);}, // GC will not delete vsts pod objects
+                    HostId::APIServer | HostId::External(_) => {assume(post);}, // ??
+                    HostId::PodMonkey => {assume(post);} // PodMonkey disabled?
                 }
+                assert(post);
             }
+            assert(post);
         }
     }
     admit();
