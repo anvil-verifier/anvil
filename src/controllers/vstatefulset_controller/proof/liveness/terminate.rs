@@ -115,12 +115,12 @@ ensures
     }
 }
 
-pub open spec fn get_pvc_with_needed(vsts: VStatefulSetView, controller_id: int, needed: nat) -> TempPred<ClusterState> {
-    lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index(needed))]))
+pub open spec fn get_pvc_with_needed(vsts: VStatefulSetView, controller_id: int, needed: nat, needed_l: nat) -> TempPred<ClusterState> {
+    lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(needed, needed_l))]))
 }
 
-pub open spec fn create_or_update_or_error_with_needed(vsts: VStatefulSetView, controller_id: int, needed: nat) -> TempPred<ClusterState> {
-    lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index(needed)), (UpdateNeeded, needed_index(needed)), Error]))
+pub open spec fn create_or_update_or_error_with_needed(vsts: VStatefulSetView, controller_id: int, needed: nat, needed_l: nat) -> TempPred<ClusterState> {
+    lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed, needed_l)), (UpdateNeeded, needed_index_and_len(needed, needed_l)), Error]))
 }
 
 proof fn lemma_get_pvc_leads_to_create_or_update_needed(
@@ -137,9 +137,9 @@ requires
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
 ensures
-    forall |j: nat| #[trigger] spec.entails(
-        get_pvc_with_needed(vsts, controller_id, j)
-            .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j))
+    forall |j: nat, jl: nat| #[trigger] spec.entails(
+        get_pvc_with_needed(vsts, controller_id, j, jl)
+            .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j, jl))
     ),
 {
     macro_rules! lift_at_step_or {
@@ -148,11 +148,11 @@ ensures
         }
     }
 
-    let get_pvc_with_needed = |j: nat| lift_at_step_or![(GetPVC, needed_index(j))];
+    let get_pvc_with_needed = |j: nat, jl: nat| lift_at_step_or![(GetPVC, needed_index_and_len(j, jl))];
 
-    assert forall |j: nat| #![trigger get_pvc_with_needed(j)] spec.entails(
-        get_pvc_with_needed(j)
-            .leads_to(lift_at_step_or![(CreateNeeded, needed_index(j)), (UpdateNeeded, needed_index(j)), Error])
+    assert forall |j: nat, jl: nat| #![trigger get_pvc_with_needed(j, jl)] spec.entails(
+        get_pvc_with_needed(j, jl)
+            .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error])
     ) by {
         let pvc_pred = |i: nat, l: nat, n: nat, ln: nat|
             lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln)), Error];
@@ -295,11 +295,11 @@ ensures
         assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
             i + 1 == l implies spec.entails(
                 pvc_pred(i, l, n, ln)
-                    .leads_to(lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error])
+                    .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
             ) by {
             let i_plus_1 = (i + 1) as nat;
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]);
+            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
 
             lemma_from_no_pending_req_at_step_to_at_step_and_pred(
                 spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
@@ -325,7 +325,7 @@ ensures
             cluster.lemma_from_some_state_to_next_state_no_req(
                 spec, controller_id, vsts.object_ref(),
                 at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
 
             lemma_from_no_pending_req_at_step_to_at_step_and_pred(
@@ -343,15 +343,15 @@ ensures
             cluster.lemma_from_some_state_to_arbitrary_next_state(
                 spec, controller_id, vsts.object_ref(),
                 at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-                at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]);
+            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
             or_leads_to_combine_n!(
                 spec,
                 lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
                 lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
             temp_pred_equality(
                 lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
@@ -361,14 +361,14 @@ ensures
                 spec,
                 lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
 
             or_leads_to_combine_n!(
                 spec,
                 lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
             temp_pred_equality(
                 lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
@@ -379,7 +379,7 @@ ensures
                 spec,
                 lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
             temp_pred_equality(
                 lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
@@ -390,14 +390,14 @@ ensures
                 spec,
                 lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
 
             or_leads_to_combine_n!(
                 spec,
                 lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
             temp_pred_equality(
                 lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
@@ -408,14 +408,14 @@ ensures
                 spec,
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
 
             or_leads_to_combine_n!(
                 spec,
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
             temp_pred_equality(
                 pvc_pred(i, l, n, ln),
@@ -462,15 +462,15 @@ ensures
         assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
             spec.entails(
                 pvc_pred(i, l, n, ln)
-                    .leads_to(lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error])
+                    .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
             ) by {
             if i >= l {
-                entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]);
+                entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
                 leads_to_trans_n!(
                     spec,
                     pvc_pred(i, l, n, ln),
                     lift_at_step_or![Error],
-                    lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                    lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
                 );
             } else if i + 1 == l {
             } else {
@@ -492,12 +492,12 @@ ensures
                     spec,
                     pvc_pred(i, l, n, ln),
                     pvc_pred((l - 1) as nat, l, n, ln),
-                    lift_at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error]
+                    lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
                 );
             }
         };
 
-        lemma_get_pvc_union_equiv(spec, vsts, controller_id, pvc_pred, j);
+        lemma_get_pvc_drop_indices(spec, vsts, controller_id, pvc_pred, j, jl);
     };
 }
 
@@ -564,17 +564,6 @@ ensures
     temp_pred_equality(lift_at_step_or![Error], lift_state(reconcile_error));
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
-    assume(spec.entails(lift_at_step_or![GetPVC].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![AfterGetPVC].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![CreatePVC].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![AfterCreatePVC].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![SkipPVC].leads_to(lift_state(reconcile_idle))));
-
-    assume(spec.entails(lift_at_step_or![CreateNeeded].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![AfterCreateNeeded].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![UpdateNeeded].leads_to(lift_state(reconcile_idle))));
-    assume(spec.entails(lift_at_step_or![AfterUpdateNeeded].leads_to(lift_state(reconcile_idle))));
-    
     // Prove AfterDeleteOutdated -> Idle first
     cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated], at_step_or![Error, Done]);
 
@@ -632,6 +621,149 @@ ensures
 
     lemma_get_pvc_leads_to_create_or_update_needed(spec, vsts, cluster, controller_id);
 
+    lemma_after_create_and_update_needed_leads_to_idle(spec, vsts, cluster, controller_id);
+
+
+    or_leads_to_combine_n!(
+        spec,
+        lift_at_step_or![AfterCreateNeeded],
+        lift_at_step_or![Error];
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(
+        lift_at_step_or![AfterCreateNeeded, Error],
+        lift_at_step_or![AfterCreateNeeded].or(lift_at_step_or![Error])
+    );
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![CreateNeeded],
+        at_step_or![AfterCreateNeeded, Error]
+    );
+
+    or_leads_to_combine_n!(
+        spec,
+        lift_at_step_or![AfterUpdateNeeded],
+        lift_at_step_or![Error];
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(
+        lift_at_step_or![AfterUpdateNeeded, Error],
+        lift_at_step_or![AfterUpdateNeeded].or(lift_at_step_or![Error])
+    );
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![UpdateNeeded],
+        at_step_or![AfterUpdateNeeded, Error]
+    );
+
+    assert forall |j: nat, jl: nat| #![trigger needed_index_and_len(j, jl)] spec.entails(
+        lift_at_step_or![(GetPVC, needed_index_and_len(j, jl))].leads_to(lift_state(reconcile_idle))
+    ) by {
+        temp_pred_equality(
+            get_pvc_with_needed(vsts, controller_id, j, jl),
+            lift_at_step_or![(GetPVC, needed_index_and_len(j, jl))]
+        );
+        temp_pred_equality(
+            create_or_update_or_error_with_needed(vsts, controller_id, j, jl),
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error]
+        );
+
+        entails_implies_leads_to(spec, lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))], lift_at_step_or![CreateNeeded]);
+        entails_implies_leads_to(spec, lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))], lift_at_step_or![UpdateNeeded]);
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))],
+            lift_at_step_or![CreateNeeded],
+            lift_state(reconcile_idle)
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))],
+            lift_at_step_or![UpdateNeeded],
+            lift_state(reconcile_idle)
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))],
+            lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))],
+            lift_at_step_or![Error];
+            lift_state(reconcile_idle)
+        );
+        temp_pred_equality(
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))].or(lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))]).or(lift_at_step_or![Error])
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(GetPVC, needed_index_and_len(j, jl))],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error],
+            lift_state(reconcile_idle)
+        );
+    };
+
+    let get_pvc_with_indices = |j: nat, jl: nat| lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(j, jl))]));
+    lemma_get_pvc_drop_indices_for_idle(spec, vsts, controller_id, get_pvc_with_indices);
+
+    or_leads_to_combine_and_equality!(spec,
+        lift_at_step_or![GetPVC, CreateNeeded, UpdateNeeded, Error],
+        lift_at_step_or![GetPVC],
+        lift_at_step_or![CreateNeeded],
+        lift_at_step_or![UpdateNeeded],
+        lift_at_step_or![Error];
+        lift_state(reconcile_idle)
+    );
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![SkipPVC],
+        at_step_or![GetPVC, CreateNeeded, UpdateNeeded, Error]
+    );
+    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![AfterCreatePVC],
+        at_step_or![GetPVC, CreateNeeded, UpdateNeeded, Error]
+    );
+
+    // Prove CreatePVC leads to idle
+    // CreatePVC transitions to AfterCreatePVC | Error
+    or_leads_to_combine_n!(
+        spec,
+        lift_at_step_or![AfterCreatePVC],
+        lift_at_step_or![Error];
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(
+        lift_at_step_or![AfterCreatePVC, Error],
+        lift_at_step_or![AfterCreatePVC].or(lift_at_step_or![Error])
+    );
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![CreatePVC],
+        at_step_or![AfterCreatePVC, Error]
+    );
+
+    // Prove AfterGetPVC leads to idle
+    // AfterGetPVC transitions to SkipPVC | CreatePVC | Error
+    or_leads_to_combine_n!(
+        spec,
+        lift_at_step_or![SkipPVC],
+        lift_at_step_or![CreatePVC],
+        lift_at_step_or![Error];
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(
+        lift_at_step_or![SkipPVC, CreatePVC, Error],
+        lift_at_step_or![SkipPVC].or(lift_at_step_or![CreatePVC]).or(lift_at_step_or![Error])
+    );
+    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
+        spec, controller_id, vsts.object_ref(),
+        at_step_or![AfterGetPVC],
+        at_step_or![SkipPVC, CreatePVC, Error]
+    );
+
     cluster.lemma_from_some_state_to_arbitrary_next_state(
         spec, controller_id, vsts.object_ref(),
         at_step_or![AfterListPod],
@@ -656,9 +788,6 @@ ensures
         lift_state(reconcile_idle)
     );
 
-    // Prove AfterListPod | Done ~> reconcile_idle
-    assert(spec.entails(lift_at_step_or![Done]
-        .leads_to(lift_state(reconcile_idle))));
     or_leads_to_combine_n!(
         spec,
         lift_at_step_or![AfterListPod],
@@ -701,6 +830,267 @@ ensures
         lift_at_step_or![Error];
         lift_state(reconcile_idle)
     );
+}
+
+pub proof fn lemma_after_create_and_update_needed_leads_to_idle(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
+    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
+    forall |j: nat, jl: nat| #[trigger] spec.entails(
+        get_pvc_with_needed(vsts, controller_id, j, jl)
+            .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j, jl))
+    ),
+    spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteCondemned])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
+    spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()))))
+ensures
+    spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
+    spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
+{
+    macro_rules! lift_at_step_or {
+        [$($tail:tt)*] => {
+            lift_state(lift_local(controller_id, vsts, at_step_or![$($tail)*]))
+        }
+    }
+
+    let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref());
+    let reconcile_error = cluster.reconciler_reconcile_error(controller_id, vsts.object_ref());
+
+    let after_create_or_update_with_index_and_len = |n: nat, l: nat|
+        lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l)), (AfterUpdateNeeded, needed_index_and_len(n, l)), Error];
+
+    assert forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
+        n < l implies spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(after_create_or_update_with_index_and_len(n + 1 as nat, l))) by {
+        let n_plus_1 = n + 1 as nat;
+
+        entails_implies_leads_to(spec, lift_at_step_or![Error], after_create_or_update_with_index_and_len(n_plus_1, l));
+
+        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+            at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))](s) ==>
+            at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterCreateNeeded, needed_index_and_len(n, l)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
+            at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]
+        );
+
+        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))](s) ==>
+            at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterUpdateNeeded, needed_index_and_len(n, l)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
+            at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]
+        );
+
+        assert(spec.entails(
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l))]
+                .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error])
+        ));
+
+        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+            at_step_or![(CreateNeeded, needed_index_and_len(n, l))](s) ==>
+            at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, CreateNeeded, needed_index_and_len(n, l));
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
+            at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error]
+        );
+
+        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+            at_step_or![(UpdateNeeded, needed_index_and_len(n, l))](s) ==>
+            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, UpdateNeeded, needed_index_and_len(n, l));
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
+            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error]
+        );
+
+        entails_implies_leads_to(spec, lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error], after_create_or_update_with_index_and_len(n_plus_1, l));
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error],
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+
+        entails_implies_leads_to(spec, lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error], after_create_or_update_with_index_and_len(n_plus_1, l));
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error],
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![Error];
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+        temp_pred_equality(
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))].or(lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l))],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l))],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![Error];
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+        temp_pred_equality(
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l))].or(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![Error];
+            after_create_or_update_with_index_and_len(n_plus_1, l)
+        );
+        temp_pred_equality(
+            after_create_or_update_with_index_and_len(n, l),
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))].or(lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
+        );
+    };
+
+    assert forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
+        n >= l implies spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(reconcile_idle))) by {
+
+        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+            at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))](s) ==>
+            at_step_or![DeleteCondemned, DeleteOutdated, Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterCreateNeeded, needed_index_and_len(n, l)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
+            at_step_or![DeleteCondemned, DeleteOutdated, Error]
+        );
+
+        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
+            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))](s) ==>
+            at_step_or![DeleteCondemned, DeleteOutdated, Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterUpdateNeeded, needed_index_and_len(n, l)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
+            at_step_or![DeleteCondemned, DeleteOutdated, Error]
+        );
+
+        temp_pred_equality(lift_at_step_or![Error], lift_state(reconcile_error));
+        cluster.lemma_reconcile_error_leads_to_reconcile_idle(spec, controller_id, vsts.object_ref());
+
+        or_leads_to_combine_and_equality!(
+            spec,
+            lift_at_step_or![DeleteCondemned, DeleteOutdated, Error],
+            lift_at_step_or![DeleteCondemned],
+            lift_at_step_or![DeleteOutdated],
+            lift_state(reconcile_error);
+            lift_state(reconcile_idle)
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![DeleteCondemned, DeleteOutdated, Error],
+            lift_state(reconcile_idle)
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![DeleteCondemned, DeleteOutdated, Error],
+            lift_state(reconcile_idle)
+        );
+
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_state(reconcile_idle));
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
+            lift_at_step_or![Error];
+            lift_state(reconcile_idle)
+        );
+        temp_pred_equality(
+            after_create_or_update_with_index_and_len(n, l),
+            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))].or(lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
+        );
+    };
+
+    leads_to_greater_than_or_eq(spec, after_create_or_update_with_index_and_len);
+
+    assert forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
+        spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(reconcile_idle))) by {
+        if n >= l {
+        } else {
+            leads_to_trans_n!(
+                spec,
+                after_create_or_update_with_index_and_len(n, l),
+                after_create_or_update_with_index_and_len(l, l),
+                lift_state(reconcile_idle)
+            );
+        }
+    };
+
+    lemma_after_create_needed_drop_indices(spec, vsts, controller_id, after_create_or_update_with_index_and_len);
+    lemma_after_update_needed_drop_indices(spec, vsts, controller_id, after_create_or_update_with_index_and_len);
 }
 
 pub proof fn lemma_after_delete_condemned_leads_to_idle(
@@ -850,11 +1240,11 @@ ensures
         }
     };
 
-    lemma_delete_condemned_union_equiv(spec, vsts, controller_id, delete_condemned_with_index_and_len);
+    lemma_delete_condemned_drop_indices(spec, vsts, controller_id, delete_condemned_with_index_and_len);
 }
 
 #[verifier(external_body)]
-proof fn lemma_delete_condemned_union_equiv(
+proof fn lemma_delete_condemned_drop_indices(
     spec: TempPred<ClusterState>,
     vsts: VStatefulSetView,
     controller_id: int,
@@ -869,23 +1259,24 @@ proof fn lemma_delete_condemned_union_equiv(
 }
 
 #[verifier(external_body)]
-proof fn lemma_get_pvc_union_equiv(
+proof fn lemma_get_pvc_drop_indices(
     spec: TempPred<ClusterState>,
     vsts: VStatefulSetView,
     controller_id: int,
     pvc_pred: spec_fn(nat, nat, nat, nat) -> TempPred<ClusterState>,
-    needed_idx: nat
+    needed_idx: nat,
+    needed_l: nat
 )
     requires
         forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
             spec.entails(
                 pvc_pred(i, l, n, ln)
-                    .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index(n)), (UpdateNeeded, needed_index(n)), Error])))
+                    .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])))
             ),
     ensures
         spec.entails(
-            lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index(needed_idx))]))
-                .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index(needed_idx)), (UpdateNeeded, needed_index(needed_idx)), Error])))
+            lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(needed_idx, needed_l))]))
+                .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed_idx, needed_l)), (UpdateNeeded, needed_index_and_len(needed_idx, needed_l)), Error])))
         )
 {
 }
@@ -912,5 +1303,50 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetVi
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![Error])))
 {}
+
+#[verifier(external_body)]
+proof fn lemma_after_create_needed_drop_indices(
+    spec: TempPred<ClusterState>,
+    vsts: VStatefulSetView,
+    controller_id: int,
+    after_create_or_update_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
+)
+    requires
+        forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
+            spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
+    ensures
+        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
+{
+}
+
+#[verifier(external_body)]
+proof fn lemma_after_update_needed_drop_indices(
+    spec: TempPred<ClusterState>,
+    vsts: VStatefulSetView,
+    controller_id: int,
+    after_create_or_update_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
+)
+    requires
+        forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
+            spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
+    ensures
+        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
+{
+}
+
+#[verifier(external_body)]
+proof fn lemma_get_pvc_drop_indices_for_idle(
+    spec: TempPred<ClusterState>,
+    vsts: VStatefulSetView,
+    controller_id: int,
+    get_pvc_with_indices: spec_fn(nat, nat) -> TempPred<ClusterState>
+)
+    requires
+        forall |j: nat, jl: nat| #![trigger get_pvc_with_indices(j, jl)]
+            spec.entails(get_pvc_with_indices(j, jl).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
+    ensures
+        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
+{
+}
 
 }
