@@ -17,7 +17,16 @@ use vstd::prelude::*;
 
 verus! {
 
-// In addition to rely conditions, we also need to prove vsts controller's internal guarantee:
+// Before proving the shield lemma, we need to establish some rely-guarantee conditions
+// about VSTS controller itself and other non-controller components in the cluster
+// So in total we have
+// 1. rely conditions for other controllers (rely_guarantee.rs)
+// 2. VSTS internal rely-guarantee
+// 3.a rely conditions for builtin controllers
+// 3.b pod monkey, API server and external controllers
+
+
+// 2. VSTS internal rely-guarantee
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
 pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -56,6 +65,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
     }
 }
 
+// 3.a rely conditions for builtin controllers (only GC is supported now)
 pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
@@ -80,6 +90,26 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
     }
 }
 
+// 3.b rely conditions for pod monkey, API server and external controllers
+pub open spec fn non_controllers_do_not_mutate_vsts_pod_objects() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& !(msg.src is Controller || msg.src is BuiltinController)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+        } ==> {
+            &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != VReplicaSetView::kind()
+            &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != VReplicaSetView::kind()
+            // UpdateStatusRequest are allowed because it only updates status and RV
+            &&& msg.content.is_delete_request() ==> msg.content.get_delete_request().key.kind != VReplicaSetView::kind()
+            &&& msg.content.is_get_then_delete_request() ==> msg.content.get_get_then_delete_request().key.kind != VReplicaSetView::kind()
+            &&& msg.content.is_get_then_update_request() ==> msg.content.get_get_then_update_request().key().kind != VReplicaSetView::kind()
+        }
+    }
+}
+
+// helper invariant for shield lemma
 pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
     controller_id: int,
 ) -> StatePred<ClusterState> {
@@ -97,7 +127,12 @@ pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
 
 uninterp spec fn make_vsts() -> VStatefulSetView;
 
-// shield lemma
+// Shield lemma:
+// All Pods and PVCs owned by VSTS controller are not mutated by others
+// or by VSTS controller itself during reconciliation of other VSTS CRs
+// or:
+// forall Pod p owned by vsts: p =~= p'
+// forall PVC v owned by vsts: v =~= v'
 #[verifier(rlimit(20))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_no_interference(
@@ -121,10 +156,15 @@ requires
     Cluster::crash_disabled(controller_id)(s),
     Cluster::pod_monkey_disabled()(s),
     Cluster::req_drop_disabled()(s),
-    forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
-    forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
     every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
+    // 1. rely conditions for other controllers
+    forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
+    // 2. VSTS internal rely-guarantee across different CRs
+    forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
+    // 3. rely conditions for builtin/external controllers
     garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
+    non_controllers_do_not_mutate_vsts_pod_objects()(s),
+    // msg is sent by other controllers or VSTS controller for other CRs
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     vsts.well_formed(),
 ensures
