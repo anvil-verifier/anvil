@@ -252,35 +252,20 @@ ensures
                             };
                             // so msg can only be list, create, get_then_delete and get_then_update
                             assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
-                            // every_msg_from_vsts_controller_carries_vsts_key
-                            if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
-                                assert(cr_key == vsts.object_ref());
-                            }
-                            match msg.content->APIRequest_0 {
-                                APIRequest::DeleteRequest(req) => assert(false), // vsts controller doesn't send delete req
-                                APIRequest::GetThenDeleteRequest(req) => {
-                                    if cr_key.namespace == vsts.metadata.namespace->0 {
-                                        assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                            if obj.metadata.owner_references_contains(req.owner_ref) {
-                                                assert(req.owner_ref != vsts.controller_owner_ref());
-                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                            }
+                            if msg.content.is_get_then_delete_request() || msg.content.is_get_then_update_request() {
+                                let req_owner_ref = match msg.content->APIRequest_0 {
+                                    APIRequest::GetThenDeleteRequest(r) => r.owner_ref,
+                                    APIRequest::GetThenUpdateRequest(r) => r.owner_ref,
+                                    _ => OwnerReferenceView::default(),
+                                };
+                                if cr_key.namespace == vsts.metadata.namespace->0 {
+                                    assert(!obj.metadata.owner_references_contains(req_owner_ref)) by {
+                                        if obj.metadata.owner_references_contains(req_owner_ref) {
+                                            assert(req_owner_ref != vsts.controller_owner_ref());
+                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req_owner_ref));
                                         }
-                                    } // or else, namespace is different, so should not be touched at all
-                                },
-                                APIRequest::GetThenUpdateRequest(req) => {
-                                    // controller_owner_ref does not carry namespace, while object_ref does
-                                    // so object_ref != is not enough to prove controller_owner_ref !=
-                                    if cr_key.namespace == vsts.metadata.namespace->0 {
-                                        assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                            if obj.metadata.owner_references_contains(req.owner_ref) {
-                                                assert(req.owner_ref != vsts.controller_owner_ref());
-                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                            }
-                                        }
-                                    } // or else, namespace is different, so should not be touched at all
-                                },
-                                _ => {},
+                                    }
+                                } // or else, namespace is different, so should not be touched at all
                             }
                             assert(post);
                         } else {
