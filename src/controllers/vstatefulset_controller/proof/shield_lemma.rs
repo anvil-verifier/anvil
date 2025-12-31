@@ -43,8 +43,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
                     &&& exists |ord: nat| req.obj.metadata.name == Some(#[trigger] pod_name(vsts.object_ref().name, ord))
                 }
                 &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> {
-                    &&& exists |i: (int, nat)| // PVC template index, ordinal
-                        req.obj.metadata.name == Some(#[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0].metadata.name->0, vsts.object_ref().name, i.1))
+                    &&& exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts.object_ref().name, i.1)
                 }
             },
             APIRequest::GetThenDeleteRequest(req) => {
@@ -59,7 +58,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
                 &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
                 &&& req.owner_ref == vsts.controller_owner_ref()
             },
-            // VSTS controller will not issue DeleteRequest, UpdateRequest
+            // VSTS controller will not issue DeleteRequest, UpdateRequest and UpdateStatusRequest
             _ => false
         }
     }
