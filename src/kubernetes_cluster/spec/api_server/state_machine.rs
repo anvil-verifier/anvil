@@ -672,30 +672,34 @@ pub open spec fn handle_get_then_delete_request_msg(msg: Message, s: APIServerSt
         msg.content.is_get_then_delete_request(),
 {
     let req = msg.content.get_get_then_delete_request();
-    // Step 1: get the object
-    let get_req = GetRequest {
-        key: req.key
-    };
-    let get_resp = handle_get_request(get_req, s);
-    match get_resp.res {
-        Ok(_) => {
-            let current_obj = s.resources[req.key()];
-            // Step 2: if the object exists, perform a check using a predicate on object
-            // The predicate: Is the current object owned by req.owner_ref?
-            // TODO: the predicate should be provided by clients instead of the hardcoded one
-            if current_obj.metadata.owner_references_contains(req.owner_ref) {
-                // Step 3: if the check passes, delete the object
-                let delete_req = DeleteRequest {
-                    key: req.key,
-                    preconditions: None,
-                };
-                let (s_prime, delete_resp) = handle_delete_request(delete_req, s);
-                (s_prime, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: delete_resp.res}))
-            } else {
-                (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::TransactionAbort)}))
+    if !req.well_formed() { // must have a controller reference
+        (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::BadRequest)}))
+    } else {
+        // Step 1: get the object
+        let get_req = GetRequest {
+            key: req.key
+        };
+        let get_resp = handle_get_request(get_req, s);
+        match get_resp.res {
+            Ok(_) => {
+                let current_obj = s.resources[req.key()];
+                // Step 2: if the object exists, perform a check using a predicate on object
+                // The predicate: Is the current object owned by req.owner_ref?
+                // TODO: the predicate should be provided by clients instead of the hardcoded one
+                if current_obj.metadata.owner_references_contains(req.owner_ref) {
+                    // Step 3: if the check passes, delete the object
+                    let delete_req = DeleteRequest {
+                        key: req.key,
+                        preconditions: None,
+                    };
+                    let (s_prime, delete_resp) = handle_delete_request(delete_req, s);
+                    (s_prime, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: delete_resp.res}))
+                } else {
+                    (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::TransactionAbort)}))
+                }
             }
+            Err(err) => (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(err)}))
         }
-        Err(err) => (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(err)}))
     }
 }
 
@@ -709,40 +713,44 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
         msg.content.is_get_then_update_request(),
 {
     let req = msg.content.get_get_then_update_request();
-    // Step 1: get the object
-    let get_req = GetRequest {
-        key: req.key()
-    };
-    let get_resp = handle_get_request(get_req, s);
-    match get_resp.res {
-        Ok(_) => {
-            let current_obj = s.resources[req.key()];
-            // Step 2: if the object exists, perform a check using a predicate on object
-            // The predicate: Is the current object owned by req.owner_ref?
-            // TODO: the predicate should be provided by clients instead of the hardcoded one
-            if current_obj.metadata.owner_references_contains(req.owner_ref) {
-                // Step 3: if the check passes, overwrite the object with the new one
-                // Note that resource_version and uid comes from the current object to avoid conflict error
-                let new_obj = DynamicObjectView {
-                    metadata: ObjectMetaView {
-                        resource_version: current_obj.metadata.resource_version,
-                        uid: current_obj.metadata.uid,
-                        ..req.obj.metadata
-                    },
-                    ..req.obj
-                };
-                let update_req = UpdateRequest {
-                    name: req.name,
-                    namespace: req.namespace,
-                    obj: new_obj,
-                };
-                let (s_prime, update_resp) = handle_update_request(installed_types, update_req, s);
-                (s_prime, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: update_resp.res}))
-            } else {
-                (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::TransactionAbort)}))
+    if !req.well_formed() { // must have a controller reference
+        (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::BadRequest)}))
+    } else {
+        // Step 1: get the object
+        let get_req = GetRequest {
+            key: req.key()
+        };
+        let get_resp = handle_get_request(get_req, s);
+        match get_resp.res {
+            Ok(_) => {
+                let current_obj = s.resources[req.key()];
+                // Step 2: if the object exists, perform a check using a predicate on object
+                // The predicate: Is the current object owned by req.owner_ref?
+                // TODO: the predicate should be provided by clients instead of the hardcoded one
+                if current_obj.metadata.owner_references_contains(req.owner_ref) {
+                    // Step 3: if the check passes, overwrite the object with the new one
+                    // Note that resource_version and uid comes from the current object to avoid conflict error
+                    let new_obj = DynamicObjectView {
+                        metadata: ObjectMetaView {
+                            resource_version: current_obj.metadata.resource_version,
+                            uid: current_obj.metadata.uid,
+                            ..req.obj.metadata
+                        },
+                        ..req.obj
+                    };
+                    let update_req = UpdateRequest {
+                        name: req.name,
+                        namespace: req.namespace,
+                        obj: new_obj,
+                    };
+                    let (s_prime, update_resp) = handle_update_request(installed_types, update_req, s);
+                    (s_prime, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: update_resp.res}))
+                } else {
+                    (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::TransactionAbort)}))
+                }
             }
+            Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(err)}))
         }
-        Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(err)}))
     }
 }
 
