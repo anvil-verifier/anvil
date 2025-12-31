@@ -115,6 +115,14 @@ ensures
     }
 }
 
+pub open spec fn get_pvc_with_needed(vsts: VStatefulSetView, controller_id: int, needed: nat) -> TempPred<ClusterState> {
+    lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index(needed))]))
+}
+
+pub open spec fn create_or_update_or_error_with_needed(vsts: VStatefulSetView, controller_id: int, needed: nat) -> TempPred<ClusterState> {
+    lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index(needed)), (UpdateNeeded, needed_index(needed)), Error]))
+}
+
 proof fn lemma_get_pvc_leads_to_create_or_update_needed(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -130,8 +138,8 @@ requires
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
 ensures
     forall |j: nat| #[trigger] spec.entails(
-        lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index(j))]))
-            .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index(j)), (UpdateNeeded, needed_index(j)), Error])))
+        get_pvc_with_needed(vsts, controller_id, j)
+            .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j))
     ),
 {
     macro_rules! lift_at_step_or {
