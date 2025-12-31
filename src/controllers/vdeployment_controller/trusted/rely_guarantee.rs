@@ -57,7 +57,7 @@ pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> State
             // an object can has multiple owners, but only one controller owner
             // We force requests from other controllers to carry the controller owner reference
             // to achieve exclusive ownerships
-            // TODO: add type invariant
+            // TODO: remove controller requirements as they are checked in api server
             &&& req.owner_ref.controller is Some
             &&& req.owner_ref.controller->0
             &&& req.owner_ref.kind != VDeploymentView::kind()
@@ -109,6 +109,7 @@ pub open spec fn vd_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterStat
 pub open spec fn vd_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.key.kind == VReplicaSetView::kind() ==> {
+            // TODO: remove controller requirements as they are checked in api server
             &&& req.owner_ref.controller is Some
             &&& req.owner_ref.controller->0
             &&& req.owner_ref.kind != VDeploymentView::kind()
