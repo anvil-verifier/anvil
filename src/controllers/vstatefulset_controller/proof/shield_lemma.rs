@@ -303,7 +303,6 @@ ensures
             }
         }
     }
-    admit();
     assert forall |k: ObjectRef| { // <==
         let obj = s_prime.resources()[k];
         &&& k.kind == Kind::PodKind
@@ -315,7 +314,6 @@ ensures
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     } by {
-        admit();
         let post = {
             &&& s.resources().contains_key(k)
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -337,21 +335,44 @@ ensures
             } else {
                 match msg.content->APIRequest_0 {
                     APIRequest::CreateRequest(req) => {
-                        // create can only add new object
-                        if !s.resources().contains_key(k) {
-                            // req succeed
-                            let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
-                            let created_obj = resp.res->Ok_0;
-                            assert(s_prime.resources() == s.resources().insert(created_obj.object_ref(), created_obj));
-                            assert((k, obj) == (created_obj.object_ref(), created_obj));
-                            // trigger no_other_pending_create_request_interferes_with_vd_reconcile
-                            assert(created_obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
-                                seq_filter_is_a_subset_of_original_seq(created_obj.metadata.owner_references->0, controller_owner_filter());
+                        if req.obj.kind == Kind::PodKind {
+                            // create can only add new object
+                            if !s.resources().contains_key(k) {
+                                if msg.src is Controller {
+                                    if msg.src->Controller_0 == controller_id {
+                                        // same controller, other vsts
+                                        let cr_key = msg.src->Controller_1;
+                                        assert(cr_key != vsts.object_ref());
+                                        let other_vsts = VStatefulSetView {
+                                            metadata: ObjectMetaView {
+                                                name: Some(cr_key.name),
+                                                namespace: Some(cr_key.namespace),
+                                                ..make_vsts().metadata
+                                            },
+                                            ..make_vsts()
+                                        };
+                                        assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                                    } else {
+                                        assert(vsts_rely(msg.src->Controller_0, cluster.installed_types)(s));
+                                        // req succeed
+                                        let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
+                                        if resp.res is Ok {
+                                            let created_obj = resp.res->Ok_0;
+                                            assert(s_prime.resources() == s.resources().insert(created_obj.object_ref(), created_obj));
+                                            assert((k, obj) == (created_obj.object_ref(), created_obj));
+                                            // trigger rely conditions
+                                            assert(created_obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+                                                seq_filter_is_a_subset_of_original_seq(created_obj.metadata.owner_references->0, controller_owner_filter());
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                            assert(post);
                         }
-                        assert(post);
                     },
                     APIRequest::GetThenUpdateRequest(req) => {
+                        admit();
                         // fields we care about are not altered
                         if s.resources().contains_key(k) {
                             if req.key() == k {
@@ -380,7 +401,7 @@ ensures
                                             assert(vsts_rely(other_id, cluster.installed_types)(s));
                                         }
                                     },
-                                    _ => {assume(false);}
+                                    _ => {}
                                 }
                                 // either obj in s has the right controller owner ref, or it's updated
                                 // prevented by rely conditions
@@ -422,6 +443,7 @@ ensures
                         }
                     },
                     APIRequest::UpdateRequest(req) => {
+                        admit();
                         if s.resources().contains_key(k) {
                             let (s_prime_server, resp) = handle_update_request(cluster.installed_types, req, s.api_server);
                             let old_obj = s.resources()[k];
