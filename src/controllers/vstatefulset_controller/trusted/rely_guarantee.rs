@@ -132,20 +132,15 @@ pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
 
 // Other controllers don't try to delete pod owned by a VSTS.
 pub open spec fn rely_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool {
-    // Prevents 1) forbids get then update without proper owner reference
-    &&& req.owner_ref.controller is Some
-    &&& req.owner_ref.controller->0
-    &&& {
-        // Prevents 2): where other controllers update pod owned by a VSTS.
-        // an object can has multiple owners, but only one controller owner
-        // We force requests from other controllers to carry the controller owner reference
-        // to achieve exclusive ownerships
-        &&& req.owner_ref.kind != VStatefulSetView::kind()
-        &&& !{
-            // Prevents 3): where other controllers update pods so they become owned by a VSTS.
-            &&& req.obj.metadata.owner_references is Some
-            &&& exists |vsts: VStatefulSetView| req.obj.metadata.owner_references->0.contains(#[trigger] vsts.controller_owner_ref())
-        }
+    // Prevents 1): where other controllers update pod owned by a VSTS.
+    // an object can has multiple owners, but only one controller owner
+    // We force requests from other controllers to carry the controller owner reference
+    // to achieve exclusive ownerships
+    &&& req.owner_ref.kind != VStatefulSetView::kind()
+    &&& !{
+        // Prevents 2): where other controllers update pods so they become owned by a VSTS.
+        &&& req.obj.metadata.owner_references is Some
+        &&& exists |vsts: VStatefulSetView| req.obj.metadata.owner_references->0.contains(#[trigger] vsts.controller_owner_ref())
     }
 }
 
@@ -185,10 +180,7 @@ pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
 
 // Other controllers don't try to delete pod owned by a VSTS.
 pub open spec fn rely_get_then_delete_pod_req(req: GetThenDeleteRequest) -> bool {
-    // 1) forbids get then delete without proper owner reference
-    &&& req.owner_ref.controller is Some
-    &&& req.owner_ref.controller->0
-    // 2) forbids get then delete on pod owned by a VSTS
+    // forbids get then delete on pod owned by a VSTS
     &&& req.owner_ref.kind != VStatefulSetView::kind()
 }
 
