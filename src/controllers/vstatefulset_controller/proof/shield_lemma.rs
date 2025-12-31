@@ -127,8 +127,6 @@ uninterp spec fn make_vsts() -> VStatefulSetView;
 // or:
 // forall Pod p owned by vsts: p =~= p'
 // forall PVC v owned by vsts: v =~= v'
-#[verifier(rlimit(20))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_no_interference(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -268,7 +266,7 @@ ensures
                                 } // or else, namespace is different, so should not be touched at all
                             }
                             assert(post);
-                        } else {
+                        } else { // from other controllers
                             let other_id = msg.src->Controller_0;
                             // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
                             assert(cluster.controller_models.contains_key(other_id));
@@ -289,20 +287,13 @@ ensures
                                     if req.obj.kind == Kind::PodKind {
                                         // rely condition
                                         assert(req.owner_ref.kind != VStatefulSetView::kind());
-                                        assert(!obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                            if obj.metadata.owner_references_contains(req.owner_ref) {
-                                                assert(req.owner_ref != vsts.controller_owner_ref());
-                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                            }
+                                        if obj.metadata.owner_references_contains(req.owner_ref) {
+                                            assert(req.owner_ref != vsts.controller_owner_ref());
+                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                         }
                                     }
                                 },
-                                APIRequest::UpdateStatusRequest(req) => {
-                                    if req.key() == k {
-                                        let new_obj = s_prime.resources()[req.key()];
-                                        assert(weakly_eq(new_obj, obj));
-                                    }
-                                },
+                                APIRequest::UpdateStatusRequest(req) => {}, // only status and RV updated
                                 _ => {}, // Read-only requests
                             }
                         }
