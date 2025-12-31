@@ -16,45 +16,12 @@ use vstd::prelude::*;
 
 verus! {
 
-// Helper predicates for specific index conditions
-pub open spec fn needed_index(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.needed_index == n
-}
-
-pub open spec fn condemned_index(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.condemned_index == n
-}
-
-pub open spec fn pvc_index(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.pvc_index == n
-}
-
-pub open spec fn needed_len(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.needed.len() == n
-}
-
-pub open spec fn condemned_len(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.condemned.len() == n
-}
-
-pub open spec fn pvc_len(n: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.pvcs.len() == n
-}
-
 pub open spec fn needed_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
     |s: VStatefulSetReconcileState| s.needed_index == index && s.needed.len() == len
 }
 
 pub open spec fn condemned_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
     |s: VStatefulSetReconcileState| s.condemned_index == index && s.condemned.len() == len
-}
-
-pub open spec fn pvc_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.pvc_index == index && s.pvcs.len() == len
-}
-
-pub open spec fn pvc_index_len_and_needed(index: nat, len: nat, needed: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
-    |s: VStatefulSetReconcileState| s.pvc_index == index && s.pvcs.len() == len && s.needed_index == needed
 }
 
 pub open spec fn pvc_and_needed_state(pvc_idx: nat, pvc_len: nat, needed_idx: nat, needed_len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
@@ -154,16 +121,16 @@ ensures
         get_pvc_with_needed(j, jl)
             .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error])
     ) by {
-        let pvc_pred = |i: nat, l: nat, n: nat, ln: nat|
+        let get_pvc_with_needed = |i: nat, l: nat, n: nat, ln: nat|
             lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln)), Error];
 
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
+        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
             i + 1 < l implies spec.entails(
-                pvc_pred(i, l, n, ln).leads_to(pvc_pred(i + 1 as nat, l, n, ln))
+                get_pvc_with_needed(i, l, n, ln).leads_to(get_pvc_with_needed(i + 1 as nat, l, n, ln))
             ) by {
             let i_plus_1 = (i + 1) as nat;
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], pvc_pred(i_plus_1, l, n, ln));
+            entails_implies_leads_to(spec, lift_at_step_or![Error], get_pvc_with_needed(i_plus_1, l, n, ln));
             lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
                 spec, vsts, controller_id, AfterGetPVC, pvc_and_needed_state(i, l, n, ln)
             );
@@ -277,24 +244,24 @@ ensures
 
             temp_pred_equality(
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                pvc_pred(i_plus_1, l, n, ln)
+                get_pvc_with_needed(i_plus_1, l, n, ln)
             );
 
             or_leads_to_combine_n!(
                 spec,
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
                 lift_at_step_or![Error];
-                pvc_pred(i_plus_1, l, n, ln)
+                get_pvc_with_needed(i_plus_1, l, n, ln)
             );
             temp_pred_equality(
-                pvc_pred(i, l, n, ln),
+                get_pvc_with_needed(i, l, n, ln),
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
             );
         };
 
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
+        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
             i + 1 == l implies spec.entails(
-                pvc_pred(i, l, n, ln)
+                get_pvc_with_needed(i, l, n, ln)
                     .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
             ) by {
             let i_plus_1 = (i + 1) as nat;
@@ -418,14 +385,14 @@ ensures
                 lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
             );
             temp_pred_equality(
-                pvc_pred(i, l, n, ln),
+                get_pvc_with_needed(i, l, n, ln),
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
             );
         };
 
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
+        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
             i >= l implies spec.entails(
-                pvc_pred(i, l, n, ln).leads_to(lift_at_step_or![Error])
+                get_pvc_with_needed(i, l, n, ln).leads_to(lift_at_step_or![Error])
             ) by {
             lemma_from_no_pending_req_at_step_to_at_step_and_pred(
                 spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
@@ -447,7 +414,7 @@ ensures
             );
 
             temp_pred_equality(
-                pvc_pred(i, l, n, ln),
+                get_pvc_with_needed(i, l, n, ln),
                 lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
             );
 
@@ -459,23 +426,23 @@ ensures
             );
         };
 
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
+        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
             spec.entails(
-                pvc_pred(i, l, n, ln)
+                get_pvc_with_needed(i, l, n, ln)
                     .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
             ) by {
             if i >= l {
                 entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
                 leads_to_trans_n!(
                     spec,
-                    pvc_pred(i, l, n, ln),
+                    get_pvc_with_needed(i, l, n, ln),
                     lift_at_step_or![Error],
                     lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
                 );
             } else if i + 1 == l {
             } else {
                 let target = (l - 1) as nat;
-                let p_for_induction = |m: nat, t: nat| pvc_pred(m, t + 1 as nat, n, ln);
+                let p_for_induction = |m: nat, t: nat| get_pvc_with_needed(m, t + 1 as nat, n, ln);
 
                 assert forall |m: nat, t: nat| #![trigger p_for_induction(m, t)]
                     m < t implies spec.entails(
@@ -485,19 +452,19 @@ ensures
 
                 leads_to_greater_than_or_eq(spec, p_for_induction);
 
-                temp_pred_equality(p_for_induction(i, target), pvc_pred(i, l, n, ln));
-                temp_pred_equality(p_for_induction(target, target), pvc_pred((l - 1) as nat, l, n, ln));
+                temp_pred_equality(p_for_induction(i, target), get_pvc_with_needed(i, l, n, ln));
+                temp_pred_equality(p_for_induction(target, target), get_pvc_with_needed((l - 1) as nat, l, n, ln));
 
                 leads_to_trans_n!(
                     spec,
-                    pvc_pred(i, l, n, ln),
-                    pvc_pred((l - 1) as nat, l, n, ln),
+                    get_pvc_with_needed(i, l, n, ln),
+                    get_pvc_with_needed((l - 1) as nat, l, n, ln),
                     lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
                 );
             }
         };
 
-        lemma_get_pvc_drop_indices(spec, vsts, controller_id, pvc_pred, j, jl);
+        lemma_get_pvc_drop_indices(spec, vsts, controller_id, get_pvc_with_needed, j, jl);
     };
 }
 
@@ -1244,44 +1211,6 @@ ensures
 }
 
 #[verifier(external_body)]
-proof fn lemma_delete_condemned_drop_indices(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    delete_condemned_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
-)
-    requires
-        forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
-            spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
-    ensures
-        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
-{
-}
-
-#[verifier(external_body)]
-proof fn lemma_get_pvc_drop_indices(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    pvc_pred: spec_fn(nat, nat, nat, nat) -> TempPred<ClusterState>,
-    needed_idx: nat,
-    needed_l: nat
-)
-    requires
-        forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_pred(i, l, n, ln)]
-            spec.entails(
-                pvc_pred(i, l, n, ln)
-                    .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])))
-            ),
-    ensures
-        spec.entails(
-            lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(needed_idx, needed_l))]))
-                .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed_idx, needed_l)), (UpdateNeeded, needed_index_and_len(needed_idx, needed_l)), Error])))
-        )
-{
-}
-
-#[verifier(external_body)]
 proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetView, controller_id: int)
     ensures true_pred::<ClusterState>()
                 == lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
@@ -1303,6 +1232,44 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetVi
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![Error])))
 {}
+
+#[verifier(external_body)]
+proof fn lemma_delete_condemned_drop_indices(
+    spec: TempPred<ClusterState>,
+    vsts: VStatefulSetView,
+    controller_id: int,
+    delete_condemned_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
+)
+    requires
+        forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
+            spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
+    ensures
+        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
+{
+}
+
+#[verifier(external_body)]
+proof fn lemma_get_pvc_drop_indices(
+    spec: TempPred<ClusterState>,
+    vsts: VStatefulSetView,
+    controller_id: int,
+    get_pvc_with_needed: spec_fn(nat, nat, nat, nat) -> TempPred<ClusterState>,
+    needed_idx: nat,
+    needed_l: nat
+)
+    requires
+        forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
+            spec.entails(
+                get_pvc_with_needed(i, l, n, ln)
+                    .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])))
+            ),
+    ensures
+        spec.entails(
+            lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(needed_idx, needed_l))]))
+                .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed_idx, needed_l)), (UpdateNeeded, needed_index_and_len(needed_idx, needed_l)), Error])))
+        )
+{
+}
 
 #[verifier(external_body)]
 proof fn lemma_after_create_needed_drop_indices(
