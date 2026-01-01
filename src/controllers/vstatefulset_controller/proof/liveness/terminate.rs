@@ -241,7 +241,35 @@ ensures
     };
 
     let get_pvc_with_indices = |j: nat, jl: nat| lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(j, jl))]));
-    lemma_get_pvc_drop_indices_for_idle(spec, vsts, controller_id, get_pvc_with_indices);
+
+    // Inline proof for dropping indices in GetPVC
+    let target_idle = lift_state(reconcile_idle);
+    let partial_pred_pvc = |i: (nat, nat)| get_pvc_with_indices(i.0, i.1);
+
+    assert forall |i: (nat, nat)| #![trigger partial_pred_pvc(i)] spec.entails(partial_pred_pvc(i).leads_to(target_idle)) by {
+        // proved earlier
+    }
+
+    leads_to_exists_intro(spec,
+        partial_pred_pvc,
+        target_idle
+    );
+
+    let p_get_pvc = lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC]));
+    assert forall |ex: Execution<ClusterState>| #![trigger p_get_pvc.satisfied_by(ex)] p_get_pvc.satisfied_by(ex) implies tla_exists(partial_pred_pvc).satisfied_by(ex) by {
+        let vsts_state = VStatefulSetReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+        let j_witness = vsts_state.needed_index;
+        let jl_witness = vsts_state.needed.len();
+        assert(partial_pred_pvc((j_witness, jl_witness)).satisfied_by(ex));
+    }
+
+    entails_implies_leads_to(spec, p_get_pvc, tla_exists(partial_pred_pvc));
+    leads_to_trans_n!(
+        spec,
+        p_get_pvc,
+        tla_exists(partial_pred_pvc),
+        target_idle
+    );
 
     or_leads_to_combine_and_equality!(spec,
         lift_at_step_or![GetPVC, CreateNeeded, UpdateNeeded, Error],
@@ -1090,8 +1118,51 @@ ensures
         }
     };
 
-    lemma_after_create_needed_drop_indices(spec, vsts, controller_id, after_create_or_update_with_index_and_len);
-    lemma_after_update_needed_drop_indices(spec, vsts, controller_id, after_create_or_update_with_index_and_len);
+    // Inline proof for dropping indices in AfterCreateNeeded
+    let target = lift_state(reconcile_idle);
+    let partial_pred = |i: (nat, nat)| after_create_or_update_with_index_and_len(i.0, i.1);
+
+    assert forall |i: (nat, nat)| #![trigger partial_pred(i)] spec.entails(partial_pred(i).leads_to(target)) by {
+        // proved earlier
+    }
+
+    leads_to_exists_intro(spec,
+        partial_pred,
+        target
+    );
+
+    let p_create = lift_at_step_or![AfterCreateNeeded];
+    assert forall |ex: Execution<ClusterState>| #![trigger p_create.satisfied_by(ex)] p_create.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
+        let vsts_state = VStatefulSetReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+        let n_witness = vsts_state.needed_index;
+        let l_witness = vsts_state.needed.len();
+        assert(partial_pred((n_witness, l_witness)).satisfied_by(ex));
+    }
+
+    entails_implies_leads_to(spec, p_create, tla_exists(partial_pred));
+    leads_to_trans_n!(
+        spec,
+        p_create,
+        tla_exists(partial_pred),
+        target
+    );
+
+    // Inline proof for dropping indices in AfterUpdateNeeded
+    let p_update = lift_at_step_or![AfterUpdateNeeded];
+    assert forall |ex: Execution<ClusterState>| #![trigger p_update.satisfied_by(ex)] p_update.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
+        let vsts_state = VStatefulSetReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+        let n_witness = vsts_state.needed_index;
+        let l_witness = vsts_state.needed.len();
+        assert(partial_pred((n_witness, l_witness)).satisfied_by(ex));
+    }
+
+    entails_implies_leads_to(spec, p_update, tla_exists(partial_pred));
+    leads_to_trans_n!(
+        spec,
+        p_update,
+        tla_exists(partial_pred),
+        target
+    );
 }
 
 pub proof fn lemma_after_delete_condemned_leads_to_idle(
@@ -1354,8 +1425,6 @@ ensures
     }
 }
 
-
-#[verifier(external_body)]
 proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetView, controller_id: int)
     ensures true_pred::<ClusterState>()
                 == lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
@@ -1376,89 +1445,27 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetVi
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])))
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
                     .or(lift_state(lift_local(controller_id, vsts, at_step_or![Error])))
-{}
-
-#[verifier(external_body)]
-proof fn lemma_delete_condemned_drop_indices(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    delete_condemned_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
-)
-    requires
-        forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
-            spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
-    ensures
-        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
 {
-}
-
-#[verifier(external_body)]
-proof fn lemma_get_pvc_drop_indices(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    get_pvc_with_needed: spec_fn(nat, nat, nat, nat) -> TempPred<ClusterState>,
-    needed_idx: nat,
-    needed_l: nat
-)
-    requires
-        forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
-            spec.entails(
-                get_pvc_with_needed(i, l, n, ln)
-                    .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])))
-            ),
-    ensures
-        spec.entails(
-            lift_state(lift_local(controller_id, vsts, at_step_or![(GetPVC, needed_index_and_len(needed_idx, needed_l))]))
-                .leads_to(lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed_idx, needed_l)), (UpdateNeeded, needed_index_and_len(needed_idx, needed_l)), Error])))
-        )
-{
-}
-
-#[verifier(external_body)]
-proof fn lemma_after_create_needed_drop_indices(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    after_create_or_update_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
-)
-    requires
-        forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
-            spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
-    ensures
-        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
-{
-}
-
-#[verifier(external_body)]
-proof fn lemma_after_update_needed_drop_indices(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    after_create_or_update_with_index_and_len: spec_fn(nat, nat) -> TempPred<ClusterState>
-)
-    requires
-        forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
-            spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
-    ensures
-        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
-{
-}
-
-#[verifier(external_body)]
-proof fn lemma_get_pvc_drop_indices_for_idle(
-    spec: TempPred<ClusterState>,
-    vsts: VStatefulSetView,
-    controller_id: int,
-    get_pvc_with_indices: spec_fn(nat, nat) -> TempPred<ClusterState>
-)
-    requires
-        forall |j: nat, jl: nat| #![trigger get_pvc_with_indices(j, jl)]
-            spec.entails(get_pvc_with_indices(j, jl).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) }))),
-    ensures
-        spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])).leads_to(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })))
-{
+    let all_states = lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Init])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterGetPVC])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![CreatePVC])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreatePVC])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![SkipPVC])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![CreateNeeded])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![UpdateNeeded])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteCondemned])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
+                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Error])));
+    assert(forall |ex| true_pred::<ClusterState>().satisfied_by(ex) ==> all_states.satisfied_by(ex));
+    temp_pred_equality(true_pred::<ClusterState>(), all_states);
 }
 
 }
