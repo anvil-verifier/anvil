@@ -283,11 +283,11 @@ pub open spec fn new_obj_in_etcd(
     let obj_temp = req.obj;
     let meta = ObjectMetaView {
         // Set name for new object if name is not provided, here we generate
-        // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+        // a unique name. The uniqueness is guaranteed by generated_name_spec.
         name: if obj_temp.metadata.name is Some {
             obj_temp.metadata.name
         } else {
-            Some(generate_name(s.api_server))
+            Some(generate_name(s.api_server, obj_temp.metadata.generate_name.unwrap()))
         },
         namespace: Some(req.namespace), // Set namespace for new object
         resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
