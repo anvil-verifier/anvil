@@ -733,7 +733,6 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
         );
-
         cluster.lemma_from_some_state_to_next_state_no_req(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
