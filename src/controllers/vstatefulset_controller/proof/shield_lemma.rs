@@ -267,10 +267,9 @@ ensures
                             }
                             assert(post);
                         } else { // from other controllers
-                            let other_id = msg.src->Controller_0;
                             // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vsts_rely
-                            assert(cluster.controller_models.contains_key(other_id));
-                            assert(vsts_rely(other_id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            assert(cluster.controller_models.contains_key(id));
+                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             match msg.content->APIRequest_0 {
                                 APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {},
                                 APIRequest::GetThenDeleteRequest(req) => {
@@ -332,26 +331,46 @@ ensures
                 assert(s_prime.resources() == s.resources());
                 assert(post);
             } else {
-                match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => {
-                        if req.obj.kind == Kind::PodKind {
-                            // create can only add new object
-                            if !s.resources().contains_key(k) {
-                                if msg.src is Controller {
-                                    if msg.src->Controller_0 == controller_id {
-                                        // same controller, other vsts
-                                        let cr_key = msg.src->Controller_1;
-                                        assert(cr_key != vsts.object_ref());
-                                        let other_vsts = VStatefulSetView {
-                                            metadata: ObjectMetaView {
-                                                name: Some(cr_key.name),
-                                                namespace: Some(cr_key.namespace),
-                                                ..make_vsts().metadata
-                                            },
-                                            ..make_vsts()
-                                        };
-                                        assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
-                                    } else {
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id == controller_id {
+                            assert(cr_key != vsts.object_ref());
+                            let other_vsts = VStatefulSetView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..make_vsts().metadata
+                                },
+                                ..make_vsts()
+                            };
+                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            if other_vsts.metadata.namespace == vsts.metadata.namespace {
+                                assert(other_vsts.controller_owner_ref() != vsts.controller_owner_ref());
+                                if msg.content.is_create_request() && !s.resources().contains_key(k) {
+                                    let req = msg.content.get_create_request();
+                                    seq_filter_contains_implies_seq_contains(req.obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
+                                    assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                                    assert(false);
+                                }
+                                if msg.content.is_get_then_update_request() && s.resources().contains_key(k) {
+                                    let old_obj = s.resources()[k];
+                                    let req = msg.content.get_get_then_update_request();
+                                    assert(!old_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                        if old_obj.metadata.owner_references_contains(req.owner_ref) {
+                                            assert(req.owner_ref != vsts.controller_owner_ref());
+                                            assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                        }
+                                    }
+                                }
+                                assert(post);
+                            } // or else, namespace is different, so should not be touched at all
+                            assert(post);
+                        } else {
+                            assert(cluster.controller_models.contains_key(id));
+                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            match msg.content->APIRequest_0 {
+                                APIRequest::CreateRequest(req) => {
+                                    if req.obj.kind == Kind::PodKind && !s.resources().contains_key(k) {
                                         assert(vsts_rely(msg.src->Controller_0, cluster.installed_types)(s));
                                         // req succeed
                                         let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
@@ -364,105 +383,47 @@ ensures
                                                 seq_filter_is_a_subset_of_original_seq(created_obj.metadata.owner_references->0, controller_owner_filter());
                                             }
                                         }
+                                        assert(post);
                                     }
-                                }
+                                },
+                                APIRequest::GetThenUpdateRequest(req) => {
+                                    if s.resources().contains_key(k) && req.key() == k {
+                                        assert(cluster.controller_models.contains_key(id));
+                                        assert(vsts_rely(id, cluster.installed_types)(s));
+                                    }
+                                    assert(post);
+                                },
+                                APIRequest::UpdateRequest(req) => {
+                                    if s.resources().contains_key(k) {
+                                        let resp = handle_update_request(cluster.installed_types, req, s.api_server).1;
+                                        let old_obj = s.resources()[k];
+                                        if req.key() == k && resp.res is Ok {
+                                            if old_obj.metadata.owner_references is Some
+                                                && old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
+                                                assert(old_obj.metadata.owner_references->0.contains(vsts.controller_owner_ref()));
+                                                assert(false);
+                                            } else {
+                                                if req.obj.metadata.owner_references is Some
+                                                    && req.obj.metadata.owner_references->0.contains(vsts.controller_owner_ref()) {
+                                                    assert(false);
+                                                } else {
+                                                    assert(obj.metadata.owner_references == req.obj.metadata.owner_references);
+                                                    seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
+                                                    assert(false);
+                                                }
+                                            }   
+                                        } else {
+                                            assert(s.resources()[k] == s_prime.resources()[k]);
+                                        }
+                                    }
+                                    assert(post);
+                                },
+                                _ => {}
                             }
                             assert(post);
                         }
                     },
-                    APIRequest::GetThenUpdateRequest(req) => {
-                        admit();
-                        if s.resources().contains_key(k) && req.key() == k {
-                            match msg.src {
-                                HostId::Controller(id, cr_key) => {
-                                    if id == controller_id {
-                                        assert(cr_key != vsts.object_ref());
-                                        // same controller, other vsts
-                                        let cr_key = msg.src->Controller_1;
-                                        let other_vsts = VStatefulSetView {
-                                            metadata: ObjectMetaView {
-                                                name: Some(cr_key.name),
-                                                namespace: Some(cr_key.namespace),
-                                                ..make_vsts().metadata
-                                            },
-                                            ..make_vsts()
-                                        };
-                                        assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
-                                        // every_msg_from_vsts_controller_carries_vsts_key
-                                        if cr_key.namespace == vsts.metadata.namespace->0 && cr_key.name == vsts.metadata.name->0 {
-                                            assert(cr_key == vsts.object_ref());
-                                        }
-                                    } else {
-                                        let other_id = msg.src->Controller_0;
-                                        assert(cluster.controller_models.contains_key(other_id));
-                                        assert(vsts_rely(other_id, cluster.installed_types)(s));
-                                    }
-                                },
-                                _ => {}
-                            }
-                            // either obj in s has the right controller owner ref, or it's updated
-                            // prevented by rely conditions
-                            let old_obj = s.resources()[k];
-                            if old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
-                                assert(!old_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                    if old_obj.metadata.owner_references_contains(req.owner_ref) {
-                                        assert(req.owner_ref != vsts.controller_owner_ref()) by {
-                                            if req.owner_ref == vsts.controller_owner_ref() {
-                                                assert(req.key().namespace == vsts.metadata.namespace->0);
-                                                assert(false);
-                                            }
-                                        }
-                                        // each_object_in_etcd_has_at_most_one_controller_owner
-                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
-                                            assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
-                                        }
-                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        assert(false);
-                                    }
-                                }
-                            } else {
-                                if old_obj.metadata.owner_references_contains(req.owner_ref) {
-                                    // update fails
-                                    if obj.metadata.owner_references != req.obj.metadata.owner_references {
-                                        assert(s.resources()[k] == s_prime.resources()[k]);
-                                    } else {
-                                        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
-                                            seq_filter_is_a_subset_of_original_seq(obj.metadata.owner_references->0, controller_owner_filter());
-                                        }
-                                        assert(false);
-                                    }
-                                } else {
-                                    // update fails
-                                    assert(s.resources()[k] == s_prime.resources()[k]);
-                                }
-                            }
-                        }
-                    },
-                    APIRequest::UpdateRequest(req) => {
-                        admit();
-                        if s.resources().contains_key(k) {
-                            let (s_prime_server, resp) = handle_update_request(cluster.installed_types, req, s.api_server);
-                            let old_obj = s.resources()[k];
-                            if req.key() == k && resp.res is Ok {
-                                if old_obj.metadata.owner_references is Some
-                                    && old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
-                                    assert(false); // impossible by no_other_pending_update_request_interferes_with_vd_reconcile
-                                } else {
-                                    if req.obj.metadata.owner_references is Some
-                                        && req.obj.metadata.owner_references->0.contains(vsts.controller_owner_ref()) {
-                                        assert(false); // impossible by no_other_pending_update_request_interferes_with_vd_reconcile
-                                    } else {
-                                        assert(obj.metadata.owner_references == req.obj.metadata.owner_references);
-                                        seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
-                                        assert(false);
-                                    }
-                                }   
-                            } else {
-                                assert(s.resources()[k] == s_prime.resources()[k]);
-                            }
-                        }
-                    },
-                    _ => {}
+                    _ => {assert(post);},
                 }
             }
         }
