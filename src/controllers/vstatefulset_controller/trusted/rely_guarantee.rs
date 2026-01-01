@@ -209,6 +209,7 @@ pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
     &&& req.obj.kind == PodView::kind() ==> {
         &&& req.obj.metadata.name is Some
         &&& has_vsts_prefix(req.obj.metadata.name->0)
+        &&& req.obj.metadata.owner_references is Some
         &&& exists |vsts: VStatefulSetView| #[trigger]
             owner_references.contains(vsts.controller_owner_ref())
     }
