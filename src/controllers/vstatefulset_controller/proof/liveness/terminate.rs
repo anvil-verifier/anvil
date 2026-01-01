@@ -115,357 +115,350 @@ ensures
         }
     }
 
-    let get_pvc_with_needed = |j: nat, jl: nat| lift_at_step_or![(GetPVC, needed_index_and_len(j, jl))];
+    let pvc_with_indices = |i: nat, l: nat, n: nat, ln: nat|
+        lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln)), Error];
 
-    assert forall |j: nat, jl: nat| #![trigger get_pvc_with_needed(j, jl)] spec.entails(
-        get_pvc_with_needed(j, jl)
-            .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error])
-    ) by {
-        let get_pvc_with_needed = |i: nat, l: nat, n: nat, ln: nat|
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln)), Error];
+    assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_with_indices(i, l, n, ln)]
+        i + 1 < l implies spec.entails(
+            pvc_with_indices(i, l, n, ln).leads_to(pvc_with_indices(i + 1 as nat, l, n, ln))
+        ) by {
+        let i_plus_1 = (i + 1) as nat;
 
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
-            i + 1 < l implies spec.entails(
-                get_pvc_with_needed(i, l, n, ln).leads_to(get_pvc_with_needed(i + 1 as nat, l, n, ln))
-            ) by {
-            let i_plus_1 = (i + 1) as nat;
+        entails_implies_leads_to(spec, lift_at_step_or![Error], pvc_with_indices(i_plus_1, l, n, ln));
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterGetPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
+        );
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], get_pvc_with_needed(i_plus_1, l, n, ln));
-            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, AfterGetPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_arbitrary_next_state(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-            );
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
+        );
 
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-            );
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]);
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
+        );
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]);
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-            );
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
 
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, CreatePVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
 
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, CreatePVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
+            at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
 
-            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_arbitrary_next_state(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-                at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]);
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))].or(lift_at_step_or![Error])
+        );
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]);
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))].or(lift_at_step_or![Error])
-            );
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))])
+        );
 
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))])
-            );
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]);
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
 
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]);
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
 
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
+        temp_pred_equality(
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
+            pvc_with_indices(i_plus_1, l, n, ln)
+        );
 
-            temp_pred_equality(
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                get_pvc_with_needed(i_plus_1, l, n, ln)
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                get_pvc_with_needed(i_plus_1, l, n, ln)
-            );
-            temp_pred_equality(
-                get_pvc_with_needed(i, l, n, ln),
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
-        };
-
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
-            i + 1 == l implies spec.entails(
-                get_pvc_with_needed(i, l, n, ln)
-                    .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
-            ) by {
-            let i_plus_1 = (i + 1) as nat;
-
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
-
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-            );
-
-            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, AfterGetPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_arbitrary_next_state(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-            );
-
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, CreatePVC, pvc_and_needed_state(i, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-            );
-
-            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)
-            );
-            cluster.lemma_from_some_state_to_arbitrary_next_state(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-                at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))].or(lift_at_step_or![Error])
-            );
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))])
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
-
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-            temp_pred_equality(
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
-
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-            );
-            temp_pred_equality(
-                get_pvc_with_needed(i, l, n, ln),
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
-        };
-
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
-            i >= l implies spec.entails(
-                get_pvc_with_needed(i, l, n, ln).leads_to(lift_at_step_or![Error])
-            ) by {
-            lemma_from_no_pending_req_at_step_to_at_step_and_pred(
-                spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
-            );
-
-            cluster.lemma_from_some_state_to_next_state_no_req(
-                spec, controller_id, vsts.object_ref(),
-                at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                at_step_or![Error]
-            );
-
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![Error]);
-
-            leads_to_trans_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error],
-                lift_at_step_or![Error]
-            );
-
-            temp_pred_equality(
-                get_pvc_with_needed(i, l, n, ln),
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
-            );
-
-            or_leads_to_combine_n!(
-                spec,
-                lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-                lift_at_step_or![Error];
-                lift_at_step_or![Error]
-            );
-        };
-
-        assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger get_pvc_with_needed(i, l, n, ln)]
-            spec.entails(
-                get_pvc_with_needed(i, l, n, ln)
-                    .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
-            ) by {
-            if i >= l {
-                entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
-                leads_to_trans_n!(
-                    spec,
-                    get_pvc_with_needed(i, l, n, ln),
-                    lift_at_step_or![Error],
-                    lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-                );
-            } else if i + 1 == l {
-            } else {
-                let target = (l - 1) as nat;
-                let p_for_induction = |m: nat, t: nat| get_pvc_with_needed(m, t + 1 as nat, n, ln);
-
-                assert forall |m: nat, t: nat| #![trigger p_for_induction(m, t)]
-                    m < t implies spec.entails(
-                        p_for_induction(m, t).leads_to(p_for_induction(m + 1 as nat, t))
-                    ) by {
-                };
-
-                leads_to_greater_than_or_eq(spec, p_for_induction);
-
-                temp_pred_equality(p_for_induction(i, target), get_pvc_with_needed(i, l, n, ln));
-                temp_pred_equality(p_for_induction(target, target), get_pvc_with_needed((l - 1) as nat, l, n, ln));
-
-                leads_to_trans_n!(
-                    spec,
-                    get_pvc_with_needed(i, l, n, ln),
-                    get_pvc_with_needed((l - 1) as nat, l, n, ln),
-                    lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-                );
-            }
-        };
-
-        lemma_get_pvc_drop_indices(spec, vsts, controller_id, get_pvc_with_needed, j, jl);
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            pvc_with_indices(i_plus_1, l, n, ln)
+        );
+        temp_pred_equality(
+            pvc_with_indices(i, l, n, ln),
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
     };
+
+    assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_with_indices(i, l, n, ln)]
+        i + 1 == l implies spec.entails(
+            pvc_with_indices(i, l, n, ln)
+                .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
+        ) by {
+        let i_plus_1 = (i + 1) as nat;
+
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
+
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
+        );
+
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterGetPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
+        );
+
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, CreatePVC, pvc_and_needed_state(i, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
+        );
+
+        lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)
+        );
+        cluster.lemma_from_some_state_to_arbitrary_next_state(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
+            at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))].or(lift_at_step_or![Error])
+        );
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))])
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+        temp_pred_equality(
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+        );
+        temp_pred_equality(
+            pvc_with_indices(i, l, n, ln),
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
+    };
+
+    assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_with_indices(i, l, n, ln)]
+        i >= l implies spec.entails(
+            pvc_with_indices(i, l, n, ln).leads_to(lift_at_step_or![Error])
+        ) by {
+        lemma_from_no_pending_req_at_step_to_at_step_and_pred(
+            spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
+        );
+
+        cluster.lemma_from_some_state_to_next_state_no_req(
+            spec, controller_id, vsts.object_ref(),
+            at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            at_step_or![Error]
+        );
+
+        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![Error]);
+
+        leads_to_trans_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error],
+            lift_at_step_or![Error]
+        );
+
+        temp_pred_equality(
+            pvc_with_indices(i, l, n, ln),
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
+        );
+
+        or_leads_to_combine_n!(
+            spec,
+            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
+            lift_at_step_or![Error];
+            lift_at_step_or![Error]
+        );
+    };
+
+    assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_with_indices(i, l, n, ln)]
+        spec.entails(
+            pvc_with_indices(i, l, n, ln)
+                .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
+        ) by {
+        if i >= l {
+            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
+            leads_to_trans_n!(
+                spec,
+                pvc_with_indices(i, l, n, ln),
+                lift_at_step_or![Error],
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+            );
+        } else if i + 1 == l {
+        } else {
+            let target = (l - 1) as nat;
+            let p_for_induction = |m: nat, t: nat| pvc_with_indices(m, t + 1 as nat, n, ln);
+
+            assert forall |m: nat, t: nat| #![trigger p_for_induction(m, t)]
+                m < t implies spec.entails(
+                    p_for_induction(m, t).leads_to(p_for_induction(m + 1 as nat, t))
+                ) by {
+            };
+
+            leads_to_greater_than_or_eq(spec, p_for_induction);
+
+            temp_pred_equality(p_for_induction(i, target), pvc_with_indices(i, l, n, ln));
+            temp_pred_equality(p_for_induction(target, target), pvc_with_indices((l - 1) as nat, l, n, ln));
+
+            leads_to_trans_n!(
+                spec,
+                pvc_with_indices(i, l, n, ln),
+                pvc_with_indices((l - 1) as nat, l, n, ln),
+                lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
+            );
+        }
+    };
+
+    // lemma_get_pvc_drop_indices(spec, vsts, controller_id, pvc_with_indices, j, jl);
 }
 
 pub proof fn reconcile_eventually_terminates_on_vsts_object(
