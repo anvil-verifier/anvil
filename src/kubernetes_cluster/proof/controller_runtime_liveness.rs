@@ -391,7 +391,8 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: T
         spec,
         lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)),
         lift_state(no_pending_req),
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state))
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)),
+        lift_state(Self::reconcile_idle(controller_id, cr_key))
     );
 }
 
@@ -431,8 +432,7 @@ pub proof fn lemma_from_some_state_to_next_state_no_req(self, spec: TempPred<Clu
         spec,
         lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)),
         lift_state(no_pending_req),
-        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)),
-        lift_state(Self::reconcile_idle(controller_id, cr_key))
+        lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state))
     );
 }
 
