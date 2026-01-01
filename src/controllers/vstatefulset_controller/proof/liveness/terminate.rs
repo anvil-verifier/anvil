@@ -829,7 +829,6 @@ ensures
             target
         );
     };
-    // lemma_get_pvc_drop_indices(spec, vsts, controller_id, pvc_with_indices, j, jl);
 }
 
 
@@ -1118,7 +1117,6 @@ ensures
         }
     };
 
-    // Inline proof for dropping indices in AfterCreateNeeded
     let target = lift_state(reconcile_idle);
     let partial_pred = |i: (nat, nat)| after_create_or_update_with_index_and_len(i.0, i.1);
 
@@ -1147,7 +1145,6 @@ ensures
         target
     );
 
-    // Inline proof for dropping indices in AfterUpdateNeeded
     let p_update = lift_at_step_or![AfterUpdateNeeded];
     assert forall |ex: Execution<ClusterState>| #![trigger p_update.satisfied_by(ex)] p_update.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
         let vsts_state = VStatefulSetReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
@@ -1341,7 +1338,6 @@ ensures
         }
     };
 
-    // Inline proof for dropping indices
     let target = lift_state(reconcile_idle);
     let partial_pred = |i: (nat, nat)| delete_condemned_with_index_and_len(i.0, i.1);
 
