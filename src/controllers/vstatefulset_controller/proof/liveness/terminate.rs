@@ -1270,7 +1270,34 @@ ensures
         }
     };
 
-    lemma_delete_condemned_drop_indices(spec, vsts, controller_id, delete_condemned_with_index_and_len);
+    // Inline proof for dropping indices
+    let target = lift_state(reconcile_idle);
+    let partial_pred = |i: (nat, nat)| delete_condemned_with_index_and_len(i.0, i.1);
+
+    assert forall |i: (nat, nat)| #![trigger partial_pred(i)] spec.entails(partial_pred(i).leads_to(target)) by {
+        // proved earlier
+    }
+
+    leads_to_exists_intro(spec,
+        partial_pred,
+        target
+    );
+
+    let p = lift_at_step_or![AfterDeleteCondemned];
+    assert forall |ex: Execution<ClusterState>| #![trigger p.satisfied_by(ex)] p.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
+        let vsts_state = VStatefulSetReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+        let n_witness = vsts_state.condemned_index;
+        let l_witness = vsts_state.condemned.len();
+        assert(partial_pred((n_witness, l_witness)).satisfied_by(ex));
+    }
+
+    entails_implies_leads_to(spec, p, tla_exists(partial_pred));
+    leads_to_trans_n!(
+        spec,
+        p,
+        tla_exists(partial_pred),
+        target
+    );
 }
 
 pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
