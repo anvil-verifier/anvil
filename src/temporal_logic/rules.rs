@@ -2264,7 +2264,9 @@ pub proof fn leads_to_greater_than_or_eq<T>(spec: TempPred<T>, p: spec_fn(nat, n
     let pre = {
         forall |m: nat, n: nat| #![trigger p(m, n)] (m < n ==> spec.entails(p(m, n).leads_to(p((m + 1) as nat, n))))
     };
-    assert forall |m: nat, n: nat| pre implies (m < n ==> #[trigger] spec.entails(p(m, n).leads_to(p(n, n)))) by {
+    // need this to prevent Verus from raising a warning about the m < n not being assumed in the assert forall below
+    let post = |m: nat, n: nat| m < n ==> spec.entails(p(m, n).leads_to(p(n, n)));
+    assert forall |m: nat, n: nat| #![trigger p(m, n)] pre implies post(m, n) by {
         if m < n {
             leads_to_greater_than_or_eq_help(spec, p, m, n);
         }
@@ -2280,14 +2282,10 @@ proof fn leads_to_greater_than_or_eq_help<T>(spec: TempPred<T>, p: spec_fn(nat, 
     decreases (n - m),
 {
     if m + 1 < n {
-        // p(m, n) ~> p(m + 1, n), p(m + 1, n) ~> p(n, n)
-        // combine with leads-to transitivity
         leads_to_greater_than_or_eq_help(spec, p, (m + 1) as nat, n);
         leads_to_trans_n!(spec, p(m, n), p((m + 1) as nat, n), p(n, n));
     } else {
-        // m + 1 == n, so p(m, n) ~> p(n, n) directly from the precondition
-        assert(m < n);
-        assert((m + 1) as nat == n);
+        // m + 1 == n so we are done by the precondition
     }
 }
 
