@@ -57,6 +57,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
                 &&& req.obj.kind == Kind::PodKind
                 &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
                 &&& req.owner_ref == vsts.controller_owner_ref()
+                &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
             },
             // VSTS controller will not issue DeleteRequest, UpdateRequest and UpdateStatusRequest
             _ => false
@@ -353,13 +354,13 @@ ensures
                                     assert(false);
                                 }
                                 if msg.content.is_get_then_update_request() && s.resources().contains_key(k) {
-                                    let old_obj = s.resources()[k];
                                     let req = msg.content.get_get_then_update_request();
-                                    assert(!old_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                        if old_obj.metadata.owner_references_contains(req.owner_ref) {
-                                            assert(req.owner_ref != vsts.controller_owner_ref());
-                                            assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        }
+                                    let old_obj = s.resources()[req.key()];
+                                    if !(old_obj.metadata.owner_references is Some && old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) {
+                                        assert(old_obj.metadata != obj.metadata);
+                                        assert(req.obj.metadata.owner_references == obj.metadata.owner_references);
+                                        seq_filter_contains_implies_seq_contains(req.obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
+                                        assert(false);
                                     }
                                 }
                                 assert(post);
