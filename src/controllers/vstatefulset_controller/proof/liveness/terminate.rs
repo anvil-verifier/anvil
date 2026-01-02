@@ -77,6 +77,32 @@ pub open spec fn vsts_cluster_invariants(
     &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))
 }
 
+pub open spec fn vsts_all_states(vsts: VStatefulSetView, controller_id: int) -> TempPred<ClusterState> {
+    macro_rules! lift_at_step_or {
+        [$($tail:tt)*] => {
+            lift_state(lift_local(controller_id, vsts, at_step_or![$($tail)*]))
+        }
+    }
+    lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
+    .or(lift_at_step_or![Init])
+    .or(lift_at_step_or![AfterListPod])
+    .or(lift_at_step_or![GetPVC])
+    .or(lift_at_step_or![AfterGetPVC])
+    .or(lift_at_step_or![CreatePVC])
+    .or(lift_at_step_or![AfterCreatePVC])
+    .or(lift_at_step_or![SkipPVC])
+    .or(lift_at_step_or![CreateNeeded])
+    .or(lift_at_step_or![AfterCreateNeeded])
+    .or(lift_at_step_or![UpdateNeeded])
+    .or(lift_at_step_or![AfterUpdateNeeded])
+    .or(lift_at_step_or![DeleteCondemned])
+    .or(lift_at_step_or![AfterDeleteCondemned])
+    .or(lift_at_step_or![DeleteOutdated])
+    .or(lift_at_step_or![AfterDeleteOutdated])
+    .or(lift_at_step_or![Done])
+    .or(lift_at_step_or![Error])
+}
+
 pub proof fn reconcile_eventually_terminates_on_vsts_object(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -1286,46 +1312,11 @@ ensures
 }
 
 proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetView, controller_id: int)
-    ensures true_pred::<ClusterState>()
-                == lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Init])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterGetPVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![CreatePVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreatePVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![SkipPVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![CreateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![UpdateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteCondemned])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Error])))
+    ensures true_pred::<ClusterState>() == vsts_all_states(vsts, controller_id)
+
 {
-    let all_states = lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Init])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterListPod])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterGetPVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![CreatePVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreatePVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![SkipPVC])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![CreateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterCreateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![UpdateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterUpdateNeeded])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteCondemned])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteOutdated])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Done])))
-                    .or(lift_state(lift_local(controller_id, vsts, at_step_or![Error])));
-    assert(forall |ex| true_pred::<ClusterState>().satisfied_by(ex) ==> all_states.satisfied_by(ex));
-    temp_pred_equality(true_pred::<ClusterState>(), all_states);
+    assert(forall |ex| #[trigger] true_pred::<ClusterState>().satisfied_by(ex) ==> vsts_all_states(vsts, controller_id).satisfied_by(ex));
+    temp_pred_equality(true_pred::<ClusterState>(), vsts_all_states(vsts, controller_id));
 }
 
 }
