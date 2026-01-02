@@ -36,46 +36,52 @@ pub open spec fn create_or_update_or_error_with_needed(vsts: VStatefulSetView, c
     lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed, needed_l)), (UpdateNeeded, needed_index_and_len(needed, needed_l)), Error]))
 }
 
+pub open spec fn vsts_cluster_invariants(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+) -> bool {
+    &&& spec.entails(always(lift_action(cluster.next())))
+    &&& cluster.type_is_installed_in_cluster::<VStatefulSetView>()
+    &&& cluster.controller_models.contains_pair(controller_id, vsts_controller_model())
+    &&& spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
+    &&& spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))
+    &&& spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)))
+    &&& spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i))))
+    &&& spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))))
+    &&& spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
+    &&& spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
+    &&& spec.entails(always(lift_state(Cluster::crash_disabled(controller_id))))
+    &&& spec.entails(always(lift_state(Cluster::req_drop_disabled())))
+    &&& spec.entails(always(lift_state(Cluster::pod_monkey_disabled())))
+    &&& spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id())))
+    &&& spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
+    &&& spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
+    &&& spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())))
+    &&& spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))))
+    // no sent request at certain steps
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))))
+    &&& spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))))
+    // there is always sent request/pending response at certain steps for vsts to transit to next state
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))))
+    &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))
+}
+
 pub proof fn reconcile_eventually_terminates_on_vsts_object(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
-    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
-    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))),
-    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))),
-    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
-    // no sent request at certain steps
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
-    // there is always sent request/pending response at certain steps for vsts to transit to next state
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))),
+    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
 ensures
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
 {
@@ -399,42 +405,7 @@ proof fn lemma_get_pvc_leads_to_create_or_update_needed(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
-    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
-    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))),
-    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))),
-    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
-    // no sent request at certain steps
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
-    // there is always sent request/pending response at certain steps for vsts to transit to next state
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))),
+    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
 ensures
     forall |j: nat, jl: nat| #[trigger] spec.entails(
         get_pvc_with_needed(vsts, controller_id, j, jl)
@@ -497,10 +468,6 @@ ensures
             lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
             lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
         );
-
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))](s) ==>
-            at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), (CreateNeeded, pvc_and_needed_state(i_plus_1, l, n, ln)), (UpdateNeeded, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
 
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
@@ -835,43 +802,7 @@ pub proof fn lemma_after_create_and_update_needed_leads_to_idle(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
-    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
-    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))),
-    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))),
-    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
-    // no sent request at certain steps
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
-    // there is always sent request/pending response at certain steps for vsts to transit to next state
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))),
-
+    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
     forall |j: nat, jl: nat| #![trigger get_pvc_with_needed(vsts, controller_id, j, jl)] spec.entails(
         get_pvc_with_needed(vsts, controller_id, j, jl)
             .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j, jl))
@@ -905,10 +836,6 @@ ensures
 
         entails_implies_leads_to(spec, lift_at_step_or![Error], after_create_or_update_with_index_and_len(n_plus_1, l));
 
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))](s) ==>
-            at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
-
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterCreateNeeded, needed_index_and_len(n, l)
         );
@@ -917,10 +844,6 @@ ensures
             at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
             at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]
         );
-
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))](s) ==>
-            at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
 
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterUpdateNeeded, needed_index_and_len(n, l)
@@ -936,20 +859,12 @@ ensures
                 .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error])
         ));
 
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(CreateNeeded, needed_index_and_len(n, l))](s) ==>
-            at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
-
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, CreateNeeded, needed_index_and_len(n, l));
         cluster.lemma_from_some_state_to_next_state_no_req(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
             at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error]
         );
-
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(UpdateNeeded, needed_index_and_len(n, l))](s) ==>
-            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
 
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, UpdateNeeded, needed_index_and_len(n, l));
         cluster.lemma_from_some_state_to_next_state_no_req(
@@ -1036,10 +951,6 @@ ensures
     assert forall |n: nat, l: nat| #![trigger after_create_or_update_with_index_and_len(n, l)]
         n >= l implies spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(lift_state(reconcile_idle))) by {
 
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))](s) ==>
-            at_step_or![DeleteCondemned, DeleteOutdated, Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
-
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterCreateNeeded, needed_index_and_len(n, l)
         );
@@ -1048,10 +959,6 @@ ensures
             at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
             at_step_or![DeleteCondemned, DeleteOutdated, Error]
         );
-
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))](s) ==>
-            at_step_or![DeleteCondemned, DeleteOutdated, Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
 
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterUpdateNeeded, needed_index_and_len(n, l)
@@ -1165,42 +1072,7 @@ pub proof fn lemma_after_delete_condemned_leads_to_idle(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
-    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
-    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))),
-    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))),
-    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
-    // no sent request at certain steps
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
-    // there is always sent request/pending response at certain steps for vsts to transit to next state
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))),
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))),
+    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
     spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()))))
 ensures
     spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
@@ -1222,9 +1094,7 @@ ensures
         let n_plus_1 = n + 1 as nat;
         entails_implies_leads_to(spec, lift_at_step_or![Error], delete_condemned_with_index_and_len(n_plus_1, l));
         entails_implies_leads_to(spec, lift_at_step_or![DeleteOutdated], delete_condemned_with_index_and_len(n_plus_1, l));
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))](s) ==>
-            at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
         );
@@ -1233,9 +1103,7 @@ ensures
             at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
             at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated]
         );
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))](s) ==>
-            at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, DeleteCondemned, condemned_index_and_len(n, l));
         cluster.lemma_from_some_state_to_next_state_no_req(
             spec, controller_id, vsts.object_ref(),
@@ -1281,9 +1149,6 @@ ensures
 
     assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
         n >= l implies spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(lift_state(reconcile_idle))) by {
-        assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
-            at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))](s) ==>
-            at_step_or![Error, DeleteOutdated]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
         );
