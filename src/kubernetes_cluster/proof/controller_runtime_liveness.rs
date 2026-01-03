@@ -396,7 +396,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: T
     );
 }
 
-pub proof fn lemma_from_some_state_to_next_state_no_req(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, init_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
+pub proof fn lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, init_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
         self.reconcile_model(controller_id).kind == cr_key.kind,

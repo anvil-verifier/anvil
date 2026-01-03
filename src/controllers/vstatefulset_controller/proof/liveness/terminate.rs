@@ -471,7 +471,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
@@ -498,7 +498,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
@@ -507,7 +507,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, CreatePVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
@@ -600,7 +600,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
@@ -618,7 +618,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, SkipPVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
@@ -627,7 +627,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, CreatePVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
@@ -726,7 +726,7 @@ ensures
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
         );
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
             at_step_or![Error]
@@ -886,14 +886,14 @@ ensures
         ));
 
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, CreateNeeded, needed_index_and_len(n, l));
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
             at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error]
         );
 
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, UpdateNeeded, needed_index_and_len(n, l));
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
             at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error]
@@ -1131,7 +1131,7 @@ ensures
         );
 
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(spec, vsts, controller_id, DeleteCondemned, condemned_index_and_len(n, l));
-        cluster.lemma_from_some_state_to_next_state_no_req(
+        cluster.lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(
             spec, controller_id, vsts.object_ref(),
             at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
             at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]
