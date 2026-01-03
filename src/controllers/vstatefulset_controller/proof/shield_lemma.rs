@@ -356,8 +356,8 @@ ensures
                                 if msg.content.is_get_then_update_request() && s.resources().contains_key(k) {
                                     let req = msg.content.get_get_then_update_request();
                                     let old_obj = s.resources()[req.key()];
-                                    if !(old_obj.metadata.owner_references is Some && old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) {
-                                        assert(old_obj.metadata != obj.metadata);
+                                    if !(old_obj.metadata.owner_references is Some && old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()])
+                                        && req.key() == k {
                                         assert(req.obj.metadata.owner_references == obj.metadata.owner_references);
                                         seq_filter_contains_implies_seq_contains(req.obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
                                         assert(false);
