@@ -91,7 +91,7 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
 }
 
 // 3.b rely conditions for pod monkey, API server and external controllers
-pub open spec fn non_controllers_do_not_mutate_vsts_pod_objects() -> StatePred<ClusterState> {
+pub open spec fn non_controllers_do_not_mutate_pod_and_pvc_objects() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -99,7 +99,9 @@ pub open spec fn non_controllers_do_not_mutate_vsts_pod_objects() -> StatePred<C
             &&& msg.dst is APIServer
             &&& msg.content is APIRequest
         } ==> {
-            get_kind_of_req(msg.content->APIRequest_0) != Kind::PodKind
+            let kind = get_kind_of_req(msg.content->APIRequest_0);
+            &&& kind != Kind::PodKind
+            &&& kind != Kind::PersistentVolumeClaimKind
         }
     }
 }
@@ -156,7 +158,7 @@ requires
     forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     // 3. rely conditions for builtin/external controllers
     garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
-    non_controllers_do_not_mutate_vsts_pod_objects()(s),
+    non_controllers_do_not_mutate_pod_and_pvc_objects()(s),
     // msg is sent by other controllers or VSTS controller for other CRs
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     vsts.well_formed(),
@@ -183,16 +185,16 @@ ensures
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
-    // forall |k: ObjectRef| { // ==>
-    //     let obj = s.resources()[k];
-    //     &&& k.kind == Kind::PersistentVolumeClaimKind
-    //     &&& #[trigger] s.resources().contains_key(k)
-    //     &&& obj.metadata.namespace == vsts.metadata.namespace
-    //     &&& pvc_name_match(obj.metadata.name->0, vsts)
-    // } ==> {
-    //     &&& s_prime.resources().contains_key(k)
-    //     &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
-    // },
+    forall |k: ObjectRef| { // ==>
+        let obj = s.resources()[k];
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& #[trigger] s.resources().contains_key(k)
+        &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& pvc_name_match(obj.metadata.name->0, vsts)
+    } ==> {
+        &&& s_prime.resources().contains_key(k)
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+    },
     // forall |k: ObjectRef| { // <==
     //     let obj = s_prime.resources()[k];
     //     &&& k.kind == Kind::PersistentVolumeClaimKind
@@ -424,7 +426,49 @@ ensures
                 }
             }
         }
-
+    }
+    // PVC
+    assert forall |k: ObjectRef| { // ==>
+        let obj = s.resources()[k];
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& #[trigger] s.resources().contains_key(k)
+        &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& pvc_name_match(obj.metadata.name->0, vsts)
+    } implies {
+        &&& s_prime.resources().contains_key(k)
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+    } by {
+        // similar proof as Pod
+        let post = {
+            &&& s_prime.resources().contains_key(k)
+            &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+        };
+        let obj = s.resources()[k];
+        PersistentVolumeClaimView::marshal_preserves_integrity();
+        if msg.content is APIRequest && msg.dst is APIServer {
+            if !{ // if request fails, noop
+                let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                &&& resp_msg.content is APIResponse
+                &&& is_ok_resp(resp_msg.content->APIResponse_0)
+            } {
+                assert(s_prime.resources() == s.resources());
+                assert(post);
+            } else { // if request succeeds
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id == controller_id {
+                            assume(false);
+                        } else {
+                            assume(false);
+                        }
+                    },
+                    HostId::BuiltinController => {
+                        assume(false);
+                    },
+                    _ => {},
+                }
+            }
+        }
     }
 }
     
