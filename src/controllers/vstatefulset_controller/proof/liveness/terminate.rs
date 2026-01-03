@@ -1276,12 +1276,8 @@ ensures
     let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, vsts.object_ref(), at_step_or![(step, pred)]
     ));
-    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
-        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
-        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
-        assert(always(pre).satisfied_by(ex));
-        assert(forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) ==> post.satisfied_by(ex.suffix(i)));
-    }
+    entails_preserved_by_always(pre, post);
+    entails_trans(spec, always(pre), always(post));
 }
 
 pub proof fn lemma_from_no_pending_req_at_step_to_at_step_and_pred(
@@ -1303,12 +1299,8 @@ ensures
     let post = lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, vsts.object_ref(), at_step_or![(step, pred)]
     ));
-    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
-        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
-        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
-        assert(always(pre).satisfied_by(ex));
-        assert(forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) ==> post.satisfied_by(ex.suffix(i)));
-    }
+    entails_preserved_by_always(pre, post);
+    entails_trans(spec, always(pre), always(post));
 }
 
 proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vsts: VStatefulSetView, controller_id: int)
