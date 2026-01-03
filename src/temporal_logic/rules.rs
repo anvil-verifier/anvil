@@ -2255,6 +2255,40 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     leads_to_trans(spec, p, q.or(s), r.or(s));
 }
 
+pub proof fn leads_to_greater_than_or_eq<T>(spec: TempPred<T>, p: spec_fn(nat, nat) -> TempPred<T>)
+    requires
+        forall |m: nat, n: nat| #![trigger p(m, n)] (m < n ==> spec.entails(p(m, n).leads_to(p((m + 1) as nat, n)))),
+    ensures
+        forall |m: nat, n: nat| #![trigger p(m, n)] (m < n ==> spec.entails(p(m, n).leads_to(p(n, n))))
+{
+    let pre = {
+        forall |m: nat, n: nat| #![trigger p(m, n)] (m < n ==> spec.entails(p(m, n).leads_to(p((m + 1) as nat, n))))
+    };
+    // need this to prevent Verus from raising a warning about the m < n not being assumed in the assert forall below
+    let post = |m: nat, n: nat| m < n ==> spec.entails(p(m, n).leads_to(p(n, n)));
+    assert forall |m: nat, n: nat| #![trigger p(m, n)] pre implies post(m, n) by {
+        if m < n {
+            leads_to_greater_than_or_eq_help(spec, p, m, n);
+        }
+    }
+}
+
+proof fn leads_to_greater_than_or_eq_help<T>(spec: TempPred<T>, p: spec_fn(nat, nat) -> TempPred<T>, m: nat, n: nat)
+    requires
+        forall |m: nat, n: nat| #![trigger p(m, n)] (m < n ==> spec.entails(p(m, n).leads_to(p((m + 1) as nat, n)))),
+        m < n,
+    ensures
+        spec.entails(p(m, n).leads_to(p(n, n))),
+    decreases (n - m),
+{
+    if m + 1 < n {
+        leads_to_greater_than_or_eq_help(spec, p, (m + 1) as nat, n);
+        leads_to_trans_n!(spec, p(m, n), p((m + 1) as nat, n), p(n, n));
+    } else {
+        // m + 1 == n so we are done by the precondition
+    }
+}
+
 // Concluding p(n) ~> p(0) using ranking functions, with a step of one.
 // pre:
 //     forall |n: nat|, n > 0 ==> spec |= p(n) ~> p(n - 1)
