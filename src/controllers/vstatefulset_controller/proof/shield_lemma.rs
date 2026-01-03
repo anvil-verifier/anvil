@@ -363,9 +363,7 @@ ensures
                                         assert(false);
                                     }
                                 }
-                                assert(post);
                             } // or else, namespace is different, so should not be touched at all
-                            assert(post);
                         } else {
                             assert(cluster.controller_models.contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
@@ -417,14 +415,12 @@ ensures
                                             assert(s.resources()[k] == s_prime.resources()[k]);
                                         }
                                     }
-                                    assert(post);
                                 },
                                 _ => {}
                             }
-                            assert(post);
                         }
                     },
-                    _ => {assert(post);},
+                    _ => {},
                 }
             }
         }
