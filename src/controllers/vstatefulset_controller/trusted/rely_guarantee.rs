@@ -86,8 +86,13 @@ pub open spec fn pvc_name_match(name: StringView, vsts: VStatefulSetView) -> boo
 
 // create a PVC with name matching VSTS's naming convention
 pub open spec fn rely_create_pvc_req(req: CreateRequest) -> bool {
-    // does not match any VSTS
-    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
+    // does not have "vstatefulset-" prefix
+    if req.obj.metadata.name is Some {
+        !has_vsts_prefix(req.obj.metadata.name->0)
+    } else {
+        &&& req.obj.metadata.generate_name is Some
+        &&& !has_vsts_prefix(req.obj.metadata.generate_name->0)
+    }
 }
 
 pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
