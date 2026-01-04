@@ -58,6 +58,7 @@ pub struct CreateRequest {
 }
 
 impl CreateRequest {
+    // Note: it's possible for name to be None and generate_name is used instead.
     pub open spec fn key(self) -> ObjectRef {
         ObjectRef {
             name: self.obj.metadata.name->0,
