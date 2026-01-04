@@ -499,7 +499,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 vd.object_ref()
             );
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-            Cluster::lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec, cluster);
+            cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
             lemma_eventually_always_vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(spec, vd, cluster, controller_id);
             lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vd.object_ref());
