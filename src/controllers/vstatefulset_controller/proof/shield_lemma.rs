@@ -81,10 +81,14 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
             // &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
-                !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                     && obj.kind == Kind::PodKind
                     && obj.metadata.namespace == vsts.metadata.namespace)
                 // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
+                    && obj.metadata.namespace == vsts.metadata.namespace
+                    && obj.metadata.owner_references is None
+                    && pvc_name_match(obj.metadata.name->0, vsts))
             }
         }
     }
@@ -190,6 +194,7 @@ ensures
         &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& obj.metadata.owner_references is None // required by GC
         &&& pvc_name_match(obj.metadata.name->0, vsts)
     } ==> {
         &&& s_prime.resources().contains_key(k)
@@ -200,6 +205,7 @@ ensures
     //     &&& k.kind == Kind::PersistentVolumeClaimKind
     //     &&& #[trigger] s_prime.resources().contains_key(k)
     //     &&& obj.metadata.namespace == vsts.metadata.namespace
+    //     &&& obj.metadata.owner_references is None // required by GC
     //     &&& pvc_name_match(obj.metadata.name->0, vsts)
     // } ==> {
     //     &&& s.resources().contains_key(k)
@@ -433,6 +439,7 @@ ensures
         &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& obj.metadata.owner_references is None
         &&& pvc_name_match(obj.metadata.name->0, vsts)
     } implies {
         &&& s_prime.resources().contains_key(k)
@@ -461,9 +468,6 @@ ensures
                         } else {
                             assume(false);
                         }
-                    },
-                    HostId::BuiltinController => {
-                        assume(false);
                     },
                     _ => {},
                 }
