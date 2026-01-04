@@ -119,7 +119,7 @@ pub open spec fn rely_update_pod_req(req: UpdateRequest) -> StatePred<ClusterSta
 
 pub open spec fn rely_update_pvc_req(req: UpdateRequest) -> bool {
     // that object does not match any VSTS
-    exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.name, vsts)
+    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.name, vsts)
 }
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {

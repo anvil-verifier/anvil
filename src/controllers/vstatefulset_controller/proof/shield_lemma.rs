@@ -476,8 +476,13 @@ ensures
                                 ..make_vsts()
                             };
                             assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
-                        } else {
-                            assume(false);
+                        } else { // from other controllers
+                            assert(cluster.controller_models.contains_key(id));
+                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            if resource_delete_request_msg(k)(msg) || resource_update_request_msg(k)(msg) {
+                                assert(pvc_name_match(k.name, vsts));
+                                assert(false);
+                            }
                         }
                     },
                     _ => {},
