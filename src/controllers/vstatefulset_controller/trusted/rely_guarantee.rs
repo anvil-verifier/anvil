@@ -21,14 +21,11 @@ pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> St
             &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(other_id)
         } ==> {
-            // either the request fails and etcd is not changed
-            ||| !{
-                let resp_msg = transition_by_etcd(installed_types, msg, s.api_server).1;
+            let resp_msg = transition_by_etcd(installed_types, msg, s.api_server).1;
+            ({ // either the request fails and etcd is not changed
                 &&& resp_msg.content is APIResponse
                 &&& is_ok_resp(resp_msg.content->APIResponse_0)
-            }
-            // or it does not mess up VSTS's objects
-            ||| match (msg.content->APIRequest_0) {
+            }) ==> match (msg.content->APIRequest_0) { // or it does not mess up VSTS's objects
                 APIRequest::CreateRequest(req) => rely_create_req(req),
                 APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
                 APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
