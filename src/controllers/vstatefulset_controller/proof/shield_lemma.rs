@@ -539,7 +539,7 @@ ensures
                                     if has_vsts_prefix(name) {
                                         generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
                                         let witness_suffix = choose |suffix: StringView| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix;
-                                        let generated_suffix = choose |suffix: StringView| name == req.obj.metadata.generate_name->0 + "-"@ + suffix;
+                                        let generated_suffix = choose |suffix: StringView| name == req.obj.metadata.generate_name->0 + suffix;
                                         assume(has_vsts_prefix(req.obj.metadata.generate_name->0));
                                         assert(false);
                                     }
