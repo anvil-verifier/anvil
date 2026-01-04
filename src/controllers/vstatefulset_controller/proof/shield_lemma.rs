@@ -87,8 +87,8 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
                 // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
                 &&& !(obj.kind == Kind::PersistentVolumeClaimKind
                     && obj.metadata.namespace == vsts.metadata.namespace
-                    && obj.metadata.owner_references is None
-                    && pvc_name_match(obj.metadata.name->0, vsts))
+                    && obj.metadata.owner_references is None)
+                    // && pvc_name_match(obj.metadata.name->0, vsts)
             }
         }
     }
