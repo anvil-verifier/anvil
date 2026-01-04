@@ -464,7 +464,18 @@ ensures
                 match msg.src {
                     HostId::Controller(id, cr_key) => {
                         if id == controller_id {
-                            assume(false);
+                            // currently VSTS controller only sends create request to PVC
+                            // so this proof is trivial, we only need to instantiate no_interfering_request_between_vsts
+                            assert(cr_key != vsts.object_ref());
+                            let other_vsts = VStatefulSetView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..make_vsts().metadata
+                                },
+                                ..make_vsts()
+                            };
+                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                         } else {
                             assume(false);
                         }
