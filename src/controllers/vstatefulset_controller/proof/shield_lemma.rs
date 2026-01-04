@@ -530,22 +530,19 @@ ensures
                                 assert(false);
                             } else if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
                                 let req = msg.content.get_create_request();
-                                let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
-                                if resp.res is Ok {
-                                    if obj.metadata.name is Some {
-                                        assert(!pvc_name_match(obj.metadata.name->0, vsts)) by {
-                                            no_vsts_prefix_implies_no_pvc_name_match(obj.metadata.name->0);
-                                        }
-                                    } else {
-                                        let name = generate_name(s.api_server, req.obj.metadata.generate_name->0);
-                                        if has_vsts_prefix(name) {
-                                            generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
-                                            assert(has_vsts_prefix(req.obj.metadata.generate_name->0));
-                                            assert(false);
-                                        }
-                                        assert(!pvc_name_match(name, vsts)) by {
-                                            no_vsts_prefix_implies_no_pvc_name_match(name);
-                                        }
+                                if obj.metadata.name is Some {
+                                    assert(!pvc_name_match(obj.metadata.name->0, vsts)) by {
+                                        no_vsts_prefix_implies_no_pvc_name_match(obj.metadata.name->0);
+                                    }
+                                } else {
+                                    let name = generate_name(s.api_server, req.obj.metadata.generate_name->0);
+                                    if has_vsts_prefix(name) {
+                                        generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
+                                        assert(has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                        assert(false);
+                                    }
+                                    assert(!pvc_name_match(name, vsts)) by {
+                                        no_vsts_prefix_implies_no_pvc_name_match(name);
                                     }
                                 }
                             } else {
