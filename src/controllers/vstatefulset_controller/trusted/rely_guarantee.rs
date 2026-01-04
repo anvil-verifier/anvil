@@ -54,6 +54,7 @@ pub open spec fn pvc_name_match(name: StringView, vsts: VStatefulSetView) -> boo
     exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts.metadata.name->0, i.1)
 }
 
+// helper lemma
 pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
 requires
     !has_vsts_prefix(name),
@@ -100,7 +101,7 @@ pub open spec fn rely_create_pod_req(req: CreateRequest) -> bool {
     }
 }
 
-// create a PVC with name matching VSTS's naming convention
+// Other controllers don't create a PVC with name matching VSTS's naming convention
 pub open spec fn rely_create_pvc_req(req: CreateRequest) -> bool {
     // does not have "vstatefulset-" prefix
     if req.obj.metadata.name is Some {
@@ -119,6 +120,7 @@ pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> 
     }
 }
 
+// Other controllers don't try to update pod owned by a VSTS
 pub open spec fn rely_update_pod_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // does not interfere with VSTS-owned pods
@@ -138,15 +140,16 @@ pub open spec fn rely_update_pod_req(req: UpdateRequest) -> StatePred<ClusterSta
     }
 }
 
+// Other controllers don't try to update PVC matching VSTS's PVC template.
 pub open spec fn rely_update_pvc_req(req: UpdateRequest) -> bool {
-    // that object does not match any VSTS
     !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.name, vsts)
 }
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     match req.obj.kind {
         Kind::PodKind => rely_get_then_update_pod_req(req),
-        _ => true, // GetThenUpdate on PVC will fail because PVC owned by VSTS in etcd has no owner reference
+        Kind::PersistentVolumeClaimKind => rely_get_then_update_pvc_req(req),
+        _ => true,
     }
     
 }
@@ -163,6 +166,11 @@ pub open spec fn rely_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool
         &&& req.obj.metadata.owner_references is Some
         &&& exists |vsts: VStatefulSetView| req.obj.metadata.owner_references->0.contains(#[trigger] vsts.controller_owner_ref())
     }
+}
+
+// Other controllers don't try to remove owner_references of a VSTS-owned PVC
+pub open spec fn rely_get_then_update_pvc_req(req: GetThenUpdateRequest) -> bool {
+    req.obj.metadata.owner_references is Some
 }
 
 pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
