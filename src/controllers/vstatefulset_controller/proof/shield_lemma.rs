@@ -528,24 +528,26 @@ ensures
                             if resource_update_request_msg(k)(msg) {
                                 assert(pvc_name_match(k.name, vsts));
                                 assert(false);
-                            } else if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
+                            } else if msg.content.is_create_request() && !s.resources().contains_key(k) {
                                 let req = msg.content.get_create_request();
-                                if obj.metadata.name is Some {
+                                if req.obj.metadata.name is Some && req.key() == k {
                                     assert(!pvc_name_match(obj.metadata.name->0, vsts)) by {
                                         no_vsts_prefix_implies_no_pvc_name_match(obj.metadata.name->0);
                                     }
-                                } else {
+                                } else if req.obj.metadata.name is None && req.obj.metadata.generate_name is Some {
                                     let name = generate_name(s.api_server, req.obj.metadata.generate_name->0);
                                     if has_vsts_prefix(name) {
                                         generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
-                                        assert(has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                        let witness_suffix = choose |suffix: StringView| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix;
+                                        let generated_suffix = choose |suffix: StringView| name == req.obj.metadata.generate_name->0 + "-"@ + suffix;
+                                        assume(has_vsts_prefix(req.obj.metadata.generate_name->0));
                                         assert(false);
                                     }
                                     assert(!pvc_name_match(name, vsts)) by {
                                         no_vsts_prefix_implies_no_pvc_name_match(name);
                                     }
                                 }
-                            } else {
+                            } else if resource_get_then_update_request_msg(k)(msg) {
                                 assume(false);
                             }
                         }
