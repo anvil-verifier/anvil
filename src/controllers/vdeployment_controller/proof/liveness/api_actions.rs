@@ -655,10 +655,10 @@ requires
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())(s),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())(s),
+    Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_state_is indirectly
     helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)(s),
     helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s),
-    helper_invariants::no_pending_mutation_request_not_from_controller_on_vrs_objects()(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)(s),
     vd_rely_condition(cluster, controller_id)(s),

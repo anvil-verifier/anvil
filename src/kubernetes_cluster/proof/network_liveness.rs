@@ -15,6 +15,61 @@ pub open spec fn no_req_before_rpc_id_is_in_flight(rpc_id: RPCId) -> StatePred<C
     }
 }
 
+pub open spec fn no_pending_request_to_api_server_from_non_controllers() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| !{
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& !(msg.src is Controller || msg.src is BuiltinController)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+        }
+    }
+}
+
+pub proof fn lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(
+    spec: TempPred<ClusterState>, cluster: Cluster
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::no_pending_request_to_api_server_from_non_controllers())))),
+{
+    let requirements = |msg: Message, s: ClusterState| !{
+        &&& !(msg.src is Controller || msg.src is BuiltinController)
+        &&& msg.dst is APIServer
+        &&& msg.content is APIRequest
+    };
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+    };
+
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())
+    );
+
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(Self::no_pending_request_to_api_server_from_non_controllers()),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+}
+
+
 // To ensure that spec |= true ~> []every_in_flight_message_satisfies(requirements), we only have to reason about the messages
 // created after some points. Here, "requirements" takes two parameters, the new message and the prime state. In many cases,
 // It's only related to the message.

@@ -63,7 +63,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
-        spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
+        spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
         spec.entails(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))),
     ensures
@@ -118,8 +118,8 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& garbage_collector_does_not_delete_vd_vrs_objects(vd)(s)
         &&& garbage_collector_does_not_delete_vd_vrs_objects(vd)(s_prime)
-        &&& no_pending_mutation_request_not_from_controller_on_vrs_objects()(s)
-        &&& no_pending_mutation_request_not_from_controller_on_vrs_objects()(s_prime)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
         &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s)
         &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
@@ -179,7 +179,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
     }
 
     always_to_always_later(spec, lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
-    always_to_always_later(spec, lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()));
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
     always_to_always_later(spec, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
@@ -213,8 +213,8 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)),
         later(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd))),
-        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
-        later(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
         lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
         later(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)
@@ -414,7 +414,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
-        spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
+        spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
         spec.entails(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interfering_update_request(vd, controller_id))))),
@@ -484,8 +484,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
-        &&& no_pending_mutation_request_not_from_controller_on_vrs_objects()(s)
-        &&& no_pending_mutation_request_not_from_controller_on_vrs_objects()(s_prime)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
         &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s)
         &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
@@ -508,7 +508,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                             assert(vd_rely(id)(s_prime));
                         }
                     } else {
-                        assert(no_pending_mutation_request_not_from_controller_on_vrs_objects()(s_prime));
+                        assert(Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime));
                     }
                 } else if msg.content.is_get_then_update_request() {
                     if msg.src is Controller {
@@ -554,7 +554,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                             }
                         }
                     } else {
-                        assert(no_pending_mutation_request_not_from_controller_on_vrs_objects()(s_prime));
+                        assert(Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime));
                     }
                 }
             } else {
@@ -586,7 +586,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
 
     always_to_always_later(spec, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
     always_to_always_later(spec, lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
-    always_to_always_later(spec, lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()));
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
     always_to_always_later(spec, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
@@ -618,8 +618,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
-        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
-        later(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
         lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
         later(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)
@@ -672,7 +672,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(no_pending_interfering_update_request(vd, controller_id)))),
-        spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
+        spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
         spec.entails(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd))))),
@@ -727,8 +727,8 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
         &&& Cluster::etcd_is_finite()(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& no_pending_interfering_update_request(vd, controller_id)(s)
-        &&& no_pending_mutation_request_not_from_controller_on_vrs_objects()(s)
-        &&& no_pending_mutation_request_not_from_controller_on_vrs_objects()(s_prime)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
         &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s)
         &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
@@ -825,7 +825,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
         }
     }
 
-    always_to_always_later(spec, lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()));
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
     always_to_always_later(spec, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
@@ -856,8 +856,8 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
         lift_state(Cluster::etcd_is_finite()),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(no_pending_interfering_update_request(vd, controller_id)),
-        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
-        later(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
         lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
         later(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)
@@ -866,85 +866,6 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
     temp_pred_equality(
         lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)),
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
-    );
-}
-
-pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_vrs_objects(
-    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
-)
-    requires
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
-        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
-        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
-    ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())))),
-{
-    let requirements = |msg: Message, s: ClusterState| {
-        ({
-            &&& !(msg.src is Controller || msg.src is BuiltinController)
-            &&& msg.dst is APIServer
-            &&& msg.content is APIRequest
-        })
-        ==>
-        ({
-            &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != VReplicaSetView::kind()
-            &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != VReplicaSetView::kind()
-            // too radical, loosen it later to allow updates on pod status.
-            &&& msg.content.is_update_status_request() ==> msg.content.get_update_status_request().key().kind != VReplicaSetView::kind()
-            &&& msg.content.is_delete_request() ==> msg.content.get_delete_request().key.kind != VReplicaSetView::kind()
-            &&& msg.content.is_get_then_delete_request() ==> msg.content.get_get_then_delete_request().key.kind != VReplicaSetView::kind()
-            &&& msg.content.is_get_then_update_request() ==> msg.content.get_get_then_update_request().key().kind != VReplicaSetView::kind()
-        })
-    };
-
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& Cluster::crash_disabled(controller_id)(s)
-        &&& Cluster::req_drop_disabled()(s)
-        &&& Cluster::pod_monkey_disabled()(s)
-        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
-        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
-        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()(s)
-        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
-    };
-
-    helper_lemmas::vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(
-        spec, cluster, controller_id
-    );
-    invariant_n!(
-        spec, lift_action(stronger_next),
-        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(cluster.next()),
-        lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
-    );
-
-    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(
-        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
@@ -1718,7 +1639,7 @@ ensures
     spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
     spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
     spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
-    spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
     spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
 {
     let p = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
@@ -1753,7 +1674,7 @@ ensures
     always_weaken(spec, p, lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
     always_weaken(spec, p, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
     always_weaken(spec, p, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
-    always_weaken(spec, p, lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()));
+    always_weaken(spec, p, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
     always_weaken(spec, p, lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
 }
 }
