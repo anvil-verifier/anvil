@@ -173,6 +173,7 @@ ensures
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
         &&& obj.metadata.owner_references is Some
+        // TODO: simplify and use owner_reference_contains
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
     } ==> {
         &&& s_prime.resources().contains_key(k)
@@ -200,17 +201,17 @@ ensures
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
-    // forall |k: ObjectRef| { // <==
-    //     let obj = s_prime.resources()[k];
-    //     &&& k.kind == Kind::PersistentVolumeClaimKind
-    //     &&& #[trigger] s_prime.resources().contains_key(k)
-    //     &&& obj.metadata.namespace == vsts.metadata.namespace
-    //     &&& obj.metadata.owner_references is None // required by GC
-    //     &&& pvc_name_match(obj.metadata.name->0, vsts)
-    // } ==> {
-    //     &&& s.resources().contains_key(k)
-    //     &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
-    // },
+    forall |k: ObjectRef| { // <==
+        let obj = s_prime.resources()[k];
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& #[trigger] s_prime.resources().contains_key(k)
+        &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& obj.metadata.owner_references is None // required by GC
+        &&& pvc_name_match(obj.metadata.name->0, vsts)
+    } ==> {
+        &&& s.resources().contains_key(k)
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+    },
 {
     assert(s.in_flight().contains(msg));
     assert forall |k: ObjectRef| { // ==>
@@ -483,6 +484,66 @@ ensures
                                 assert(pvc_name_match(k.name, vsts));
                                 assert(false);
                             }
+                        }
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+    assert forall |k: ObjectRef| { // <==
+        let obj = s_prime.resources()[k];
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& #[trigger] s_prime.resources().contains_key(k)
+        &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& obj.metadata.owner_references is None
+        &&& pvc_name_match(obj.metadata.name->0, vsts)
+    } implies {
+        &&& s.resources().contains_key(k)
+        &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+    } by {
+        // similar proof as Pod
+        let post = {
+            &&& s.resources().contains_key(k)
+            &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
+        };
+        let obj = s_prime.resources()[k];
+        PersistentVolumeClaimView::marshal_preserves_integrity();
+        if msg.content is APIRequest && msg.dst is APIServer {
+            if !{ // if request fails, noop
+                let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                &&& resp_msg.content is APIResponse
+                &&& is_ok_resp(resp_msg.content->APIResponse_0)
+            } {
+                assert(s_prime.resources() == s.resources());
+                assert(post);
+            } else {
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id == controller_id {
+                            let other_vsts = VStatefulSetView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..make_vsts().metadata
+                                },
+                                ..make_vsts()
+                            };
+                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            if other_vsts.metadata.namespace == vsts.metadata.namespace {
+                                assert(other_vsts.metadata.name != vsts.metadata.name);
+                                if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
+                                    assert(!pvc_name_match(k.name, vsts)) by {
+                                        assume(false);
+                                    }
+                                    assume(false);
+                                }
+                                assume(false);
+                            } // or else, namespace is different, so should not be touched at all
+                        } else {
+                            assert(cluster.controller_models.contains_key(id));
+                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            assume(false);
                         }
                     },
                     _ => {},
