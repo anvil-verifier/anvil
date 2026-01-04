@@ -547,8 +547,6 @@ ensures
                                         no_vsts_prefix_implies_no_pvc_name_match(name);
                                     }
                                 }
-                            } else if resource_get_then_update_request_msg(k)(msg) {
-                                assume(false);
                             }
                         }
                     },
