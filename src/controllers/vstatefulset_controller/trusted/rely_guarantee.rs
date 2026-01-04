@@ -151,7 +151,6 @@ pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
         Kind::PersistentVolumeClaimKind => rely_get_then_update_pvc_req(req),
         _ => true,
     }
-    
 }
 
 // Other controllers don't try to delete pod owned by a VSTS.
