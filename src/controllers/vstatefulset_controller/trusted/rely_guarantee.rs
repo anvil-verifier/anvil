@@ -167,6 +167,7 @@ pub open spec fn rely_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool
 // Other controllers don't try to remove owner_references of a VSTS-owned PVC
 pub open spec fn rely_get_then_update_pvc_req(req: GetThenUpdateRequest) -> bool {
     req.obj.metadata.owner_references is Some
+    // if they try to update it, the request would fail because PVC has no owner reference
 }
 
 pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
