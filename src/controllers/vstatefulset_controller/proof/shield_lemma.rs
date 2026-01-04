@@ -23,7 +23,7 @@ verus! {
 // 1. rely conditions for other controllers (rely_guarantee.rs)
 // 2. VSTS internal rely-guarantee
 // 3.a rely conditions for builtin controllers
-// 3.b pod monkey, API server and external controllers
+// 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
 
 
 // 2. VSTS internal rely-guarantee
@@ -94,22 +94,6 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
     }
 }
 
-// 3.b rely conditions for pod monkey, API server and external controllers
-pub open spec fn non_controllers_do_not_mutate_pod_and_pvc_objects() -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& !(msg.src is Controller || msg.src is BuiltinController)
-            &&& msg.dst is APIServer
-            &&& msg.content is APIRequest
-        } ==> {
-            let kind = get_kind_of_req(msg.content->APIRequest_0);
-            &&& kind != Kind::PodKind
-            &&& kind != Kind::PersistentVolumeClaimKind
-        }
-    }
-}
-
 // helper invariant for shield lemma
 pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
     controller_id: int,
@@ -162,7 +146,7 @@ requires
     forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     // 3. rely conditions for builtin/external controllers
     garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
-    non_controllers_do_not_mutate_pod_and_pvc_objects()(s),
+    Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     // msg is sent by other controllers or VSTS controller for other CRs
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     vsts.well_formed(),
