@@ -21,7 +21,7 @@ pub open spec fn no_req_before_rpc_id_is_in_flight(rpc_id: RPCId) -> StatePred<C
 //
 // In detail, we have to show two things:
 //      a. Newly created api request message satisfies requirements:
-//          s.in_flight(msg) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
+//          !s.in_flight(msg) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
 //      b. The requirements, once satisfied, won't be violated as long as the message is still in flight:
 //          s.in_flight(msg) /\ requirements(msg, s) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
 //
