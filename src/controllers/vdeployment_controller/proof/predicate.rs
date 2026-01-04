@@ -488,10 +488,6 @@ pub open spec fn exists_resp_msg_is_ok_scale_new_vrs_resp_in_flight(
     }
 }
 
-pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> bool {
-    |o: OwnerReferenceView| o.controller is Some && o.controller->0
-}
-
 // we don't need new_vrs.spec.replicas here as local state is enough to differentiate different transitions
 pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
