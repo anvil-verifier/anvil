@@ -78,19 +78,6 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     }
 }
 
-pub open spec fn get_kind_of_req(req: APIRequest) -> Kind {
-    match req {
-        APIRequest::GetRequest(req) => req.key.kind,
-        APIRequest::ListRequest(req) => req.kind,
-        APIRequest::CreateRequest(req) => req.key().kind,
-        APIRequest::DeleteRequest(req) => req.key.kind,
-        APIRequest::UpdateRequest(req) => req.key().kind,
-        APIRequest::UpdateStatusRequest(req) => req.key().kind,
-        APIRequest::GetThenDeleteRequest(req) => req.key.kind,
-        APIRequest::GetThenUpdateRequest(req) => req.key().kind,
-    }
-}
-
 pub open spec fn controller_req_msg(controller_id: int, cr_key: ObjectRef, req_id: RPCId, req: APIRequest) -> Message {
     form_msg(HostId::Controller(controller_id, cr_key), HostId::APIServer, req_id, MessageContent::APIRequest(req))
 }
