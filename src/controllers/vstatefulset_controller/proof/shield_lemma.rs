@@ -520,7 +520,8 @@ ensures
                                         assume(false);
                                     }
                                 } else if resource_get_then_update_request_msg(k)(msg) && s.resources().contains_key(k) {
-                                    assume(false);
+                                    let req = msg.content.get_get_then_update_request();
+                                    assert(req.obj.kind == Kind::PodKind);
                                 }
                             } // or else, namespace is different, so should not be touched at all
                         } else {
