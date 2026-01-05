@@ -38,6 +38,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
             APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
             APIRequest::CreateRequest(req) => {
                 &&& req.namespace == vsts.object_ref().namespace
+                &&& req.obj.metadata.name is Some
                 &&& req.obj.kind == Kind::PodKind ==> {
                     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
                     &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
@@ -518,9 +519,9 @@ ensures
                                     assert(!pvc_name_match(k.name, vsts)) by {
                                         assume(false);
                                     }
+                                } else if resource_get_then_update_request_msg(k)(msg) && s.resources().contains_key(k) {
                                     assume(false);
                                 }
-                                assume(false);
                             } // or else, namespace is different, so should not be touched at all
                         } else {
                             assert(cluster.controller_models.contains_key(id));
