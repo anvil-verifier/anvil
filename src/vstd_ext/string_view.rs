@@ -63,6 +63,13 @@ pub open spec fn dash_free(s: Seq<char>) -> bool {
     forall |i: int| 0 <= i < s.len() ==> s[i] != '-'@
 }
 
+#[verifier(external_body)]
+pub fn dash_free_exec(s: &String) -> (res: bool)
+    ensures res == dash_free(s@)
+{
+    !s.as_str().contains("-")
+}
+
 // helper function to circumvent the lack of support for String in spec
 #[verifier(external_body)]
 pub proof fn dash_char_view_eq_str_view() 
