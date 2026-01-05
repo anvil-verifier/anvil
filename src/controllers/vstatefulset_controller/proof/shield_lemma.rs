@@ -564,4 +564,22 @@ ensures
     // yet the proof is hard
 }
 
+// helper lemma
+proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
+requires
+    !has_vsts_prefix(name),
+ensures
+    forall |vsts: VStatefulSetView| #![trigger vsts.metadata.name->0]
+        !pvc_name_match(name, vsts.metadata.name->0),
+{
+    // proof by contradiction
+    if exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(name, vsts.metadata.name->0) {
+        let witness_vsts = choose |vsts: VStatefulSetView| #[trigger] pvc_name_match(name, vsts.metadata.name->0);
+        let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, witness_vsts.metadata.name->0, i.1);
+        let suffix = i.0 + "-"@ + pod_name_without_vsts_prefix(witness_vsts.metadata.name->0, i.1);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        assert(has_vsts_prefix(name));
+    }
+}
+
 }

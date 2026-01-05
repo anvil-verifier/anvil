@@ -1,8 +1,9 @@
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
-use crate::vstatefulset_controller::model::{reconciler::VStatefulSetReconcileState, install::*};
+use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -15,6 +16,20 @@ pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView)
     &&& obj.metadata.without_resource_version() == obj_prime.metadata.without_resource_version()
     &&& obj.kind == obj_prime.kind
     &&& obj.spec == obj_prime.spec
+}
+
+pub open spec fn has_vsts_prefix(name: StringView) -> bool {
+    exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
+}
+
+// Other controllers don't create PVC matching VSTS's PVC template.
+// this is stronger than storage_matches that we check pvc_template_name
+// instead of pvc_template_name + existing a pod whose pvc matches requested obj
+// Because even if there is no such pod running in cluster,
+// PVC matching VSTS's template shouldn't be touched
+pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool {
+    exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name, i.1)
+        && dash_free(i.0) // PVC template name should not contain dash
 }
 
 // usage: at_step![step_or_pred]

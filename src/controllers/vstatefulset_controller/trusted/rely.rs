@@ -38,38 +38,6 @@ pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> St
     }
 }
 
-pub open spec fn has_vsts_prefix(name: StringView) -> bool {
-    exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
-}
-
-// Other controllers don't create PVC matching VSTS's PVC template.
-// this is stronger than storage_matches that we check pvc_template_name
-// instead of pvc_template_name + existing a pod whose pvc matches requested obj
-// Because even if there is no such pod running in cluster,
-// PVC matching VSTS's template shouldn't be touched
-pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool {
-    exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name, i.1)
-        && dash_free(i.0) // PVC template name should not contain dash
-}
-
-// helper lemma
-pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
-requires
-    !has_vsts_prefix(name),
-ensures
-    forall |vsts: VStatefulSetView| #![trigger vsts.metadata.name->0]
-        !pvc_name_match(name, vsts.metadata.name->0),
-{
-    // proof by contradiction
-    if exists |vsts: VStatefulSetView| pvc_name_match(name, vsts.metadata.name->0) {
-        let witness_vsts = choose |vsts: VStatefulSetView| pvc_name_match(name, vsts.metadata.name->0);
-        let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, witness_vsts.metadata.name->0, i.1);
-        let suffix = i.0 + "-"@ + pod_name_without_vsts_prefix(witness_vsts.metadata.name->0, i.1);
-        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
-        assert(has_vsts_prefix(name));
-    }
-}
-
 pub open spec fn rely_create_req(req: CreateRequest) -> bool {
     match req.obj.kind {
         Kind::PodKind => rely_create_pod_req(req),

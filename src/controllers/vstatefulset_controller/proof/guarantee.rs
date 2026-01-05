@@ -2,7 +2,7 @@ use crate::kubernetes_api_objects::spec::{prelude::*, persistent_volume_claim::*
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::vstatefulset_controller::{
-    trusted::{spec_types::*, rely::*},
+    trusted::spec_types::*,
     model::reconciler::*,
     proof::predicate::*
 };
