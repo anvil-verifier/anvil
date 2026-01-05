@@ -244,7 +244,7 @@ pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, i
     }
 }
 
-pub uninterp spec fn generate_name(s: APIServerState, generate_name: StringView) -> StringView;
+pub uninterp spec fn generated_name(s: APIServerState, generate_name: StringView) -> StringView;
 
 // NOTE: In the actual implementation, the API server might fail to generate a unique name
 // after a number of attempts. For the sake of liveness, we simplify that behavior and assume
@@ -254,9 +254,9 @@ pub uninterp spec fn generate_name(s: APIServerState, generate_name: StringView)
 #[verifier(external_body)]
 pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringView)
     ensures
-        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s, generate_name_field),
+        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generated_name(s, generate_name_field),
         exists |suffix| {
-            &&& generate_name(s, generate_name_field) == generate_name_field + suffix
+            &&& generated_name(s, generate_name_field) == generate_name_field + suffix
             &&& #[trigger] dash_free(suffix)
         }
 ,{}
@@ -265,8 +265,8 @@ pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringV
 // #[verifier(external_body)]
 // pub proof fn generated_name_spec(s: APIServerState, generate_name: StringView, kind: Kind, namespace: StringView)
 //     ensures
-//         forall |key| #[trigger] s.resources.contains_key(key) ==> (key != ObjectRef { name: generate_name(s, generate_name, kind, namespace), namespace: namespace, kind: kind }),
-//         exists |suffix| generate_name(s, generate_name, kind, namespace) = generate_name + suffix,
+//         forall |key| #[trigger] s.resources.contains_key(key) ==> (key != ObjectRef { name: generated_name(s, generate_name, kind, namespace), namespace: namespace, kind: kind }),
+//         exists |suffix| generated_name(s, generate_name, kind, namespace) = generate_name + suffix,
 // {}
 
 #[verifier(inline)]
@@ -283,7 +283,7 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
                 name: if req.obj.metadata.name is Some {
                     req.obj.metadata.name
                 } else {
-                    Some(generate_name(s, req.obj.metadata.generate_name.unwrap()))
+                    Some(generated_name(s, req.obj.metadata.generate_name.unwrap()))
                 },
                 namespace: Some(req.namespace), // Set namespace for new object
                 resource_version: Some(s.resource_version_counter), // Set rv for new object

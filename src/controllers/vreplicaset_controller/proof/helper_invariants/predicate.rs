@@ -262,7 +262,7 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
                     name: if req.obj.metadata.name is Some {
                         req.obj.metadata.name
                     } else {
-                        Some(generate_name(s.api_server, req.obj.metadata.generate_name.unwrap()))
+                        Some(generated_name(s.api_server, req.obj.metadata.generate_name.unwrap()))
                     },
                     namespace: Some(req.namespace), // Set namespace for new object
                     resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object

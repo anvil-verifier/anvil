@@ -498,7 +498,7 @@ ensures
                                         no_vsts_prefix_implies_no_pvc_name_match(obj.metadata.name->0);
                                     }
                                 } else if req.obj.metadata.name is None && req.obj.metadata.generate_name is Some {
-                                    let name = generate_name(s.api_server, req.obj.metadata.generate_name->0);
+                                    let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
                                     if has_vsts_prefix(name) {
                                         generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
                                         let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&

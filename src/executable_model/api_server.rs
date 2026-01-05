@@ -203,8 +203,8 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
 // No plan to run conformance test on create requests without names
 // so just panic here
 #[verifier(external_body)]
-fn generate_name(s: &ApiServerState) -> (ret: String)
-    ensures ret@ == model::generate_name(s@)
+fn generated_name(s: &ApiServerState) -> (ret: String)
+    ensures ret@ == model::generated_name(s@)
 {
     panic!()
 }
@@ -224,7 +224,7 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
     } else {
         let mut created_obj = req.obj.clone();
         if req.obj.metadata().name().is_none() {
-            created_obj.set_name(Self::generate_name(s));
+            created_obj.set_name(Self::generated_name(s));
         }
         created_obj.set_namespace(req.namespace.clone());
         created_obj.set_resource_version(s.resource_version_counter);

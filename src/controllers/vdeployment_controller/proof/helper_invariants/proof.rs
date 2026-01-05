@@ -1244,7 +1244,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                 let created_obj = DynamicObjectView {
                                     kind: req.obj.kind,
                                     metadata: ObjectMetaView {
-                                        name: Some(generate_name(s.api_server, generate_name_field)),
+                                        name: Some(generated_name(s.api_server, generate_name_field)),
                                         namespace: Some(req.namespace),
                                         resource_version: Some(s.api_server.resource_version_counter),
                                         uid: Some(s.api_server.uid_counter),
@@ -1255,7 +1255,7 @@ proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
                                     status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
                                 };
                                 assert(!s.resources().contains_key(created_obj.object_ref())) by {
-                                    assert(created_obj.object_ref().name == generate_name(s.api_server, generate_name_field));
+                                    assert(created_obj.object_ref().name == generated_name(s.api_server, generate_name_field));
                                     generated_name_spec(s.api_server, generate_name_field);
                                     if s.resources().contains_key(created_obj.object_ref()) {
                                         assert(false);
