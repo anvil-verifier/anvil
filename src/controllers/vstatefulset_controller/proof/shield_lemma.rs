@@ -538,9 +538,11 @@ ensures
                                     let name = generate_name(s.api_server, req.obj.metadata.generate_name->0);
                                     if has_vsts_prefix(name) {
                                         generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
-                                        let witness_suffix = choose |suffix: StringView| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix;
-                                        let generated_suffix = choose |suffix: StringView| name == req.obj.metadata.generate_name->0 + suffix;
-                                        assume(has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                        let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
+                                            name == req.obj.metadata.generate_name->0 + suffix;
+                                        generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
+                                            name, req.obj.metadata.generate_name->0, generated_suffix
+                                        );
                                         assert(false);
                                     }
                                     assert(!pvc_name_match(name, vsts)) by {
@@ -556,5 +558,19 @@ ensures
         }
     }
 }
-    
+
+// helper lemmas about name prefixes
+pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
+    name: StringView, generate_name_field: StringView, generated_suffix: StringView
+)
+requires
+    has_vsts_prefix(name),
+    name == generate_name_field + generated_suffix,
+    dash_free(generated_suffix),
+ensures
+    has_vsts_prefix(generate_name_field),
+{
+
+}
+
 }

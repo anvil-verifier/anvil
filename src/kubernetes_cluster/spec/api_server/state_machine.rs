@@ -255,8 +255,11 @@ pub uninterp spec fn generate_name(s: APIServerState, generate_name: StringView)
 pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringView)
     ensures
         forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s, generate_name_field),
-        exists |suffix| #[trigger] generate_name(s, generate_name_field) == generate_name_field + suffix,
-{}
+        exists |suffix| {
+            &&& generate_name(s, generate_name_field) == generate_name_field + suffix
+            &&& #[trigger] dash_free(suffix)
+        }
+,{}
 
 // TODO: add fine grained support for namespace and kind
 // #[verifier(external_body)]
