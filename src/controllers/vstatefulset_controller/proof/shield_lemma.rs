@@ -8,8 +8,8 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    proof::predicate::*,
-    trusted::{rely_guarantee::*, spec_types::*, liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
+    proof::{predicate::*, guarantee::*},
+    trusted::{rely::*, spec_types::*, liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
@@ -20,49 +20,11 @@ verus! {
 // Before proving the shield lemma, we need to establish some rely-guarantee conditions
 // about VSTS controller itself and other non-controller components in the cluster
 // So in total we have
-// 1. rely conditions for other controllers (rely_guarantee.rs)
-// 2. VSTS internal rely-guarantee
-// 3.a rely conditions for builtin controllers
+// 1. rely conditions for other controllers (rely::vsts_rely)
+// 2. VSTS internal rely-guarantee (guarantee::no_interfering_request_between_vsts)
+// 3.a rely conditions for builtin controllers (garbage_collector_does_not_delete_vsts_pod_objects)
 // 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
 
-
-// 2. VSTS internal rely-guarantee
-// all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
-pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg| {
-            &&& #[trigger] s.in_flight().contains(msg) 
-            &&& msg.content is APIRequest
-            &&& msg.src == HostId::Controller(controller_id, vsts.object_ref())
-        } ==> match msg.content->APIRequest_0 {
-            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
-            APIRequest::CreateRequest(req) => {
-                &&& req.namespace == vsts.object_ref().namespace
-                &&& req.obj.metadata.name is Some
-                &&& req.obj.kind == Kind::PodKind ==> {
-                    &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
-                    &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
-                }
-                &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
-            },
-            APIRequest::GetThenDeleteRequest(req) => {
-                &&& req.key().namespace == vsts.object_ref().namespace
-                &&& req.key().kind == Kind::PodKind
-                &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
-                &&& req.owner_ref == vsts.controller_owner_ref()
-            },
-            APIRequest::GetThenUpdateRequest(req) => {
-                &&& req.namespace == vsts.object_ref().namespace
-                &&& req.obj.kind == Kind::PodKind
-                &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
-                &&& req.owner_ref == vsts.controller_owner_ref()
-                &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
-            },
-            // VSTS controller will not issue DeleteRequest, UpdateRequest and UpdateStatusRequest
-            _ => false
-        }
-    }
-}
 
 // 3.a rely conditions for builtin controllers (only GC is supported now)
 pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
