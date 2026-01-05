@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::vstatefulset_controller::{
     trusted::spec_types::*,
-    model::reconciler::*,
+    model::{reconciler::*, install::*},
     proof::predicate::*
 };
 use crate::temporal_logic::defs::*;
