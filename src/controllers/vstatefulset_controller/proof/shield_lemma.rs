@@ -514,9 +514,9 @@ ensures
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.metadata.name != vsts.metadata.name);
                                 if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
-                                    assert(!pvc_name_match(k.name, vsts.metadata.name->0)) by {
-                                        assume(false);
-                                    }
+                                    vsts_name_non_eq_implies_no_pvc_name_match(
+                                        obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0
+                                    );
                                 } else if resource_get_then_update_request_msg(k)(msg) && s.resources().contains_key(k) {
                                     let req = msg.content.get_get_then_update_request();
                                     // VSTS controller does not send update request to PVC
@@ -560,7 +560,19 @@ ensures
     }
 }
 
+#[verifier(external_body)]
+pub proof fn vsts_name_non_eq_implies_no_pvc_name_match(
+    name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
+)
+requires
+    vsts_name_a != vsts_name_b,
+    pvc_name_match(name, vsts_name_a),
+ensures
+    !pvc_name_match(name, vsts_name_b),
+{}
+
 // helper lemmas about name prefixes
+#[verifier(external_body)]
 pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
     name: StringView, generate_name_field: StringView, generated_suffix: StringView
 )
@@ -586,7 +598,6 @@ ensures
     // and name == generate_name_field + generated_suffix, dash_free(generated_suffix)
     // so generate_name_field must also start with VStatefulSetView::kind()->CustomResourceKind_0 + "-"@
     // yet the proof is hard
-    assume(false);
 }
 
 }
