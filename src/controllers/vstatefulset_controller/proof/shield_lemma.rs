@@ -561,7 +561,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn vsts_name_non_eq_implies_no_pvc_name_match(
+proof fn vsts_name_non_eq_implies_no_pvc_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
 requires
@@ -573,7 +573,7 @@ ensures
 
 // helper lemmas about name prefixes
 #[verifier(external_body)]
-pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
+proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
     name: StringView, generate_name_field: StringView, generated_suffix: StringView
 )
 requires
