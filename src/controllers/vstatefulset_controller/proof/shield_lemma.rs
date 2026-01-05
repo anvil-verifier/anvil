@@ -560,6 +560,8 @@ ensures
     }
 }
 
+// helper lemmas about pvc_name_match
+// NOTE: dash_char_view_eq_str_view may be helpful
 #[verifier(external_body)]
 proof fn vsts_name_non_eq_implies_no_pvc_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
