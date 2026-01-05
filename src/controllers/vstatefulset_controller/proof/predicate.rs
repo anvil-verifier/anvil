@@ -1,14 +1,36 @@
-use crate::kubernetes_api_objects::spec::resource::*;
-use crate::kubernetes_cluster::spec::{cluster::*, controller::types::ReconcileLocalState};
+use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
+use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
-use crate::vstatefulset_controller::model::reconciler::VStatefulSetReconcileState;
+use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
 
 // just to make Verus happy
 pub uninterp spec fn dummy<T>(t: T) -> bool;
+
+// allow status and rv updates
+pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView) -> bool {
+    &&& obj.metadata.without_resource_version() == obj_prime.metadata.without_resource_version()
+    &&& obj.kind == obj_prime.kind
+    &&& obj.spec == obj_prime.spec
+}
+
+pub open spec fn has_vsts_prefix(name: StringView) -> bool {
+    exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
+}
+
+// Other controllers don't create PVC matching VSTS's PVC template.
+// this is stronger than storage_matches that we check pvc_template_name
+// instead of pvc_template_name + existing a pod whose pvc matches requested obj
+// Because even if there is no such pod running in cluster,
+// PVC matching VSTS's template shouldn't be touched
+pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool {
+    exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name, i.1)
+        && dash_free(i.0) // PVC template name should not contain dash
+}
 
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
@@ -57,5 +79,63 @@ pub open spec fn lift_local(controller_id: int, vsts: VStatefulSetView, step_pre
 pub use at_step_or_internal;
 pub use at_step_or;
 pub use at_step;
+
+// usage: and!(pred1, pred2, ...)
+#[macro_export]
+macro_rules! and {
+    ($($tokens:tt)+) => {
+        closure_to_fn_spec(|s| {
+            and_internal!(s, $($tokens)+)
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! and_internal {
+    ($s:expr, $head:expr) => {
+        $head($s)
+    };
+
+    ($s:expr, $head:expr, $($tail:tt)+) => {
+        and_internal!($s, $head) && and_internal!($s, $($tail)+)
+    };
+}
+
+// usage: or!(pred1, pred2, ...)
+#[macro_export]
+macro_rules! or {
+    ($($tokens:tt)+) => {
+        closure_to_fn_spec(|s| {
+            or_internal!(s, $($tokens)+)
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! or_internal {
+    ($s:expr, $head:expr) => {
+        $head($s)
+    };
+
+    ($s:expr, $head:expr, $($tail:tt)+) => {
+        or_internal!($s, $head) || or_internal!($s, $($tail)+)
+    };
+}
+
+#[macro_export]
+macro_rules! not {
+    ( $pred:expr ) => {
+        closure_to_fn_spec(|s| {
+            ! $pred(s)
+        })
+    };
+}
+
+
+pub use or;
+pub use or_internal;
+pub use and;
+pub use and_internal;
+pub use not;
 
 }

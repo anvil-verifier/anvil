@@ -138,7 +138,7 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vd: VDeploym
 
 pub open spec fn invariants_since_phase_ii(controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState>
 {
-    always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))
+    always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))
     .and(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))
     .and(always(lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))))
@@ -148,7 +148,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
     ensures valid(stable(invariants_since_phase_ii(controller_id, vd))),
 {
     stable_and_always_n!(
-        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
@@ -265,7 +265,7 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)),
         lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
-        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
     );
     entails_implies_leads_to(
@@ -499,14 +499,14 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 vd.object_ref()
             );
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-            lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_vrs_objects(spec, cluster, controller_id);
+            cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
             lemma_eventually_always_vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(spec, vd, cluster, controller_id);
             lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vd.object_ref());
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
-                lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
+                lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
                 lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
                 lift_state(vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
                 lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))

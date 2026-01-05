@@ -287,7 +287,7 @@ pub open spec fn new_obj_in_etcd(
         name: if obj_temp.metadata.name is Some {
             obj_temp.metadata.name
         } else {
-            Some(generate_name(s.api_server, obj_temp.metadata.generate_name.unwrap()))
+            Some(generated_name(s.api_server, obj_temp.metadata.generate_name.unwrap()))
         },
         namespace: Some(req.namespace), // Set namespace for new object
         resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object

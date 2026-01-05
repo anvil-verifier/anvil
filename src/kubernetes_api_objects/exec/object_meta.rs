@@ -45,7 +45,7 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn generate_name(&self) -> (generate_name: Option<String>)
+    pub fn generated_name(&self) -> (generate_name: Option<String>)
         ensures self@.generate_name == generate_name.deep_view()
     {
         self.inner.generate_name.clone()

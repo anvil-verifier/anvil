@@ -305,25 +305,6 @@ pub open spec fn garbage_collector_does_not_delete_vd_vrs_objects(vd: VDeploymen
     }
 }
 
-pub open spec fn no_pending_mutation_request_not_from_controller_on_vrs_objects() -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& !(msg.src is Controller || msg.src is BuiltinController)
-            &&& msg.dst is APIServer
-            &&& msg.content is APIRequest
-        } ==> {
-            &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != VReplicaSetView::kind()
-            &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != VReplicaSetView::kind()
-            // too radical, loosen it later to allow updates on vrs status.
-            &&& msg.content.is_update_status_request() ==> msg.content.get_update_status_request().key().kind != VReplicaSetView::kind()
-            &&& msg.content.is_delete_request() ==> msg.content.get_delete_request().key.kind != VReplicaSetView::kind()
-            &&& msg.content.is_get_then_delete_request() ==> msg.content.get_get_then_delete_request().key.kind != VReplicaSetView::kind()
-            &&& msg.content.is_get_then_update_request() ==> msg.content.get_get_then_update_request().key().kind != VReplicaSetView::kind()
-        }
-    }
-}
-
 pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& forall |key: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)

@@ -244,7 +244,7 @@ pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, i
     }
 }
 
-pub uninterp spec fn generate_name(s: APIServerState, generate_name: StringView) -> StringView;
+pub uninterp spec fn generated_name(s: APIServerState, generate_name: StringView) -> StringView;
 
 // NOTE: In the actual implementation, the API server might fail to generate a unique name
 // after a number of attempts. For the sake of liveness, we simplify that behavior and assume
@@ -254,16 +254,19 @@ pub uninterp spec fn generate_name(s: APIServerState, generate_name: StringView)
 #[verifier(external_body)]
 pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringView)
     ensures
-        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s, generate_name_field),
-        exists |suffix| #[trigger] generate_name(s, generate_name_field) == generate_name_field + suffix,
-{}
+        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generated_name(s, generate_name_field),
+        exists |suffix| {
+            &&& generated_name(s, generate_name_field) == generate_name_field + suffix
+            &&& #[trigger] dash_free(suffix)
+        }
+,{}
 
 // TODO: add fine grained support for namespace and kind
 // #[verifier(external_body)]
 // pub proof fn generated_name_spec(s: APIServerState, generate_name: StringView, kind: Kind, namespace: StringView)
 //     ensures
-//         forall |key| #[trigger] s.resources.contains_key(key) ==> (key != ObjectRef { name: generate_name(s, generate_name, kind, namespace), namespace: namespace, kind: kind }),
-//         exists |suffix| generate_name(s, generate_name, kind, namespace) = generate_name + suffix,
+//         forall |key| #[trigger] s.resources.contains_key(key) ==> (key != ObjectRef { name: generated_name(s, generate_name, kind, namespace), namespace: namespace, kind: kind }),
+//         exists |suffix| generated_name(s, generate_name, kind, namespace) = generate_name + suffix,
 // {}
 
 #[verifier(inline)]
@@ -280,7 +283,7 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
                 name: if req.obj.metadata.name is Some {
                     req.obj.metadata.name
                 } else {
-                    Some(generate_name(s, req.obj.metadata.generate_name.unwrap()))
+                    Some(generated_name(s, req.obj.metadata.generate_name.unwrap()))
                 },
                 namespace: Some(req.namespace), // Set namespace for new object
                 resource_version: Some(s.resource_version_counter), // Set rv for new object
@@ -468,7 +471,7 @@ pub open spec fn update_request_admission_check(installed_types: InstalledTypes,
 
 pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let updated_obj = DynamicObjectView {
-        kind: req.obj.kind,
+        kind: old_obj.kind,
         metadata: ObjectMetaView {
             namespace: Some(req.namespace), // Overwrite namespace since it might not be provided
             resource_version: old_obj.metadata.resource_version, // Overwrite rv since it might not be provided
@@ -570,7 +573,7 @@ pub open spec fn update_status_request_admission_check(installed_types: Installe
 
 pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let status_updated_object = DynamicObjectView {
-        kind: req.obj.kind,
+        kind: old_obj.kind,
         metadata: old_obj.metadata, // Ignore any change to metadata
         spec: old_obj.spec, // Ignore any change to spec
         status: req.obj.status,
@@ -672,30 +675,34 @@ pub open spec fn handle_get_then_delete_request_msg(msg: Message, s: APIServerSt
         msg.content.is_get_then_delete_request(),
 {
     let req = msg.content.get_get_then_delete_request();
-    // Step 1: get the object
-    let get_req = GetRequest {
-        key: req.key
-    };
-    let get_resp = handle_get_request(get_req, s);
-    match get_resp.res {
-        Ok(_) => {
-            let current_obj = s.resources[req.key()];
-            // Step 2: if the object exists, perform a check using a predicate on object
-            // The predicate: Is the current object owned by req.owner_ref?
-            // TODO: the predicate should be provided by clients instead of the hardcoded one
-            if current_obj.metadata.owner_references_contains(req.owner_ref) {
-                // Step 3: if the check passes, delete the object
-                let delete_req = DeleteRequest {
-                    key: req.key,
-                    preconditions: None,
-                };
-                let (s_prime, delete_resp) = handle_delete_request(delete_req, s);
-                (s_prime, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: delete_resp.res}))
-            } else {
-                (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::TransactionAbort)}))
+    if !req.well_formed() { // must have a controller reference
+        (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::BadRequest)}))
+    } else {
+        // Step 1: get the object
+        let get_req = GetRequest {
+            key: req.key
+        };
+        let get_resp = handle_get_request(get_req, s);
+        match get_resp.res {
+            Ok(_) => {
+                let current_obj = s.resources[req.key()];
+                // Step 2: if the object exists, perform a check using a predicate on object
+                // The predicate: Is the current object owned by req.owner_ref?
+                // TODO: the predicate should be provided by clients instead of the hardcoded one
+                if current_obj.metadata.owner_references_contains(req.owner_ref) {
+                    // Step 3: if the check passes, delete the object
+                    let delete_req = DeleteRequest {
+                        key: req.key,
+                        preconditions: None,
+                    };
+                    let (s_prime, delete_resp) = handle_delete_request(delete_req, s);
+                    (s_prime, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: delete_resp.res}))
+                } else {
+                    (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::TransactionAbort)}))
+                }
             }
+            Err(err) => (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(err)}))
         }
-        Err(err) => (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(err)}))
     }
 }
 
@@ -709,40 +716,44 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
         msg.content.is_get_then_update_request(),
 {
     let req = msg.content.get_get_then_update_request();
-    // Step 1: get the object
-    let get_req = GetRequest {
-        key: req.key()
-    };
-    let get_resp = handle_get_request(get_req, s);
-    match get_resp.res {
-        Ok(_) => {
-            let current_obj = s.resources[req.key()];
-            // Step 2: if the object exists, perform a check using a predicate on object
-            // The predicate: Is the current object owned by req.owner_ref?
-            // TODO: the predicate should be provided by clients instead of the hardcoded one
-            if current_obj.metadata.owner_references_contains(req.owner_ref) {
-                // Step 3: if the check passes, overwrite the object with the new one
-                // Note that resource_version and uid comes from the current object to avoid conflict error
-                let new_obj = DynamicObjectView {
-                    metadata: ObjectMetaView {
-                        resource_version: current_obj.metadata.resource_version,
-                        uid: current_obj.metadata.uid,
-                        ..req.obj.metadata
-                    },
-                    ..req.obj
-                };
-                let update_req = UpdateRequest {
-                    name: req.name,
-                    namespace: req.namespace,
-                    obj: new_obj,
-                };
-                let (s_prime, update_resp) = handle_update_request(installed_types, update_req, s);
-                (s_prime, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: update_resp.res}))
-            } else {
-                (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::TransactionAbort)}))
+    if !req.well_formed() { // must have a controller reference
+        (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::BadRequest)}))
+    } else {
+        // Step 1: get the object
+        let get_req = GetRequest {
+            key: req.key()
+        };
+        let get_resp = handle_get_request(get_req, s);
+        match get_resp.res {
+            Ok(_) => {
+                let current_obj = s.resources[req.key()];
+                // Step 2: if the object exists, perform a check using a predicate on object
+                // The predicate: Is the current object owned by req.owner_ref?
+                // TODO: the predicate should be provided by clients instead of the hardcoded one
+                if current_obj.metadata.owner_references_contains(req.owner_ref) {
+                    // Step 3: if the check passes, overwrite the object with the new one
+                    // Note that resource_version and uid comes from the current object to avoid conflict error
+                    let new_obj = DynamicObjectView {
+                        metadata: ObjectMetaView {
+                            resource_version: current_obj.metadata.resource_version,
+                            uid: current_obj.metadata.uid,
+                            ..req.obj.metadata
+                        },
+                        ..req.obj
+                    };
+                    let update_req = UpdateRequest {
+                        name: req.name,
+                        namespace: req.namespace,
+                        obj: new_obj,
+                    };
+                    let (s_prime, update_resp) = handle_update_request(installed_types, update_req, s);
+                    (s_prime, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: update_resp.res}))
+                } else {
+                    (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::TransactionAbort)}))
+                }
             }
+            Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(err)}))
         }
-        Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(err)}))
     }
 }
 

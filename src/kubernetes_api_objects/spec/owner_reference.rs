@@ -30,4 +30,8 @@ pub open spec fn owner_reference_to_object_reference(owner_reference: OwnerRefer
     }
 }
 
+pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> bool {
+    |o: OwnerReferenceView| o.controller is Some && o.controller->0
+}
+
 }

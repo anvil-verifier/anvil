@@ -1457,14 +1457,22 @@ pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
 {
     // we don't have executable CustomResource kind, hardcoded as a temporary solution
     let prefix = "vstatefulset".to_string().concat("-"); // "vstatefulset-" fails proof
-    prefix.concat(parent_name.as_str()).concat("-").concat(usize_to_string(ordinal).as_str())
+    prefix.concat(pod_name_without_vsts_prefix(parent_name, ordinal).as_str())
+}
+
+pub fn pod_name_without_vsts_prefix(parent_name: String, ordinal: usize) -> (result: String)
+    ensures
+        result@ == model_reconciler::pod_name_without_vsts_prefix(parent_name@, ordinal as nat),
+{
+    parent_name.concat("-").concat(usize_to_string(ordinal).as_str())
 }
 
 pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) -> (result: String)
     ensures
         result@ == model_reconciler::pvc_name(pvc_template_name@, vsts_name@, ordinal as nat),
 {
-    pvc_template_name.concat("-").concat(pod_name(vsts_name, ordinal).as_str())
+    let prefix = "vstatefulset".to_string().concat("-");
+    prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
 #[verifier(external_body)]

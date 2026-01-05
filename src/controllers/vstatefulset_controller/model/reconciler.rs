@@ -602,8 +602,12 @@ pub open spec fn objects_to_pods(objs: Seq<DynamicObjectView>) -> Option<Seq<Pod
     }
 }
 
+pub open spec fn pod_name_without_vsts_prefix(parent_name: StringView, ordinal: nat) -> StringView {
+    parent_name + "-"@ + int_to_string_view(ordinal as int)
+}
+
 pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
-    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + parent_name + "-"@ + int_to_string_view(ordinal as int)
+    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(parent_name, ordinal)
 }
 
 pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<PodView> {
@@ -709,7 +713,7 @@ pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: 
 }
 
 pub open spec fn pvc_name(pvc_template_name: StringView, vsts_name: StringView, ordinal: nat) -> StringView {
-    pvc_template_name + "-"@ + pod_name(vsts_name, ordinal)
+    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pvc_template_name + "-"@ + pod_name_without_vsts_prefix(vsts_name, ordinal)
 }
 
 pub open spec fn make_pvc(vsts: VStatefulSetView, ordinal: nat, i: int) -> PersistentVolumeClaimView {
