@@ -47,8 +47,9 @@ pub open spec fn has_vsts_prefix(name: StringView) -> bool {
 // instead of pvc_template_name + existing a pod whose pvc matches requested obj
 // Because even if there is no such pod running in cluster,
 // PVC matching VSTS's template shouldn't be touched
-pub open spec fn pvc_name_match(name: StringView, vsts: VStatefulSetView) -> bool {
-    exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts.metadata.name->0, i.1)
+pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool {
+    exists |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name, i.1)
+        && dash_free(i.0) // PVC template name should not contain dash
 }
 
 // helper lemma
@@ -56,13 +57,14 @@ pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
 requires
     !has_vsts_prefix(name),
 ensures
-    forall |vsts: VStatefulSetView| !pvc_name_match(name, vsts),
+    forall |vsts: VStatefulSetView| #![trigger vsts.metadata.name->0]
+        !pvc_name_match(name, vsts.metadata.name->0),
 {
     // proof by contradiction
-    if exists |vsts: VStatefulSetView| pvc_name_match(name, vsts) {
-        let witness_vsts = choose |vsts: VStatefulSetView| pvc_name_match(name, vsts);
+    if exists |vsts: VStatefulSetView| pvc_name_match(name, vsts.metadata.name->0) {
+        let witness_vsts = choose |vsts: VStatefulSetView| pvc_name_match(name, vsts.metadata.name->0);
         let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, witness_vsts.metadata.name->0, i.1);
-        let suffix = i.0 + "-"@ + pod_name(witness_vsts.metadata.name->0, i.1);
+        let suffix = i.0 + "-"@ + pod_name_without_vsts_prefix(witness_vsts.metadata.name->0, i.1);
         assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
         assert(has_vsts_prefix(name));
     }
@@ -139,7 +141,7 @@ pub open spec fn rely_update_pod_req(req: UpdateRequest) -> StatePred<ClusterSta
 
 // Other controllers don't try to update PVC matching VSTS's PVC template.
 pub open spec fn rely_update_pvc_req(req: UpdateRequest) -> bool {
-    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.name, vsts)
+    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.name, vsts.metadata.name->0)
 }
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
@@ -194,7 +196,7 @@ pub open spec fn rely_delete_pod_req(req: DeleteRequest) -> StatePred<ClusterSta
 // Other controllers don't try to delete a pod matching a VSTS
 pub open spec fn rely_delete_pvc_req(req: DeleteRequest) -> bool {
     // that object does not match any VSTS PVC template
-    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.key().name, vsts)
+    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.key().name, vsts.metadata.name->0)
 }
 
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
@@ -240,7 +242,7 @@ pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
             owner_references.contains(vsts.controller_owner_ref())
     }
     &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |vsts: VStatefulSetView|
-        #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts)
+        #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
 }
 
 // VSTS controller Only updates Pod owned by itself and does not update PVC

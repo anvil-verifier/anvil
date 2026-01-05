@@ -43,9 +43,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
                     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
                     &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
                 }
-                &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> {
-                    &&& exists |i: (StringView, nat)| req.key().name == #[trigger] pvc_name(i.0, vsts.object_ref().name, i.1)
-                }
+                &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
             },
             APIRequest::GetThenDeleteRequest(req) => {
                 &&& req.key().namespace == vsts.object_ref().namespace
@@ -89,7 +87,7 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
                 &&& !(obj.kind == Kind::PersistentVolumeClaimKind
                     && obj.metadata.namespace == vsts.metadata.namespace
                     && obj.metadata.owner_references is None)
-                    // && pvc_name_match(obj.metadata.name->0, vsts)
+                    // && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
             }
         }
     }
@@ -179,7 +177,7 @@ ensures
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
         &&& obj.metadata.owner_references is None // required by GC
-        &&& pvc_name_match(obj.metadata.name->0, vsts)
+        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
     } ==> {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -190,7 +188,7 @@ ensures
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
         &&& obj.metadata.owner_references is None // required by GC
-        &&& pvc_name_match(obj.metadata.name->0, vsts)
+        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
     } ==> {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -424,7 +422,7 @@ ensures
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
         &&& obj.metadata.owner_references is None
-        &&& pvc_name_match(obj.metadata.name->0, vsts)
+        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
     } implies {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -464,7 +462,7 @@ ensures
                             assert(cluster.controller_models.contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             if resource_delete_request_msg(k)(msg) || resource_update_request_msg(k)(msg) {
-                                assert(pvc_name_match(k.name, vsts));
+                                assert(pvc_name_match(k.name, vsts.metadata.name->0));
                                 assert(false);
                             }
                         }
@@ -480,7 +478,7 @@ ensures
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
         &&& obj.metadata.owner_references is None
-        &&& pvc_name_match(obj.metadata.name->0, vsts)
+        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
     } implies {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -516,11 +514,12 @@ ensures
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.metadata.name != vsts.metadata.name);
                                 if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
-                                    assert(!pvc_name_match(k.name, vsts)) by {
+                                    assert(!pvc_name_match(k.name, vsts.metadata.name->0)) by {
                                         assume(false);
                                     }
                                 } else if resource_get_then_update_request_msg(k)(msg) && s.resources().contains_key(k) {
                                     let req = msg.content.get_get_then_update_request();
+                                    // VSTS controller does not send update request to PVC
                                     assert(req.obj.kind == Kind::PodKind);
                                 }
                             } // or else, namespace is different, so should not be touched at all
@@ -528,12 +527,12 @@ ensures
                             assert(cluster.controller_models.contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             if resource_update_request_msg(k)(msg) {
-                                assert(pvc_name_match(k.name, vsts));
+                                assert(pvc_name_match(k.name, vsts.metadata.name->0));
                                 assert(false);
                             } else if msg.content.is_create_request() && !s.resources().contains_key(k) {
                                 let req = msg.content.get_create_request();
                                 if req.obj.metadata.name is Some && req.key() == k {
-                                    assert(!pvc_name_match(obj.metadata.name->0, vsts)) by {
+                                    assert(!pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)) by {
                                         no_vsts_prefix_implies_no_pvc_name_match(obj.metadata.name->0);
                                     }
                                 } else if req.obj.metadata.name is None && req.obj.metadata.generate_name is Some {
@@ -547,7 +546,7 @@ ensures
                                         );
                                         assert(false);
                                     }
-                                    assert(!pvc_name_match(name, vsts)) by {
+                                    assert(!pvc_name_match(name, vsts.metadata.name->0)) by {
                                         no_vsts_prefix_implies_no_pvc_name_match(name);
                                     }
                                 }
