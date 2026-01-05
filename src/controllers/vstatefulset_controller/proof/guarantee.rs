@@ -101,4 +101,32 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
     }
 }
 
+// TODO
+// NOTE: guarantee_condition_holds in VD controller may be very helpful
+#[verifier(external_body)]
+pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(lift_state(vsts_guarantee(controller_id)))),
+{}
+
+// TODO
+// NOTE: lemma_always_vd_reconcile_request_only_interferes_with_itself may be helpful
+#[verifier(external_body)]
+pub proof fn internal_guarantee_condition_holds(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(lift_state(no_interfering_request_between_vsts(controller_id, vsts))))
+{}
+
 }
