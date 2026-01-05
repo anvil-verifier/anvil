@@ -76,7 +76,7 @@ uninterp spec fn make_vsts() -> VStatefulSetView;
 // Shield lemma:
 // All Pods and PVCs owned by VSTS controller are not mutated by others
 // or by VSTS controller itself during reconciliation of other VSTS CRs
-// or:
+// in other words, let =~= denotes weakly_eq,
 // forall Pod p owned by vsts: p =~= p'
 // forall PVC v owned by vsts: v =~= v'
 pub proof fn lemma_no_interference(
