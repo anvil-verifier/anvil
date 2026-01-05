@@ -6,7 +6,8 @@ use crate::vstatefulset_controller::{
     model::{reconciler::*, install::*},
     proof::predicate::*
 };
-use crate::temporal_logic::defs::*;
+use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
+use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -99,6 +100,191 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
             _ => false
         }
     }
+}
+// similar to local_pods_and_pvcs_are_bound_to_vsts
+// helper invariant to prove both (external) guarantee conditions and internal guarantee conditions
+
+// HINT: because we will prove it as an invariant, we need to pass key to local_pods_and_pvcs_are_bound_to_vsts_with_key
+// before the reconciliation starts, !s.ongoing_reconciles(controller_id).contains_key(k) and this proof will be trivial
+// during reconciliation, controller obtains vsts from s.ongoing_reconciles(controller_id)[k].triggering_cr
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |k: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(k)
+            ==> local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, k, s)
+    }
+}
+
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
+    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
+    let pvcs = local_state.pvcs;
+    let needed_pods = local_state.needed;
+    let condemned_pods = local_state.condemned;
+    &&& vsts.object_ref() == key
+    &&& vsts.metadata.well_formed_for_namespaced()
+    &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
+        let pod = needed_pods[i]->0;
+        &&& pod.metadata.name is Some
+        &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pod.metadata.owner_references is Some
+        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+    }
+    &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
+        let pod = condemned_pods[i];
+        &&& pod.metadata.name is Some
+        &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pod.metadata.owner_references is Some
+        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+    }
+    &&& forall |i| #![trigger pvcs[i]] 0 <= i < pvcs.len() ==> {
+        let pvc = pvcs[i];
+        &&& pvc.metadata.name is Some
+        &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
+    }
+    // response objects imply the properties above
+    &&& local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod ==> {
+        let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+        &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+        &&& req_msg.dst is APIServer
+        &&& req_msg.content.is_list_request()
+        &&& req_msg.content.get_list_request() == ListRequest {
+            kind: Kind::PodKind,
+            namespace: vsts.metadata.namespace.unwrap(),
+        }
+        &&& forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is APIServer
+            &&& resp_msg_matches_req_msg(msg, req_msg)
+            &&& is_ok_resp(msg.content->APIResponse_0)
+        } ==> {
+            let resp_objs = msg.content.get_list_response().res.unwrap();
+            &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
+                &&& resp_objs[i].metadata.namespace is Some
+                // list response should match the ns in request
+                &&& resp_objs[i].metadata.namespace->0 == vsts.metadata.namespace->0
+                // can pass objects_to_pods
+                &&& resp_objs[i].kind == Kind::PodKind
+                // Cluster::each_object_in_etcd_has_at_most_one_controller_owner
+                &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
+            }
+        }
+    }
+}
+
+// TODO
+#[verifier(external_body)]
+pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
+    cluster: Cluster, controller_id: int, key: ObjectRef, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next()(s, s_prime),
+    Cluster::there_is_the_controller_state(controller_id)(s),
+    Cluster::every_in_flight_msg_has_unique_id()(s),
+    Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+    cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s),
+    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
+    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)(s),
+    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s),
+    Cluster::etcd_is_finite()(s),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, key, s),
+    s.ongoing_reconciles(controller_id).contains_key(key),
+    s_prime.ongoing_reconciles(controller_id).contains_key(key),
+ensures
+    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, key, s_prime),
+{}
+
+pub proof fn lemma_always_local_pods_and_pvcs_are_bound_to_vsts(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)))),
+{
+    let invariant = local_pods_and_pvcs_are_bound_to_vsts(controller_id);
+
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
+    cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
+    cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
+    cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(spec);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
+    cluster.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(spec, controller_id);
+    cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(spec, controller_id);
+    cluster.lemma_always_etcd_is_finite(spec);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)(s)
+        &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s)
+        &&& Cluster::etcd_is_finite()(s)
+    };
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)),
+        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)),
+        lift_state(Cluster::etcd_is_finite())
+    );
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |key: ObjectRef| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key)
+        } implies local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, key, s_prime) by {
+            if s.ongoing_reconciles(controller_id).contains_key(key) {
+                lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
+                    cluster, controller_id, key, s, s_prime
+                );
+            } else { // RunScheduledReconcile
+                VStatefulSetView::marshal_preserves_integrity();
+                VStatefulSetReconcileState::marshal_preserves_integrity();
+            }
+        }
+    }
+
+    init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
 // TODO
