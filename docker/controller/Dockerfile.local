@@ -1,5 +1,5 @@
 # keep consistent with CI env
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ARG APP
 

@@ -19,7 +19,7 @@ env:
 
 jobs:
   setup-toolchain:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Get HOME env variable
@@ -51,7 +51,7 @@ jobs:
           mv verus-x86-linux $HOME/verus
   vreplicaset-verification:
     needs: setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -69,7 +69,7 @@ jobs:
           ./build.sh vreplicaset_controller.rs --rlimit 50 --time --verify-module vreplicaset_controller
   vdeployment-verification:
     needs: setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -87,7 +87,7 @@ jobs:
           ./build.sh vdeployment_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
   vstatefulset-verification:
     needs: setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -105,7 +105,7 @@ jobs:
           ./build.sh vstatefulset_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
   esr-composition-verification:
     needs: setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -123,7 +123,7 @@ jobs:
           ./build.sh esr_composition.rs --crate-type lib --rlimit 50 --time --verify-module composition
   framework-verification:
     needs: setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -142,7 +142,7 @@ jobs:
   vreplicaset-admission-e2e-test:
     needs:
       - setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -169,7 +169,7 @@ jobs:
   # vstatefulset-admission-e2e-test:
   #   needs:
   #     - setup-toolchain
-  #   runs-on: ubuntu-22.04
+  #   runs-on: ubuntu-24.04
   #   steps:
   #     - uses: actions/checkout@v4
   #     - name: Restore Verus cache
@@ -196,7 +196,7 @@ jobs:
   vdeployment-admission-e2e-test:
     needs:
       - setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -222,7 +222,7 @@ jobs:
   vreplicaset-e2e-test:
     needs:
       - setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -248,7 +248,7 @@ jobs:
   vdeployment-e2e-test:
     needs:
       - setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
@@ -273,7 +273,7 @@ jobs:
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment
   tla-demo-verification:
     needs: setup-toolchain
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Restore Verus cache
