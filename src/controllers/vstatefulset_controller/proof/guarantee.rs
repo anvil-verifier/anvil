@@ -288,6 +288,38 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
+pub proof fn lemma_guarantee_from_reconcile_state(
+    msg: Message,
+    state: VStatefulSetReconcileState,
+    vsts: VStatefulSetView,
+)
+    requires
+        msg.content is APIRequest,
+        reconcile_core(vsts, None, state).1 is Some,
+        reconcile_core(vsts, None, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0,
+    ensures
+        match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+            APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+            APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+            _ => true,
+        }
+{
+    if state.reconcile_step == VStatefulSetReconcileStepView::CreateNeeded {
+        assert(msg.content.is_create_request());
+        let req = msg.content.get_create_request();
+        let pod = make_pod(vsts, state.needed_index);
+        assert(has_vsts_prefix(req.obj.metadata.name->0));
+        let owner_references = req.obj.metadata.owner_references->0;
+        assert(owner_references.contains(vsts.controller_owner_ref())) by {
+            assert(owner_references == pod.metadata.owner_references->0);
+            assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
+            assert(owner_references[0] == vsts.controller_owner_ref());
+        }
+    }
+}
+
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -377,21 +409,10 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                         if new_msgs.contains(msg) {
                             let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-
-                            if state.reconcile_step == VStatefulSetReconcileStepView::CreateNeeded {
-                                assert(msg.content.is_create_request());
-                                let req = msg.content.get_create_request();
-                                let pod = make_pod(vsts, state.needed_index);
-                                assert(has_vsts_prefix(req.obj.metadata.name->0));
-                                let owner_references = req.obj.metadata.owner_references->0;
-                                assert(owner_references.contains(vsts.controller_owner_ref())) by {
-                                    assert(owner_references == pod.metadata.owner_references->0);
-                                    assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
-                                    assert(owner_references[0] == vsts.controller_owner_ref());                                 
-                                }
-                            } else {
-                                // verus can prove automatically
-                            }
+                            assert(reconcile_core(vsts, None, state).1 is Some);
+                            assert(reconcile_core(vsts, None, state).1->0 is KRequest);
+                            assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
+                            lemma_guarantee_from_reconcile_state(msg, state, vsts);
                         }
                     }
                 }
