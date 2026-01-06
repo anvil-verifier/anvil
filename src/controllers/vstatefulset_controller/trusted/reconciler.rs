@@ -10,6 +10,7 @@ use vstd::prelude::*;
 
 verus! {
 
+    // TODO: verify these functions
     #[verifier(external_body)]
     pub fn get_ordinal(parent_name: &String, pod: &Pod) -> (ordinal: Option<usize>)
         ensures (
