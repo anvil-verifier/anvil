@@ -22,4 +22,10 @@ pub open spec fn at_vsts_step(vsts_key: ObjectRef, controller_id: int, step_pred
     }
 }
 
+pub open spec fn no_pending_req_in_cluster(vsts_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        Cluster::no_pending_req_msg(controller_id, s, vsts_key)
+    }
+}
+
 }

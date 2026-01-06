@@ -68,10 +68,10 @@ pub open spec fn vsts_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -
 
 // VSTS internal Rely-Guarantee condition (for itself and used in shield lemma)
 
-pub open spec fn lifted_vsts_internal_guarantee(controller_id) -> TempPred<ClusterState> {
-    lift_state(|s: ClusterState| {
+pub open spec fn vsts_internal_guarantee_conditions(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
         forall |vsts: VStatefulSetView| #[trigger] no_interfering_request_between_vsts(controller_id, vsts)(s)
-    })
+    }
 }
 
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
@@ -201,6 +201,21 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
                 // Cluster::each_object_in_etcd_has_at_most_one_controller_owner
                 &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
             }
+        }
+    }
+}
+
+// helper invariant for shield lemma
+pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
+    controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
+            let content = msg.content;
+            &&& s.in_flight().contains(msg)
+            &&& msg.src.is_controller_id(controller_id)
+        } ==> {
+            msg.src->Controller_1.kind == VStatefulSetView::kind()
         }
     }
 }

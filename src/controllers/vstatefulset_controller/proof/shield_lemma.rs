@@ -22,53 +22,8 @@ verus! {
 // So in total we have
 // 1. rely conditions for other controllers (rely::vsts_rely)
 // 2. VSTS internal rely-guarantee (guarantee::no_interfering_request_between_vsts)
-// 3.a rely conditions for builtin controllers (garbage_collector_does_not_delete_vsts_pod_objects)
+// 3.a rely conditions for builtin controllers (rely::garbage_collector_does_not_delete_vsts_pod_objects)
 // 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
-
-
-// 3.a rely conditions for builtin controllers (only GC is supported now)
-pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src is BuiltinController
-            &&& msg.dst is APIServer
-            &&& msg.content is APIRequest
-        } ==> {
-            let req = msg.content.get_delete_request(); 
-            &&& msg.content.is_delete_request()
-            // &&& req.preconditions is Some
-            // &&& req.preconditions.unwrap().uid is Some
-            // &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
-            &&& s.resources().contains_key(req.key) ==> {
-                let obj = s.resources()[req.key];
-                &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                    && obj.kind == Kind::PodKind
-                    && obj.metadata.namespace == vsts.metadata.namespace)
-                // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
-                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
-                    && obj.metadata.namespace == vsts.metadata.namespace
-                    && obj.metadata.owner_references is None)
-                    // && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
-            }
-        }
-    }
-}
-
-// helper invariant for shield lemma
-pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
-    controller_id: int,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
-            let content = msg.content;
-            &&& s.in_flight().contains(msg)
-            &&& msg.src.is_controller_id(controller_id)
-        } ==> {
-            msg.src->Controller_1.kind == VStatefulSetView::kind()
-        }
-    }
-}
 
 
 uninterp spec fn make_vsts() -> VStatefulSetView;

@@ -14,11 +14,11 @@ verus! {
 
 // VSTS Rely Condition
 
-pub open spec fn lifted_vsts_rely(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
-    lift_state(|s: ClusterState| {
+pub open spec fn vsts_rely_conditions(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> #[trigger] vsts_rely(other_id, cluster.installed_types)(s)
-    })
+    }
 }
 
 pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> StatePred<ClusterState> {
@@ -185,6 +185,35 @@ pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
 pub open spec fn rely_get_then_delete_pod_req(req: GetThenDeleteRequest) -> bool {
     // forbids get then delete on pod owned by a VSTS
     &&& req.owner_ref.kind != VStatefulSetView::kind()
+}
+
+// rely conditions for builtin controllers (only GC is supported now)
+pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+        } ==> {
+            let req = msg.content.get_delete_request(); 
+            &&& msg.content.is_delete_request()
+            // &&& req.preconditions is Some
+            // &&& req.preconditions.unwrap().uid is Some
+            // &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key) ==> {
+                let obj = s.resources()[req.key];
+                &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                    && obj.kind == Kind::PodKind
+                    && obj.metadata.namespace == vsts.metadata.namespace)
+                // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
+                    && obj.metadata.namespace == vsts.metadata.namespace
+                    && obj.metadata.owner_references is None)
+                    // && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+            }
+        }
+    }
 }
 
 }

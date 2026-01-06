@@ -7,9 +7,9 @@ use crate::kubernetes_cluster::spec::{
     message::*
 };
 use crate::vstatefulset_controller::{
-    trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely::*},
+    trusted::{spec_types::*, step::*, liveness_theorem::*, rely},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::api_actions::*, guarantee::*, shield_lemma::*},
+    proof::{predicate::*, liveness::{api_actions::*, state_predicates::*}, guarantee, shield_lemma},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -19,6 +19,7 @@ use vstd::prelude::*;
 
 verus! {
 
+#[verifier(external_body)]
 pub proof fn lemma_from_init_to_current_state_matches(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -29,16 +30,16 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vsts_internal_guarantee(controller_id))),
-    spec.entails(always(lifted_vsts_rely(cluster, controller_id))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
             at_vsts_step(vsts.object_ref(), controller_id, at_step![Init]),
-            no_pending_req_in_cluster(vsts, controller_id)
+            no_pending_req_in_cluster(vsts.object_ref(), controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vsts_step(vsts.object_ref(), controller_id, at_step![Done]),
-            no_pending_req_in_cluster(vsts, controller_id),
+            no_pending_req_in_cluster(vsts.object_ref(), controller_id),
             current_state_matches(vsts)
         )))),
 {}
