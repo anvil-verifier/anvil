@@ -288,6 +288,26 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
+// Helper predicate capturing the key properties needed for the guarantee lemma
+pub open spec fn state_matches_vsts(state: VStatefulSetReconcileState, vsts: VStatefulSetView) -> bool {
+    &&& vsts.metadata.well_formed_for_namespaced()
+    &&& forall |i| #![trigger state.needed[i]] 0 <= i < state.needed.len() && state.needed[i] is Some ==> {
+        let pod = state.needed[i]->0;
+        &&& pod.metadata.owner_references is Some
+        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+    }
+    &&& forall |i| #![trigger state.condemned[i]] 0 <= i < state.condemned.len() ==> {
+        let pod = state.condemned[i];
+        &&& pod.metadata.owner_references is Some
+        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+    }
+    &&& forall |i| #![trigger state.pvcs[i]] 0 <= i < state.pvcs.len() ==> {
+        let pvc = state.pvcs[i];
+        &&& pvc.metadata.name is Some
+        &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
+    }
+}
+
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     state: VStatefulSetReconcileState,
@@ -298,6 +318,7 @@ pub proof fn lemma_guarantee_from_reconcile_state(
         reconcile_core(vsts, None, state).1 is Some,
         reconcile_core(vsts, None, state).1->0 is KRequest,
         msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0,
+        state_matches_vsts(state, vsts),
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
@@ -318,7 +339,8 @@ pub proof fn lemma_guarantee_from_reconcile_state(
             assert(owner_references[0] == vsts.controller_owner_ref());
         }
     } else {
-        // Verus can prove the rest automatically
+        // For other states (CreatePVC, DeleteCondemned, DeleteOutdated),
+        // verus can prove automatically from the structure of reconcile_core
     }
 }
 
@@ -414,6 +436,10 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                             assert(reconcile_core(vsts, None, state).1 is Some);
                             assert(reconcile_core(vsts, None, state).1->0 is KRequest);
                             assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
+                            // The invariant local_pods_and_pvcs_are_bound_to_vsts implies state_matches_vsts
+                            assert(local_pods_and_pvcs_are_bound_to_vsts(controller_id)(s));
+                            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s));
+                            assert(state_matches_vsts(state, vsts));
                             lemma_guarantee_from_reconcile_state(msg, state, vsts);
                         }
                     }
