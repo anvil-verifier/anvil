@@ -68,6 +68,12 @@ pub open spec fn vsts_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -
 
 // VSTS internal Rely-Guarantee condition (for itself and used in shield lemma)
 
+pub open spec fn lifted_vsts_internal_guarantee(controller_id) -> TempPred<ClusterState> {
+    lift_state(|s: ClusterState| {
+        forall |vsts: VStatefulSetView| #[trigger] no_interfering_request_between_vsts(controller_id, vsts)(s)
+    })
+}
+
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
 pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
