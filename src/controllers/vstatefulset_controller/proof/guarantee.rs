@@ -1,6 +1,7 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, persistent_volume_claim::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
+use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
     trusted::spec_types::*,
     model::{reconciler::*, install::*},
@@ -287,18 +288,116 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-// TODO
-// NOTE: guarantee_condition_holds in VD controller may be very helpful
-#[verifier(external_body)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
+        // The cluster always takes an action (without weak fairness).
         spec.entails(always(lift_action(cluster.next()))),
+        // The vsts type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        // The vsts controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     ensures
-        spec.entails(always(lift_state(vsts_guarantee(controller_id)))),
-{}
+        spec.entails(always(lift_state(vsts_guarantee(controller_id))))
+{
+    let invariant = vsts_guarantee(controller_id);
+
+    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    lemma_always_local_pods_and_pvcs_are_bound_to_vsts(spec, cluster, controller_id);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& local_pods_and_pvcs_are_bound_to_vsts(controller_id)(s)
+        &&& local_pods_and_pvcs_are_bound_to_vsts(controller_id)(s_prime)
+        &&& Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+    };
+
+    always_to_always_later(spec, lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)));
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)),
+        later(lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id))),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
+    );
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        VStatefulSetView::marshal_preserves_integrity();
+        VStatefulSetReconcileState::marshal_preserves_integrity();
+        PodView::marshal_preserves_integrity();
+        PersistentVolumeClaimView::marshal_preserves_integrity();
+
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(req_msg_opt) => {
+                let req_msg = req_msg_opt.unwrap();
+
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content is APIRequest
+                    &&& msg.src.is_controller_id(controller_id)
+                } implies match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+                    _ => true,
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+                }
+            }
+            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+                let cr_key = cr_key_opt->0;
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content is APIRequest
+                    &&& msg.src.is_controller_id(controller_id)
+                } implies match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+                    _ => true,
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+
+                    if id == controller_id {
+                        assume(false);
+                    }
+                }
+            }
+            _ => {
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content is APIRequest
+                    &&& msg.src.is_controller_id(controller_id)
+                } implies match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+                    _ => true,
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+                }
+            }
+        }
+    }
+
+    init_invariant(spec, cluster.init(), stronger_next, invariant);
+}
 
 // TODO
 // NOTE: lemma_always_vd_reconcile_request_only_interferes_with_itself may be helpful
