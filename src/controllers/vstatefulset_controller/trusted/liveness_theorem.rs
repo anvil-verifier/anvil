@@ -33,9 +33,10 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
             // 2. Bound PVCs exist
             &&& forall |i: int| #![trigger vsts.spec.volume_claim_templates->0[i]] 0 <= i < pvc_template_cnt ==> {
+                let pvc_template = vsts.spec.volume_claim_templates->0[i];
                 let pvc_key = ObjectRef {
                     kind: PersistentVolumeClaimView::kind(),
-                    name: vsts.spec.volume_claim_templates->0[i].metadata.name->0,
+                    name: pvc_name(pvc_template.metadata->0.name->0, vsts.metadata.name->0, ord),
                     namespace: vsts.metadata.namespace->0
                 };
                 &&& s.resources().contains_key(pvc_key)
