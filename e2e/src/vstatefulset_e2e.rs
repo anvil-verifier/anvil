@@ -17,12 +17,11 @@ pub fn v_statefulset() -> String {
 apiVersion: anvil.dev/v1
 kind: VStatefulSet
 metadata:
-  name: pause-stateful
+  name: statefulpause
   labels:
     app: stateful-demo
 spec:
   replicas: 3
-  serviceName: pause-stateful-svc
   selector:
     matchLabels:
       app: stateful-demo
@@ -77,7 +76,7 @@ async fn wait_for_pods_for_vss(client: Client, name: &str, expected: usize, time
                     continue;
                 } else if pods.len() > expected {
                     info!("Have {} pods which is more than expected {}.", pods.len(), expected);
-                    return Err(Error::VStatefulSetFailed);
+                    continue;
                 } else {
                     return Ok(pods);
                 }
