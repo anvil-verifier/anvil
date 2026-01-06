@@ -317,6 +317,8 @@ pub proof fn lemma_guarantee_from_reconcile_state(
             assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
             assert(owner_references[0] == vsts.controller_owner_ref());
         }
+    } else {
+        // Verus can prove the rest automatically
     }
 }
 
