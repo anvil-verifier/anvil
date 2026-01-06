@@ -36,7 +36,7 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
                 let pvc_template = vsts.spec.volume_claim_templates->0[i];
                 let pvc_key = ObjectRef {
                     kind: PersistentVolumeClaimView::kind(),
-                    name: pvc_name(pvc_template.metadata->0.name->0, vsts.metadata.name->0, ord),
+                    name: pvc_name(pvc_template.metadata.name->0, vsts.metadata.name->0, ord),
                     namespace: vsts.metadata.namespace->0
                 };
                 &&& s.resources().contains_key(pvc_key)
