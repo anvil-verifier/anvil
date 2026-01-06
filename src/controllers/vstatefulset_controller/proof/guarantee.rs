@@ -115,13 +115,10 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts(controller_id: int) -> St
     }
 }
 
-pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
-    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
-    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts: VStatefulSetView, local_state: VStatefulSetReconcileState) -> bool {
     let pvcs = local_state.pvcs;
     let needed_pods = local_state.needed;
     let condemned_pods = local_state.condemned;
-    &&& vsts.object_ref() == key
     &&& vsts.metadata.well_formed_for_namespaced()
     &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
         let pod = needed_pods[i]->0;
@@ -143,7 +140,14 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
         &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
     }
-    // response objects imply the properties above
+}
+
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
+    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
+    
+    &&& vsts.object_ref() == key
+    &&& local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, local_state)
     &&& local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod ==> {
         let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
         &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
@@ -288,24 +292,6 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-pub open spec fn state_matches_vsts(state: VStatefulSetReconcileState, vsts: VStatefulSetView) -> bool {
-    &&& vsts.metadata.well_formed_for_namespaced()
-    &&& forall |i| #![trigger state.needed[i]] 0 <= i < state.needed.len() && state.needed[i] is Some ==> {
-        let pod = state.needed[i]->0;
-        &&& pod.metadata.owner_references is Some
-        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
-    }
-    &&& forall |i| #![trigger state.condemned[i]] 0 <= i < state.condemned.len() ==> {
-        let pod = state.condemned[i];
-        &&& pod.metadata.owner_references is Some
-        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
-    }
-    &&& forall |i| #![trigger state.pvcs[i]] 0 <= i < state.pvcs.len() ==> {
-        let pvc = state.pvcs[i];
-        &&& pvc.metadata.name is Some
-        &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
-    }
-}
 
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
@@ -317,7 +303,7 @@ pub proof fn lemma_guarantee_from_reconcile_state(
         reconcile_core(vsts, None, state).1 is Some,
         reconcile_core(vsts, None, state).1->0 is KRequest,
         msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0,
-        state_matches_vsts(state, vsts),
+        local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, state),
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
@@ -434,7 +420,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                             assert(reconcile_core(vsts, None, state).1 is Some);
                             assert(reconcile_core(vsts, None, state).1->0 is KRequest);
                             assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
-                            assert(state_matches_vsts(state, vsts));
                             lemma_guarantee_from_reconcile_state(msg, state, vsts);
                         }
                     }
