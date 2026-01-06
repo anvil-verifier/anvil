@@ -1,6 +1,7 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, persistent_volume_claim::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
+use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
     trusted::spec_types::*,
     model::{reconciler::*, install::*},
@@ -114,13 +115,10 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts(controller_id: int) -> St
     }
 }
 
-pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
-    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
-    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts: VStatefulSetView, local_state: VStatefulSetReconcileState) -> bool {
     let pvcs = local_state.pvcs;
     let needed_pods = local_state.needed;
     let condemned_pods = local_state.condemned;
-    &&& vsts.object_ref() == key
     &&& vsts.metadata.well_formed_for_namespaced()
     &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
         let pod = needed_pods[i]->0;
@@ -142,7 +140,14 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
         &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
     }
-    // response objects imply the properties above
+}
+
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
+    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
+    
+    &&& vsts.object_ref() == key
+    &&& local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, local_state)
     &&& local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod ==> {
         let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
         &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
@@ -287,18 +292,160 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-// TODO
-// NOTE: guarantee_condition_holds in VD controller may be very helpful
-#[verifier(external_body)]
+
+pub proof fn lemma_guarantee_from_reconcile_state(
+    msg: Message,
+    state: VStatefulSetReconcileState,
+    vsts: VStatefulSetView,
+)
+    requires
+        msg.content is APIRequest,
+        reconcile_core(vsts, None, state).1 is Some,
+        reconcile_core(vsts, None, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0,
+        local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, state),
+    ensures
+        match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+            APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+            APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+            _ => true,
+        }
+{
+    if state.reconcile_step == VStatefulSetReconcileStepView::CreateNeeded {
+        assert(msg.content.is_create_request());
+        let req = msg.content.get_create_request();
+        let pod = make_pod(vsts, state.needed_index);
+        assert(has_vsts_prefix(req.obj.metadata.name->0));
+        let owner_references = req.obj.metadata.owner_references->0;
+        assert(owner_references.contains(vsts.controller_owner_ref())) by {
+            assert(owner_references == pod.metadata.owner_references->0);
+            assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
+            assert(owner_references[0] == vsts.controller_owner_ref());
+        }
+    } else {
+        // verus can prove other states automatically
+    }
+}
+
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
+        // The cluster always takes an action (without weak fairness).
         spec.entails(always(lift_action(cluster.next()))),
+        // The vsts type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        // The vsts controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     ensures
-        spec.entails(always(lift_state(vsts_guarantee(controller_id)))),
-{}
+        spec.entails(always(lift_state(vsts_guarantee(controller_id))))
+{
+    let invariant = vsts_guarantee(controller_id);
+
+    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    lemma_always_local_pods_and_pvcs_are_bound_to_vsts(spec, cluster, controller_id);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& local_pods_and_pvcs_are_bound_to_vsts(controller_id)(s)
+        &&& local_pods_and_pvcs_are_bound_to_vsts(controller_id)(s_prime)
+        &&& Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+    };
+
+    always_to_always_later(spec, lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)));
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)),
+        later(lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id))),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
+    );
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        VStatefulSetView::marshal_preserves_integrity();
+        VStatefulSetReconcileState::marshal_preserves_integrity();
+        PodView::marshal_preserves_integrity();
+        PersistentVolumeClaimView::marshal_preserves_integrity();
+
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(req_msg_opt) => {
+                let req_msg = req_msg_opt.unwrap();
+
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content is APIRequest
+                    &&& msg.src.is_controller_id(controller_id)
+                } implies match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+                    _ => true,
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+                }
+            }
+            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+                let cr_key = cr_key_opt->0;
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content is APIRequest
+                    &&& msg.src.is_controller_id(controller_id)
+                } implies match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+                    _ => true,
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+
+                    if id == controller_id {
+                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                        if new_msgs.contains(msg) {
+                            let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                            let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                            assert(reconcile_core(vsts, None, state).1 is Some);
+                            assert(reconcile_core(vsts, None, state).1->0 is KRequest);
+                            assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
+                            lemma_guarantee_from_reconcile_state(msg, state, vsts);
+                        }
+                    }
+                }
+            }
+            _ => {
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content is APIRequest
+                    &&& msg.src.is_controller_id(controller_id)
+                } implies match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+                    _ => true,
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+                }
+            }
+        }
+    }
+
+    init_invariant(spec, cluster.init(), stronger_next, invariant);
+}
 
 // TODO
 // NOTE: lemma_always_vd_reconcile_request_only_interferes_with_itself may be helpful
