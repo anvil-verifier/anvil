@@ -271,6 +271,32 @@ jobs:
           ./local-test.sh vdeployment --build
       - name: Run vdeployment e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment
+  vstatefulset-e2e-test:
+    needs:
+      - setup-toolchain
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.20"
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.23.0
+      - name: Deploy vstatefulset controller
+        run: |
+          export PATH="$PATH:$HOME/verus"
+          ./local-test.sh vstatefulset --build
+      - name: Run vstatefulset e2e tests
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset
   tla-demo-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
