@@ -1,3 +1,5 @@
+// shared predicates and macros
+
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
