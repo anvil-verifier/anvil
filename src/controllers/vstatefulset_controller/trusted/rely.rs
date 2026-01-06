@@ -14,6 +14,13 @@ verus! {
 
 // VSTS Rely Condition
 
+pub open spec fn lifted_vsts_rely(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    lift_state(|s: ClusterState| {
+        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vsts_rely(other_id, cluster.installed_types)(s)
+    })
+}
+
 pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
