@@ -10,6 +10,7 @@ use vstd::prelude::*;
 
 verus! {
 
+    // TODO: verify these functions
     #[verifier(external_body)]
     pub fn get_ordinal(parent_name: &String, pod: &Pod) -> (ordinal: Option<usize>)
         ensures (
@@ -19,7 +20,7 @@ verus! {
     {
         pod.metadata()
             .name()
-            .and_then(|name| name[parent_name.len() + 1..].parse::<usize>().ok())
+            .and_then(|name| name["vstatefulset".len() + parent_name.len() + 2..].parse::<usize>().ok())
     }
 
     #[verifier(external_body)]

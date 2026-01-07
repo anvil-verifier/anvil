@@ -312,19 +312,23 @@ pub proof fn lemma_guarantee_from_reconcile_state(
             _ => true,
         }
 {
-    if state.reconcile_step == VStatefulSetReconcileStepView::CreateNeeded {
-        assert(msg.content.is_create_request());
-        let req = msg.content.get_create_request();
-        let pod = make_pod(vsts, state.needed_index);
-        assert(has_vsts_prefix(req.obj.metadata.name->0));
-        let owner_references = req.obj.metadata.owner_references->0;
-        assert(owner_references.contains(vsts.controller_owner_ref())) by {
-            assert(owner_references == pod.metadata.owner_references->0);
-            assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
-            assert(owner_references[0] == vsts.controller_owner_ref());
-        }
-    } else {
-        // verus can prove other states automatically
+    match state.reconcile_step {
+        VStatefulSetReconcileStepView::CreateNeeded => {
+            assert(msg.content.is_create_request());
+            let req = msg.content.get_create_request();
+            let pod = make_pod(vsts, state.needed_index);
+            assert(has_vsts_prefix(req.obj.metadata.name->0));
+            let owner_references = req.obj.metadata.owner_references->0;
+            assert(owner_references.contains(vsts.controller_owner_ref())) by {
+                assert(owner_references == pod.metadata.owner_references->0);
+                assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
+                assert(owner_references[0] == vsts.controller_owner_ref());
+            }
+        },
+        VStatefulSetReconcileStepView::UpdateNeeded => {
+            assume(false);
+        },
+        _ => {}
     }
 }
 
