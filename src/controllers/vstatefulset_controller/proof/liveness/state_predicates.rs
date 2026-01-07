@@ -28,7 +28,7 @@ pub open spec fn no_pending_req_in_cluster(vsts_key: ObjectRef, controller_id: i
     }
 }
 
-pub open spec fn req_msg_is_list_vrs_req(
+pub open spec fn req_msg_is_list_pod_req(
     vsts_key: ObjectRef, controller_id: int, msg: Message, s: ClusterState
 ) -> bool {
     let req = req_msg.content->APIRequest_0;
@@ -49,7 +49,7 @@ pub open spec fn pending_list_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts_key].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts_key, req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_list_vrs_req(vsts_key, controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts_key, controller_id, req_msg, s)
     }
 }
 
@@ -59,25 +59,68 @@ pub open spec fn req_msg_is_pending_list_req_in_flight(
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts_key, req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_list_vrs_req(vsts_key, controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts_key, controller_id, req_msg, s)
     }
 }
 
 pub open spec fn exists_pending_list_resp_in_flight_and_match_req(
-    vsts_key: ObjectRef, controller_id: int
+    vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let vsts_key = vsts.object_ref();
         let req_msg = s.ongoing_reconciles(controller_id)[vsts_key].pending_req_msg->0;
         // predicate on req_msg, it's not in_flight
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts_key, req_msg)
-        &&& req_msg_is_list_vrs_req(vsts_key, controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts_key, controller_id, req_msg, s)
         // predicate on resp_msg
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            // &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vsts_key, controller_id, resp_msg, s)
+            &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
         }
     }
+}
+
+pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vsts_key = vsts.object_ref();
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts_key].pending_req_msg->0;
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts_key, req_msg)
+        &&& req_msg_is_list_pod_req(vsts_key, controller_id, req_msg, s)
+        // predicate on resp_msg
+        &&& #[trigger] s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
+    }
+}
+
+// because we have controller_owner_ref which requires uid, key alone is not enough
+pub open spec fn resp_msg_is_ok_list_resp_of_pods(
+    vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
+) -> bool {
+    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    let pod_list = objects_to_pods(resp_objs)->0;
+    let managed_pod_list = filter_pods(pod_list, vsts);
+    &&& resp_msg.content.is_list_response()
+    &&& resp_msg.content.get_list_response().res is Ok
+    &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
+    // &&& managed_pod_list.map_values(|pod: PodView| pod.object_ref()).to_set()
+    //     == filter_obj_keys_managed_by_vsts(vsts, s)
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+        let key = pod.object_ref();
+        let etcd_obj = s.resources()[key];
+        &&& obj.kind == Kind::PodKind
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.owner_references is Some
+        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& s.resources().contains_key(key)
+        &&& weakly_eq(etcd_obj, obj)
+    }
+    &&& objects_to_pods(resp_objs) is Some
 }
 
 }

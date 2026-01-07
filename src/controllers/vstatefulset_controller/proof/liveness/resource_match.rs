@@ -43,4 +43,14 @@ ensures
             current_state_matches(vsts)
         )))),
 {}
+
+pub proof fn lemma_from_init_step_to_send_list_pod_req(
+    vsts: VStatefulSetView, controller_id: int, pre: StatePred<ClusterState>, post: StatePred<ClusterState>, stronger_next: ActionPred<ClusterState>
+)
+ensures
+    forall |s, s_prime| #[trigger] pre(s) && stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+{
+    
+}
+
 }
