@@ -97,6 +97,13 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
+    pub fn unset_volumes(&mut self)
+        ensures self@ == old(self)@.without_volumes(),
+    {
+        self.inner.volumes = None;
+    }
+
+    #[verifier(external_body)]
     pub fn set_init_containers(&mut self, init_containers: Vec<Container>)
         ensures self@ == old(self)@.with_init_containers(init_containers.deep_view()),
     {
@@ -193,12 +200,10 @@ impl PodSpec {
     {
         self.inner.subdomain = Some(subdomain);
     }
-}
 
-impl PartialEq for PodSpec {
     #[verifier(external_body)]
-    fn eq(&self, other: &Self) -> (equal: bool) 
-        ensures equal == (self@ == other@)
+    pub fn eq_spec(&self, other: &Self) -> (res: bool)
+        ensures res == (self@ == other@)
     {
         self.inner == other.inner
     }

@@ -796,7 +796,9 @@ pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
 
 // TODO: compare other fields of the pod if necessary
 pub open spec fn pod_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
-    pod.spec == vsts.spec.template.spec
+    // from validation we know vsts.spec.template.spec is Some
+    &&& pod.spec is Some
+    &&& pod.spec->0.without_volumes() == vsts.spec.template.spec->0.without_volumes()
 }
 
 // Check whether the ordinal is the largest ordinal of pods that don't match vsts

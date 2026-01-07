@@ -1475,12 +1475,18 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-#[verifier(external_body)]
 pub fn pod_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
     ensures res == model_reconciler::pod_matches(vsts@, pod@)
 {
-    pod.spec() == vsts.spec().template().spec()
+    if let Some(mut spec) = pod.spec() {
+        let mut vsts_spec = vsts.spec().template().spec().unwrap();
+        spec.unset_volumes();
+        vsts_spec.unset_volumes();
+        return spec.eq_spec(&vsts_spec);
+    } else {
+        return false;
+    }
 }
 
 pub fn get_largest_ordinal_of_unmatched_pods(
