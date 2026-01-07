@@ -46,7 +46,7 @@ spec:
     .to_string()
 }
 
-async fn wait_for_pods_for_vss(client: Client, name: &str, expected: usize, timeout: Duration) -> Result<Vec<Pod>, Error> {
+async fn wait_for_pods_for_vsts(client: Client, name: &str, expected: usize, timeout: Duration) -> Result<Vec<Pod>, Error> {
     let pod_api: Api<Pod> = Api::default_namespaced(client);
     let start = Instant::now();
     loop {
@@ -79,6 +79,7 @@ async fn wait_for_pods_for_vss(client: Client, name: &str, expected: usize, time
                     info!("Have {} pods which is more than expected {}.", pods.len(), expected);
                     continue;
                 } else {
+                    info!("Found {} pods for VStatefulSet {}.", pods.len(), name);
                     return Ok(pods);
                 }
             }
@@ -86,7 +87,7 @@ async fn wait_for_pods_for_vss(client: Client, name: &str, expected: usize, time
     }
 }
 
-async fn check_pv_and_template(client: Client, vss_name: &str, pods: &[Pod], timeout: Duration) -> Result<(), Error> {
+async fn check_pv_and_template(client: Client, vsts_name: &str, pods: &[Pod], timeout: Duration) -> Result<(), Error> {
     // pick first pod
     let first_pod = pods.get(0).ok_or(Error::VStatefulSetFailed)?;
     // find a PVC referenced by the pod
@@ -132,6 +133,7 @@ async fn check_pv_and_template(client: Client, vss_name: &str, pods: &[Pod], tim
             }
         }
         if all_bound {
+            info!("All PVCs are bound for pod {}", first_pod.metadata.name.as_ref().unwrap());
             break;
         }
         sleep(Duration::from_secs(3)).await;
@@ -143,42 +145,42 @@ async fn check_pv_and_template(client: Client, vss_name: &str, pods: &[Pod], tim
 pub async fn vstatefulset_e2e_test() -> Result<(), Error> {
     let client = Client::try_default().await?;
     let discovery = Discovery::new(client.clone()).run().await?;
-    let vss_name = apply(v_statefulset(), client.clone(), &discovery).await?;
+    let vsts_name = apply(v_statefulset(), client.clone(), &discovery).await?;
 
     let timeout = Duration::from_secs(20);
-    // 1-3: wait and check pods matching name against replicas
-    let vss_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
-    let vsts = vss_api.get(&vss_name).await?;
+    // wait and check pods matching name against replicas
+    let vsts_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
+    let vsts = vsts_api.get(&vsts_name).await?;
     let replicas = vsts.spec.replicas.unwrap_or(1) as usize;
-    let pods = wait_for_pods_for_vss(client.clone(), &vss_name, replicas, timeout).await?;
+    let pods = wait_for_pods_for_vsts(client.clone(), &vsts_name, replicas, timeout).await?;
 
-    // 4: check PVs bound to first pod and compare one PV to pvc template
-    check_pv_and_template(client.clone(), &vss_name, &pods, timeout).await?;
+    // check PVs bound to first pod and compare one PV to pvc template
+    check_pv_and_template(client.clone(), &vsts_name, &pods, timeout).await?;
 
-    // 5-6: scale up
+    // scale up
     let new_replicas_up = replicas + 2;
     run_command(
         "kubectl",
         vec![
             "patch",
             "vsts",
-            vss_name.as_str(),
+            vsts_name.as_str(),
             "--type=json",
             "-p",
             &format!("[{{\"op\":\"replace\",\"path\":\"/spec/replicas\",\"value\":{}}}]", new_replicas_up),
         ],
         "failed to scale VStatefulSet up",
     );
-    let _pods_up = wait_for_pods_for_vss(client.clone(), &vss_name, new_replicas_up, timeout).await?;
+    let _pods_up = wait_for_pods_for_vsts(client.clone(), &vsts_name, new_replicas_up, timeout).await?;
 
-    // 7-8: scale down
+    // scale down
     let new_replicas_down = (replicas as isize - 1).max(1) as usize;
     run_command(
         "kubectl",
         vec![
             "patch",
             "vsts",
-            vss_name.as_str(),
+            vsts_name.as_str(),
             "--type=json",
             "-p",
             &format!("[{{\"op\":\"replace\",\"path\":\"/spec/replicas\",\"value\":{}}}]", new_replicas_down),
@@ -199,7 +201,7 @@ pub async fn vstatefulset_e2e_test() -> Result<(), Error> {
         let mut found_bad = false;
         for p in list.items.iter() {
             if let Some(n) = p.metadata.name.as_ref() {
-                if n.starts_with(&format!("vstatefulset-{}-", vss_name)) {
+                if n.starts_with(&format!("vstatefulset-{}-", vsts_name)) {
                     // extract suffix after last '-'
                     if let Some(pos) = n.rfind('-') {
                         if let Ok(idx) = n[pos+1..].parse::<usize>() {
@@ -216,17 +218,18 @@ pub async fn vstatefulset_e2e_test() -> Result<(), Error> {
             info!("Found pods with ordinal >= {}; still waiting for deletion.", new_replicas_down);
             continue;
         }
+        info!("Scale down cleanup verified.");
         break;
     }
 
-    // 9-10: patch app version image and wait for pod with new image running
+    // patch app version image and wait for pod with new image running
     let new_image = "k8s.gcr.io/pause:3.10";
     run_command(
         "kubectl",
         vec![
             "patch",
             "vsts",
-            vss_name.as_str(),
+            vsts_name.as_str(),
             "--type=json",
             "-p",
             &format!("[{{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/image\",\"value\":\"{}\"}}]", new_image),
@@ -259,6 +262,7 @@ pub async fn vstatefulset_e2e_test() -> Result<(), Error> {
             }
         }
         if found {
+            info!("Image update verified.");
             break;
         }
     }
