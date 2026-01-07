@@ -17,11 +17,12 @@ pub fn v_statefulset() -> String {
 apiVersion: anvil.dev/v1
 kind: VStatefulSet
 metadata:
-  name: statefulpause
+  name: pause-statefulset
   labels:
     app: stateful-demo
 spec:
   replicas: 3
+  serviceName: stateful-service
   selector:
     matchLabels:
       app: stateful-demo
