@@ -414,7 +414,7 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
                 needed_index: state.needed_index + 1,
                 ..state
             };
-            (state_prime, None)
+            (state_prime, Some(RequestView::KRequest(req)))
         } else {
             (error_state(state), None)
         }

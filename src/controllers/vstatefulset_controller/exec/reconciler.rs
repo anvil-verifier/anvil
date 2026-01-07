@@ -569,7 +569,7 @@ pub fn handle_update_needed(
             needed_index: new_needed_index,
             ..state
         };
-        (state_prime, None)
+        (state_prime, Some(Request::KRequest(req)))
     } else {
         // This should be unreachable
         (error_state(state), None)
