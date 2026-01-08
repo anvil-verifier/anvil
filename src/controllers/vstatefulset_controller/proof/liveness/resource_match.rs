@@ -152,11 +152,10 @@ requires
     resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
 ensures
     local_state_is(vsts, controller_id, next_local_state)(s_prime),
-    next_local_state.reconcile_step != Error,
+    at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned])(s_prime),
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = handle_after_list_pod(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0;
-    assume(false);
     return next_local_state;
 }
 }
