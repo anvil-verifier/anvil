@@ -57,13 +57,7 @@ pub open spec fn rely_create_req(req: CreateRequest) -> bool {
 // and should not create Pods with prefix of "vstatefulset-"
 pub open spec fn rely_create_pod_req(req: CreateRequest) -> bool {
     // Prevents 1): where other controllers create pod owned by VSTS
-    &&& !{
-        let owner_references = req.obj.metadata.owner_references->0;
-        &&& req.obj.metadata.owner_references is Some
-        &&& exists |vsts: VStatefulSetView| {
-            &&& #[trigger] owner_references.contains(vsts.controller_owner_ref())
-        }
-    }
+    &&& !exists |vsts: VStatefulSetView| #[trigger] req.obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     // Prevents 2): where other controllers create pod with name collision potential
     &&& !{
         if req.obj.metadata.name is Some {
@@ -101,16 +95,11 @@ pub open spec fn rely_update_pod_req(req: UpdateRequest) -> StatePred<ClusterSta
         // Prevents 1): where other controllers update pod already owned by a VSTS.
         &&& !{
             let etcd_obj = s.resources()[req.key()];
-            let owner_references = etcd_obj.metadata.owner_references->0;
-            &&& etcd_obj.metadata.owner_references is Some
             &&& exists |vsts: VStatefulSetView|
-                #[trigger] owner_references.contains(vsts.controller_owner_ref())
+                #[trigger] etcd_obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }
         // Prevents 2): where other controllers update pod so they become owned by a VSTS.
-        &&& !{
-            &&& req.obj.metadata.owner_references is Some
-            &&& exists |vsts: VStatefulSetView| #[trigger] req.obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())
-        }
+        &&& !exists |vsts: VStatefulSetView| #[trigger] req.obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     }
 }
 
@@ -134,11 +123,8 @@ pub open spec fn rely_get_then_update_pod_req(req: GetThenUpdateRequest) -> bool
     // We force requests from other controllers to carry the controller owner reference
     // to achieve exclusive ownerships
     &&& req.owner_ref.kind != VStatefulSetView::kind()
-    &&& !{
-        // Prevents 2): where other controllers update pods so they become owned by a VSTS.
-        &&& req.obj.metadata.owner_references is Some
-        &&& exists |vsts: VStatefulSetView| req.obj.metadata.owner_references->0.contains(#[trigger] vsts.controller_owner_ref())
-    }
+    // Prevents 2): where other controllers update pods so they become owned by a VSTS.
+    &&& !exists |vsts: VStatefulSetView| #[trigger] req.obj.metadata.owner_references_contains(vsts.controller_owner_ref())
 }
 
 // Other controllers don't try to remove owner_references of a VSTS-owned PVC
@@ -161,9 +147,7 @@ pub open spec fn rely_delete_pod_req(req: DeleteRequest) -> StatePred<ClusterSta
         // that object does not belong to any VSTS
         !{
             let etcd_obj = s.resources()[req.key];
-            let owner_references = etcd_obj.metadata.owner_references->0;
-            &&& etcd_obj.metadata.owner_references is Some
-            &&& exists |vsts: VStatefulSetView| #[trigger] owner_references.contains(vsts.controller_owner_ref())
+            &&& exists |vsts: VStatefulSetView| #[trigger] etcd_obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }
     }
 }

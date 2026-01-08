@@ -71,9 +71,7 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        // TODO: simplify and use owner_reference_contains
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     } ==> {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -83,8 +81,7 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     } ==> {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -118,8 +115,7 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     } implies {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -130,10 +126,11 @@ ensures
         };
         let obj = s.resources()[k];
         PodView::marshal_preserves_integrity();
-        assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
-            broadcast use group_seq_properties;
-            seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
-        }
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
+            // broadcast use group_seq_properties; // this increase proof time from 3 to 20s
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+        };
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
                 let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
@@ -186,7 +183,7 @@ ensures
                                         if obj.metadata.owner_references_contains(req.owner_ref) {
                                             // then the singleton does not match
                                             assert(req.owner_ref != vsts.controller_owner_ref());
-                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                            assert(!obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                         }
                                     }
                                 },
@@ -215,8 +212,7 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     } implies {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -227,10 +223,6 @@ ensures
         };
         let obj = s_prime.resources()[k];
         PodView::marshal_preserves_integrity();
-        assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
-            broadcast use group_seq_properties;
-            seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
-        }
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
                 let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
@@ -257,17 +249,14 @@ ensures
                                 assert(other_vsts.controller_owner_ref() != vsts.controller_owner_ref());
                                 if msg.content.is_create_request() && !s.resources().contains_key(k) {
                                     let req = msg.content.get_create_request();
-                                    seq_filter_contains_implies_seq_contains(req.obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
                                     assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
                                     assert(false);
                                 }
                                 if msg.content.is_get_then_update_request() && s.resources().contains_key(k) {
                                     let req = msg.content.get_get_then_update_request();
                                     let old_obj = s.resources()[req.key()];
-                                    if !(old_obj.metadata.owner_references is Some && old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()])
-                                        && req.key() == k {
+                                    if !old_obj.metadata.owner_references_contains(other_vsts.controller_owner_ref()) && req.key() == k {
                                         assert(req.obj.metadata.owner_references == obj.metadata.owner_references);
-                                        seq_filter_contains_implies_seq_contains(req.obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
                                         assert(false);
                                     }
                                 }
@@ -286,9 +275,8 @@ ensures
                                             assert(s_prime.resources() == s.resources().insert(created_obj.object_ref(), created_obj));
                                             assert((k, obj) == (created_obj.object_ref(), created_obj));
                                             // trigger rely conditions
-                                            assert(created_obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
-                                                seq_filter_is_a_subset_of_original_seq(created_obj.metadata.owner_references->0, controller_owner_filter());
-                                            }
+                                            assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                                            assert(false);
                                         }
                                         assert(post);
                                     }
@@ -297,6 +285,11 @@ ensures
                                     if s.resources().contains_key(k) && req.key() == k {
                                         assert(cluster.controller_models.contains_key(id));
                                         assert(vsts_rely(id, cluster.installed_types)(s));
+                                        let old_obj = s.resources()[k];
+                                        if req.key() == k && !old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
+                                            assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                                            assert(false);
+                                        }
                                     }
                                     assert(post);
                                 },
@@ -305,19 +298,10 @@ ensures
                                         let resp = handle_update_request(cluster.installed_types, req, s.api_server).1;
                                         let old_obj = s.resources()[k];
                                         if req.key() == k && resp.res is Ok {
-                                            if old_obj.metadata.owner_references is Some
-                                                && old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
-                                                assert(old_obj.metadata.owner_references->0.contains(vsts.controller_owner_ref()));
+                                            if old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
                                                 assert(false);
-                                            } else {
-                                                if req.obj.metadata.owner_references is Some
-                                                    && req.obj.metadata.owner_references->0.contains(vsts.controller_owner_ref()) {
-                                                    assert(false);
-                                                } else {
-                                                    assert(obj.metadata.owner_references == req.obj.metadata.owner_references);
-                                                    seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
-                                                    assert(false);
-                                                }
+                                            } else if req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
+                                                assert(false);
                                             }   
                                         } else {
                                             assert(s.resources()[k] == s_prime.resources()[k]);
