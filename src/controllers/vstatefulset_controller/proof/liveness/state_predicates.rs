@@ -149,7 +149,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
-        // coherence of needed pods
+        // 1. coherence of needed pods
         &&& forall |ord: nat| #![trigger state.needed[ord]] {
             ||| ord < state.needed.len() && state.needed[ord] is Some
             ||| ord < state.needed_index
@@ -166,9 +166,9 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         }
         // coherence of condemned pods
         // we have 2 ways to encode this:
-        // a. all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index]) are deleted
-        // I don't bother to talk about the order, so just use existantial quantifier as b. below
-        // 1. all pods to be condemned in etcd are captured in state.condemned
+        // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index]) are deleted
+        // or use 2.a|b below, which is chosen because I don't bother to talk about order
+        // 2.a. all pods to be condemned in etcd are captured in state.condemned
         &&& forall |ord: nat| #![trigger state.condemned_index] ord >= vsts.spec.replicas.unwrap_or(1) ==> {
             let key = ObjectRef {
                 kind: PodView::kind(),
@@ -179,12 +179,12 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 exists |i: nat| #![trigger state.condemned[i]] i < state.condemned.len() && state.condemned[i].metadata.name->0 == key.name
             }
         }
-        // 2. all pods before condemned_index are deleted
+        // 2.b. all pods before condemned_index are deleted
         &&& forall |i: nat| #![trigger state.condemned_index] i < state.condemned_index ==> {
             let key = state.condemned[i].object_ref();
             &&& !s.resources().contains_key(key)
         }
-        // coherence of bound PVCs
+        // 3. coherence of bound PVCs
         &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed_index
             ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i]] i < pvc_cnt ==> {
                 let key = ObjectRef {
