@@ -137,6 +137,8 @@ pub spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, state: VS
         &&& state.pvc_index <= state.pvcs.len()
         &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed.len() && state.needed[ord] is Some
             ==> state.needed[ord]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& forall |i: nat| #![trigger state.condemned[i]] i < state.condemned.len()
+            ==> state.condemned[i].metadata.name is Some
         &&& local_state_is_coherent_with_etcd(vsts, state)(s)
     }
 }
@@ -161,6 +163,26 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             &&& s.resources().contains_key(key)
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             // TODO: cover pod updates
+        }
+        // coherence of condemned pods
+        // we have 2 ways to encode this:
+        // a. all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index]) are deleted
+        // I don't bother to talk about the order, so just use existantial quantifier as b. below
+        // 1. all pods to be condemned in etcd are captured in state.condemned
+        &&& forall |ord: nat| #![trigger state.condemned_index] ord >= vsts.spec.replicas.unwrap_or(1) ==> {
+            let key = ObjectRef {
+                kind: PodView::kind(),
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            s.resources().contains_key(key) ==> {
+                exists |i: nat| #![trigger state.condemned[i]] i < state.condemned.len() && state.condemned[i].metadata.name->0 == key.name
+            }
+        }
+        // 2. all pods before condemned_index are deleted
+        &&& forall |i: nat| #![trigger state.condemned_index] i < state.condemned_index ==> {
+            let key = state.condemned[i].object_ref();
+            &&& !s.resources().contains_key(key)
         }
         // coherence of bound PVCs
         &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed_index
