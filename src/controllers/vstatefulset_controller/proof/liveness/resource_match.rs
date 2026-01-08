@@ -123,11 +123,7 @@ ensures
                         s, s_prime, vsts, cluster, controller_id, msg
                     );
                     // instantiate existential quantifier.
-                    assert({
-                        &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s_prime)
-                    });
+                    assert(s_prime.in_flight().contains(resp_msg));
                 }
             },
             _ => {}
@@ -138,12 +134,7 @@ ensures
         let resp_msg = lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
             s, s_prime, vsts, cluster, controller_id, msg,
         );
-        // instantiate existential quantifier.
-        assert({
-            &&& s_prime.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s_prime)
-        });
+        assert(s_prime.in_flight().contains(resp_msg));
     }
     cluster.lemma_pre_leads_to_post_by_api_server(
         spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
