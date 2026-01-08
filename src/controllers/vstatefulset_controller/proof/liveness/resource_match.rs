@@ -148,6 +148,8 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
 ensures
@@ -156,6 +158,14 @@ ensures
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = handle_after_list_pod(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0;
+    let objs = resp_msg.content.get_list_response().res->Ok_0;
+    let pods = objects_to_pods(objs)->0;
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    VStatefulSetView::marshal_preserves_integrity();
+    assert(objects_to_pods(objs) is Some);
+    assert(next_local_state == reconcile_core(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0);
+    assert(VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0 == reconcile_core(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0);
+    assume(false);
     return next_local_state;
 }
 }
