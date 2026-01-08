@@ -2,7 +2,7 @@
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::predicate::*;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -121,6 +121,69 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
         &&& weakly_eq(etcd_obj, obj)
     }
     &&& objects_to_pods(resp_objs) is Some
+}
+
+pub spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vsts_key = vsts.object_ref();
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].local_state)->Ok_0;
+        // local state matches given state
+        &&& VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].local_state) is Ok
+        &&& local_state == state
+        // validity of local state
+        &&& state.needed.len() == vsts.spec.replicas.unwrap_or(1)
+        &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
+        &&& state.condemned_index <= state.condemned.len()
+        &&& state.pvc_index <= state.pvcs.len()
+        &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed.len() && state.needed[ord] is Some
+            ==> state.needed[ord]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& local_state_is_coherent_with_etcd(vsts, state)(s)
+    }
+}
+
+pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vsts_key = vsts.object_ref();
+        let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
+            vsts.spec.volume_claim_templates->0.len()
+        } else {0};
+        // coherence of needed pods
+        &&& forall |ord: nat| #![trigger state.needed[ord]] {
+            ||| ord < state.needed.len() && state.needed[ord] is Some
+            ||| ord < state.needed_index
+        } ==> {
+            let key = ObjectRef {
+                kind: PodView::kind(),
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s.resources()[key];
+            &&& s.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            // TODO: cover pod updates
+        }
+        // coherence of bound PVCs
+        &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed_index
+            ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i]] i < pvc_cnt ==> {
+                let key = ObjectRef {
+                    kind: PersistentVolumeClaimView::kind(),
+                    name: pvc_name(vsts.spec.volume_claim_templates->0[i].metadata.name->0, vsts.metadata.name->0, ord),
+                    namespace: vsts.metadata.namespace->0
+                };
+                &&& s.resources().contains_key(key)
+            }
+        &&& state.step == GetPVC || state.step == AfterGetPVC || state.step == AfterCreatePVC || state.step == SkipPVC ==> {
+            &&& state.needed_index < state.needed.len()
+            &&& forall |i: nat| #![trigger state.pvcs[i]] i < state.pvc_index ==> {
+                let key = ObjectRef {
+                    kind: PersistentVolumeClaimView::kind(),
+                    name: pvc_name(vsts.spec.volume_claim_templates->0[i].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                    namespace: vsts.metadata.namespace->0
+                };
+                &&& s.resources().contains_key(key)
+            }
+        }
+    }
 }
 
 }
