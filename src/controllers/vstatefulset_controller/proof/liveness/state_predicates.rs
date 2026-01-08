@@ -123,7 +123,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     &&& objects_to_pods(resp_objs) is Some
 }
 
-pub spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
+pub open spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].local_state)->Ok_0;
@@ -135,10 +135,10 @@ pub spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, state: VS
         &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
         &&& state.condemned_index <= state.condemned.len()
         &&& state.pvc_index <= state.pvcs.len()
-        &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed.len() && state.needed[ord] is Some
-            ==> state.needed[ord]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-        &&& forall |i: nat| #![trigger state.condemned[i]] i < state.condemned.len()
-            ==> state.condemned[i].metadata.name is Some
+        &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
+            ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
+            ==> state.condemned[i as int].metadata.name is Some
         &&& local_state_is_coherent_with_etcd(vsts, state)(s)
     }
 }
@@ -150,8 +150,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger state.needed[ord]] {
-            ||| ord < state.needed.len() && state.needed[ord] is Some
+        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
+            ||| ord < state.needed.len() && state.needed[ord as int] is Some
             ||| ord < state.needed_index
         } ==> {
             let key = ObjectRef {
@@ -169,37 +169,37 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index]) are deleted
         // or use 2.a|b below, which is chosen because I don't bother to talk about order
         // 2.a. all pods to be condemned in etcd are captured in state.condemned
-        &&& forall |ord: nat| #![trigger state.condemned_index] ord >= vsts.spec.replicas.unwrap_or(1) ==> {
+        &&& forall |ord: nat| #![trigger state.condemned[ord as int]] ord >= vsts.spec.replicas.unwrap_or(1) ==> {
             let key = ObjectRef {
                 kind: PodView::kind(),
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
             s.resources().contains_key(key) ==> {
-                exists |i: nat| #![trigger state.condemned[i]] i < state.condemned.len() && state.condemned[i].metadata.name->0 == key.name
+                exists |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len() && state.condemned[i as int].metadata.name->0 == key.name
             }
         }
         // 2.b. all pods before condemned_index are deleted
-        &&& forall |i: nat| #![trigger state.condemned_index] i < state.condemned_index ==> {
-            let key = state.condemned[i].object_ref();
+        &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
+            let key = state.condemned[i as int].object_ref();
             &&& !s.resources().contains_key(key)
         }
         // 3. coherence of bound PVCs
-        &&& forall |ord: nat| #![trigger state.needed[ord]] ord < state.needed_index
-            ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i]] i < pvc_cnt ==> {
+        &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed_index
+            ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] i < pvc_cnt ==> {
                 let key = ObjectRef {
                     kind: PersistentVolumeClaimView::kind(),
-                    name: pvc_name(vsts.spec.volume_claim_templates->0[i].metadata.name->0, vsts.metadata.name->0, ord),
+                    name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord),
                     namespace: vsts.metadata.namespace->0
                 };
                 &&& s.resources().contains_key(key)
             }
-        &&& state.step == GetPVC || state.step == AfterGetPVC || state.step == AfterCreatePVC || state.step == SkipPVC ==> {
+        &&& state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC ==> {
             &&& state.needed_index < state.needed.len()
-            &&& forall |i: nat| #![trigger state.pvcs[i]] i < state.pvc_index ==> {
+            &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvc_index ==> {
                 let key = ObjectRef {
                     kind: PersistentVolumeClaimView::kind(),
-                    name: pvc_name(vsts.spec.volume_claim_templates->0[i].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                    name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
                     namespace: vsts.metadata.namespace->0
                 };
                 &&& s.resources().contains_key(key)
