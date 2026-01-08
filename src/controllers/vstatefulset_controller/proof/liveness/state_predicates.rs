@@ -114,13 +114,13 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     &&& resp_msg.content.get_list_response().res is Ok
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
-    &&& resp_objs.filter(has_vsts_controller_owner_filter(vsts)).to_set().map(|obj: DynamicObjectView| obj.object_ref())
+    &&& resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()))
+        .to_set().map(|obj: DynamicObjectView| obj.object_ref())
         == s.resources().values().filter(|obj: DynamicObjectView| {
             &&& obj.kind == Kind::PodKind
             &&& obj.metadata.name is Some
             &&& obj.metadata.namespace is Some
-            &&& obj.metadata.owner_references is Some
-            &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }).map(|obj: DynamicObjectView| obj.object_ref())
     &&& resp_objs.all(|obj: DynamicObjectView| {
         let key = obj.object_ref();
@@ -128,8 +128,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
         &&& obj.kind == Kind::PodKind
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         &&& s.resources().contains_key(key)
         &&& weakly_eq(etcd_obj, obj)
     })
