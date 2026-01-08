@@ -19,8 +19,15 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
         &&& VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).is_ok()
         &&& VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).is_ok()
         &&& step_pred(local_state)
-        // alternative: make it an invariant
+        // alternative: make them an invariant
+        &&& triggering_cr.spec == vsts.spec
+        &&& triggering_cr.metadata.uid == vsts.metadata.uid
         &&& triggering_cr.metadata.deletion_timestamp is None
+        // optional
+        &&& triggering_cr.metadata.name is Some
+        &&& triggering_cr.metadata.name == vsts.metadata.name
+        &&& triggering_cr.metadata.namespace is Some
+        &&& triggering_cr.metadata.namespace == vsts.metadata.namespace
     }
 }
 
@@ -103,13 +110,19 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let pod_list = objects_to_pods(resp_objs)->0;
-    let managed_pod_list = filter_pods(pod_list, vsts);
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    // &&& managed_pod_list.map_values(|pod: PodView| pod.object_ref()).to_set()
-    //     == filter_obj_keys_managed_by_vsts(vsts, s)
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
+    &&& resp_objs.filter(has_vsts_controller_owner_filter(vsts)).to_set().map(|obj: DynamicObjectView| obj.object_ref())
+        == s.resources().values().filter(|obj: DynamicObjectView| {
+            &&& obj.kind == Kind::PodKind
+            &&& obj.metadata.name is Some
+            &&& obj.metadata.namespace is Some
+            &&& obj.metadata.owner_references is Some
+            &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        }).map(|obj: DynamicObjectView| obj.object_ref())
+    &&& resp_objs.all(|obj: DynamicObjectView| {
         let key = obj.object_ref();
         let etcd_obj = s.resources()[key];
         &&& obj.kind == Kind::PodKind
@@ -119,7 +132,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(key)
         &&& weakly_eq(etcd_obj, obj)
-    }
+    })
     &&& objects_to_pods(resp_objs) is Some
 }
 
@@ -175,7 +188,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            s.resources().contains_key(key) ==> {
+            &&& s.resources().contains_key(key) ==> {
                 exists |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len() && state.condemned[i as int].metadata.name->0 == key.name
             }
         }
