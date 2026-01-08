@@ -141,4 +141,22 @@ ensures
     );
 }
 
+pub proof fn lemma_from_list_resp_to_next_state(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message
+) -> (next_local_state: VStatefulSetReconcileState)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(vsts.object_ref())))),
+    at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
+    resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
+ensures
+    local_state_is(vsts, controller_id, next_local_state)(s_prime),
+    next_local_state.reconcile_step != Error,
+{
+    let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let next_local_state = handle_after_list_pod(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0;
+    assume(false);
+    return next_local_state;
+}
 }
