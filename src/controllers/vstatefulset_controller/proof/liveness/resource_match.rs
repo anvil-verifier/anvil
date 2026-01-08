@@ -34,23 +34,53 @@ requires
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
-            at_vsts_step(vsts.object_ref(), controller_id, at_step![Init]),
-            no_pending_req_in_cluster(vsts.object_ref(), controller_id)
+            at_vsts_step(vsts, controller_id, at_step![Init]),
+            no_pending_req_in_cluster(vsts, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vsts_step(vsts.object_ref(), controller_id, at_step![Done]),
-            no_pending_req_in_cluster(vsts.object_ref(), controller_id),
+            at_vsts_step(vsts, controller_id, at_step![Done]),
+            no_pending_req_in_cluster(vsts, controller_id),
             current_state_matches(vsts)
         )))),
 {}
 
-pub proof fn lemma_from_init_step_to_send_list_pod_req(
-    vsts: VStatefulSetView, controller_id: int, pre: StatePred<ClusterState>, post: StatePred<ClusterState>, stronger_next: ActionPred<ClusterState>
+
+pub proof fn lemma_from_init_step_to_send_list_vrs_req(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
-    forall |s, s_prime| #[trigger] pre(s) && stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+    spec.entails(lift_state(and!(at_vsts_step(vsts, controller_id, at_step![Init]), no_pending_req_in_cluster(vsts, controller_id)))
+       .leads_to(lift_state(and!(at_vsts_step(vsts, controller_id, at_step![AfterListPod]), pending_list_req_in_flight(vsts, controller_id))))),
 {
-    
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    let pre = and!(
+        at_vsts_step(vsts, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vsts, controller_id)
+    );
+    let post = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
+        pending_list_req_in_flight(vsts, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+    );
+    let input = (None::<Message>, Some(vsts.object_ref()));
+    assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
 }
 
 }
