@@ -141,6 +141,9 @@ ensures
     );
 }
 
+// Then, prove at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated] |=
+// || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
+// and go to next step with local_state_is
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message
 ) -> (next_local_state: VStatefulSetReconcileState)
