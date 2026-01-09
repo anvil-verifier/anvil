@@ -225,6 +225,32 @@ ensures
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
         }
         // coherence of condemned pods
+        let unlawful_cond = |ord: nat| {
+            let key = ObjectRef {
+                kind: PodView::kind(),
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s.resources()[key];
+            &&& ord >= vsts.spec.replicas.unwrap_or(1)
+            &&& s.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
+        };
+        if exists |ord: nat| #[trigger] unlawful_cond(ord) {
+            let ord = choose |ord: nat| #[trigger] unlawful_cond(ord);
+            let key = ObjectRef {
+                kind: PodView::kind(),
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s.resources()[key];
+            assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
+            assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+            assert(objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref())).to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+            assume(exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key);
+            assert(false);
+        }
     }
     return next_local_state;
 }
