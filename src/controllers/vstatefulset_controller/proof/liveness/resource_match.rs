@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::vstatefulset_controller::{
     trusted::{spec_types::*, step::*, liveness_theorem::*, rely},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::{api_actions::*, state_predicates::*}, guarantee, shield_lemma},
+    proof::{predicate::*, helper_lemmas::*, liveness::{api_actions::*, state_predicates::*}, guarantee, shield_lemma},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -278,8 +278,9 @@ ensures
                 }
                 seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), condemned_pod);
             }
-            assert(exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key) by {
+            assert(condemned.contains(condemned_pod) && condemned_pod.object_ref() == key) by {
                 assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
+                assert(condemned.to_set().contains(condemned_pod));
             }
             assert(false);
         }
