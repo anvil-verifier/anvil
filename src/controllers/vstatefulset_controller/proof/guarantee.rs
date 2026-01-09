@@ -325,10 +325,9 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                 assert(owner_references[0] == vsts.controller_owner_ref());
             }
         },
-        VStatefulSetReconcileStepView::UpdateNeeded => {
-            assume(false);
-        },
-        _ => {}
+        _ => {
+            // other cases are handled by Verus automatically
+        }
     }
 }
 
