@@ -617,20 +617,21 @@ pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool 
         && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
         && vsts.metadata.name is Some
-        && get_ordinal(vsts.metadata.name->0, pod) is Some
+        && pod.metadata.name is Some
+        && get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some
     }
 }
 
-pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<nat> {
-    if (exists |ord| pod.metadata.name->0 == pod_name(parent_name, ord)) {
-        Some(choose |ord| pod.metadata.name->0 == pod_name(parent_name, ord))
+pub open spec fn get_ordinal(parent_name: StringView, compared_pod_name: StringView) -> Option<nat> {
+    if (exists |ord| compared_pod_name == pod_name(parent_name, ord)) {
+        Some(choose |ord| compared_pod_name == pod_name(parent_name, ord))
     } else {
         None
     }
 }
 
 pub open spec fn pod_has_ord(parent_name: StringView, ord: nat) -> (spec_fn(PodView) -> bool) {
-    |pod: PodView| get_ordinal(parent_name, pod) == Some(ord)
+    |pod: PodView| get_ordinal(parent_name, pod.metadata.name->0) == Some(ord)
 }
 
 pub open spec fn get_pod_with_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Option<PodView> {
@@ -652,8 +653,8 @@ pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Se
     // condemned is sorted by the decreasing order of the ordinal number of each pod
     // deletion will start with the pod with the largest ordinal number
     let condemned = pods
-        .filter(|pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 >= replicas)
-        .sort_by(|p1, p2| get_ordinal(parent_name, p1)->0 >= get_ordinal(parent_name, p2)->0);
+        .filter(|pod: PodView| get_ordinal(parent_name, pod.metadata.name->0) is Some && get_ordinal(parent_name, pod.metadata.name->0)->0 >= replicas)
+        .sort_by(|p1: PodView, p2: PodView| get_ordinal(parent_name, p1.metadata.name->0)->0 >= get_ordinal(parent_name, p2.metadata.name->0)->0);
     (needed, condemned)
 }
 
@@ -779,7 +780,7 @@ pub open spec fn identity_matches(vsts: VStatefulSetView, pod: PodView) -> bool 
 pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     let claims = vsts.spec.volume_claim_templates->0;
     let volumes = pod.spec->0.volumes->0;
-    let ordinal = get_ordinal(vsts.metadata.name->0, pod);
+    let ordinal = get_ordinal(vsts.metadata.name->0, pod.metadata.name->0);
     vsts.spec.volume_claim_templates is Some
     ==> pod.spec->0.volumes is Some
         && forall |i: int| #![trigger claims[i]] 0 <= i < claims.len()
