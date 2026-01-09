@@ -428,7 +428,7 @@ pub proof fn lemma_homomorphism_of_map_values<A, B, C>(s: Seq<A>, f1: spec_fn(A)
     }
 }
 
-// currently not provable because sort_by is closed
+// currently not provable because sort_by is closed spec
 #[verifier(external_body)]
 pub proof fn lemma_sort_by_does_not_add_or_delete_elements<A>(s: Seq<A>, leq: spec_fn(A, A) -> bool)
 // we don't care if total_ordering(leq) holds here
