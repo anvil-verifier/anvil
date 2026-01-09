@@ -119,6 +119,13 @@ impl PodSpecView {
         }
     }
 
+    pub open spec fn without_volumes(self) -> PodSpecView {
+        PodSpecView {
+            volumes: None,
+            ..self
+        }
+    }
+
     pub open spec fn with_init_containers(self, init_containers: Seq<ContainerView>) -> PodSpecView {
         PodSpecView {
             init_containers: Some(init_containers),

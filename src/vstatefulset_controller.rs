@@ -16,8 +16,8 @@ pub mod vstatefulset_controller;
 
 pub mod vstd_ext;
 
-// use crate::external_shim_layer::VoidExternalShimLayer;
-// use crate::vstatefulset_controller::exec::reconciler::VStatefulSetReconciler;
+use crate::external_shim_layer::VoidExternalShimLayer;
+use crate::vstatefulset_controller::exec::reconciler::VStatefulSetReconciler;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -35,18 +35,18 @@ async fn main() -> Result<()> {
 
     if cmd == String::from("export") {
         println!("{}", serde_yaml::to_string(&deps_hack::VStatefulSet::crd())?);
-    // } else if cmd == String::from("run") {
-    //     info!("running vstatefulset-controller");
-    //     run_controller::<deps_hack::VStatefulSet, VStatefulSetReconciler, VoidExternalShimLayer>(
-    //         false,
-    //     )
-    //     .await?;
-    // } else if cmd == String::from("crash") {
-    //     info!("running vstatefulset-controller in crash-testing mode");
-    //     run_controller::<deps_hack::VStatefulSet, VStatefulSetReconciler, VoidExternalShimLayer>(
-    //         true,
-    //     )
-    //     .await?;
+    } else if cmd == String::from("run") {
+        info!("running vstatefulset-controller");
+        run_controller::<deps_hack::VStatefulSet, VStatefulSetReconciler, VoidExternalShimLayer>(
+            false,
+        )
+        .await?;
+    } else if cmd == String::from("crash") {
+        info!("running vstatefulset-controller in crash-testing mode");
+        run_controller::<deps_hack::VStatefulSet, VStatefulSetReconciler, VoidExternalShimLayer>(
+            true,
+        )
+        .await?;
     } else {
         error!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }

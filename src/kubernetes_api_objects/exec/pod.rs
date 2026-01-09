@@ -8,6 +8,7 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
+use deps_hack::tracing::{error, info, warn};
 
 verus! {
 
@@ -94,6 +95,13 @@ impl PodSpec {
         ensures self@ == old(self)@.with_volumes(volumes.deep_view()),
     {
         self.inner.volumes = Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
+    }
+
+    #[verifier(external_body)]
+    pub fn unset_volumes(&mut self)
+        ensures self@ == old(self)@.without_volumes(),
+    {
+        self.inner.volumes = None;
     }
 
     #[verifier(external_body)]
@@ -193,14 +201,13 @@ impl PodSpec {
     {
         self.inner.subdomain = Some(subdomain);
     }
-}
 
-impl PartialEq for PodSpec {
+    // TODO: fix this for VSTS controller
     #[verifier(external_body)]
-    fn eq(&self, other: &Self) -> (equal: bool) 
-        ensures equal == (self@ == other@)
+    pub fn eq_spec(&self, other: &Self) -> (res: bool)
+        ensures res == (self@ == other@)
     {
-        self.inner == other.inner
+        true
     }
 }
 
