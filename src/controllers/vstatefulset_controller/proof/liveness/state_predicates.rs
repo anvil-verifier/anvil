@@ -15,6 +15,7 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
     |s: ClusterState| {
         let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
         let local_state = s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state;
+        let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
         &&& s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
         &&& VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).is_ok()
         &&& VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).is_ok()
@@ -29,6 +30,9 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
         &&& triggering_cr.metadata.namespace is Some
         &&& triggering_cr.metadata.namespace == vsts.metadata.namespace
         // predicate equality
+        &&& pod_filter(vsts) == pod_filter(triggering_cr)
+        &&& forall |pods: Seq<PodView>| #[trigger] partition_pods(vsts.metadata.name->0, replicas, pods)
+            == partition_pods(triggering_cr.metadata.name->0, replicas, pods)
     }
 }
 

@@ -157,6 +157,7 @@ ensures
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated])(s_prime),
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
     let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
     let next_local_state = handle_after_list_pod(vsts, wrapped_resp, current_local_state).0;
     let objs = resp_msg.content.get_list_response().res->Ok_0;
@@ -173,10 +174,12 @@ ensures
     }
     assert(objs == extract_some_k_list_resp_view(wrapped_resp)->Ok_0);
     assert(next_local_state.reconcile_step != Error);
-    let replicas = vsts.spec.replicas.unwrap_or(1);
+    let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
     assert(replicas >= 0);
     assert(local_state_is(vsts, controller_id, next_local_state)(s_prime)) by {
-        let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas as nat, pods.filter(pod_filter(vsts)));
+        let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas, pods.filter(pod_filter(vsts)));
+        assert(partition_pods(vsts.metadata.name->0, replicas, pods.filter(pod_filter(vsts))) == 
+            partition_pods(triggering_cr.metadata.name->0, replicas, pods.filter(pod_filter(triggering_cr))));
         assert(next_local_state.needed == needed);
         assert(next_local_state.condemned == condemned);
         assume(false);
