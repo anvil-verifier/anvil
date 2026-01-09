@@ -571,7 +571,7 @@ ensures
                 assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
                     lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(vd, resp_objs);
                 }
-                no_dup_seq_to_set_cardinality(old_vrs_list.map_values(map_key));
+                old_vrs_list.map_values(map_key).unique_seq_to_set();
                 lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
                 assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == 0);
             }
@@ -695,7 +695,7 @@ ensures
         assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
             lemma_no_duplication_in_resp_objs_implies_no_duplication_in_down_stream(vd, resp_objs);
         }
-        no_dup_seq_to_set_cardinality(old_vrs_list.map_values(map_key));
+        old_vrs_list.map_values(map_key).unique_seq_to_set();
         lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
         assert(old_vrs_list.len() == n);
     }

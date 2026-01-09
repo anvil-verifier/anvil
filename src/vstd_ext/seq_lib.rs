@@ -218,32 +218,6 @@ pub proof fn map_values_weakens_no_duplicates<A, B>(s: Seq<A>, map: spec_fn(A) -
     }
 }
 
-// opposite direction of lemma_no_dup_set_cardinality
-pub proof fn no_dup_seq_to_set_cardinality<A>(s: Seq<A>)
-    requires s.no_duplicates(),
-    ensures s.len() == s.to_set().len(),
-    decreases s.len(),
-{
-    if s.len() != 0 {
-        let subseq = s.drop_last();
-        no_dup_seq_to_set_cardinality(subseq);
-        push_to_set_eq_to_set_insert(subseq, s.last());
-        assert(s == subseq.push(s.last()));
-        if s.to_set().len() == subseq.to_set().len() {
-            if !subseq.to_set().contains(s.last()) {
-                assert(!subseq.contains(s.last()));
-                assert(false);
-            } else {
-                assert(subseq.contains(s.last()));
-                assert(false);
-            }
-        }
-    } else {
-        assert(s.len() == 0);
-        s.lemma_cardinality_of_empty_set_is_0();
-    }
-}
-
 pub proof fn seq_filter_contains_implies_seq_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, elt: A)
     requires s.filter(pred).contains(elt),
     ensures s.contains(elt)
