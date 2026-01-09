@@ -178,8 +178,8 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
             (error_state(state), None)
         } else {
             let pods = pods_or_none->0;
-            let filtered_pods = filter_pods(pods, vsts);
-            let replicas = if vsts.spec.replicas is Some { vsts.spec.replicas->0 } else { 1 }; // 1 by default
+            let filtered_pods = pods.filter(pod_filter(vsts));
+            let replicas = vsts.spec.replicas.unwrap_or(1); // 1 by default
             if replicas >= 0 {
                 let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas as nat, filtered_pods);
                 let needed_index = 0;
@@ -610,15 +610,15 @@ pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
     VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(parent_name, ordinal)
 }
 
-pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<PodView> {
-    pods.filter(|pod: PodView|
+pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool {
+    |pod: PodView| {
         // See https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/controller_ref_manager.go#L72-L82
         pod.metadata.owner_references_contains(vsts.controller_owner_ref())
         && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
         && vsts.metadata.name is Some
         && get_ordinal(vsts.metadata.name->0, pod) is Some
-    )
+    }
 }
 
 pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<nat> {
@@ -630,15 +630,11 @@ pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<na
 }
 
 pub open spec fn pod_has_ord(parent_name: StringView, ord: nat) -> (spec_fn(PodView) -> bool) {
-    |pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 == ord
-}
-
-pub open spec fn filter_pods_by_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Seq<PodView> {
-    pods.filter(pod_has_ord(parent_name, ord))
+    |pod: PodView| get_ordinal(parent_name, pod) == Some(ord)
 }
 
 pub open spec fn get_pod_with_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Option<PodView> {
-    let filtered = filter_pods_by_ord(parent_name, pods, ord);
+    let filtered = pods.filter(pod_has_ord(parent_name, ord));
     if filtered.len() > 0 {
         Some(filtered[0])
     } else {

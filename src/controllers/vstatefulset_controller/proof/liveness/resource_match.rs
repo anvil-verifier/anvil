@@ -154,18 +154,33 @@ requires
     resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
 ensures
     local_state_is(vsts, controller_id, next_local_state)(s_prime),
-    at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned])(s_prime),
+    at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated])(s_prime),
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    let next_local_state = handle_after_list_pod(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0;
+    let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
+    let next_local_state = handle_after_list_pod(vsts, wrapped_resp, current_local_state).0;
     let objs = resp_msg.content.get_list_response().res->Ok_0;
     let pods = objects_to_pods(objs)->0;
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
     assert(objects_to_pods(objs) is Some);
-    assert(next_local_state == reconcile_core(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0);
-    assert(VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0 == reconcile_core(vsts, Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)), current_local_state).0);
-    assume(false);
+    let next_local_state_from_cluster = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    // for better proof stability
+    assert(next_local_state =~= next_local_state_from_cluster) by {
+        assert(next_local_state.needed == next_local_state_from_cluster.needed);
+        assert(next_local_state.condemned == next_local_state_from_cluster.condemned);
+        assert(next_local_state.pvcs == next_local_state_from_cluster.pvcs);
+    }
+    assert(objs == extract_some_k_list_resp_view(wrapped_resp)->Ok_0);
+    assert(next_local_state.reconcile_step != Error);
+    let replicas = vsts.spec.replicas.unwrap_or(1);
+    assert(replicas >= 0);
+    assert(local_state_is(vsts, controller_id, next_local_state)(s_prime)) by {
+        let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas as nat, pods.filter(pod_filter(vsts)));
+        assert(next_local_state.needed == needed);
+        assert(next_local_state.condemned == condemned);
+        assume(false);
+    }
     return next_local_state;
 }
 }

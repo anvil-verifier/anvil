@@ -28,6 +28,7 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
         &&& triggering_cr.metadata.name == vsts.metadata.name
         &&& triggering_cr.metadata.namespace is Some
         &&& triggering_cr.metadata.namespace == vsts.metadata.namespace
+        // predicate equality
     }
 }
 

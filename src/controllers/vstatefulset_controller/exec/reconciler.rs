@@ -1120,10 +1120,8 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
     let mut filtered: Vec<Pod> = Vec::new();
 
     proof {
-        let model_filtered = model_reconciler::filter_pods_by_ord(
-            parent_name@,
-            pods.deep_view().take(0),
-            ord as nat,
+        let model_filtered = pods.deep_view().take(0).filter(
+            model_reconciler::pod_has_ord(parent_name@, ord as nat),
         );
         assert(filtered.deep_view() == model_filtered);
     }
@@ -1131,10 +1129,8 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
     for idx in 0..pods.len()
         invariant
             idx <= pods.len(),
-            filtered.deep_view() == model_reconciler::filter_pods_by_ord(
-                parent_name@,
-                pods.deep_view().take(idx as int),
-                ord as nat,
+            filtered.deep_view() == pods.deep_view().take(idx as int).filter(
+                model_reconciler::pod_has_ord(parent_name@, ord as nat),
             ),
     {
         let pod = &pods[idx];
@@ -1148,10 +1144,8 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
             } else {
                 filtered.deep_view()
             };
-            assert(old_filtered == model_reconciler::filter_pods_by_ord(
-                parent_name@,
-                pods.deep_view().take(idx as int),
-                ord as nat,
+            assert(old_filtered == pods.deep_view().take(idx as int).filter(
+                model_reconciler::pod_has_ord(parent_name@, ord as nat),
             ));
             lemma_filter_push(
                 pods.deep_view().take(idx as int),
@@ -1159,10 +1153,8 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
                 pod@,
             );
             assert(pods.deep_view().take(idx as int).push(pod@) == pods.deep_view().take(idx + 1));
-            assert(filtered.deep_view() == model_reconciler::filter_pods_by_ord(
-                parent_name@,
-                pods.deep_view().take(idx + 1 as int),
-                ord as nat,
+            assert(filtered.deep_view() == pods.deep_view().take(idx + 1).filter(
+                model_reconciler::pod_has_ord(parent_name@, ord as nat),
             ));
         }
     }
@@ -1171,10 +1163,8 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
         assert(pods.deep_view().take(pods.len() as int) == pods.deep_view());
     }
 
-    assert(filtered.deep_view() == model_reconciler::filter_pods_by_ord(
-        parent_name@,
-        pods.deep_view(),
-        ord as nat,
+    assert(filtered.deep_view() == pods.deep_view().filter(
+        model_reconciler::pod_has_ord(parent_name@, ord as nat),
     ));
 
     if filtered.len() > 0 {
@@ -1397,22 +1387,19 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
     requires
         vsts@.well_formed(),
     ensures
-        filtered.deep_view() =~= model_reconciler::filter_pods(pods.deep_view(), vsts@),
+        filtered.deep_view() =~= pods.deep_view().filter(model_reconciler::pod_filter(vsts@)),
 {
     let mut filtered_pods = Vec::new();
 
     proof {
-        assert_seqs_equal!(filtered_pods.deep_view(), model_reconciler::filter_pods(pods.deep_view().take(0), vsts@));
+        assert_seqs_equal!(filtered_pods.deep_view(),pods.deep_view().filter(model_reconciler::pod_filter(vsts@)).take(0));
     }
 
     let mut idx = 0;
     for idx in 0..pods.len()
         invariant
             idx <= pods.len(),
-            filtered_pods.deep_view() == model_reconciler::filter_pods(
-                pods.deep_view().take(idx as int),
-                vsts@,
-            ),
+            filtered_pods.deep_view() == pods.deep_view().take(idx as int).filter(model_reconciler::pod_filter(vsts@)),
             vsts@.well_formed(),
     {
         let pod = &pods[idx];
