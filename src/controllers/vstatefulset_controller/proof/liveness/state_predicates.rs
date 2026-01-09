@@ -15,7 +15,7 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
     |s: ClusterState| {
         let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
         let local_state = s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state;
-        let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
+        // let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
         &&& s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
         &&& VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).is_ok()
         &&& VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).is_ok()
@@ -29,10 +29,6 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
         &&& triggering_cr.metadata.name == vsts.metadata.name
         &&& triggering_cr.metadata.namespace is Some
         &&& triggering_cr.metadata.namespace == vsts.metadata.namespace
-        // predicate equality
-        &&& pod_filter(vsts) == pod_filter(triggering_cr)
-        &&& forall |pods: Seq<PodView>| #[trigger] partition_pods(vsts.metadata.name->0, replicas, pods)
-            == partition_pods(triggering_cr.metadata.name->0, replicas, pods)
     }
 }
 
@@ -127,16 +123,17 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
             &&& obj.metadata.namespace is Some
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }).map(|obj: DynamicObjectView| obj.object_ref())
-    &&& resp_objs.all(|obj: DynamicObjectView| {
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
         let key = obj.object_ref();
         let etcd_obj = s.resources()[key];
         &&& obj.kind == Kind::PodKind
+        &&& PodView::unmarshal(obj) is Ok
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
         &&& s.resources().contains_key(key)
         &&& weakly_eq(etcd_obj, obj)
-    })
+    }
     &&& objects_to_pods(resp_objs) is Some
 }
 
@@ -154,8 +151,8 @@ pub open spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, stat
         &&& state.pvc_index <= state.pvcs.len()
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
             ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-        &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
-            ==> state.condemned[i as int].metadata.name is Some
+        &&& forall |pod: PodView| #[trigger] state.condemned.contains(pod)
+            ==> pod.metadata.name is Some
         &&& local_state_is_coherent_with_etcd(vsts, state)(s)
     }
 }
@@ -167,7 +164,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
+        &&& forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] {
             ||| ord < state.needed.len() && state.needed[ord as int] is Some
             ||| ord < state.needed_index
         } ==> {
@@ -177,6 +174,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 namespace: vsts.metadata.namespace->0
             };
             let obj = s.resources()[key];
+            &&& state.needed[ord as int]->0.object_ref() == key // optional
             &&& s.resources().contains_key(key)
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             // TODO: cover pod updates

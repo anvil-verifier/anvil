@@ -14,7 +14,7 @@ use crate::vstatefulset_controller::{
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*};
+use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*};
 use vstd::prelude::*;
 
 verus! {
@@ -165,6 +165,7 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
     assert(objects_to_pods(objs) is Some);
+    assert(pod_filter(vsts) == pod_filter(triggering_cr));
     let next_local_state_from_cluster = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     // for better proof stability
     assert(next_local_state =~= next_local_state_from_cluster) by {
@@ -175,14 +176,56 @@ ensures
     assert(objs == extract_some_k_list_resp_view(wrapped_resp)->Ok_0);
     assert(next_local_state.reconcile_step != Error);
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
+    let vsts_name = vsts.metadata.name->0;
     assert(replicas >= 0);
     assert(local_state_is(vsts, controller_id, next_local_state)(s_prime)) by {
-        let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas, pods.filter(pod_filter(vsts)));
-        assert(partition_pods(vsts.metadata.name->0, replicas, pods.filter(pod_filter(vsts))) == 
-            partition_pods(triggering_cr.metadata.name->0, replicas, pods.filter(pod_filter(triggering_cr))));
+        let filtered_pods = pods.filter(pod_filter(vsts));
+        let (needed, condemned) = partition_pods(vsts_name, replicas, filtered_pods);
+        assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
+            &&& pod.metadata.name is Some
+            &&& pod.metadata.namespace is Some
+            &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
+            &&& pod.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& s.resources().contains_key(pod.object_ref())
+        } by {
+            PodView::marshal_preserves_metadata();
+            seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
+            let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
+            assert(objs.contains(objs[i]));
+            assert(PodView::unmarshal(objs[i]) is Ok);
+            assert(PodView::unmarshal(objs[i])->Ok_0 == pod);
+        }
+        assert(partition_pods(vsts_name, replicas, filtered_pods) == 
+            partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
         assert(next_local_state.needed == needed);
         assert(next_local_state.condemned == condemned);
-        assume(false);
+        let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod) is Some && get_ordinal(vsts_name, pod)->0 >= replicas;
+        assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.contains(pod) by {
+            let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1)->0 >= get_ordinal(vsts_name, p2)->0;
+            assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
+            assume(total_ordering(leq)); // TODO: prove or skip
+            filtered_pods.filter(condemned_ord_filter).lemma_sort_by_ensures(leq);
+            seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, pod);
+        }
+        assert(forall |pod: PodView| #[trigger] condemned.contains(pod)
+            ==> pod.metadata.name is Some);
+        assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is Some
+            implies {
+                let needed_pod = needed[ord as int]->0;
+                let key = ObjectRef {
+                    kind: Kind::PodKind,
+                    namespace: vsts.metadata.namespace->0,
+                    name: needed_pod.metadata.name->0,
+                };
+                &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+                &&& s.resources().contains_key(key)
+            } by {
+            assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
+            seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
+        }
+        assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+            assume(false);
+        }
     }
     return next_local_state;
 }
