@@ -228,7 +228,7 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
                             ..state_without_step
                         }, None)
                     } else {
-                        (delete_outdated_state(state), None)
+                        (delete_outdated_state(state_without_step), None)
                     }
                 }
             } else {

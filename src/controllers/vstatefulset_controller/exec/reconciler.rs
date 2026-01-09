@@ -291,7 +291,7 @@ pub fn handle_after_list_pod(
                             None,
                         )
                     } else {
-                        (delete_outdated_state(state), None)
+                        (delete_outdated_state(state_without_step), None)
                     }
                 }
             } else {
