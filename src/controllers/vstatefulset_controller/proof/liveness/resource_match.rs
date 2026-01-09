@@ -182,11 +182,13 @@ ensures
         let filtered_pods = pods.filter(pod_filter(vsts));
         let (needed, condemned) = partition_pods(vsts_name, replicas, filtered_pods);
         assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
+            let obj = s.resources()[pod.object_ref()];
             &&& pod.metadata.name is Some
             &&& pod.metadata.namespace is Some
             &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
             &&& pod.metadata.owner_references_contains(vsts.controller_owner_ref())
             &&& s.resources().contains_key(pod.object_ref())
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         } by {
             PodView::marshal_preserves_metadata();
             seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
@@ -195,8 +197,7 @@ ensures
             assert(PodView::unmarshal(objs[i]) is Ok);
             assert(PodView::unmarshal(objs[i])->Ok_0 == pod);
         }
-        assert(partition_pods(vsts_name, replicas, filtered_pods) == 
-            partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
+        assert(partition_pods(vsts_name, replicas, filtered_pods) == partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
         assert(next_local_state.needed == needed);
         assert(next_local_state.condemned == condemned);
         let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod) is Some && get_ordinal(vsts_name, pod)->0 >= replicas;
@@ -207,8 +208,7 @@ ensures
             filtered_pods.filter(condemned_ord_filter).lemma_sort_by_ensures(leq);
             seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, pod);
         }
-        assert(forall |pod: PodView| #[trigger] condemned.contains(pod)
-            ==> pod.metadata.name is Some);
+        assert(forall |pod: PodView| #[trigger] condemned.contains(pod) ==> pod.metadata.name is Some);
         // coherence of needed pods
         assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is Some implies {
             let needed_pod = needed[ord as int]->0;
@@ -217,9 +217,11 @@ ensures
                 namespace: vsts.metadata.namespace->0,
                 name: needed_pod.metadata.name->0,
             };
+            let obj = s.resources()[key];
             &&& needed_pod.object_ref() == key
             &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& s.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         } by {
             assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
@@ -237,8 +239,8 @@ ensures
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
         };
-        if exists |ord: nat| #[trigger] unlawful_cond(ord) {
-            let ord = choose |ord: nat| #[trigger] unlawful_cond(ord);
+        if exists |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord) {
+            let ord = choose |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord);
             let key = ObjectRef {
                 kind: PodView::kind(),
                 name: pod_name(vsts.metadata.name->0, ord),

@@ -189,7 +189,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             &&& ord >= vsts.spec.replicas.unwrap_or(1)
             &&& s.resources().contains_key(key)
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            &&& !exists |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len() && state.condemned[i as int].object_ref() == key
+            &&& !exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
         }
         // 2.b. all pods before condemned_index are deleted
         &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
