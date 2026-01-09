@@ -12,6 +12,7 @@ use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
+use crate::vstd_ext::seq_lib::*;
 
 verus! {
 
@@ -337,35 +338,24 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                 assert(owner_references[0] == vsts.controller_owner_ref());
             }
         },
+        VStatefulSetReconcileStepView::UpdateNeeded => {
+            assert(msg.content.is_get_then_update_request());
+            let req = msg.content.get_get_then_update_request();
+            let pod = state.needed[state.needed_index as int]->0;
+            let owner_references = req.obj.metadata.owner_references->0;
+            assert(owner_references.contains(vsts.controller_owner_ref())) by  {
+                assert(owner_references == pod.metadata.owner_references->0);
+                assert(owner_references.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]);
+                assert(owner_references.filter(controller_owner_filter()).contains(vsts.controller_owner_ref())) by {
+                    assert(owner_references.filter(controller_owner_filter())[0] == vsts.controller_owner_ref());
+                }
+                seq_filter_contains_implies_seq_contains(owner_references, controller_owner_filter(), vsts.controller_owner_ref());
+            }
+        },
         _ => {
             // other cases are handled by Verus automatically
         }
     }
-}
-
-pub proof fn lemma_internal_guarantee_from_reconcile_state(
-    msg: Message,
-    state: VStatefulSetReconcileState,
-    vsts: VStatefulSetView,
-    controller_id: int,
-)
-    requires
-        msg.content is APIRequest,
-        msg.src == HostId::Controller(controller_id, vsts.object_ref()),
-        reconcile_core(vsts, None, state).1 is Some,
-        reconcile_core(vsts, None, state).1->0 is KRequest,
-        msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0,
-        local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, state),
-    ensures
-        match msg.content->APIRequest_0 {
-            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true,
-            APIRequest::CreateRequest(req) => vsts_internal_guarantee_create_req(req, vsts),
-            APIRequest::GetThenDeleteRequest(req) => vsts_internal_guarantee_get_then_delete_req(req, vsts),
-            APIRequest::GetThenUpdateRequest(req) => vsts_internal_guarantee_get_then_update_req(req, vsts),
-            _ => false
-        }
-{
-    assume(false);
 }
 
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
@@ -616,7 +606,7 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
                                     let ordinal = get_largest_ordinal_of_unmatched_pods(triggering_vsts, state.needed)->0;
-                                    lemma_get_largest_ordinal_of_unmatched_properties_well_behaved(triggering_vsts, state.needed);
+                                    lemma_get_largest_ordinal_of_unmatched_well_behaved(triggering_vsts, state.needed);
                                     let pod = state.needed[ordinal as int]->0;
                                     assert(get_ordinal(vsts.object_ref().name, pod) is Some);
                                     let ord = get_ordinal(vsts.object_ref().name, pod)->0;
