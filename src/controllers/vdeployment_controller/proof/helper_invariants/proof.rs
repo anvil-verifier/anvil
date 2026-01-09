@@ -325,7 +325,7 @@ pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
                         if new_msgs.contains(msg) && msg.content.is_get_then_update_request() {
                             let req = msg.content.get_get_then_update_request();
                             let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                            let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();    
+                            let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();                                
 
                             if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
                                 let list_resp = resp_msg_opt.unwrap().content.get_list_response();
@@ -357,6 +357,9 @@ pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
                                 triggering_cr.controller_owner_ref(),
                             );
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
+                            VDeploymentView::object_ref_is_well_formed();
+                            // assert(vd.object_ref().name == vd.metadata.name->0);
+                            assert(triggering_cr.controller_owner_ref().name == vd.object_ref().name);
                         }
                     }
                 }
