@@ -13,6 +13,7 @@ verifiable-controllers.code-workspace
 src/.verus-solver-log/
 src/*.d
 src/*.rlib
+src/*.o
 tools/*.json
 vreplicaset_controller.*.txt
 vstatefulset_controller.*.txt
