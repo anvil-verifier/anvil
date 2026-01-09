@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, rely};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
-use crate::vstatefulset_controller::proof::guarantee;
+use crate::vstatefulset_controller::proof::{guarantee, helper_invariants};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -63,6 +63,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         Cluster::no_pending_request_to_api_server_from_non_controllers(),
         Cluster::desired_state_is(vsts),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
+        helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts),
         guarantee::vsts_internal_guarantee_conditions(controller_id),
         guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
         rely::vsts_rely_conditions(cluster, controller_id),
