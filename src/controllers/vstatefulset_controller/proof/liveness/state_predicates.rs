@@ -39,7 +39,7 @@ pub open spec fn no_pending_req_in_cluster(vsts: VStatefulSetView, controller_id
 }
 
 pub open spec fn req_msg_is_list_pod_req(
-    vsts_key: ObjectRef, controller_id: int, req_msg: Message, s: ClusterState
+    vsts_key: ObjectRef, controller_id: int, req_msg: Message
 ) -> bool {
     let req = req_msg.content->APIRequest_0;
     &&& req_msg.src == HostId::Controller(controller_id, vsts_key)
@@ -59,7 +59,7 @@ pub open spec fn pending_list_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
     }
 }
 
@@ -69,7 +69,7 @@ pub open spec fn req_msg_is_pending_list_req_in_flight(
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
     }
 }
 
@@ -80,7 +80,7 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         // predicate on req_msg, it's not in_flight
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
-        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
         // predicate on resp_msg
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -97,7 +97,7 @@ pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         // predicate on req_msg, it's not in_flight
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
-        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg, s)
+        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
         // predicate on resp_msg
         &&& #[trigger] s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -217,6 +217,33 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 &&& s.resources().contains_key(key)
             }
         }
+    }
+}
+
+pub open spec fn req_msg_is_get_pvc_req(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
+) -> bool {
+    let req = req_msg.content->APIRequest_0;
+    let key = ObjectRef {
+        kind: Kind::PersistentVolumeClaimKind,
+        namespace: vsts.metadata.namespace->0,
+        name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord)
+    };
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_get_request_msg(key)(req_msg)
+}
+
+pub open spec fn pending_get_pvc_req_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_get_pvc_req(vsts, controller_id, req_msg, local_state.needed_index, local_state.pvc_index)
     }
 }
 

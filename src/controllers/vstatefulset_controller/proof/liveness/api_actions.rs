@@ -25,7 +25,7 @@ pub proof fn lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg, s),
+    req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
