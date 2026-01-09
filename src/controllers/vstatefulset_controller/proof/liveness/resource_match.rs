@@ -203,7 +203,7 @@ ensures
         assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.contains(pod) by {
             let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1)->0 >= get_ordinal(vsts_name, p2)->0;
             assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
-            assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.filter(condemned_ord_filter).contains(pod) by {
+            assert(filtered_pods.filter(condemned_ord_filter).contains(pod)) by {
                 lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
                 assert(condemned.to_set().contains(pod));
                 assert(filtered_pods.filter(condemned_ord_filter).contains(pod));
