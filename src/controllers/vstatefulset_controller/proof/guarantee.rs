@@ -5,7 +5,8 @@ use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
     trusted::spec_types::*,
     model::{reconciler::*, install::*},
-    proof::predicate::*
+    proof::predicate::*,
+    proof::helper_lemmas::*
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -132,6 +133,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
     &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
         let pod = needed_pods[i]->0;
         &&& pod.metadata.name is Some
+        &&& get_ordinal(vsts.metadata.name->0, pod) is Some
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pod.metadata.owner_references is Some
         &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
@@ -139,6 +141,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
     &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
         let pod = condemned_pods[i];
         &&& pod.metadata.name is Some
+        &&& get_ordinal(vsts.metadata.name->0, pod) is Some
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pod.metadata.owner_references is Some
         &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
@@ -586,32 +589,41 @@ pub proof fn internal_guarantee_condition_holds(
                             // Match on the reconcile step to handle each case
                             match state.reconcile_step {
                                 VStatefulSetReconcileStepView::CreatePVC => {
-                                    assert(msg.content.is_create_request());
-                                    let req = msg.content.get_create_request();
-                                    // assume(false); // TODO: prove internal guarantee for CreatePVC
+
                                 },
                                 VStatefulSetReconcileStepView::CreateNeeded => {
                                     assert(msg.content.is_create_request());
                                     let req = msg.content.get_create_request();
-                                    // assume(false); // TODO: prove internal guarantee for CreateNeeded
+                                    assert(req.key().name == pod_name(vsts.object_ref().name, state.needed_index));
                                 },
                                 VStatefulSetReconcileStepView::UpdateNeeded => {
                                     assert(msg.content.is_get_then_update_request());
                                     let req = msg.content.get_get_then_update_request();
-                                    assume(false); // TODO: prove internal guarantee for UpdateNeeded
+                                    let pod = state.needed[state.needed_index as int]->0;
+                                    assert(get_ordinal(vsts.object_ref().name, pod) is Some);
+                                    let ord = get_ordinal(vsts.object_ref().name, pod)->0;
+                                    assert(req.name == pod_name(vsts.object_ref().name, ord));
                                 },
                                 VStatefulSetReconcileStepView::DeleteCondemned => {
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
-                                    assume(false); // TODO: prove internal guarantee for DeleteCondemned
+                                    let condemned_pod = state.condemned[state.condemned_index as int];
+                                    assert(get_ordinal(vsts.object_ref().name, condemned_pod) is Some);
+                                    let ord = get_ordinal(vsts.object_ref().name, condemned_pod)->0;
+                                    assert(req.key().name == pod_name(vsts.object_ref().name, ord));
                                 },
                                 VStatefulSetReconcileStepView::DeleteOutdated => {
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
-                                    assume(false); // TODO: prove internal guarantee for DeleteOutdated
+                                    let ordinal = get_largest_ordinal_of_unmatched_pods(triggering_vsts, state.needed)->0;
+                                    lemma_get_largest_ordinal_of_unmatched_properties_well_behaved(triggering_vsts, state.needed);
+                                    let pod = state.needed[ordinal as int]->0;
+                                    assert(get_ordinal(vsts.object_ref().name, pod) is Some);
+                                    let ord = get_ordinal(vsts.object_ref().name, pod)->0;
+                                    assert(req.key().name == pod_name(vsts.object_ref().name, ord));
                                 },
                                 _ => {
-                                    assume(false);
+                                    
                                 }
                             }
                         }
