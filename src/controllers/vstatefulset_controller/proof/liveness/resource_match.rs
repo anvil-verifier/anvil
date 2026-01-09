@@ -149,7 +149,6 @@ requires
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
-    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
 ensures
