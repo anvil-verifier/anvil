@@ -200,11 +200,13 @@ ensures
         assert(next_local_state.needed == needed);
         assert(next_local_state.condemned == condemned);
         let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod.metadata.name->0) is Some && get_ordinal(vsts_name, pod.metadata.name->0)->0 >= replicas;
-        assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.contains(pod) by {
+        assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
             let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1.metadata.name->0)->0 >= get_ordinal(vsts_name, p2.metadata.name->0)->0;
             assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
+            lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
+        }
+        assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.contains(pod) by {
             assert(filtered_pods.filter(condemned_ord_filter).contains(pod)) by {
-                lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
                 assert(condemned.to_set().contains(pod));
                 assert(filtered_pods.filter(condemned_ord_filter).contains(pod));
             }
@@ -249,10 +251,36 @@ ensures
                 namespace: vsts.metadata.namespace->0
             };
             let obj = s.resources()[key];
+            let owner_ref_filter = |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref());
+            let filtered_resp_objs = objs.filter(owner_ref_filter);
+            get_ordinal_eq_pod_name(vsts_name, ord, key.name);
+            // prove that object can pass through all filters and enter condemned
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
-            assert(objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref())).to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
-            assume(exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key);
+            assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+            assert(get_ordinal(vsts_name, key.name) == Some(ord));
+            assert({
+                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
+            assert(exists |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key);
+            let condemned_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
+            seq_filter_contains_implies_seq_contains(objs, owner_ref_filter, condemned_obj);
+            let condemned_pod = PodView::unmarshal(condemned_obj)->Ok_0;
+            PodView::marshal_preserves_metadata();
+            assert(condemned_pod.object_ref() == key);
+            assert(filtered_pods.contains(condemned_pod)) by {
+                assert(pods.contains(condemned_pod)) by {
+                    let i = choose |i: int| 0 <= i < objs.len() && objs[i] == condemned_obj;
+                    assert(PodView::unmarshal(objs[i]) is Ok);
+                    assert(pods[i] == condemned_pod);
+                    assert(pods.contains(pods[i]));
+                }
+                seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), condemned_pod);
+            }
+            assert(exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key) by {
+                assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
+            }
             assert(false);
         }
     }
