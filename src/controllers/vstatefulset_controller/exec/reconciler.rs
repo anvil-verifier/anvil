@@ -1383,6 +1383,7 @@ pub fn make_owner_references(vsts: &VStatefulSet) -> (references: Vec<OwnerRefer
     vec![vsts.controller_owner_ref()]
 }
 
+// spec returns filter function instead of filtered_pods for easier proof
 pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
     requires
         vsts@.well_formed(),
