@@ -25,6 +25,15 @@ pub open spec fn has_vsts_prefix(name: StringView) -> bool {
     exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
 
+pub open spec fn valid_owned_object_filter(vsts: VStatefulSetView) -> spec_fn(DynamicObjectView) -> bool {
+    |obj: DynamicObjectView| {
+        &&& obj.kind == Kind::PodKind
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+    }
+}
+
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     and!(
         Cluster::crash_disabled(controller_id),

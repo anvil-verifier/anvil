@@ -117,12 +117,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
     &&& resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()))
         .to_set().map(|obj: DynamicObjectView| obj.object_ref())
-        == s.resources().values().filter(|obj: DynamicObjectView| {
-            &&& obj.kind == Kind::PodKind
-            &&& obj.metadata.name is Some
-            &&& obj.metadata.namespace is Some
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-        }).map(|obj: DynamicObjectView| obj.object_ref())
+        == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
     &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
         let key = obj.object_ref();
         let etcd_obj = s.resources()[key];
@@ -164,7 +159,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] {
+        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
             ||| ord < state.needed.len() && state.needed[ord as int] is Some
             ||| ord < state.needed_index
         } ==> {
@@ -184,16 +179,17 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index]) are deleted
         // or use 2.a|b below, which is chosen because I don't bother to talk about order
         // 2.a. all pods to be condemned in etcd are captured in state.condemned
-        &&& forall |ord: nat| #![trigger state.condemned[ord as int]] ord >= vsts.spec.replicas.unwrap_or(1) ==> {
+        &&& !exists |ord: nat| {
             let key = ObjectRef {
                 kind: PodView::kind(),
-                name: pod_name(vsts.metadata.name->0, ord),
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
             let obj = s.resources()[key];
-            &&& s.resources().contains_key(key) && obj.metadata.owner_references_contains(vsts.controller_owner_ref()) ==> {
-                exists |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len() && state.condemned[i as int].metadata.name->0 == key.name
-            }
+            &&& ord >= vsts.spec.replicas.unwrap_or(1)
+            &&& s.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& !exists |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len() && state.condemned[i as int].object_ref() == key
         }
         // 2.b. all pods before condemned_index are deleted
         &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
