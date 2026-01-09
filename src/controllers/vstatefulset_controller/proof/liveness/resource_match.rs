@@ -199,9 +199,9 @@ ensures
         assert(partition_pods(vsts_name, replicas, filtered_pods) == partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
         assert(next_local_state.needed == needed);
         assert(next_local_state.condemned == condemned);
-        let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod) is Some && get_ordinal(vsts_name, pod)->0 >= replicas;
+        let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod.metadata.name->0) is Some && get_ordinal(vsts_name, pod.metadata.name->0)->0 >= replicas;
         assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.contains(pod) by {
-            let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1)->0 >= get_ordinal(vsts_name, p2)->0;
+            let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1.metadata.name->0)->0 >= get_ordinal(vsts_name, p2.metadata.name->0)->0;
             assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
             assert(filtered_pods.filter(condemned_ord_filter).contains(pod)) by {
                 lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);

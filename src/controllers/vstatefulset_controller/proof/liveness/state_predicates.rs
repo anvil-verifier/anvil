@@ -176,7 +176,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         }
         // coherence of condemned pods
         // we have 2 ways to encode this:
-        // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index]) are deleted
+        // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index].metadata.name->0) are deleted
         // or use 2.a|b below, which is chosen because I don't bother to talk about order
         // 2.a. all pods to be condemned in etcd are captured in state.condemned
         &&& !exists |ord: nat| {

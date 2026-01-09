@@ -1110,6 +1110,8 @@ pub fn make_pvcs(vsts: &VStatefulSet, ordinal: usize) -> (pvcs: Vec<PersistentVo
 }
 
 pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (result: Option<Pod>)
+    requires
+        pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
     ensures
         result.deep_view() == model_reconciler::get_pod_with_ord(
             parent_name@,
@@ -1132,9 +1134,15 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
             filtered.deep_view() == pods.deep_view().take(idx as int).filter(
                 model_reconciler::pod_has_ord(parent_name@, ord as nat),
             ),
+            pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
     {
         let pod = &pods[idx];
-        if get_ordinal(&parent_name, pod).is_some() && get_ordinal(&parent_name, pod).unwrap()
+        proof {
+            assert(pod@.metadata.name is Some) by {
+                assert((|pod: PodView| pod.metadata.name is Some)(pods.deep_view()[idx as int]));
+            }
+        }
+        if get_ordinal(&parent_name, &pod.metadata().name().unwrap()).is_some() && get_ordinal(&parent_name, &pod.metadata().name().unwrap()).unwrap()
             == ord {
             filtered.push(pod.clone());
         }
@@ -1178,6 +1186,8 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
     Vec<Option<Pod>>,
     Vec<Pod>,
 ))
+    requires
+        pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
     ensures
         result.0.deep_view() == model_reconciler::partition_pods(
             parent_name@,
@@ -1209,6 +1219,7 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
                 replicas as nat,
                 pods.deep_view(),
             ).0.take(i as int),
+            pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
         decreases replicas - i,
     {
         let pod_or_none = get_pod_with_ord(parent_name.clone(), &pods, i);
@@ -1247,7 +1258,7 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
     proof {
         assert_seqs_equal!(
                 condemned.deep_view(),
-                pods.deep_view().take(0).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod) is Some && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas)
+                pods.deep_view().take(0).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas)
             );
     }
 
@@ -1255,19 +1266,25 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
         invariant
             condemned.deep_view() == pods.deep_view().take(i as int).filter(
                 |pod: PodView|
-                    model_reconciler::get_ordinal(parent_name@, pod) is Some
-                        && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas,
+                    model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
+                        && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas,
             ),
+            pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
     {
         let pod = &pods[i];
-        let ordinal = get_ordinal(&parent_name, pod);
+        proof {
+            assert(pod@.metadata.name is Some) by {
+                assert((|pod: PodView| pod.metadata.name is Some)(pods.deep_view()[i as int]));
+            }
+        }
+        let ordinal = get_ordinal(&parent_name, &pod.metadata().name().unwrap());
         if ordinal.is_some() && ordinal.unwrap() >= replicas {
             condemned.push(pod.clone());
         }
         proof {
             let spec_filter = |pod: PodView|
-                model_reconciler::get_ordinal(parent_name@, pod) is Some
-                    && model_reconciler::get_ordinal(parent_name@, pod)->0 >= replicas;
+                model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
+                    && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas;
             let old_filtered = if spec_filter(pod@) {
                 condemned.deep_view().drop_last()
             } else {
@@ -1406,7 +1423,9 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
         let pod = &pods[idx];
         if pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
             && vsts.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::empty()))
-            && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod).is_some() {
+            && vsts.metadata().name().is_some()
+            && pod.metadata().name().is_some()
+            && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap()).is_some() {
             filtered_pods.push(pod.clone());
         }
         // prove the invariant
@@ -1414,11 +1433,14 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
         proof {
             let spec_filter = |pod: PodView|
                 pod.metadata.owner_references_contains(vsts@.controller_owner_ref())
-                    && vsts@.spec.selector.matches(
+                && vsts@.spec.selector.matches(
                     pod.metadata.labels.unwrap_or(Map::<Seq<char>, Seq<char>>::empty()),
-                ) && vsts@.metadata.name is Some && model_reconciler::get_ordinal(
+                )
+                && vsts@.metadata.name is Some
+                && pod.metadata.name is Some
+                && model_reconciler::get_ordinal(
                     vsts@.metadata.name->0,
-                    pod,
+                    pod.metadata.name->0,
                 ) is Some;
 
             let old_filtered = if spec_filter(pod@) {
