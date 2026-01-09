@@ -51,7 +51,10 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
+            let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
+            // TODO: check if we need this
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }
     }
 }

@@ -209,23 +209,22 @@ ensures
         }
         assert(forall |pod: PodView| #[trigger] condemned.contains(pod)
             ==> pod.metadata.name is Some);
-        assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is Some
-            implies {
-                let needed_pod = needed[ord as int]->0;
-                let key = ObjectRef {
-                    kind: Kind::PodKind,
-                    namespace: vsts.metadata.namespace->0,
-                    name: needed_pod.metadata.name->0,
-                };
-                &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-                &&& s.resources().contains_key(key)
-            } by {
+        // coherence of needed pods
+        assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is Some implies {
+            let needed_pod = needed[ord as int]->0;
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                namespace: vsts.metadata.namespace->0,
+                name: needed_pod.metadata.name->0,
+            };
+            &&& needed_pod.object_ref() == key
+            &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+            &&& s.resources().contains_key(key)
+        } by {
             assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
         }
-        assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
-            assume(false);
-        }
+        // coherence of condemned pods
     }
     return next_local_state;
 }

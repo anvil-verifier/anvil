@@ -190,7 +190,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            &&& s.resources().contains_key(key) ==> {
+            let obj = s.resources()[key];
+            &&& s.resources().contains_key(key) && obj.metadata.owner_references_contains(vsts.controller_owner_ref()) ==> {
                 exists |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len() && state.condemned[i as int].metadata.name->0 == key.name
             }
         }
