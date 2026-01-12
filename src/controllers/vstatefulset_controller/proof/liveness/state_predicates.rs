@@ -144,10 +144,13 @@ pub open spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, stat
         &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
         &&& state.condemned_index <= state.condemned.len()
         &&& state.pvc_index <= state.pvcs.len()
+        &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
             ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
         &&& forall |pod: PodView| #[trigger] state.condemned.contains(pod)
             ==> pod.metadata.name is Some
+        &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
+            ==> state.pvcs[i as int].metadata.name is Some
         &&& local_state_is_coherent_with_etcd(vsts, state)(s)
     }
 }
