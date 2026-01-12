@@ -585,9 +585,6 @@ pub proof fn internal_guarantee_condition_holds(
 
                             // Match on the reconcile step to handle each case
                             match state.reconcile_step {
-                                VStatefulSetReconcileStepView::CreatePVC => {
-
-                                },
                                 VStatefulSetReconcileStepView::CreateNeeded => {
                                     assert(msg.content.is_create_request());
                                     let req = msg.content.get_create_request();
@@ -625,7 +622,7 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(req.key().name == pod_name(vsts.object_ref().name, ord));
                                 },
                                 _ => {
-                                    
+                                    // other cases are trivial
                                 }
                             }
                         }
