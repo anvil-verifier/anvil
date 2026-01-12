@@ -139,21 +139,36 @@ pub open spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, stat
         // local state matches given state
         &&& VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].local_state) is Ok
         &&& local_state == state
-        // validity of local state
-        &&& state.needed.len() == vsts.spec.replicas.unwrap_or(1)
-        &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
-        &&& state.condemned_index <= state.condemned.len()
-        &&& state.pvc_index <= state.pvcs.len()
-        &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
-            ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-        &&& forall |pod: PodView| #[trigger] state.condemned.contains(pod)
-            ==> pod.metadata.name is Some
-        &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
-            ==> state.pvcs[i as int].metadata.name is Some
+        &&& local_state_is_valid(vsts, state)
         &&& local_state_is_coherent_with_etcd(vsts, state)(s)
     }
 }
+
+pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> bool {
+    let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
+        vsts.spec.volume_claim_templates->0.len()
+    } else {0};
+    &&& state.needed.len() == vsts.spec.replicas.unwrap_or(1)
+    &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
+    &&& state.condemned_index <= state.condemned.len()
+    &&& state.pvc_index <= state.pvcs.len()
+    &&& state.pvcs.len() == pvc_cnt
+    &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
+    &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
+        ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+    &&& forall |pod: PodView| #[trigger] state.condemned.contains(pod)
+        ==> pod.metadata.name is Some
+    &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
+        ==> state.pvcs[i as int].metadata.name is Some
+    // pvcs have correct names
+    &&& (state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC)
+        ==> forall |i: nat| #![trigger state.pvcs[i as int]] i < pvc_cnt
+            ==> {
+                let pvc_name_expected = pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index);
+                state.pvcs[i as int].metadata.name == Some(pvc_name_expected)
+            }
+}
+
 
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -209,7 +224,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 };
                 &&& s.resources().contains_key(key)
             }
-        &&& state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC ==> {
+        &&& (state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC) ==> {
             &&& state.needed_index < state.needed.len()
             &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvc_index ==> {
                 let key = ObjectRef {

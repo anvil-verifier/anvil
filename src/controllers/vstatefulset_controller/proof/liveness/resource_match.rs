@@ -293,6 +293,7 @@ ensures
 }
 
 // TODO: check if req itself can be exposed and that exposure is beneficial (msg contains rpc_id)
+// and do we need to expose next_local_state as it can be extracted from s_prime
 pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, local_state: VStatefulSetReconcileState
 ) -> (next_local_state: VStatefulSetReconcileState)
@@ -316,6 +317,99 @@ ensures
         ..local_state
     });
     assert(s_prime.resources() == s.resources());
+    assert(local_state_is(vsts, controller_id, next_local_state)(s_prime)) by {
+        assume(false);
+        VStatefulSetReconcileState::marshal_preserves_integrity();
+        assert(VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state) is Ok);
+        assert(VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0 == next_local_state);
+        assert(next_local_state.needed.len() == vsts.spec.replicas.unwrap_or(1));
+        assert(next_local_state.needed_index < next_local_state.needed.len());
+        assert(next_local_state.condemned_index <= next_local_state.condemned.len());
+        assert(next_local_state.pvc_index <= next_local_state.pvcs.len());
+        assert(forall |ord: nat| #![trigger next_local_state.needed[ord as int]] ord < next_local_state.needed.len() && next_local_state.needed[ord as int] is Some ==> next_local_state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord)));
+        assert(forall |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) ==> pod.metadata.name is Some);
+        assert(forall |i: nat| #![trigger next_local_state.pvcs[i as int]] i < next_local_state.pvcs.len() ==> next_local_state.pvcs[i as int].metadata.name is Some);
+        assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+            assert(local_state_is_coherent_with_etcd(vsts, local_state)(s));
+            let vsts_key = vsts.object_ref();
+            let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
+                vsts.spec.volume_claim_templates->0.len()
+            } else {0};
+            assert(
+                forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
+                    ||| ord < next_local_state.needed.len() && next_local_state.needed[ord as int] is Some
+                    ||| ord < next_local_state.needed_index
+                } ==> {
+                    let key = ObjectRef {
+                        kind: PodView::kind(),
+                        name: pod_name(vsts.metadata.name->0, ord),
+                        namespace: vsts.metadata.namespace->0
+                    };
+                    let obj = s_prime.resources()[key];
+                    &&& next_local_state.needed[ord as int]->0.object_ref() == key // optional
+                    &&& s_prime.resources().contains_key(key)
+                    &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                }
+            );
+            assert(!exists |ord: nat| {
+                let key = ObjectRef {
+                    kind: PodView::kind(),
+                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                    namespace: vsts.metadata.namespace->0
+                };
+                let obj = s_prime.resources()[key];
+                &&& ord >= vsts.spec.replicas.unwrap_or(1)
+                &&& s_prime.resources().contains_key(key)
+                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                &&& !exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
+            });
+            assert(forall |i: nat| #![trigger next_local_state.condemned[i as int]] i < next_local_state.condemned_index ==> {
+                let key = next_local_state.condemned[i as int].object_ref();
+                &&& !s_prime.resources().contains_key(key)
+            });
+            assert(forall |ord: nat| #![trigger local_state.needed[ord as int]] ord < local_state.needed_index
+                ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] i < pvc_cnt ==> {
+                    let key = ObjectRef {
+                        kind: PersistentVolumeClaimView::kind(),
+                        name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord),
+                        namespace: vsts.metadata.namespace->0
+                    };
+                    &&& s.resources().contains_key(key)
+                }) by {
+                // ???
+                assert(local_state_is_coherent_with_etcd(vsts, local_state)(s));
+            }
+
+            assert(forall |ord: nat| #![trigger next_local_state.needed[ord as int]] ord < next_local_state.needed_index
+                ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] i < pvc_cnt ==> {
+                    let key = ObjectRef {
+                        kind: PersistentVolumeClaimView::kind(),
+                        name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord),
+                        namespace: vsts.metadata.namespace->0
+                    };
+                    &&& s_prime.resources().contains_key(key)
+                }) by {
+                assert(s.resources() == s_prime.resources());
+                assert(next_local_state.needed_index == local_state.needed_index);
+                assert(next_local_state.pvcs == local_state.pvcs);
+            }
+        }
+    }
+    assert(pending_get_pvc_req_in_flight(vsts, controller_id)(s_prime)) by {
+        let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        assert(Cluster::pending_req_msg_is(controller_id, s_prime, vsts.object_ref(), req_msg));
+        assert(s_prime.in_flight().contains(req_msg));
+        assert(req_msg_is_get_pvc_req(vsts, controller_id, req_msg, local_state.needed_index, local_state.pvc_index)) by {
+            let req = req_msg.content->APIRequest_0->GetRequest_0;
+            let key = ObjectRef {
+                kind: Kind::PersistentVolumeClaimKind,
+                namespace: vsts.metadata.namespace->0,
+                name: pvc_name(vsts.spec.volume_claim_templates->0[local_state.pvc_index as int].metadata.name->0, vsts.metadata.name->0, local_state.needed_index)
+            };
+            assert(req.key() == key);
+        }
+    }
     return next_local_state;
 }
 
