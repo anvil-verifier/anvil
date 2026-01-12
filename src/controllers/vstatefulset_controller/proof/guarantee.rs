@@ -91,7 +91,10 @@ pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VS
     &&& req.namespace == vsts.object_ref().namespace
     &&& req.obj.metadata.name is Some
     &&& req.obj.kind == Kind::PodKind ==> {
-        // &&& req.obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
+        &&& exists |owner_reference: OwnerReferenceView| {
+            &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
+            &&& #[trigger] owner_reference_controller_kind_name_equal(owner_reference, vsts.controller_owner_ref())
+        }
         &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
     }
     &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
@@ -102,7 +105,7 @@ pub open spec fn vsts_internal_guarantee_get_then_delete_req(req: GetThenDeleteR
     &&& req.key().namespace == vsts.object_ref().namespace
     &&& req.key().kind == Kind::PodKind
     &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
-    // &&& req.owner_ref == vsts.controller_owner_ref()
+    &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
 }
 
 // VSTS controller only updates Pods bound to the specific vsts instance
@@ -110,8 +113,12 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
     &&& req.namespace == vsts.object_ref().namespace
     &&& req.obj.kind == Kind::PodKind
     &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
-    // &&& req.owner_ref == vsts.controller_owner_ref()
-    // &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+    &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |owner_reference: OwnerReferenceView| {
+        &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(owner_reference)
+        &&& #[trigger] owner_reference_controller_kind_name_equal(owner_reference, vsts.controller_owner_ref())
+    }
 }
 // similar to local_pods_and_pvcs_are_bound_to_vsts
 // helper invariant to prove both (external) guarantee conditions and internal guarantee conditions
@@ -585,6 +592,8 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(msg.content.is_create_request());
                                     let req = msg.content.get_create_request();
                                     assert(req.key().name == pod_name(vsts.object_ref().name, state.needed_index));
+                                    let owner_ref = req.obj.metadata.owner_references->0[0];
+                                    assert(owner_reference_controller_kind_name_equal(owner_ref, vsts.controller_owner_ref()));
                                 },
                                 VStatefulSetReconcileStepView::UpdateNeeded => {
                                     assert(msg.content.is_get_then_update_request());
@@ -593,6 +602,9 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(get_ordinal(vsts.object_ref().name, pod) is Some);
                                     let ord = get_ordinal(vsts.object_ref().name, pod)->0;
                                     assert(req.name == pod_name(vsts.object_ref().name, ord));
+                                    let controller_owner_references = pod.metadata.owner_references->0.filter(controller_owner_filter());
+                                    let owner_ref = controller_owner_references[0];
+                                    assert(owner_reference_controller_kind_name_equal(owner_ref, vsts.controller_owner_ref()));
                                 },
                                 VStatefulSetReconcileStepView::DeleteCondemned => {
                                     assert(msg.content.is_get_then_delete_request());
