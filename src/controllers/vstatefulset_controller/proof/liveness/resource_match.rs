@@ -143,10 +143,10 @@ ensures
 
 // Then, prove at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated] |=
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
-// and go to next step with local_state_is
+// and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message
-) -> (next_local_state: VStatefulSetReconcileState)
+)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
@@ -155,7 +155,7 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
 ensures
-    local_state_is(vsts, controller_id, next_local_state)(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated])(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
 {
@@ -181,7 +181,7 @@ ensures
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
     let vsts_name = vsts.metadata.name->0;
     assert(replicas >= 0);
-    assert(local_state_is(vsts, controller_id, next_local_state)(s_prime)) by {
+    assert(local_state_is_valid_and_coherent(vsts, controller_id)(s_prime)) by {
         let filtered_pods = pods.filter(pod_filter(vsts));
         let (needed, condemned) = partition_pods(vsts_name, replicas, filtered_pods);
         assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
@@ -289,52 +289,48 @@ ensures
             assert(false);
         }
     }
-    return next_local_state;
 }
 
 // TODO: check if req itself can be exposed and that exposure is beneficial (msg contains rpc_id)
 // and do we need to expose next_local_state as it can be extracted from s_prime
 pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, local_state: VStatefulSetReconcileState
-) -> (next_local_state: VStatefulSetReconcileState)
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, None, Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![GetPVC])(s),
-    local_state_is(vsts, controller_id, local_state)(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
-    local_state_is(vsts, controller_id, next_local_state)(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    let next_local_state = handle_get_pvc(vsts, None::<ResponseView<VoidERespView>>, local_state).0;
-    return next_local_state;
 }
 
 pub proof fn lemma_from_after_send_get_pvc_req_to_receive_get_pvc_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, local_state: VStatefulSetReconcileState
-) -> (next_local_state: VStatefulSetReconcileState)
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
-    local_state_is(vsts, controller_id, local_state)(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
-    local_state_is(vsts, controller_id, next_local_state)(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_pvc_resp_msg_in_flight(vsts, controller_id)(s_prime),
 {
     lemma_get_pvc_request_returns_ok_or_err_response(
         s, s_prime, vsts, cluster, controller_id
     );
-    return local_state;
 }
 
 }
