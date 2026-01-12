@@ -303,6 +303,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![GetPVC])(s),
     local_state_is(vsts, controller_id, local_state)(s),
+    no_pending_req_in_cluster(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is(vsts, controller_id, next_local_state)(s_prime),
@@ -310,6 +311,11 @@ ensures
 {
     let next_local_state = handle_get_pvc(vsts, None::<ResponseView<VoidERespView>>, local_state).0;
     assert(local_state.pvc_index < local_state.pvcs.len() && local_state.pvcs[local_state.pvc_index as int].metadata.name is Some);
+    assert(next_local_state == VStatefulSetReconcileState {
+        reconcile_step: AfterGetPVC,
+        ..local_state
+    });
+    assert(s_prime.resources() == s.resources());
     return next_local_state;
 }
 
