@@ -45,99 +45,38 @@ ensures
 {}
 
 pub proof fn lemma_from_init_step_to_send_list_pod_req(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, None, Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![Init])(s),
+    no_pending_req_in_cluster(vsts, controller_id)(s),
 ensures
-    spec.entails(lift_state(and!(at_vsts_step(vsts, controller_id, at_step![Init]), no_pending_req_in_cluster(vsts, controller_id)))
-       .leads_to(lift_state(and!(at_vsts_step(vsts, controller_id, at_step![AfterListPod]), pending_list_req_in_flight(vsts, controller_id))))),
+    at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s_prime),
+    pending_list_pod_req_in_flight(vsts, controller_id)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    let pre = and!(
-        at_vsts_step(vsts, controller_id, at_step![Init]),
-        no_pending_req_in_cluster(vsts, controller_id)
-    );
-    let post = and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
-        pending_list_req_in_flight(vsts, controller_id)
-    );
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
-    );
-    let input = (None::<Message>, Some(vsts.object_ref()));
-    assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
-    cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
-    );
 }
 
 pub proof fn lemma_from_after_send_list_pod_req_to_receive_list_pod_resp(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
+    pending_list_pod_req_in_flight(vsts, controller_id)(s),
 ensures
-    spec.entails(lift_state(and!(at_vsts_step(vsts, controller_id, at_step![AfterListPod]), req_msg_is_pending_list_req_in_flight(vsts, controller_id, req_msg)))
-       .leads_to(lift_state(and!(at_vsts_step(vsts, controller_id, at_step![AfterListPod]), exists_pending_list_resp_in_flight_and_match_req(vsts, controller_id))))),
+    at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s_prime),
+    pending_list_pod_resp_in_flight(vsts, controller_id)(s_prime),
 {
-    let pre = and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
-        req_msg_is_pending_list_req_in_flight(vsts, controller_id, req_msg)
-    );
-    let post = and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
-        exists_pending_list_resp_in_flight_and_match_req(vsts, controller_id)
-    );
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
-    );
-    let input = Some(req_msg);
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let msg = input->0;
-                if msg == req_msg {
-                    let resp_msg = lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
-                        s, s_prime, vsts, cluster, controller_id, msg
-                    );
-                    // instantiate existential quantifier.
-                    assert(s_prime.in_flight().contains(resp_msg));
-                }
-            },
-            _ => {}
-        }
-    }
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input->0;
-        let resp_msg = lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
-            s, s_prime, vsts, cluster, controller_id, msg,
-        );
-        assert(s_prime.in_flight().contains(resp_msg));
-    }
-    cluster.lemma_pre_leads_to_post_by_api_server(
-        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
+    lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
+        s, s_prime, vsts, cluster, controller_id
     );
 }
 
@@ -145,15 +84,16 @@ ensures
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
 // and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
+    resp_msg_or_none(s, vsts, controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
-    resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s),
+    pending_list_pod_resp_in_flight(vsts, controller_id)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated])(s_prime),
@@ -161,6 +101,7 @@ ensures
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
+    let resp_msg = resp_msg_or_none(s, vsts, controller_id).unwrap();
     let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
     let next_local_state = handle_after_list_pod(vsts, wrapped_resp, current_local_state).0;
     let objs = resp_msg.content.get_list_response().res->Ok_0;

@@ -36,6 +36,20 @@ pub open spec fn req_msg_or_none(s: ClusterState, vsts: VStatefulSetView, contro
     s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg
 }
 
+pub open spec fn resp_msg_or_none(s: ClusterState, vsts: VStatefulSetView, controller_id: int) -> (resp_msg: Option<Message>) {
+    if req_msg_or_none(s, vsts, controller_id) is Some && exists |resp_msg: Message| {
+        &&& #[trigger] s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg_or_none(s, vsts, controller_id)->0)
+    } {
+        Some(choose |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg_or_none(s, vsts, controller_id)->0)
+        })
+    } else {
+        None
+    }
+}
+
 pub open spec fn no_pending_req_in_cluster(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         Cluster::no_pending_req_msg(controller_id, s, vsts.object_ref())
@@ -56,7 +70,7 @@ pub open spec fn req_msg_is_list_pod_req(
     }
 }
 
-pub open spec fn pending_list_req_in_flight(
+pub open spec fn pending_list_pod_req_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -67,17 +81,7 @@ pub open spec fn pending_list_req_in_flight(
     }
 }
 
-pub open spec fn req_msg_is_pending_list_req_in_flight(
-    vsts: VStatefulSetView, controller_id: int, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
-        &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
-    }
-}
-
-pub open spec fn exists_pending_list_resp_in_flight_and_match_req(
+pub open spec fn pending_list_pod_resp_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -91,21 +95,6 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
         }
-    }
-}
-
-pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
-    vsts: VStatefulSetView, controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        // predicate on req_msg, it's not in_flight
-        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
-        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
-        // predicate on resp_msg
-        &&& #[trigger] s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
     }
 }
 
