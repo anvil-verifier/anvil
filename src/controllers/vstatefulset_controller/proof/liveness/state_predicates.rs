@@ -217,24 +217,26 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             &&& !s.resources().contains_key(key)
         }
         // 3. coherence of bound PVCs
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed_index
-            ==> forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] i < pvc_cnt ==> {
-                let key = ObjectRef {
-                    kind: PersistentVolumeClaimView::kind(),
-                    name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord),
-                    namespace: vsts.metadata.namespace->0
-                };
-                &&& s.resources().contains_key(key)
-            }
-        &&& (state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC) ==> {
-            &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvc_index ==> {
-                let key = ObjectRef {
-                    kind: PersistentVolumeClaimView::kind(),
-                    name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
-                    namespace: vsts.metadata.namespace->0
-                };
-                &&& s.resources().contains_key(key)
-            }
+        // all PVCs for pods before needed_index exist in etcd
+        &&& forall |index: (nat, nat)| #[trigger] index.0 < state.needed_index && index.1 < pvc_cnt ==> {
+            let key = ObjectRef {
+                kind: PersistentVolumeClaimView::kind(),
+                name: pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& s.resources().contains_key(key)
+        }
+        // PVCs for pod being processed before pvc_index exist in etcd
+        &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] {
+            &&& i < state.pvc_index
+            &&& (state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC)
+        } ==> {
+            let key = ObjectRef {
+                kind: PersistentVolumeClaimView::kind(),
+                name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& s.resources().contains_key(key)
         }
     }
 }
