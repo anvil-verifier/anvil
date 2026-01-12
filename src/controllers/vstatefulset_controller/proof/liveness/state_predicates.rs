@@ -136,15 +136,14 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     &&& objects_to_pods(resp_objs) is Some
 }
 
-pub open spec fn local_state_is(vsts: VStatefulSetView, controller_id: int, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
+pub open spec fn local_state_is_valid_and_coherent(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].local_state)->Ok_0;
         // local state matches given state
         &&& VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts_key].local_state) is Ok
-        &&& local_state == state
-        &&& local_state_is_valid(vsts, state)
-        &&& local_state_is_coherent_with_etcd(vsts, state)(s)
+        &&& local_state_is_valid(vsts, local_state)
+        &&& local_state_is_coherent_with_etcd(vsts, local_state)(s)
     }
 }
 
