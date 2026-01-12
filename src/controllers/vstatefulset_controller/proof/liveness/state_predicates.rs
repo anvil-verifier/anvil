@@ -32,6 +32,10 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
     }
 }
 
+pub open spec fn req_msg_or_none(s: ClusterState, vsts: VStatefulSetView, controller_id: int) -> (req_msg: Option<Message>) {
+    s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg
+}
+
 pub open spec fn no_pending_req_in_cluster(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         Cluster::no_pending_req_msg(controller_id, s, vsts.object_ref())
@@ -265,6 +269,23 @@ pub open spec fn pending_get_pvc_req_in_flight(
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_get_pvc_req(vsts, controller_id, req_msg, local_state.needed_index, local_state.pvc_index)
+    }
+}
+
+pub open spec fn pending_get_pvc_resp_msg_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let (ord, i) = (local_state.needed_index, local_state.pvc_index);
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_pvc_req(vsts, controller_id, req_msg, ord, i)
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_get_response() // it can be ok or not found error
+        }
     }
 }
 
