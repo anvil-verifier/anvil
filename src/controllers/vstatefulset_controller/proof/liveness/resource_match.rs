@@ -292,7 +292,7 @@ ensures
     return next_local_state;
 }
 
-// NOTE: check if req itself can be exposed (msg contains rpc_id
+// TODO: check if req itself can be exposed and that exposure is beneficial (msg contains rpc_id)
 pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, local_state: VStatefulSetReconcileState
 ) -> (next_local_state: VStatefulSetReconcileState)
