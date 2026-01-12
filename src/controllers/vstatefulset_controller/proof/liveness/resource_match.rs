@@ -318,7 +318,6 @@ ensures
     });
     assert(s_prime.resources() == s.resources());
     assert(local_state_is(vsts, controller_id, next_local_state)(s_prime)) by {
-        assume(false);
         VStatefulSetReconcileState::marshal_preserves_integrity();
         assert(VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state) is Ok);
         assert(VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0 == next_local_state);
@@ -393,21 +392,6 @@ ensures
                 assert(next_local_state.needed_index == local_state.needed_index);
                 assert(next_local_state.pvcs == local_state.pvcs);
             }
-        }
-    }
-    assert(pending_get_pvc_req_in_flight(vsts, controller_id)(s_prime)) by {
-        let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        assert(Cluster::pending_req_msg_is(controller_id, s_prime, vsts.object_ref(), req_msg));
-        assert(s_prime.in_flight().contains(req_msg));
-        assert(req_msg_is_get_pvc_req(vsts, controller_id, req_msg, local_state.needed_index, local_state.pvc_index)) by {
-            let req = req_msg.content->APIRequest_0->GetRequest_0;
-            let key = ObjectRef {
-                kind: Kind::PersistentVolumeClaimKind,
-                namespace: vsts.metadata.namespace->0,
-                name: pvc_name(vsts.spec.volume_claim_templates->0[local_state.pvc_index as int].metadata.name->0, vsts.metadata.name->0, local_state.needed_index)
-            };
-            assert(req.key() == key);
         }
     }
     return next_local_state;
