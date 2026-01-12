@@ -291,4 +291,26 @@ ensures
     }
     return next_local_state;
 }
+
+// NOTE: check if req itself can be exposed (msg contains rpc_id
+pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, local_state: VStatefulSetReconcileState
+) -> (next_local_state: VStatefulSetReconcileState)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, None, Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![GetPVC])(s),
+    local_state_is(vsts, controller_id, local_state)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
+    local_state_is(vsts, controller_id, next_local_state)(s_prime),
+    pending_get_pvc_req_in_flight(vsts, controller_id)(s_prime),
+{
+    let next_local_state = handle_get_pvc(vsts, None::<ResponseView<VoidERespView>>, local_state).0;
+    assert(local_state.pvc_index < local_state.pvcs.len() && local_state.pvcs[local_state.pvc_index as int].metadata.name is Some);
+    return next_local_state;
+}
+
 }
