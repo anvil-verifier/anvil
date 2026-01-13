@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::vstatefulset_controller::{
     trusted::{spec_types::*, step::*, liveness_theorem::*, rely},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, helper_lemmas::*, liveness::{api_actions::*, state_predicates::*}, guarantee, shield_lemma},
+    proof::{predicate::*, helper_lemmas::*, helper_invariants, liveness::{api_actions::*, state_predicates::*}, guarantee, shield_lemma},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -175,78 +175,79 @@ ensures
             assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
         }
-        assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is None implies {
+        // no negative sample of uncaptured condemned pods or needed pods, prove by contradiction
+        let unlawful_cond = |ord: nat| {
             let key = ObjectRef {
                 kind: Kind::PodKind,
-                namespace: vsts.metadata.namespace->0,
                 name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s.resources()[key];
+            ||| {
+                &&& ord >= vsts.spec.replicas.unwrap_or(1)
+                &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
+            }
+            ||| {
+                &&& ord < needed.len()
+                &&& needed[ord as int] is None
+            }
+        };
+        assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord) implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
             };
             &&& !s.resources().contains_key(key)
         } by {
             let key = ObjectRef {
                 kind: Kind::PodKind,
-                namespace: vsts.metadata.namespace->0,
                 name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
             };
             if s.resources().contains_key(key) {
-                assert(false) by {
-                    admit(); // FIXME
+                let obj = s.resources()[key];
+                let owner_ref_filter = |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref());
+                let filtered_resp_objs = objs.filter(owner_ref_filter);
+                get_ordinal_eq_pod_name(vsts_name, ord, key.name);
+                // prove that object can pass through all filters
+                assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts)(s));
+                assert({
+                    &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                    &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
+                assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
+                assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+                assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+                assert(get_ordinal(vsts_name, key.name) == Some(ord));
+                assert(exists |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key);
+                let unlawful_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
+                seq_filter_contains_implies_seq_contains(objs, owner_ref_filter, unlawful_obj);
+                let unlawful_pod = PodView::unmarshal(unlawful_obj)->Ok_0;
+                PodView::marshal_preserves_metadata();
+                assert(unlawful_pod.object_ref() == key);
+                assert(filtered_pods.contains(unlawful_pod)) by {
+                    assert(pods.contains(unlawful_pod)) by {
+                        let i = choose |i: int| 0 <= i < objs.len() && objs[i] == unlawful_obj;
+                        assert(PodView::unmarshal(objs[i]) is Ok);
+                        assert(pods[i] == unlawful_pod);
+                        assert(pods.contains(pods[i]));
+                    }
+                    seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), unlawful_pod);
                 }
-            }
-        }
-        // coherence of condemned pods
-        let unlawful_cond = |ord: nat| {
-            let key = ObjectRef {
-                kind: PodView::kind(),
-                name: pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            let obj = s.resources()[key];
-            &&& ord >= vsts.spec.replicas.unwrap_or(1)
-            &&& s.resources().contains_key(key)
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
-        };
-        if exists |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord) {
-            let ord = choose |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord);
-            let key = ObjectRef {
-                kind: PodView::kind(),
-                name: pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            let obj = s.resources()[key];
-            let owner_ref_filter = |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref());
-            let filtered_resp_objs = objs.filter(owner_ref_filter);
-            get_ordinal_eq_pod_name(vsts_name, ord, key.name);
-            // prove that object can pass through all filters and enter condemned
-            assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
-            assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
-            assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
-            assert(get_ordinal(vsts_name, key.name) == Some(ord));
-            assert({
-                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
-            assert(exists |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key);
-            let condemned_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
-            seq_filter_contains_implies_seq_contains(objs, owner_ref_filter, condemned_obj);
-            let condemned_pod = PodView::unmarshal(condemned_obj)->Ok_0;
-            PodView::marshal_preserves_metadata();
-            assert(condemned_pod.object_ref() == key);
-            assert(filtered_pods.contains(condemned_pod)) by {
-                assert(pods.contains(condemned_pod)) by {
-                    let i = choose |i: int| 0 <= i < objs.len() && objs[i] == condemned_obj;
-                    assert(PodView::unmarshal(objs[i]) is Ok);
-                    assert(pods[i] == condemned_pod);
-                    assert(pods.contains(pods[i]));
+                if ord >= replicas {
+                    assert(condemned.contains(unlawful_pod) && unlawful_pod.object_ref() == key) by {
+                        assert(filtered_pods.filter(condemned_ord_filter).contains(unlawful_pod));
+                        assert(condemned.to_set().contains(unlawful_pod));
+                    }
+                } else {
+                    assert(needed[ord as int] is Some) by {
+                        assert(pod_has_ord(vsts_name, ord)(unlawful_pod));
+                        assert(filtered_pods.filter(pod_has_ord(vsts_name, ord)).contains(unlawful_pod));
+                    }
                 }
-                seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), condemned_pod);
+                assert(false);
             }
-            assert(condemned.contains(condemned_pod) && condemned_pod.object_ref() == key) by {
-                assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
-                assert(condemned.to_set().contains(condemned_pod));
-            }
-            assert(false);
         }
     }
 }
