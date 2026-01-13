@@ -166,7 +166,9 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
 }
 
-
+// coherence between local state and etcd state
+// Note: there are many exceptions when the object is just updated or the index haven't been incremented yet
+// message predicates for each exceptional states carry the necessary information to bring back the coherence
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
