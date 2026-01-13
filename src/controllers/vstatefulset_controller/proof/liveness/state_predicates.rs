@@ -182,19 +182,24 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             _ => state.needed_index,
         };
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
-            ||| ord < state.needed.len() && state.needed[ord as int] is Some
-            ||| ord < state.needed_index
-        } ==> {
+        &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() ==> {
             let key = ObjectRef {
                 kind: PodView::kind(),
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s.resources()[key];
-            &&& state.needed[ord as int]->0.object_ref() == key // optional
-            &&& s.resources().contains_key(key)
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            // local state is a bitmap representing existence of pod in etcd
+            if {
+                ||| state.needed[ord as int] is Some
+                ||| ord < state.needed_index
+            } {
+                let obj = s.resources()[key];
+                &&& state.needed[ord as int]->0.object_ref() == key // optional
+                &&& s.resources().contains_key(key)
+                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            } else {
+                &&& !s.resources().contains_key(key)
+            }
             // TODO: cover pod updates
         }
         // coherence of condemned pods
