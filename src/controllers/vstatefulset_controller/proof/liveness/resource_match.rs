@@ -232,8 +232,6 @@ ensures
     }
 }
 
-// TODO: check if req itself can be exposed and that exposure is beneficial (msg contains rpc_id)
-// and do we need to expose next_local_state as it can be extracted from s_prime
 pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
