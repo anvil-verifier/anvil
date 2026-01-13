@@ -277,4 +277,10 @@ pub open spec fn pending_get_pvc_resp_msg_in_flight(
     }
 }
 
+pub open spec fn pending_create_pvc_resp_msg_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    true
+}
+
 }
