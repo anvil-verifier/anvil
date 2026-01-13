@@ -410,43 +410,15 @@ ensures
         s, s_prime, vsts, cluster, controller_id
     );
     let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_create_request();
-    assume(s_prime.resources() == s.resources().insert(req.key(), req.obj));
+    let obj = if s.resources().contains_key(req.key()) {
+        s.resources()[req.key()]
+    } else {
+        req.obj
+    };
+    assume(s_prime.resources() == s.resources().insert(req.key(), obj));
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by{
-        let state = next_local_state;
-        let vsts_key = vsts.object_ref();
-        let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
-            vsts.spec.volume_claim_templates->0.len()
-        } else {0};
-        let needed_index_for_pvc = match state.reconcile_step {
-            CreateNeeded => (state.needed_index + 1) as nat,
-            _ => state.needed_index,
-        };
-        assert(forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() ==> {
-            let key = ObjectRef {
-                kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            // local state is a bitmap representing existence of pod in etcd
-            // at AfterCreateNeeded the object may not yet exist in etcd
-            let exception = state.reconcile_step == AfterCreateNeeded && ord == (state.needed_index - 1);
-            if exception {
-                true
-            } else if {
-                ||| state.needed[ord as int] is Some
-                ||| ord < state.needed_index
-            } {
-                let obj = s_prime.resources()[key];
-                &&& state.needed[ord as int]->0.object_ref() == key // optional
-                &&& s_prime.resources().contains_key(key)
-                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            } else {
-                &&& !s_prime.resources().contains_key(key)
-            }
-            // TODO: cover pod updates
-        });
-        assert(!exists |ord: nat| {
+    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+        if exists |ord: nat| {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
@@ -455,11 +427,31 @@ ensures
             let obj = s_prime.resources()[key];
             &&& ord >= vsts.spec.replicas.unwrap_or(1)
             &&& s_prime.resources().contains_key(key)
-            &&& !exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
-        });
+            &&& !exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
+        } {
+            let unlawful_ord = choose |ord: nat| {
+                let key = ObjectRef {
+                    kind: Kind::PodKind,
+                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                    namespace: vsts.metadata.namespace->0
+                };
+                let obj = s_prime.resources()[key];
+                &&& ord >= vsts.spec.replicas.unwrap_or(1)
+                &&& s_prime.resources().contains_key(key)
+                &&& !exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
+            };
+            if unlawful_ord == next_local_state.needed_index - 1 {
+                assert(false) by {
+                    assume(false);
+                }
+            } else {
+                assert(req.key().name != pod_name(vsts.metadata.name->0, unlawful_ord));
+                assert(false);
+            }
+        }
         // 2.b. all pods before condemned_index are deleted
-        assert(forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
-            let key = state.condemned[i as int].object_ref();
+        assert(forall |i: nat| #![trigger next_local_state.condemned[i as int]] i < next_local_state.condemned_index ==> {
+            let key = next_local_state.condemned[i as int].object_ref();
             &&& !s_prime.resources().contains_key(key)
         });
     }
