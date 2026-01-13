@@ -143,7 +143,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.needed.len() == vsts.spec.replicas.unwrap_or(1)
     &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
     &&& state.condemned_index <= state.condemned.len()
-    &&& state.pvc_index <= state.pvcs.len()
+    &&& state.pvc_index <= pvc_cnt
     &&& state.pvcs.len() == pvc_cnt
     &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
     &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
@@ -153,16 +153,17 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
         ==> state.pvcs[i as int].metadata.name is Some
     // pvcs have correct names
-    &&& match state.reconcile_step {
-        GetPVC | AfterGetPVC | CreatePVC | AfterCreatePVC | SkipPVC => {
-            &&& state.needed_index < state.needed.len()
-            &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < pvc_cnt ==> {
-                let pvc_name_expected = pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index);
-                state.pvcs[i as int].metadata.name == Some(pvc_name_expected)
-            }
-        },
-        _ => true
+    &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) ==> {
+        &&& state.needed_index < state.needed.len()
+        &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < pvc_cnt ==> {
+            let pvc_name_expected = pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index);
+            state.pvcs[i as int].metadata.name == Some(pvc_name_expected)
+        }
     }
+    // because index is just incremented
+    &&& state.reconcile_step == AfterCreatePVC ==> state.pvc_index > 0
+    // stricter check
+    &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
 }
 
 
@@ -220,20 +221,23 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             };
             &&& s.resources().contains_key(key)
         }
-        &&& match state.reconcile_step {
-            GetPVC | AfterGetPVC | CreatePVC | AfterCreatePVC | SkipPVC => {
-                // PVCs for pod being processed before pvc_index exist in etcd
-                &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] 
-                    i < state.pvc_index ==> {
-                    let key = ObjectRef {
-                        kind: PersistentVolumeClaimView::kind(),
-                        name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
-                        namespace: vsts.metadata.namespace->0
-                    };
-                    &&& s.resources().contains_key(key)
-                }
-            },
-            _ => true
+        &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) ==> {
+            // PVCs for pod being processed before pvc_index exist in etcd
+            // AfterCreatePVC just updates pvc_index and this only holds after APIServer creates the object
+            let pvc_index_tmp = if state.reconcile_step == AfterCreatePVC {
+                (state.pvc_index - 1) as nat
+            } else {
+                state.pvc_index
+            };
+            &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] 
+                i < pvc_index_tmp ==> {
+                let key = ObjectRef {
+                    kind: PersistentVolumeClaimView::kind(),
+                    name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                    namespace: vsts.metadata.namespace->0
+                };
+                &&& s.resources().contains_key(key)
+            }
         }
     }
 }
@@ -282,11 +286,31 @@ pub open spec fn pending_get_pvc_resp_msg_in_flight(
     }
 }
 
+pub open spec fn req_msg_is_create_pvc_req(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
+) -> bool {
+    let req = req_msg.content->APIRequest_0;
+    let key = ObjectRef {
+        kind: Kind::PersistentVolumeClaimKind,
+        namespace: vsts.metadata.namespace->0,
+        name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord)
+    };
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_create_request_msg(key)(req_msg)
+}
+
 pub open spec fn pending_create_pvc_req_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        true
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let (ord, i) = (local_state.needed_index, (local_state.pvc_index - 1) as nat);
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_create_pvc_req(vsts, controller_id, req_msg, ord, i)
     }
 }
 
