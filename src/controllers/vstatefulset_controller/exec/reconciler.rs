@@ -518,7 +518,8 @@ pub fn handle_after_create_needed(
 {
     if is_some_k_create_resp!(resp_o) {
         let result = extract_some_k_create_resp!(resp_o);
-        if result.is_ok() {
+        if result.is_ok() || (result.is_err()
+            && matches!(result.unwrap_err(), APIError::ObjectAlreadyExists)) {
             handle_after_create_or_after_update_needed_helper(vsts.clone(), state)
         } else {
             (error_state(state), None)
