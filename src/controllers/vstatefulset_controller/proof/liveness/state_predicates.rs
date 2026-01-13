@@ -177,7 +177,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
-        let needed_index_tmp = match state.reconcile_step {
+        let needed_index_for_pvc = match state.reconcile_step {
             CreateNeeded => (state.needed_index + 1) as nat,
             _ => state.needed_index,
         };
@@ -189,7 +189,11 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 namespace: vsts.metadata.namespace->0
             };
             // local state is a bitmap representing existence of pod in etcd
-            if {
+            // after CreateNeeded and the object may not yet exist in etcd
+            let exception = state.reconcile_step == CreateNeeded && ord == (state.needed_index - 1);
+            if exception {
+                true
+            } else if {
                 ||| state.needed[ord as int] is Some
                 ||| ord < state.needed_index
             } {
@@ -225,8 +229,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         }
         // 3. coherence of bound PVCs
         // all PVCs for pods before needed_index exist in etcd
-        // needed_index_tmp is used because at CreateNeeded step the index is not yet incremented
-        &&& forall |index: (nat, nat)| #[trigger] index.0 < needed_index_tmp && index.1 < pvc_cnt ==> {
+        // needed_index_for_pvc is used because at CreateNeeded step the index is not yet incremented
+        &&& forall |index: (nat, nat)| #[trigger] index.0 < needed_index_for_pvc && index.1 < pvc_cnt ==> {
             let key = ObjectRef {
                 kind: PersistentVolumeClaimView::kind(),
                 name: pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
@@ -346,6 +350,36 @@ pub open spec fn pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(
             ==> resp_msg.content.get_create_response().res->Err_0 == ObjectAlreadyExists
         // the created PVC exists in etcd
         &&& s.resources().contains_key(req_msg.content.get_create_request().key())
+    }
+}
+
+pub open spec fn req_msg_is_create_needed_pod_req(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat
+) -> bool {
+    let req = req_msg.content->APIRequest_0;
+    let key = ObjectRef {
+        kind: Kind::PodKind,
+        name: pod_name(vsts.metadata.name->0, ord),
+        namespace: vsts.metadata.namespace->0
+    };
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_create_request_msg(key)(req_msg)
+}
+
+pub open spec fn pending_create_needed_pod_req_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let ord = local_state.needed_index;
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
+        // created pod does not yet exist in etcd
+        &&& !s.resources().contains_key(req_msg.content.get_create_request().key())
     }
 }
 
