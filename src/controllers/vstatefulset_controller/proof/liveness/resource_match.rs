@@ -350,9 +350,6 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
 {
-    if at_vsts_step(vsts, controller_id, at_step![SkipPVC])(s) {
-        assume(false);
-    }
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
