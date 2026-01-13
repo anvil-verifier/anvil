@@ -173,6 +173,10 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
+        let needed_index_tmp = match state.reconcile_step {
+            CreateNeeded => (state.needed_index + 1) as nat,
+            _ => state.needed_index,
+        };
         // 1. coherence of needed pods
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
             ||| ord < state.needed.len() && state.needed[ord as int] is Some
@@ -213,7 +217,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         }
         // 3. coherence of bound PVCs
         // all PVCs for pods before needed_index exist in etcd
-        &&& forall |index: (nat, nat)| #[trigger] index.0 < state.needed_index && index.1 < pvc_cnt ==> {
+        // needed_index_tmp is used because at CreateNeeded step the index is not yet incremented
+        &&& forall |index: (nat, nat)| #[trigger] index.0 < needed_index_tmp && index.1 < pvc_cnt ==> {
             let key = ObjectRef {
                 kind: PersistentVolumeClaimView::kind(),
                 name: pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
