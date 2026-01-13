@@ -314,6 +314,27 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
+pub proof fn lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pending_create_pvc_req_in_flight(vsts, controller_id)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s_prime),
+{
+    lemma_create_pvc_request_returns_ok_or_already_exists_err_response(
+        s, s_prime, vsts, cluster, controller_id
+    );
+}
+
 #[verifier(external_body)]
 pub proof fn lemma_from_skip_pvc_or_after_create_pvc_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
@@ -325,7 +346,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
-    lift_local(controller_id, vsts, at_step![AfterCreatePVC])(s) ==> pending_create_pvc_resp_msg_in_flight(vsts, controller_id)(s),
+    lift_local(controller_id, vsts, at_step![AfterCreatePVC])(s) ==> pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s),
     lift_local(controller_id, vsts, at_step![SkipPVC])(s) ==> no_pending_req_in_cluster(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded])(s_prime),
