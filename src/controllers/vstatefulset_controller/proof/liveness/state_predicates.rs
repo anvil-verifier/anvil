@@ -1,6 +1,6 @@
 // state-encoding predicates dedicated for liveness proofs in resource_match.rs
 
-use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
+use crate::kubernetes_api_objects::{spec::{resource::*, prelude::*}, error::APIError::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
@@ -272,6 +272,8 @@ pub open spec fn pending_get_pvc_resp_msg_in_flight(
         &&& req_msg_is_get_pvc_req(vsts, controller_id, req_msg, ord, i)
         &&& resp_msg_or_none(s, vsts, controller_id) is Some
         &&& resp_msg.content.is_get_response()
+        &&& resp_msg.content.get_get_response().res is Err
+            ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
     }
 }
 
