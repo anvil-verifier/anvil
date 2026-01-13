@@ -2407,96 +2407,96 @@ pub proof fn leads_to_by_borrowing_inv<T>(spec: TempPred<T>, p: TempPred<T>, q: 
     }
 }
 
-// Derive p ~> q from []p ~> q with the assumption that p is preserved unless q happens
+// Derive p(n) ~> q(m) for some m between n and max using an ESR assumption []p(k) ~> q(k) and monotonicity
 // pre:
-//      spec |= []p ~> q
-//      spec |= [](p /\ next => p' \/ q')
+//      n <= max
+//      spec |= forall |k| []p(k) ~> q(k)
+//      spec |= forall |k| k < max => [](p(k) /\ next => p'(k) \/ p'(k+1))
+//      spec |= p(max) /\ next => p'(max)
 //      spec |= []next
 // post:
-//      spec |= p ~> q
+//      spec |= p(n) ~> exists |m| n <= m <= max /\ q(n)
 //
-// This lemma is useful if we want to show that given []p ~> q, q will eventually hold
-// even if []p doesn't hold, as long as p is preserved until q happens.
-// A concrete usage is to reason about a pair of concurrent components A and B, where
-// (1) A guarantees []p ~> q, and (2) B makes p hold at some point and keeps p until q holds.
-// Note that we formalize "p is preserved until q happens" using [](p /\ next => p' \/ q'):
-// if p holds now, then for any possible next state, either p or q holds.
-pub proof fn strengthen_leads_to_with_until<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+// This lemma is useful for reasoning about controller's graduate update to the same object.
+//
+// For example, the Deployment controller might increase a ReplicaSet's replicas field by 1, wait for the ReplicaSet
+// controller to create the desired number of pods and sets the status to ready, and then check the ReplicaSet's status
+// and conditionally increase the replicas field again. In this case, the premise of ESR does not hold because the
+// ReplicaSet's replicas field is not stable, but we can leverage the monotonicity of how the Deployment controller
+// updates the replicas field (i.e., always increasing) to prove that eventually the ReplicaSet's status is ready.
+// The intuition of this proof is that the replicas field either remains unchanged or increases until it hits max
+// (max is the Deployment's desired replicas number), so there are only two possibility: either the replicas field
+// remains at k (k < max) or it reaches max and no longer changes since that. In either case, we can apply the ESR of
+// the ReplicaSet controller to prove that the ReplicaSet controller reaches its desired state for some number between n
+// and max, and its status is ready. The conclusion unblocks the Deployment controller because now it sees that the
+// status of the ReplicaSet is ready and it can increase its replicas field again, until it hits max.
+pub proof fn leads_to_by_monotonicity<T>(spec: TempPred<T>, next: TempPred<T>, p: spec_fn(int) -> TempPred<T>, q: spec_fn(int) -> TempPred<T>, n: int, max: int)
     requires
-        spec.entails(always(p).leads_to(q)),
-        spec.entails(always(p.and(next).implies(later(p).or(later(q))))),
+        n <= max,
+        forall |k| #![trigger p(k)] spec.entails(always(p(k)).leads_to(q(k))),
+        forall |k| #![trigger p(k)] k < max ==> spec.entails(always(p(k).and(next).implies(later(p(k)).or(later(p(k+1)))))),
+        spec.entails(always(p(max).and(next).implies(later(p(max))))),
         spec.entails(always(next)),
     ensures
-        spec.entails(p.leads_to(q)),
+        spec.entails(p(n).leads_to(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m)))))
+    decreases (max - n),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
-        implies_apply(ex, spec, always(next));
-        implies_apply(ex, spec, always(p.and(next).implies(later(p).or(later(q)))));
-        always_p_or_eventually_q(ex, next, p, q);
-        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
-            implies_apply(ex.suffix(i), p, always(p).or(eventually(q)));
-            if always(p).satisfied_by(ex.suffix(i)) {
-                implies_apply(ex, spec, always(p).leads_to(q));
-                implies_apply(ex.suffix(i), always(p), eventually(q));
-            } else {
-
+    if n == max {
+        leads_to_self_temp(p(max));
+        leads_to_stable(spec, next, p(max), p(max));
+        leads_to_trans(spec, p(n), always(p(max)), q(max));
+        assert forall |ex| #[trigger] spec.satisfied_by(ex)
+        implies p(n).leads_to(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m)))).satisfied_by(ex) by {
+            assert forall |i| #[trigger] p(n).satisfied_by(ex.suffix(i))
+            implies eventually(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m)))).satisfied_by(ex.suffix(i)) by {
+                instantiate_entailed_leads_to(ex, i, spec, p(n), q(max));
+                assert(eventually(q(max)).satisfied_by(ex.suffix(i)));
+                let j = eventually_choose_witness(ex.suffix(i), q(max));
+                assert(q(max).satisfied_by(ex.suffix(i).suffix(j)));
+                assert(lift_state(|s| n <= max <= max).and(q(max)).satisfied_by(ex.suffix(i).suffix(j)));
+                tla_exists_proved_by_witness(ex.suffix(i).suffix(j), |m| lift_state(|s| n <= m <= max).and(q(m)), max);
+                assert(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m))).satisfied_by(ex.suffix(i).suffix(j)));
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m))), j);
             }
         }
-    }
-}
+    } else {
+        leads_to_by_monotonicity(spec, next, p, q, n+1, max);
+        assert(spec.entails(p(n+1).leads_to(tla_exists(|m| lift_state(|s| n+1 <= m <= max).and(q(m))))));
 
-// Get a new leads-to condition with an until condition.
-// pre:
-//      spec |= p1 ~> q1
-//      spec |= [](p2 /\ next => p2' \/ q2')
-//      spec |= []next
-// post:
-//      spec |= p1 /\ p2 ~> (q1 /\ p2) \/ q2
-//
-// This lemma can be used in compositional proof.
-// Suppose that a system consists of two concurrent components A and B,
-// and we want to prove that the entire system makes P1 ~> P3.
-// If we have already proved that (1) A makes P1 ~> P2 hold, and
-// (2) P2 holds until P3 holds, and
-// (3) if P2 holds until P3 holds, then B makes P2 ~> P3
-// (in other words, B requires that P2 should hold until B makes P3 hold),
-// then we can apply this lemma and prove that the entire system makes P2 ~> P3,
-// then by transitivity we have P1 ~> P3.
-// Such a case could happen between components with liveness dependencies:
-// A at some point needs to delegate the task to B and A needs to wait until B finish
-// so A can start the next task, meanwhile when B is working A should not disable B's
-// progress (i.e., A should make sure P2 holds until P3 holds).
-pub proof fn transform_leads_to_with_until<T>(spec: TempPred<T>, next: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
-    requires
-        spec.entails(p1.leads_to(q1)),
-        spec.entails(always(p2.and(next).implies(later(p2).or(later(q2))))),
-        spec.entails(always(next)),
-    ensures
-        spec.entails(p1.and(p2).leads_to((q1.and(p2)).or(q2))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p1.and(p2).leads_to((q1.and(p2)).or(q2)).satisfied_by(ex) by {
-        assert forall |i| #[trigger] p1.and(p2).satisfied_by(ex.suffix(i))
-        implies eventually((q1.and(p2)).or(q2)).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex, spec, always(next));
-            implies_apply::<T>(ex, spec, always(p2.and(next).implies(later(p2).or(later(q2)))));
+        assert forall |ex| #[trigger] spec.satisfied_by(ex)
+        implies p(n).leads_to(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m)))).satisfied_by(ex) by {
+            implies_apply(ex, spec, always(next));
+            implies_apply(ex, spec, always(p(n).and(next).implies(later(p(n)).or(later(p(n+1))))));
+            always_p_or_eventually_q(ex, next, p(n), p(n+1));
 
-            always_p_or_eventually_q::<T>(ex, next, p2, q2);
-            implies_apply::<T>(ex.suffix(i), p2, always(p2).or(eventually(q2)));
-
-            implies_apply::<T>(ex, spec, p1.leads_to(q1));
-            implies_apply::<T>(ex.suffix(i), p1, eventually(q1));
-
-            if eventually(q2).satisfied_by(ex.suffix(i)) {
-                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), q2);
-                eventually_proved_by_witness::<T>(ex.suffix(i), (q1.and(p2)).or(q2), witness_idx);
-            } else {
-                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), q1);
-                always_unfold::<T>(ex.suffix(i), p2);
-                assert(p2.satisfied_by(ex.suffix(i).suffix(witness_idx)));
-                assert(q1.and(p2).satisfied_by(ex.suffix(i).suffix(witness_idx)));
-                eventually_proved_by_witness::<T>(ex.suffix(i), (q1.and(p2)).or(q2), witness_idx);
+            assert forall |i| #[trigger] p(n).satisfied_by(ex.suffix(i))
+            implies eventually(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m)))).satisfied_by(ex.suffix(i)) by {
+                implies_apply(ex.suffix(i), p(n), always(p(n)).or(eventually(p(n+1))));
+                if always(p(n)).satisfied_by(ex.suffix(i)) {
+                    implies_apply(ex, spec, always(p(n)).leads_to(q(n)));
+                    implies_apply(ex.suffix(i), always(p(n)), eventually(q(n)));
+                    let j = eventually_choose_witness(ex.suffix(i), q(n));
+                    assert(lift_state(|s| n <= n <= max).and(q(n)).satisfied_by(ex.suffix(i).suffix(j)));
+                    tla_exists_proved_by_witness(ex.suffix(i).suffix(j), |m| lift_state(|s| n <= m <= max).and(q(m)), n);
+                    assert(tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m))).satisfied_by(ex.suffix(i).suffix(j)));
+                    eventually_proved_by_witness(ex.suffix(i), tla_exists(|m| lift_state(|s| n <= m <= max).and(q(m))), j);
+                } else {
+                    assert(eventually(p(n+1)).satisfied_by(ex.suffix(i)));
+                    let j = eventually_choose_witness(ex.suffix(i), p(n+1));
+                    implies_apply(ex, spec, p(n+1).leads_to(tla_exists(|m| lift_state(|s| n+1 <= m <= max).and(q(m)))));
+                    always_propagate_forwards(ex, p(n+1).implies(eventually(tla_exists(|m| lift_state(|s| n+1 <= m <= max).and(q(m))))), i);
+                    implies_apply(ex.suffix(i).suffix(j), p(n+1), eventually(tla_exists(|m| lift_state(|s| n+1 <= m <= max).and(q(m)))));
+                    let k = eventually_choose_witness(ex.suffix(i).suffix(j), tla_exists(|m| lift_state(|s| n+1 <= m <= max).and(q(m))));
+                    assert(tla_exists(|m| lift_state(|s| n+1 <= m <= max).and(q(m))).satisfied_by(ex.suffix(i).suffix(j).suffix(k)));
+                    let n0 = tla_exists_choose_witness(ex.suffix(i).suffix(j).suffix(k), |m| lift_state(|s| n+1 <= m <= max).and(q(m)));
+                    assert(lift_state(|s| n+1 <= n0 <= max).and(q(n0)).satisfied_by(ex.suffix(i).suffix(j).suffix(k)));
+                    assert(lift_state(|s| n <= n0 <= max).and(q(n0)).satisfied_by(ex.suffix(i).suffix(j).suffix(k)));
+                    tla_exists_proved_by_witness(ex.suffix(i).suffix(j).suffix(k), |m| lift_state(|s| n <= m <= max).and(q(m)), n0);
+                    execution_equality(ex.suffix(i).suffix(j + k), ex.suffix(i).suffix(j).suffix(k));
+                }
             }
         }
+
     }
 }
 
