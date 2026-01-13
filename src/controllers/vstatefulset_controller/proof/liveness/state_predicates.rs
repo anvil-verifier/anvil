@@ -164,6 +164,9 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
         ==> state.needed_index < state.needed.len()
     // because pvc index is just incremented
     &&& state.reconcile_step == AfterCreatePVC ==> state.pvc_index > 0
+    // reachable condition
+    &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
+    &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
     // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
 }
@@ -189,8 +192,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 namespace: vsts.metadata.namespace->0
             };
             // local state is a bitmap representing existence of pod in etcd
-            // after CreateNeeded and the object may not yet exist in etcd
-            let exception = state.reconcile_step == CreateNeeded && ord == (state.needed_index - 1);
+            // at AfterCreateNeeded the object may not yet exist in etcd
+            let exception = state.reconcile_step == AfterCreateNeeded && ord == (state.needed_index - 1);
             if exception {
                 true
             } else if {
@@ -353,6 +356,7 @@ pub open spec fn pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(
     }
 }
 
+// NOTE: needed_index is just updated after sending the request
 pub open spec fn req_msg_is_create_needed_pod_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat
 ) -> bool {
@@ -374,7 +378,7 @@ pub open spec fn pending_create_needed_pod_req_in_flight(
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        let ord = local_state.needed_index;
+        let ord = (local_state.needed_index - 1) as nat;
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)

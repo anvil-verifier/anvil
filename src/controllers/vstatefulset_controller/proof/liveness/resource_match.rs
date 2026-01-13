@@ -374,7 +374,6 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_create_needed_step_to_after_create_needed_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -391,7 +390,6 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_needed_pod_req_in_flight(vsts, controller_id)(s_prime),
 {
-    PodView::marshal_preserves_metadata();
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
