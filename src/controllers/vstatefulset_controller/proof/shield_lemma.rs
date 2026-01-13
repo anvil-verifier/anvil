@@ -79,6 +79,7 @@ uninterp spec fn make_vsts() -> VStatefulSetView;
 // in other words, let =~= denotes weakly_eq,
 // forall Pod p owned by vsts: p =~= p'
 // forall PVC v owned by vsts: v =~= v'
+#[verifier(external_body)]
 pub proof fn lemma_no_interference(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
