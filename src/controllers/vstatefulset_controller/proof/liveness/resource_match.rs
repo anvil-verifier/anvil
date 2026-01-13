@@ -175,6 +175,25 @@ ensures
             assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
         }
+        assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is None implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                namespace: vsts.metadata.namespace->0,
+                name: pod_name(vsts.metadata.name->0, ord),
+            };
+            &&& !s.resources().contains_key(key)
+        } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                namespace: vsts.metadata.namespace->0,
+                name: pod_name(vsts.metadata.name->0, ord),
+            };
+            if s.resources().contains_key(key) {
+                assert(false) by {
+                    admit(); // FIXME
+                }
+            }
+        }
         // coherence of condemned pods
         let unlawful_cond = |ord: nat| {
             let key = ObjectRef {
