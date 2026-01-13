@@ -267,7 +267,7 @@ requires
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    pending_get_pvc_resp_msg_in_flight(vsts, controller_id)(s_prime),
+    pending_get_pvc_resp_in_flight(vsts, controller_id)(s_prime),
 {
     lemma_get_pvc_request_returns_ok_or_err_response(
         s, s_prime, vsts, cluster, controller_id
@@ -286,7 +286,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
-    pending_get_pvc_resp_msg_in_flight(vsts, controller_id)(s),
+    pending_get_pvc_resp_in_flight(vsts, controller_id)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC])(s_prime),

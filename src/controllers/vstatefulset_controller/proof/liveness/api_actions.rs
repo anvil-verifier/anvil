@@ -44,6 +44,6 @@ requires
     pending_get_pvc_req_in_flight(vsts, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
-    pending_get_pvc_resp_msg_in_flight(vsts, controller_id)(s_prime),
+    pending_get_pvc_resp_in_flight(vsts, controller_id)(s_prime),
 {}
 }
