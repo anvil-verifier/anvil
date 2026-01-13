@@ -150,12 +150,17 @@ ensures
             assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
             lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
         }
-        assert forall |pod: PodView| #[trigger] condemned.contains(pod) implies filtered_pods.contains(pod) by {
-            assert(filtered_pods.filter(condemned_ord_filter).contains(pod)) by {
-                assert(condemned.to_set().contains(pod));
-                assert(filtered_pods.filter(condemned_ord_filter).contains(pod));
+        assert forall |i: nat| #![trigger condemned[i as int]] i < condemned.len() implies {
+            &&& filtered_pods.contains(condemned[i as int])
+            &&& condemned_ord_filter(condemned[i as int])
+         } by {
+            let condemned_pod = condemned[i as int];
+            assert(condemned.contains(condemned_pod));
+            assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod)) by {
+                assert(condemned.to_set().contains(condemned_pod));
+                assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
             }
-            seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, pod);
+            seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
         }
         assert(forall |pod: PodView| #[trigger] condemned.contains(pod) ==> pod.metadata.name is Some);
         // coherence of needed pods
@@ -391,6 +396,81 @@ ensures
     pending_create_needed_pod_req_in_flight(vsts, controller_id)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
+pub proof fn lemma_from_after_send_create_needed_pod_req_to_receive_create_needed_pod_resp(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterCreateNeeded])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pending_create_needed_pod_req_in_flight(vsts, controller_id)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterCreateNeeded])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
+{
+    lemma_create_needed_pod_request_returns_ok_response(
+        s, s_prime, vsts, cluster, controller_id
+    );
+    let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_create_request();
+    assume(s_prime.resources() == s.resources().insert(req.key(), req.obj));
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by{
+        let state = next_local_state;
+        let vsts_key = vsts.object_ref();
+        let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
+            vsts.spec.volume_claim_templates->0.len()
+        } else {0};
+        let needed_index_for_pvc = match state.reconcile_step {
+            CreateNeeded => (state.needed_index + 1) as nat,
+            _ => state.needed_index,
+        };
+        assert(forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() ==> {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            // local state is a bitmap representing existence of pod in etcd
+            // at AfterCreateNeeded the object may not yet exist in etcd
+            let exception = state.reconcile_step == AfterCreateNeeded && ord == (state.needed_index - 1);
+            if exception {
+                true
+            } else if {
+                ||| state.needed[ord as int] is Some
+                ||| ord < state.needed_index
+            } {
+                let obj = s_prime.resources()[key];
+                &&& state.needed[ord as int]->0.object_ref() == key // optional
+                &&& s_prime.resources().contains_key(key)
+                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            } else {
+                &&& !s_prime.resources().contains_key(key)
+            }
+            // TODO: cover pod updates
+        });
+        assert(!exists |ord: nat| {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s_prime.resources()[key];
+            &&& ord >= vsts.spec.replicas.unwrap_or(1)
+            &&& s_prime.resources().contains_key(key)
+            &&& !exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
+        });
+        // 2.b. all pods before condemned_index are deleted
+        assert(forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
+            let key = state.condemned[i as int].object_ref();
+            &&& !s_prime.resources().contains_key(key)
+        });
+    }
 }
 
 }

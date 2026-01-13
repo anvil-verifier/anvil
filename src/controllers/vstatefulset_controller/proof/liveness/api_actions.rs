@@ -60,4 +60,18 @@ requires
 ensures
     pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s_prime),
 {}
+
+#[verifier(external_body)]
+pub proof fn lemma_create_needed_pod_request_returns_ok_response(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int,
+)
+requires
+    req_msg_or_none(s, vsts, controller_id) is Some,
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    pending_create_needed_pod_req_in_flight(vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+ensures
+    pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
+{}
 }

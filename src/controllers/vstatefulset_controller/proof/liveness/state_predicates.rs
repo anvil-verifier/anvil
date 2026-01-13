@@ -148,8 +148,14 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
     &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
         ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-    &&& forall |pod: PodView| #[trigger] state.condemned.contains(pod)
-        ==> pod.metadata.name is Some
+    &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
+        ==> {
+            let condemned_pod = state.condemned[i as int];
+            &&& condemned_pod.metadata.name is Some
+            // implies that their name will not collide with needed pods
+            &&& get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0) is Some
+            &&& get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0)->0 >= vsts.spec.replicas.unwrap_or(1)
+        }
     &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
         ==> state.pvcs[i as int].metadata.name is Some
     // pvcs have correct names
@@ -360,7 +366,7 @@ pub open spec fn pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(
 pub open spec fn req_msg_is_create_needed_pod_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat
 ) -> bool {
-    let req = req_msg.content->APIRequest_0;
+    let req = req_msg.content.get_create_request();
     let key = ObjectRef {
         kind: Kind::PodKind,
         name: pod_name(vsts.metadata.name->0, ord),
@@ -370,6 +376,7 @@ pub open spec fn req_msg_is_create_needed_pod_req(
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_create_request_msg(key)(req_msg)
+    &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
 pub open spec fn pending_create_needed_pod_req_in_flight(
@@ -384,6 +391,28 @@ pub open spec fn pending_create_needed_pod_req_in_flight(
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
         // created pod does not yet exist in etcd
         &&& !s.resources().contains_key(req_msg.content.get_create_request().key())
+    }
+}
+
+pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let ord = (local_state.needed_index - 1) as nat;
+        let key = req_msg.content.get_create_request().key();
+        let obj = s.resources()[key];
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
+        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg.content.is_create_response()
+        &&& resp_msg.content.get_create_response().res is Ok
+        // the created Pod exists in etcd
+        &&& s.resources().contains_key(key)
+        // relaxed from exact equality to contains
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     }
 }
 
