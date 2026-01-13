@@ -314,11 +314,22 @@ pub open spec fn pending_create_pvc_req_in_flight(
     }
 }
 
-pub open spec fn pending_create_pvc_resp_msg_in_flight(
+pub open spec fn pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        true
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let (ord, i) = (local_state.needed_index, (local_state.pvc_index - 1) as nat);
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_create_pvc_req(vsts, controller_id, req_msg, ord, i)
+        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg.content.is_create_response()
+        &&& resp_msg.content.get_create_response().res is Err
+            ==> resp_msg.content.get_create_response().res->Err_0 == ObjectAlreadyExists
+        // the created PVC exists in etcd
+        &&& s.resources().contains_key(req_msg.content.get_create_request().key())
     }
 }
 
