@@ -154,15 +154,17 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
         ==> state.pvcs[i as int].metadata.name is Some
     // pvcs have correct names
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) ==> {
-        &&& state.needed_index < state.needed.len()
         &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < pvc_cnt ==> {
             let pvc_name_expected = pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index);
             state.pvcs[i as int].metadata.name == Some(pvc_name_expected)
         }
     }
-    // because index is just incremented
+    // in these states needed_index cannot be equal to needed.len()
+    &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC, CreateNeeded, UpdateNeeded)
+        ==> state.needed_index < state.needed.len()
+    // because pvc index is just incremented
     &&& state.reconcile_step == AfterCreatePVC ==> state.pvc_index > 0
-    // stricter check
+    // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
 }
 
