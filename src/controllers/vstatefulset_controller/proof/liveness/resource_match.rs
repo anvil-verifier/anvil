@@ -292,13 +292,6 @@ ensures
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    let resp_msg = resp_msg_or_none(s, vsts, controller_id).unwrap();
-    let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
-    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    let next_local_state = handle_after_get_pvc(vsts, wrapped_resp, local_state).0;
-    assert(next_local_state == VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap());
-    assert(is_some_k_get_resp_view(wrapped_resp));
-    assert(next_local_state.reconcile_step != Error);
 }
 
 }
