@@ -270,7 +270,7 @@ pub open spec fn pending_get_pvc_req_in_flight(
     }
 }
 
-pub open spec fn pending_get_pvc_resp_in_flight(
+pub open spec fn pending_get_pvc_resp_in_flight_reflecting_existence_of_requested_pvc(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
