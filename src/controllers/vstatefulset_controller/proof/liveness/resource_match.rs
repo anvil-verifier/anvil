@@ -44,7 +44,7 @@ ensures
         )))),
 {}
 
-pub proof fn lemma_from_init_step_to_send_list_pod_req(
+pub proof fn lemma_from_at_init_step_to_after_list_pod_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
@@ -295,7 +295,28 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
-pub proof fn lemma_from_skip_pvc_or_create_pvc_to_next_state(
+#[verifier(external_body)]
+pub proof fn lemma_from_create_pvc_step_to_after_create_pvc_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, None, Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![CreatePVC])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    no_pending_req_in_cluster(vsts, controller_id)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    pending_create_pvc_req_in_flight(vsts, controller_id)(s_prime),
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_from_skip_pvc_or_after_create_pvc_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
