@@ -170,7 +170,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
 
 // coherence between local state and etcd state
 // Note: there are many exceptions when the object is just updated or the index haven't been incremented yet
-// message predicates for each exceptional states carry the necessary information to bring back the coherence
+// message predicates for each exceptional states carry the necessary information to repair the coherence
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
