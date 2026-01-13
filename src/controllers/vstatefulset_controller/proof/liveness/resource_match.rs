@@ -108,8 +108,8 @@ ensures
     let pods = objects_to_pods(objs)->0;
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
-    assert(objects_to_pods(objs) is Some);
-    assert(pod_filter(vsts) == pod_filter(triggering_cr));
+    // assert(objects_to_pods(objs) is Some);
+    // assert(pod_filter(vsts) == pod_filter(triggering_cr));
     let next_local_state_from_cluster = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     // for better proof stability
     assert(next_local_state =~= next_local_state_from_cluster) by {
@@ -138,12 +138,12 @@ ensures
             seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
             let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
             assert(objs.contains(objs[i]));
-            assert(PodView::unmarshal(objs[i]) is Ok);
-            assert(PodView::unmarshal(objs[i])->Ok_0 == pod);
+            // assert(PodView::unmarshal(objs[i]) is Ok);
+            // assert(PodView::unmarshal(objs[i])->Ok_0 == pod);
         }
         assert(partition_pods(vsts_name, replicas, filtered_pods) == partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
-        assert(next_local_state.needed == needed);
-        assert(next_local_state.condemned == condemned);
+        // assert(next_local_state.needed == needed);
+        // assert(next_local_state.condemned == condemned);
         let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod.metadata.name->0) is Some && get_ordinal(vsts_name, pod.metadata.name->0)->0 >= replicas;
         assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
             let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1.metadata.name->0)->0 >= get_ordinal(vsts_name, p2.metadata.name->0)->0;
