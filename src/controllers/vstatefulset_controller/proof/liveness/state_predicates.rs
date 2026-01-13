@@ -198,7 +198,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
             &&& ord < state.needed.len()
             &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
-         } ==> {
+        } ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: pod_name(vsts.metadata.name->0, ord),
