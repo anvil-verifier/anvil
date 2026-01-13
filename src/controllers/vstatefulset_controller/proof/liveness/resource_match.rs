@@ -295,7 +295,6 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_create_pvc_step_to_after_create_pvc_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )

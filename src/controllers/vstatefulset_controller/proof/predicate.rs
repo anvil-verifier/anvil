@@ -88,7 +88,7 @@ macro_rules! at_step {
     [ $($tokens:tt)? ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
             let vsts_state = VStatefulSetReconcileState::unmarshal(s).unwrap();
-            at_step_or_internal!(vsts_state, $($tokens)?)
+            locally_at_step_or!(vsts_state, $($tokens)?)
         })
     };
 }
@@ -100,13 +100,13 @@ macro_rules! at_step_or {
     [ $($tokens:tt)+ ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
             let vsts_state = VStatefulSetReconcileState::unmarshal(s).unwrap();
-            at_step_or_internal!(vsts_state, $($tokens)+)
+            locally_at_step_or!(vsts_state, $($tokens)+)
         })
     };
 }
 
 #[macro_export]
-macro_rules! at_step_or_internal {
+macro_rules! locally_at_step_or {
     ($vsts_state:expr, ($step:expr, $pred:expr)) => {
         $vsts_state.reconcile_step.eq_step($step) && $pred($vsts_state)
     };
@@ -116,7 +116,7 @@ macro_rules! at_step_or_internal {
     };
 
     ($vsts_state:expr, $head:tt, $($tail:tt)+) => {
-        at_step_or_internal!($vsts_state, $head) || at_step_or_internal!($vsts_state, $($tail)+)
+        locally_at_step_or!($vsts_state, $head) || locally_at_step_or!($vsts_state, $($tail)+)
     };
 }
 
@@ -125,7 +125,7 @@ pub open spec fn lift_local(controller_id: int, vsts: VStatefulSetView, step_pre
     Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), step_pred)
 }
 
-pub use at_step_or_internal;
+pub use locally_at_step_or;
 pub use at_step_or;
 pub use at_step;
 
