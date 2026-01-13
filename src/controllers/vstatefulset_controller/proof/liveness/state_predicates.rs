@@ -153,14 +153,16 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
         ==> state.pvcs[i as int].metadata.name is Some
     // pvcs have correct names
-    &&& (state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC)
-        ==> {
+    &&& match state.reconcile_step {
+        GetPVC | AfterGetPVC | CreatePVC | AfterCreatePVC | SkipPVC => {
             &&& state.needed_index < state.needed.len()
             &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < pvc_cnt ==> {
                 let pvc_name_expected = pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index);
                 state.pvcs[i as int].metadata.name == Some(pvc_name_expected)
             }
-        }
+        },
+        _ => true
+    }
 }
 
 
@@ -218,17 +220,20 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             };
             &&& s.resources().contains_key(key)
         }
-        // PVCs for pod being processed before pvc_index exist in etcd
-        &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] {
-            &&& i < state.pvc_index
-            &&& (state.reconcile_step == GetPVC || state.reconcile_step == AfterGetPVC || state.reconcile_step == AfterCreatePVC || state.reconcile_step == SkipPVC)
-        } ==> {
-            let key = ObjectRef {
-                kind: PersistentVolumeClaimView::kind(),
-                name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
-                namespace: vsts.metadata.namespace->0
-            };
-            &&& s.resources().contains_key(key)
+        &&& match state.reconcile_step {
+            GetPVC | AfterGetPVC | CreatePVC | AfterCreatePVC | SkipPVC => {
+                // PVCs for pod being processed before pvc_index exist in etcd
+                &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] 
+                    i < state.pvc_index ==> {
+                    let key = ObjectRef {
+                        kind: PersistentVolumeClaimView::kind(),
+                        name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                        namespace: vsts.metadata.namespace->0
+                    };
+                    &&& s.resources().contains_key(key)
+                }
+            },
+            _ => true
         }
     }
 }
@@ -277,10 +282,20 @@ pub open spec fn pending_get_pvc_resp_msg_in_flight(
     }
 }
 
+pub open spec fn pending_create_pvc_req_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        true
+    }
+}
+
 pub open spec fn pending_create_pvc_resp_msg_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
-    true
+    |s: ClusterState| {
+        true
+    }
 }
 
 }
