@@ -224,10 +224,11 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) ==> {
             // PVCs for pod being processed before pvc_index exist in etcd
             // AfterCreatePVC just updates pvc_index and this only holds after APIServer creates the object
-            let pvc_index_tmp = if state.reconcile_step == AfterCreatePVC {
-                (state.pvc_index - 1) as nat
-            } else {
-                state.pvc_index
+            // SkipPVC didn't increment pvc_index instantly even though that PVC exists
+            let pvc_index_tmp = match state.reconcile_step {
+                AfterCreatePVC => (state.pvc_index - 1) as nat,
+                SkipPVC => (state.pvc_index + 1) as nat,
+                _ => state.pvc_index,
             };
             &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] 
                 i < pvc_index_tmp ==> {
@@ -283,6 +284,8 @@ pub open spec fn pending_get_pvc_resp_in_flight(
         &&& resp_msg.content.is_get_response()
         &&& resp_msg.content.get_get_response().res is Err
             ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
+        &&& resp_msg.content.get_get_response().res is Ok
+            ==> s.resources().contains_key(req_msg.content.get_get_request().key())
     }
 }
 
