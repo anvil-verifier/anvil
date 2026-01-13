@@ -188,14 +188,13 @@ ensures
                 namespace: vsts.metadata.namespace->0
             };
             let obj = s.resources()[key];
-            ||| {
-                &&& ord >= vsts.spec.replicas.unwrap_or(1)
-                &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
-            }
-            ||| {
-                &&& ord < needed.len()
-                &&& needed[ord as int] is None
-            }
+            &&& ord >= vsts.spec.replicas.unwrap_or(1)
+            &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
+            // relaxed as Err::ObjectAlreadyExists is tolerated
+            // ||| {
+            //     &&& ord < needed.len()
+            //     &&& needed[ord as int] is None
+            // }
         };
         assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord) implies {
             let key = ObjectRef {
@@ -240,16 +239,9 @@ ensures
                     }
                     seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), unlawful_pod);
                 }
-                if ord >= replicas {
-                    assert(condemned.contains(unlawful_pod) && unlawful_pod.object_ref() == key) by {
-                        assert(filtered_pods.filter(condemned_ord_filter).contains(unlawful_pod));
-                        assert(condemned.to_set().contains(unlawful_pod));
-                    }
-                } else {
-                    assert(needed[ord as int] is Some) by {
-                        assert(pod_has_ord(vsts_name, ord)(unlawful_pod));
-                        assert(filtered_pods.filter(pod_has_ord(vsts_name, ord)).contains(unlawful_pod));
-                    }
+                assert(condemned.contains(unlawful_pod) && unlawful_pod.object_ref() == key) by {
+                    assert(filtered_pods.filter(condemned_ord_filter).contains(unlawful_pod));
+                    assert(condemned.to_set().contains(unlawful_pod));
                 }
                 assert(false);
             }

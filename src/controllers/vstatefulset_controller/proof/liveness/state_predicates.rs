@@ -190,29 +190,23 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             CreateNeeded => (state.needed_index + 1) as nat,
             _ => state.needed_index,
         };
+        let needed_index_considering_creation = match state.reconcile_step {
+            AfterCreateNeeded => (state.needed_index - 1) as nat,
+            _ => state.needed_index,
+        };
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() ==> {
+        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
+            &&& ord < state.needed.len()
+            &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
+         } ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            // local state is a bitmap representing existence of pod in etcd
-            // at AfterCreateNeeded the object may not yet exist in etcd
-            let exception = state.reconcile_step == AfterCreateNeeded && ord == (state.needed_index - 1);
-            if exception {
-                true
-            } else if {
-                ||| state.needed[ord as int] is Some
-                ||| ord < state.needed_index
-            } {
-                let obj = s.resources()[key];
-                &&& state.needed[ord as int]->0.object_ref() == key // optional
-                &&& s.resources().contains_key(key)
-                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            } else {
-                &&& !s.resources().contains_key(key)
-            }
+            let obj = s.resources()[key];
+            &&& s.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             // TODO: cover pod updates
         }
         // coherence of condemned pods
@@ -389,8 +383,6 @@ pub open spec fn pending_create_needed_pod_req_in_flight(
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
-        // created pod does not yet exist in etcd
-        &&& !s.resources().contains_key(req_msg.content.get_create_request().key())
     }
 }
 
