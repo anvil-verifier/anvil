@@ -265,15 +265,13 @@ pub open spec fn pending_get_pvc_resp_msg_in_flight(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let (ord, i) = (local_state.needed_index, local_state.pvc_index);
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_pvc_req(vsts, controller_id, req_msg, ord, i)
-        &&& exists |resp_msg| {
-            &&& #[trigger] s.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.is_get_response() // it can be ok or not found error
-        }
+        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg.content.is_get_response()
     }
 }
 
