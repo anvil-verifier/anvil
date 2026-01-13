@@ -184,7 +184,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // 1. coherence of needed pods
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() ==> {
             let key = ObjectRef {
-                kind: PodView::kind(),
+                kind: Kind::PodKind,
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
@@ -209,7 +209,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // 2.a. all pods to be condemned in etcd are captured in state.condemned
         &&& !exists |ord: nat| {
             let key = ObjectRef {
-                kind: PodView::kind(),
+                kind: Kind::PodKind,
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
