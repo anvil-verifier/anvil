@@ -375,6 +375,7 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
+// TODO: anyway to increase proof automation by change the way to invoke get_ordinal_eq_pod_name?
 pub proof fn lemma_from_after_send_create_needed_pod_req_to_receive_create_needed_pod_resp(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
