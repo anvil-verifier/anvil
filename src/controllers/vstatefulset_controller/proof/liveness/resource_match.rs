@@ -234,6 +234,7 @@ ensures
     }
 }
 
+/* .. -> GetPVC -> AfterGetPVC -> .. */
 pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -335,6 +336,7 @@ ensures
     );
 }
 
+/* .. -> SkipPVC/AfterCreatePVC -> .. */
 // TODO: speed up this proof
 pub proof fn lemma_from_skip_pvc_or_after_create_pvc_step_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
@@ -356,6 +358,7 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
+/* .. -> CreateNeeded -> AfterCreateNeeded -> .. */
 pub proof fn lemma_from_create_needed_step_to_after_create_needed_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -457,5 +460,7 @@ ensures
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
+
+/* .. -> UpdateNeeded -> AfterUpdateNeeded -> .. */
 
 }
