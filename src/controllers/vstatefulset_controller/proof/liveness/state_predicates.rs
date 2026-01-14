@@ -214,16 +214,14 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index].metadata.name->0) are deleted
         // or use 2.a|b below, which is chosen because I don't bother to talk about order
         // 2.a. all pods to be condemned in etcd are captured in state.condemned
-        &&& !exists |ord: nat| {
+        &&& forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s.resources()[key];
-            &&& ord >= vsts.spec.replicas.unwrap_or(1)
-            &&& s.resources().contains_key(key)
-            &&& !exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
+            s.resources().contains_key(key)
+                ==> exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
         }
         // 2.b. all pods before condemned_index are deleted
         &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
