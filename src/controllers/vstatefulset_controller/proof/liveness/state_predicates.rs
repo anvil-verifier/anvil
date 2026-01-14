@@ -173,7 +173,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     // reachable condition
     &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
-    &&& state.reconcile_step == AfterCreateNeeded ==> state.needed_index > 0
+    &&& locally_at_step_or!(state, AfterCreateNeeded, AfterUpdateNeeded) ==> state.needed_index > 0
     // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
 }
@@ -188,7 +188,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             vsts.spec.volume_claim_templates->0.len()
         } else {0};
         let needed_index_for_pvc = match state.reconcile_step {
-            CreateNeeded => (state.needed_index + 1) as nat,
+            CreateNeeded | UpdateNeeded => (state.needed_index + 1) as nat,
             _ => state.needed_index,
         };
         let needed_index_considering_creation = match state.reconcile_step {
@@ -404,6 +404,35 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
         &&& s.resources().contains_key(key)
         // relaxed from exact equality to contains
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+    }
+}
+
+pub open spec fn req_msg_is_get_then_update_needed_pod_req(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat
+) -> bool {
+    let req = req_msg.content.get_get_then_update_request();
+    let key = ObjectRef {
+        kind: Kind::PodKind,
+        name: pod_name(vsts.metadata.name->0, ord),
+        namespace: vsts.metadata.namespace->0
+    };
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_get_then_update_request_msg(key)(req_msg)
+    &&& req.owner_ref == vsts.controller_owner_ref()
+}
+
+pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let ord = (local_state.needed_index - 1) as nat;
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
     }
 }
 
