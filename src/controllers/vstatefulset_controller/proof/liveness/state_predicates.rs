@@ -173,6 +173,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     // reachable condition
     &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
+    &&& state.reconcile_step == AfterCreateNeeded ==> state.needed_index > 0
     // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
 }

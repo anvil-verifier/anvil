@@ -184,7 +184,7 @@ ensures
         assert forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) implies {
             let key = ObjectRef {
                 kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
             s.resources().contains_key(key)
@@ -391,32 +391,31 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
 {
-    assume(false);
     lemma_create_needed_pod_request_returns_ok_response(
         s, s_prime, vsts, cluster, controller_id
     );
+    let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
     let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_create_request();
-    let obj = if s.resources().contains_key(req.key()) {
-        s.resources()[req.key()]
-    } else {
-        req.obj
-    };
-    assume(s_prime.resources() == s.resources().insert(req.key(), obj));
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
-        if exists |ord: nat| {
+        assert forall |ord: nat| ord >= replicas implies {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s_prime.resources()[key];
-            &&& ord >= vsts.spec.replicas.unwrap_or(1)
-            &&& s_prime.resources().contains_key(key)
-            &&& !exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
-        } {
-            assert(false) by {
-                assume(false);
+            s_prime.resources().contains_key(key)
+                ==> exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
+        } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            if !s.resources().contains_key(key) && key == req.key() {
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, key.name);
+                assert(false);
             }
         }
         // 2.b. all pods before condemned_index are deleted
