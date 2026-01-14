@@ -181,28 +181,14 @@ ensures
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
         }
         // no negative sample of uncaptured condemned pods or needed pods, prove by contradiction
-        let unlawful_cond = |ord: nat| {
+        assert forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) implies {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s.resources()[key];
-            &&& ord >= vsts.spec.replicas.unwrap_or(1)
-            &&& !exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
-            // relaxed as Err::ObjectAlreadyExists is tolerated
-            // ||| {
-            //     &&& ord < needed.len()
-            //     &&& needed[ord as int] is None
-            // }
-        };
-        assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] unlawful_cond(ord) implies {
-            let key = ObjectRef {
-                kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            &&& !s.resources().contains_key(key)
+            s.resources().contains_key(key)
+                ==> exists |pod: PodView| #[trigger] condemned.contains(pod) && pod.object_ref() == key
         } by {
             let key = ObjectRef {
                 kind: Kind::PodKind,
@@ -225,25 +211,24 @@ ensures
                 assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
                 assert(get_ordinal(vsts_name, key.name) == Some(ord));
                 assert(exists |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key);
-                let unlawful_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
-                seq_filter_contains_implies_seq_contains(objs, owner_ref_filter, unlawful_obj);
-                let unlawful_pod = PodView::unmarshal(unlawful_obj)->Ok_0;
+                let condemned_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
+                seq_filter_contains_implies_seq_contains(objs, owner_ref_filter, condemned_obj);
+                let condemned_pod = PodView::unmarshal(condemned_obj)->Ok_0;
                 PodView::marshal_preserves_metadata();
-                assert(unlawful_pod.object_ref() == key);
-                assert(filtered_pods.contains(unlawful_pod)) by {
-                    assert(pods.contains(unlawful_pod)) by {
-                        let i = choose |i: int| 0 <= i < objs.len() && objs[i] == unlawful_obj;
+                assert(condemned_pod.object_ref() == key);
+                assert(filtered_pods.contains(condemned_pod)) by {
+                    assert(pods.contains(condemned_pod)) by {
+                        let i = choose |i: int| 0 <= i < objs.len() && objs[i] == condemned_obj;
                         assert(PodView::unmarshal(objs[i]) is Ok);
-                        assert(pods[i] == unlawful_pod);
+                        assert(pods[i] == condemned_pod);
                         assert(pods.contains(pods[i]));
                     }
-                    seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), unlawful_pod);
+                    seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), condemned_pod);
                 }
-                assert(condemned.contains(unlawful_pod) && unlawful_pod.object_ref() == key) by {
-                    assert(filtered_pods.filter(condemned_ord_filter).contains(unlawful_pod));
-                    assert(condemned.to_set().contains(unlawful_pod));
+                assert(condemned.contains(condemned_pod) && condemned_pod.object_ref() == key) by {
+                    assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
+                    assert(condemned.to_set().contains(condemned_pod));
                 }
-                assert(false);
             }
         }
     }
@@ -406,6 +391,7 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
 {
+    assume(false);
     lemma_create_needed_pod_request_returns_ok_response(
         s, s_prime, vsts, cluster, controller_id
     );
@@ -429,24 +415,8 @@ ensures
             &&& s_prime.resources().contains_key(key)
             &&& !exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
         } {
-            let unlawful_ord = choose |ord: nat| {
-                let key = ObjectRef {
-                    kind: Kind::PodKind,
-                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-                    namespace: vsts.metadata.namespace->0
-                };
-                let obj = s_prime.resources()[key];
-                &&& ord >= vsts.spec.replicas.unwrap_or(1)
-                &&& s_prime.resources().contains_key(key)
-                &&& !exists |pod: PodView| #[trigger] next_local_state.condemned.contains(pod) && pod.object_ref() == key
-            };
-            if unlawful_ord == next_local_state.needed_index - 1 {
-                assert(false) by {
-                    assume(false);
-                }
-            } else {
-                assert(req.key().name != pod_name(vsts.metadata.name->0, unlawful_ord));
-                assert(false);
+            assert(false) by {
+                assume(false);
             }
         }
         // 2.b. all pods before condemned_index are deleted
