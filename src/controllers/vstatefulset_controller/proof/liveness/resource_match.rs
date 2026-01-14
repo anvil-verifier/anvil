@@ -398,6 +398,7 @@ ensures
     let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_create_request();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+        // 2.a. all pods to be condemned in etcd are captured in state.condemned
         assert forall |ord: nat| ord >= replicas implies {
             let key = ObjectRef {
                 kind: Kind::PodKind,
@@ -412,6 +413,7 @@ ensures
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
+            // created obj shouldn't be considered as condemned
             if !s.resources().contains_key(key) && key == req.key() {
                 get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
                 get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, key.name);
@@ -419,10 +421,19 @@ ensures
             }
         }
         // 2.b. all pods before condemned_index are deleted
-        assert(forall |i: nat| #![trigger next_local_state.condemned[i as int]] i < next_local_state.condemned_index ==> {
+        assert forall |i: nat| #![trigger next_local_state.condemned[i as int]] i < next_local_state.condemned_index implies {
             let key = next_local_state.condemned[i as int].object_ref();
             &&& !s_prime.resources().contains_key(key)
-        });
+        } by {
+            let condemned_pod = next_local_state.condemned[i as int];
+            if req.key() == condemned_pod.object_ref() {
+                let ord = get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0)->0;
+                assert(ord >= replicas);
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, req.key().name);
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, req.key().name);
+                assert(false);
+            }
+        }
     }
 }
 
