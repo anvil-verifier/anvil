@@ -662,7 +662,8 @@ pub fn handle_after_delete_condemned(
 {
     if is_some_k_get_then_delete_resp!(resp_o) {
         let result = extract_some_k_get_then_delete_resp!(resp_o);
-        if result.is_ok() {
+        if result.is_ok() || (result.is_err()
+            && matches!(result.unwrap_err(), APIError::ObjectNotFound)) {
             if state.condemned_index < state.condemned.len() {
                 (
                     VStatefulSetReconcileState {

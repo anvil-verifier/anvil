@@ -151,10 +151,12 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
         ==> {
             let condemned_pod = state.condemned[i as int];
-            &&& condemned_pod.metadata.name is Some
+            let condemned_pod_name = condemned_pod.metadata.name->0;
             // implies that their name will not collide with needed pods
-            &&& get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0) is Some
-            &&& get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0)->0 >= vsts.spec.replicas.unwrap_or(1)
+            &&& condemned_pod.metadata.name is Some
+            &&& get_ordinal(vsts.metadata.name->0, condemned_pod_name) is Some
+            &&& get_ordinal(vsts.metadata.name->0, condemned_pod_name)->0 >= vsts.spec.replicas.unwrap_or(1)
+            &&& condemned_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         }
     &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
         ==> state.pvcs[i as int].metadata.name is Some
@@ -173,6 +175,8 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     // reachable condition
     &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
+    &&& state.reconcile_step == DeleteCondemned ==> state.condemned_index < state.condemned.len()
+    &&& state.reconcile_step == AfterDeleteCondemned ==> state.condemned_index > 0
     &&& locally_at_step_or!(state, AfterCreateNeeded, AfterUpdateNeeded) ==> state.needed_index > 0
     // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
@@ -194,6 +198,10 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         let needed_index_considering_creation = match state.reconcile_step {
             AfterCreateNeeded => (state.needed_index - 1) as nat,
             _ => state.needed_index,
+        };
+        let condemned_index_considering_deletion = match state.reconcile_step {
+            AfterDeleteCondemned => (state.condemned_index - 1) as nat,
+            _ => state.condemned_index,
         };
         // 1. coherence of needed pods
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
@@ -225,7 +233,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 ==> exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
         }
         // 2.b. all pods before condemned_index are deleted
-        &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned_index ==> {
+        &&& forall |i: nat| #![trigger state.condemned[i as int]] i < condemned_index_considering_deletion ==> {
             let key = state.condemned[i as int].object_ref();
             &&& !s.resources().contains_key(key)
         }
@@ -456,6 +464,32 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
         // that obj's owner reference is not changed
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     }
+}
+
+pub open spec fn pending_delete_condemned_pod_req_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let condemned_pod_key = ObjectRef {
+            kind: Kind::PodKind,
+            name: local_state.condemned[local_state.condemned_index - 1].metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(vsts, controller_id, req_msg, condemned_pod_key)
+    }
+}
+
+pub open spec fn req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, condemned_pod_key: ObjectRef
+) -> bool {
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_get_then_delete_request_msg(condemned_pod_key)(req_msg)
 }
 
 }
