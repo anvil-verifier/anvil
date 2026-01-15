@@ -401,8 +401,9 @@ ensures
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
     let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_create_request();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    // prove that creation will not affect coherence of condemned pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
-        // 2.a. all pods to be condemned in etcd are captured in state.condemned
+        // 2.a. all pods to be condemned in etcd are captured in next_local_state.condemned
         assert forall |ord: nat| ord >= replicas implies {
             let key = ObjectRef {
                 kind: Kind::PodKind,
@@ -536,9 +537,66 @@ requires
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    pending_delete_condemned_pod_req_in_flight(vsts, controller_id)(s_prime),
+    pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
+pub proof fn lemma_from_after_send_get_then_delete_condemned_pod_req_to_receive_get_then_delete_condemned_pod_resp(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
+{
+    lemma_get_then_delete_condemned_pod_request_returns_ok_or_not_found_err_response(
+        s, s_prime, vsts, cluster, controller_id
+    );
+    // prove that deletion will not affect coherence of needed pods
+    let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_delete_request();
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+        // 1.a. all needed pods in etcd are captured in next_local_state.needed
+        assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
+            &&& ord < next_local_state.needed.len()
+            &&& next_local_state.needed[ord as int] is Some || ord < next_local_state.needed_index
+        } implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s_prime.resources()[key];
+            &&& s_prime.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            // TODO: cover pod updates
+        } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            if !s_prime.resources().contains_key(key) {
+                if req.key() == key {
+                    get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
+                    get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, key.name);
+                    assert(false);
+                } else {
+                    assert(!s.resources().contains_key(key));
+                    assert(false);
+                }
+            }
+        }
+    }
 }
 
 }

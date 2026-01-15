@@ -89,4 +89,22 @@ ensures
     pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id)(s_prime),
 {}
 
+#[verifier(external_body)]
+pub proof fn lemma_get_then_delete_condemned_pod_request_returns_ok_or_not_found_err_response(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int,
+)
+requires
+    req_msg_or_none(s, vsts, controller_id) is Some,
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+ensures
+    pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
+    ({ // no side effect
+        let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_delete_request();
+        forall |key: ObjectRef| key != req.key() ==> (s_prime.resources().contains_key(key) == s.resources().contains_key(key))
+    }),
+{}
+
 }

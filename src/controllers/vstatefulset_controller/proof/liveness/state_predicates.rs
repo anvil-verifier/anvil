@@ -234,7 +234,11 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         }
         // 2.b. all pods before condemned_index are deleted
         &&& forall |i: nat| #![trigger state.condemned[i as int]] i < condemned_index_considering_deletion ==> {
-            let key = state.condemned[i as int].object_ref();
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: state.condemned[i as int].metadata.name->0,
+                namespace: vsts.metadata.namespace->0
+            };
             &&& !s.resources().contains_key(key)
         }
         // 3. coherence of bound PVCs
@@ -466,7 +470,7 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
     }
 }
 
-pub open spec fn pending_delete_condemned_pod_req_in_flight(
+pub open spec fn pending_get_then_delete_condemned_pod_req_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -490,6 +494,29 @@ pub open spec fn req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_get_then_delete_request_msg(condemned_pod_key)(req_msg)
+}
+
+pub open spec fn pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let condemned_pod_key = ObjectRef {
+            kind: Kind::PodKind,
+            name: local_state.condemned[local_state.condemned_index - 1].metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(vsts, controller_id, req_msg, condemned_pod_key)
+        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg.content.is_get_then_delete_response()
+        &&& resp_msg.content.get_get_then_delete_response().res is Err
+            ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+        // condemned pod is deleted from etcd
+        &&& !s.resources().contains_key(condemned_pod_key)
+    }
 }
 
 }
