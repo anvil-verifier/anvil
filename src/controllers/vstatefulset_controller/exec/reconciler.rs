@@ -668,7 +668,6 @@ pub fn handle_after_delete_condemned(
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
-                        needed_index: state.condemned_index,
                         ..state
                     },
                     None,
