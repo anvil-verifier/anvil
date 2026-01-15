@@ -18,7 +18,6 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
         } else {0};
         // 1. All needed pods exist and are up-to-date
         // TODO: cover updates to pod.spec.{volumes|hostname|subdomain} and pod.metadata.labels
-        // TODO: add invariant saying eventually no pods with owner_references pointing to non-existing VSTS exists (or it will be deleted by GC)
         &&& forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] 0 <= ord < vsts.spec.replicas.unwrap_or(1) ==> {
             let key = ObjectRef {
                 kind: PodView::kind(),

@@ -436,4 +436,26 @@ pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
     }
 }
 
+pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let ord = (local_state.needed_index - 1) as nat;
+        let key = req_msg.content.get_get_then_update_request().key();
+        let obj = s.resources()[key];
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
+        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg.content.is_get_then_update_response()
+        &&& resp_msg.content.get_get_then_update_response().res is Ok
+        // TODO: cover volume update
+        &&& s.resources().contains_key(key)
+        // that obj's owner reference is not changed
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+    }
+}
+
 }
