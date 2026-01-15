@@ -481,4 +481,25 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
+pub proof fn lemma_from_after_send_get_then_update_needed_pod_req_to_receive_get_then_update_needed_pod_resp(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pending_get_then_update_needed_pod_req_in_flight(vsts, controller_id)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id)(s_prime),
+{
+    lemma_get_then_update_needed_pod_request_returns_ok_response(
+        s, s_prime, vsts, cluster, controller_id
+    );
+}
+
 }
