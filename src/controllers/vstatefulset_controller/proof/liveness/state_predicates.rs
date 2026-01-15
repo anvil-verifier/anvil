@@ -50,6 +50,10 @@ pub open spec fn resp_msg_or_none(s: ClusterState, vsts: VStatefulSetView, contr
     }
 }
 
+pub open spec fn local_state(s: ClusterState, vsts: VStatefulSetView, controller_id: int) -> VStatefulSetReconcileState {
+    VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0
+}
+
 pub open spec fn no_pending_req_in_cluster(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         Cluster::no_pending_req_msg(controller_id, s, vsts.object_ref())
@@ -538,14 +542,6 @@ pub open spec fn pending_get_then_delete_outdated_pod_req_in_flight(
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pods.last()->0.object_ref())
-    }
-}
-
-pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
-    |pod_or_none: Option<PodView>| {
-        let pod = pod_or_none->0;
-        &&& pod_or_none is Some
-        &&& !pod_matches(vsts, pod)
     }
 }
 
