@@ -517,7 +517,6 @@ pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: D
             if state.condemned_index < state.condemned.len() {
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::DeleteCondemned,
-                    needed_index: state.condemned_index,
                     ..state
                 }, None)
             } else {
