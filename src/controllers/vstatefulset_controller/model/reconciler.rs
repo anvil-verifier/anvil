@@ -309,7 +309,7 @@ pub open spec fn handle_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, 
 pub open spec fn handle_after_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_create_resp_view(resp_o) {
         let result = extract_some_k_create_resp_view(resp_o);
-        if result is Ok || (result is Err && result->Err_0 is ObjectAlreadyExists) {
+        if result is Ok || result->Err_0 is ObjectAlreadyExists {
             handle_after_create_or_skip_pvc_helper(vsts, state)
         } else {
             (error_state(state), None)
@@ -383,7 +383,7 @@ pub open spec fn handle_create_needed(vsts: VStatefulSetView, resp_o: DefaultRes
 pub open spec fn handle_after_create_needed(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_create_resp_view(resp_o) {
         let result = extract_some_k_create_resp_view(resp_o);
-        if result is Ok || (result is Err && result->Err_0 is ObjectAlreadyExists) {
+        if result is Ok || result->Err_0 is ObjectAlreadyExists {
             handle_after_create_or_after_update_needed_helper(vsts, state)
         } else {
             (error_state(state), None)
@@ -513,7 +513,7 @@ pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: Default
 pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view(resp_o) {
         let result = extract_some_k_get_then_delete_resp_view(resp_o);
-        if result is Ok || (result is Err && result->Err_0 is ObjectNotFound) {
+        if result is Ok || result->Err_0 is ObjectNotFound {
             if state.condemned_index < state.condemned.len() {
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::DeleteCondemned,
