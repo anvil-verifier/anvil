@@ -236,7 +236,7 @@ ensures
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */
 pub proof fn lemma_from_at_get_pvc_step_to_after_get_pvc_step(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -246,16 +246,18 @@ requires
     at_vsts_step(vsts, controller_id, at_step![GetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == pvc_index,
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_after_send_get_pvc_req_to_receive_get_pvc_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -265,10 +267,12 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_pvc_resp_in_flight_reflecting_existence_of_requested_pvc(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == pvc_index,
 {
     lemma_get_pvc_request_returns_ok_or_err_response(
         s, s_prime, vsts, cluster, controller_id
@@ -277,7 +281,7 @@ ensures
 
 // TODO: talk about pvc_index's rank
 pub proof fn lemma_from_get_pvc_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
     resp_msg_or_none(s, vsts, controller_id) is Some,
@@ -288,16 +292,39 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_pvc_resp_in_flight_reflecting_existence_of_requested_pvc(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC])(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == pvc_index,
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
+pub proof fn lemma_from_skip_pvc_to_next_state(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, None, Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![SkipPVC])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    no_pending_req_in_cluster(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
+ensures
+    at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == (pvc_index + 1) as nat,
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_create_pvc_step_to_after_create_pvc_step(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -307,16 +334,18 @@ requires
     at_vsts_step(vsts, controller_id, at_step![CreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_pvc_req_in_flight(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == (pvc_index + 1) as nat,
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -326,10 +355,12 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_create_pvc_req_in_flight(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == pvc_index,
 {
     lemma_create_pvc_request_returns_ok_or_already_exists_err_response(
         s, s_prime, vsts, cluster, controller_id
@@ -338,24 +369,24 @@ ensures
 
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
 // TODO: speed up this proof
-pub proof fn lemma_from_skip_pvc_or_after_create_pvc_step_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+pub proof fn lemma_from_after_create_pvc_step_to_next_state(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
-    at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, AfterCreatePVC])(s),
+    at_vsts_step(vsts, controller_id, at_step_or![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     lift_local(controller_id, vsts, at_step![AfterCreatePVC])(s)
         ==> pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s),
-    lift_local(controller_id, vsts, at_step![SkipPVC])(s)
-        ==> no_pending_req_in_cluster(vsts, controller_id)(s),
+    local_state(s, vsts, controller_id).pvc_index == pvc_index,
 ensures
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    local_state(s_prime, vsts, controller_id).pvc_index == pvc_index,
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }

@@ -71,6 +71,14 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
     )
 }
 
+pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
+    |pod_or_none: Option<PodView>| {
+        let pod = pod_or_none->0;
+        &&& pod_or_none is Some
+        &&& !pod_matches(vsts, pod)
+    }
+}
+
 // Other controllers don't create PVC matching VSTS's PVC template.
 // this is stronger than storage_matches that we check pvc_template_name
 // instead of pvc_template_name + existing a pod whose pvc matches requested obj
