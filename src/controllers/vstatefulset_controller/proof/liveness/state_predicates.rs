@@ -470,6 +470,15 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
     }
 }
 
+pub open spec fn req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, condemned_pod_key: ObjectRef
+) -> bool {
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_get_then_delete_request_msg(condemned_pod_key)(req_msg)
+}
+
 pub open spec fn pending_get_then_delete_condemned_pod_req_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
@@ -485,15 +494,6 @@ pub open spec fn pending_get_then_delete_condemned_pod_req_in_flight(
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(vsts, controller_id, req_msg, condemned_pod_key)
     }
-}
-
-pub open spec fn req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(
-    vsts: VStatefulSetView, controller_id: int, req_msg: Message, condemned_pod_key: ObjectRef
-) -> bool {
-    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
-    &&& req_msg.dst == HostId::APIServer
-    &&& req_msg.content is APIRequest
-    &&& resource_get_then_delete_request_msg(condemned_pod_key)(req_msg)
 }
 
 pub open spec fn pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(
@@ -516,6 +516,36 @@ pub open spec fn pending_get_then_delete_condemned_pod_resp_in_flight_and_condem
             ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
         // condemned pod is deleted from etcd
         &&& !s.resources().contains_key(condemned_pod_key)
+    }
+}
+
+pub open spec fn req_msg_is_get_then_delete_outdated_pod_req(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, outdated_pod_key: ObjectRef
+) -> bool {
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_get_then_delete_request_msg(outdated_pod_key)(req_msg)
+}
+
+pub open spec fn pending_get_then_delete_outdated_pod_req_in_flight(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pods.last()->0.object_ref())
+    }
+}
+
+pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
+    |pod_or_none: Option<PodView>| {
+        let pod = pod_or_none->0;
+        &&& pod_or_none is Some
+        &&& !pod_matches(vsts, pod)
     }
 }
 

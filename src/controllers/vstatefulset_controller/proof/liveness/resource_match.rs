@@ -348,8 +348,10 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
-    lift_local(controller_id, vsts, at_step![AfterCreatePVC])(s) ==> pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s),
-    lift_local(controller_id, vsts, at_step![SkipPVC])(s) ==> no_pending_req_in_cluster(vsts, controller_id)(s),
+    lift_local(controller_id, vsts, at_step![AfterCreatePVC])(s)
+        ==> pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s),
+    lift_local(controller_id, vsts, at_step![SkipPVC])(s)
+        ==> no_pending_req_in_cluster(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
@@ -614,6 +616,28 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step_or![DeleteOutdated, DeleteCondemned])(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
+pub proof fn lemma_from_delete_outdated_step_to_after_delete_outdated_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, None, Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    no_pending_req_in_cluster(vsts, controller_id)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step_or![AfterDeleteOutdated, Done])(s_prime),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    lift_local(controller_id, vsts, at_step![AfterDeleteOutdated])(s_prime) ==>
+        pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s_prime),
+    lift_local(controller_id, vsts, at_step![Done])(s_prime) ==>
+        no_pending_req_in_cluster(vsts, controller_id)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
