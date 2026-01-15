@@ -532,10 +532,7 @@ pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: D
 }
 
 pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    let ordinal_or_none = get_largest_ordinal_of_unmatched_pods(vsts, state.needed);
-    if ordinal_or_none is Some {
-        let ordinal = ordinal_or_none->0;
-        let pod = state.needed[ordinal as int]->0;
+    if let Some(pod) = get_largest_unmatched_pods(vsts, state.needed) {
         if pod.metadata.name is Some {
             let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
                 key: ObjectRef {
@@ -797,35 +794,18 @@ pub open spec fn pod_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     &&& pod.spec->0.without_volumes() == vsts.spec.template.spec->0.without_volumes()
 }
 
-// Check whether the ordinal is the largest ordinal of pods that don't match vsts
-pub open spec fn is_the_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>, ordinal: nat) -> bool {
-    &&& ordinal < pods.len()
-    &&& pods[ordinal as int] is Some
-    // pods[ordinal] doesn't match vsts
-    &&& !pod_matches(vsts, pods[ordinal as int]->0)
-    // and for any other pods[other_ordinal] that doesn't match vsts, other_ordinal is no larger than ordinal
-    &&& forall |other_ordinal: nat| other_ordinal < pods.len() && #[trigger] pods[other_ordinal as int] is Some && !pod_matches(vsts, pods[other_ordinal as int]->0)
-        ==> other_ordinal <= ordinal
-}
-
-// if exists |p: | ...
-//  choose 
-
-pub open spec fn get_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<nat> {
-    let filtered = Seq::new(pods.len(), |i: int| i as nat)
-                                .filter(|ordinal: nat| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
-    if filtered.len() > 0 {
-        Some(filtered.last())
-    } else {
-        None
+pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
+    |pod_or_none: Option<PodView>| {
+        let pod = pod_or_none->0;
+        &&& pod_or_none is Some
+        &&& !pod_matches(vsts, pod)
     }
-}
+} 
 
-pub open spec fn get_largest_ordinal_of_unmatched_pods_usize(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<usize> {
-    let filtered = Seq::new(pods.len(), |i: int| i as usize)
-                                .filter(|ordinal: usize| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
+pub open spec fn get_largest_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<PodView> {
+    let filtered = pods.filter(outdated_pod_filter(vsts));
     if filtered.len() > 0 {
-        Some(filtered.last())
+        filtered.last()
     } else {
         None
     }

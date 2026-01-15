@@ -684,7 +684,6 @@ pub fn handle_after_delete_condemned(
     }
 }
 
-#[verifier(external_body)]
 pub fn handle_delete_outdated(
     vsts: &VStatefulSet,
     resp_o: Option<Response<VoidEResp>>,
@@ -699,21 +698,7 @@ pub fn handle_delete_outdated(
             state@,
         ),
 {
-    let ordinal_or_none = get_largest_ordinal_of_unmatched_pods(vsts, &state.needed);
-    if ordinal_or_none.is_some() {
-        let ordinal = ordinal_or_none.unwrap();
-
-        proof {
-            let pods = state.needed.deep_view();
-            let ordinals = Seq::new(pods.len(), |i: int| i as nat);
-            let pred = |ordinal: nat| pods[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods[ordinal as int]->0);
-            let filtered = ordinals.filter(pred);
-            assert(filtered.contains(ordinal as nat));
-            seq_filter_contains_implies_seq_contains(ordinals, pred, ordinal as nat);
-            assert(ordinals.contains(ordinal as nat));
-        }
-
-        let pod = state.needed[ordinal as usize].clone().unwrap();
+    if let Some(pod) = get_largest_unmatched_pods(&vsts, &state.needed) {
 
         if pod.metadata().name().is_none() {
             return (error_state(state), None)
@@ -1500,77 +1485,62 @@ pub fn pod_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
     }
 }
 
-pub fn get_largest_ordinal_of_unmatched_pods(
+pub fn get_largest_unmatched_pods(
     vsts: &VStatefulSet,
     pods: &Vec<Option<Pod>>,
-) -> (result: Option<usize>)
+) -> (result: Option<Pod>)
     requires
         vsts@.well_formed(),
     ensures
-        (result.is_none() && model_reconciler::get_largest_ordinal_of_unmatched_pods_usize(
+        result.deep_view() == model_reconciler::get_largest_unmatched_pods(
             vsts@,
             pods.deep_view(),
-        ) is None) || (result.is_some() && model_reconciler::get_largest_ordinal_of_unmatched_pods_usize(
-            vsts@,
-            pods.deep_view(),
-        ) is Some && result.unwrap() as nat
-            == model_reconciler::get_largest_ordinal_of_unmatched_pods_usize(vsts@, pods.deep_view())->0),
+        ),
 {
-    let ghost model_ordinals = Seq::new(pods.deep_view().len(), |i: int| i as usize);
-
-    let mut ordinals: Vec<usize> = Vec::new();
+    let mut filtered_pods = Vec::<Option<Pod>>::new();
 
     proof {
-        assert_seqs_equal!(ordinals.deep_view(), model_ordinals.take(0));
+        assert_seqs_equal!(filtered_pods.deep_view(), pods.deep_view().take(0).filter(model_reconciler::outdated_pod_filter(vsts@)));
     }
 
     let mut ord: usize = 0;
 
     while ord < pods.len() 
         invariant 
-        ordinals.deep_view() =~= model_ordinals.take(ord as int)
-        && ord <= pods.len()
-        decreases pods.len() - ord
+            ord <= pods.len(),
+            filtered_pods.deep_view() == pods.deep_view().take(ord as int).filter(model_reconciler::outdated_pod_filter(vsts@)),
+            vsts@.well_formed(),
+        decreases pods.len() - ord,
     {
-        ordinals.push(ord);
+        let pod_or_none = &pods[ord];
+        if pod_or_none.is_some() && !pod_matches(vsts, pod_or_none.clone().unwrap()) {
+            proof {
+                assert(model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view()));
+            }
+            filtered_pods.push(pod_or_none.clone());
+        }
+        proof {
+            let old_filtered = if model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view()) {
+                filtered_pods.deep_view().drop_last()
+            } else {
+                filtered_pods.deep_view()
+            };
+            assert(old_filtered == pods.deep_view().take(ord as int).filter(model_reconciler::outdated_pod_filter(vsts@)));
+            lemma_filter_push(pods.deep_view().take(ord as int), model_reconciler::outdated_pod_filter(vsts@), pod_or_none.deep_view());
+            assert(pods.deep_view().take(ord as int).push(pods.deep_view()[ord as int]) == pods.deep_view().take(
+                (ord + 1) as int,
+            ));
+        }
         ord += 1;
-        proof {
-            assume(ordinals.deep_view() == model_ordinals.take(ord as int));
-        }
     }
 
     proof {
-        assert(model_ordinals.take(pods.len() as int) == model_ordinals);
-        assert(ordinals.deep_view() == model_ordinals);
+        assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
+        assert(filtered_pods.deep_view() == pods.deep_view().filter(model_reconciler::outdated_pod_filter(vsts@)));
     }
 
-    let ghost model_pred = |ordinal: usize| pods.deep_view()[ordinal as int] is Some && !model_reconciler::pod_matches(vsts@, pods.deep_view()[ordinal as int]->0);
-
-    let mut ordinals_filtered: Vec<usize> = Vec::new();
-    for idx in 0..ordinals.len() 
-        invariant 
-            ordinals_filtered.deep_view() == model_ordinals.take(idx as int).filter(model_pred)
-            && vsts@.well_formed()
-
-    {
-        let ordinal = ordinals[idx];
-        assume(ordinal < pods.len());
-        if pods[ordinal].is_some() && !pod_matches(vsts, pods[ordinal].clone().unwrap()) {
-            ordinals_filtered.push(ordinal);
-        }
-        proof {
-            assume(ordinals_filtered.deep_view() == model_ordinals.take(idx + 1 as int).filter(model_pred));
-        }
-    }
-
-    proof {
-        assume(ordinals.len() == model_ordinals.len());
-        assert(model_ordinals.take(ordinals.len() as int) == model_ordinals);
-        assert(ordinals_filtered.deep_view() == model_ordinals.filter(model_pred));
-    }
-
-    if ordinals_filtered.len() > 0 {
-        Some(ordinals_filtered[ordinals_filtered.len() - 1])
+    if filtered_pods.len() > 0 {
+        filtered_pods[filtered_pods.len() - 1].clone()
     } else {
         None
     }
