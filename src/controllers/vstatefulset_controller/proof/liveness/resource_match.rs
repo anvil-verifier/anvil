@@ -599,4 +599,23 @@ ensures
     }
 }
 
+pub proof fn lemma_from_after_delete_condemned_step_to_delete_outdated_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s),
+ensures
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    at_vsts_step(vsts, controller_id, at_step_or![DeleteOutdated, DeleteCondemned])(s_prime),
+    no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
 }
