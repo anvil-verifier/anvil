@@ -181,6 +181,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
     &&& state.reconcile_step == DeleteCondemned ==> state.condemned_index < state.condemned.len()
     &&& state.reconcile_step == AfterDeleteCondemned ==> state.condemned_index > 0
+    &&& state.reconcile_step == AfterDeleteOutdated ==> state.needed.filter(outdated_pod_filter(vsts)).len() > 0
     &&& locally_at_step_or!(state, AfterCreateNeeded, AfterUpdateNeeded) ==> state.needed_index > 0
     // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
@@ -539,9 +540,14 @@ pub open spec fn pending_get_then_delete_outdated_pod_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+        let outdated_pod_key = ObjectRef {
+            kind: Kind::PodKind,
+            name: outdated_pods.last()->0.metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pods.last()->0.object_ref())
+        &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pod_key)
     }
 }
 
