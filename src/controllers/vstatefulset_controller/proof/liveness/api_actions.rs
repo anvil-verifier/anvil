@@ -95,7 +95,7 @@ pub proof fn lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     req_msg.src == HostId::Controller(controller_id, vsts.object_ref()),
@@ -115,5 +115,21 @@ ensures
         &&& !s_prime.resources().contains_key(req.key())
     }),
 {}
+
+#[verifier(external_body)]
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_cocherence(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
+    req_msg.dst == HostId::APIServer,
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+ensures
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+{}  
 
 }
