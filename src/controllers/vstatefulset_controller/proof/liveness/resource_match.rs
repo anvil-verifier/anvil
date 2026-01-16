@@ -68,11 +68,11 @@ ensures
             at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
             pending_list_pod_resp_in_flight(vsts, controller_id)
         )
-    ))).leads_to(lift_state(and!(
+    )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id)
-    )))
+    ))))
 {}
 
 #[verifier(external_body)] // prove using rank function on needed index
@@ -90,14 +90,14 @@ requires
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
-        at_vsts_step(vsts, controller_id, at_step![CreateNeeded, UpdateNeeded]),
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id)
-    ))).leads_to(lift_state(and!(
-        at_vsts_step(vsts, controller_id, at_step![DeleteCondemned, DeleteOutdated]),
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![DeleteCondemned, DeleteOutdated]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id)
-    )))
+    ))))
 {}
 
 pub proof fn lemma_from_at_init_step_to_after_list_pod_step(
@@ -379,9 +379,7 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    if local_state.pvc_index + 1 < local_state.pvcs.len() { // -0s
-        assert(next_local_state.reconcile_step == GetPVC);
-    } else if local_state.needed_index < local_state.needed.len() {}
+    if local_state.pvc_index + 1 < local_state.pvcs.len() {} else if local_state.needed_index < local_state.needed.len() {}
 }
 
 pub proof fn lemma_from_create_pvc_step_to_after_create_pvc_step(
@@ -452,9 +450,7 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    if local_state.pvc_index < local_state.pvcs.len() {
-        assert(next_local_state.reconcile_step == GetPVC);
-    } else if local_state.needed_index < local_state.needed.len() {}
+    if local_state.pvc_index < local_state.pvcs.len() {} else if local_state.needed_index < local_state.needed.len() {}
 }
 
 /* .. -> CreateNeeded -> AfterCreateNeeded -> .. */
