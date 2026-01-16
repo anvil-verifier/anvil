@@ -551,4 +551,28 @@ pub open spec fn pending_get_then_delete_outdated_pod_req_in_flight(
     }
 }
 
+pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(
+    vsts: VStatefulSetView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+        let outdated_pod_key = ObjectRef {
+            kind: Kind::PodKind,
+            name: outdated_pods.last()->0.metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pod_key)
+        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg.content.is_get_then_delete_response()
+        &&& resp_msg.content.get_get_then_delete_response().res is Err
+            ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+        // outdated pod is deleted from etcd
+        &&& !s.resources().contains_key(outdated_pod_key)
+    }
+}
+
 }
