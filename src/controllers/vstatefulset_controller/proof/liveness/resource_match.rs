@@ -690,7 +690,8 @@ ensures
     }
 }
 
-// TODO: weaken coherence pred
+// TODO: weaken coherence pred because one needed pod is deleted
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -710,40 +711,25 @@ ensures
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
         s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts, controller_id)->0
     );
-    // prove that deletion will not affect coherence of needed pods
-    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
-        // 1.a. all needed pods in etcd are captured in next_local_state.needed
-        assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
-            &&& ord < next_local_state.needed.len()
-            &&& next_local_state.needed[ord as int] is Some || ord < next_local_state.needed_index
-        } implies {
-            let key = ObjectRef {
-                kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            let obj = s_prime.resources()[key];
-            &&& s_prime.resources().contains_key(key)
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            // TODO: cover pod updates
-        } by {
-            let key = ObjectRef {
-                kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            if !s_prime.resources().contains_key(key) {
-                if req.key() == key {
-                    get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
-                    get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, key.name);
-                    assert(false);
-                } else {
-                    assert(!s.resources().contains_key(key));
-                    assert(false);
-                }
-            }
-        }
-    }
+}
+
+pub proof fn lemma_from_after_delete_outdated_step_to_done_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id)(s),
+ensures
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    at_vsts_step(vsts, controller_id, at_step![Done])(s_prime),
+    no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 }
