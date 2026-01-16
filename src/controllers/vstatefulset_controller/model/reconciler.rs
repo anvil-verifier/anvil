@@ -558,7 +558,7 @@ pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultR
 pub open spec fn handle_after_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view(resp_o) {
         let result = extract_some_k_get_then_delete_resp_view(resp_o);
-        if result is Ok {
+        if result is Ok || result->Err_0 is ObjectNotFound {
             (done_state(state), None)
         } else {
             (error_state(state), None)
