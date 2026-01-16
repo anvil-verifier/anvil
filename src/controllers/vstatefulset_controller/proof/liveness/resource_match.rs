@@ -695,8 +695,6 @@ ensures
     }
 }
 
-// TODO: weaken coherence pred because one needed pod is deleted
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -716,6 +714,40 @@ ensures
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
         s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts, controller_id)->0
     );
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let victim_pod = get_largest_unmatched_pods(vsts, local_state.needed)->0;
+    let victim_ord = get_ordinal(vsts.metadata.name->0, victim_pod.metadata.name->0)->0;
+    let req = req_msg_or_none(s, vsts, controller_id)->0.content.get_get_then_delete_request();
+    // prove that deletion will not affect coherence of other needed pods
+    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+        assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
+            &&& ord < next_local_state.needed.len()
+            &&& next_local_state.needed[ord as int] is Some || ord < next_local_state.needed_index
+            &&& ord != victim_ord
+        } implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s_prime.resources()[key];
+            &&& s_prime.resources().contains_key(key)
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            if !s_prime.resources().contains_key(key) && req.key() == key {
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, victim_ord, key.name);
+                assert(false);
+            }
+        }
+    }
 }
 
 pub proof fn lemma_from_after_delete_outdated_step_to_done_step(
