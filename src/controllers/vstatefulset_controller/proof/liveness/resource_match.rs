@@ -321,6 +321,11 @@ ensures
     local_state(s_prime, vsts, controller_id).pvc_index == (pvc_index + 1) as nat,
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    if local_state.pvc_index + 1 < local_state.pvcs.len() { // -0s
+        assert(next_local_state.reconcile_step == GetPVC);
+    } else if local_state.needed_index < local_state.needed.len() {}
 }
 
 pub proof fn lemma_from_create_pvc_step_to_after_create_pvc_step(
