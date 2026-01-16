@@ -208,10 +208,15 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             AfterDeleteCondemned => (state.condemned_index - 1) as nat,
             _ => state.condemned_index,
         };
+        let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
         // 1. coherence of needed pods
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
             &&& ord < state.needed.len()
             &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
+            // at last step, one outdated pod will be deleted
+            &&& state.reconcile_step != AfterDeleteOutdated
+                || outdated_pod is None
+                || ord != get_ordinal(vsts.metadata.name->0, outdated_pod->0.metadata.name->0)->0
         } ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
@@ -249,10 +254,10 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // 3. coherence of bound PVCs
         // all PVCs for pods before needed_index exist in etcd
         // needed_index_for_pvc is used because at CreateNeeded step the index is not yet incremented
-        &&& forall |index: (nat, nat)| #[trigger] index.0 < needed_index_for_pvc && index.1 < pvc_cnt ==> {
+        &&& forall |index: (nat, nat)| index.0 < needed_index_for_pvc && index.1 < pvc_cnt ==> {
             let key = ObjectRef {
                 kind: PersistentVolumeClaimView::kind(),
-                name: pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
+                name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
                 namespace: vsts.metadata.namespace->0
             };
             &&& s.resources().contains_key(key)
@@ -266,11 +271,10 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 SkipPVC => (state.pvc_index + 1) as nat,
                 _ => state.pvc_index,
             };
-            &&& forall |i: nat| #![trigger vsts.spec.volume_claim_templates->0[i as int]] 
-                i < pvc_index_tmp ==> {
+            &&& forall |i: nat| i < pvc_index_tmp ==> {
                 let key = ObjectRef {
                     kind: PersistentVolumeClaimView::kind(),
-                    name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                    name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
                     namespace: vsts.metadata.namespace->0
                 };
                 &&& s.resources().contains_key(key)
