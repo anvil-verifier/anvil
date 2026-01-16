@@ -591,11 +591,12 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
 {
+    let req_msg = req_msg_or_none(s, vsts, controller_id).unwrap();
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
-        s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts, controller_id)->0
+        s, s_prime, vsts, cluster, controller_id, req_msg
     );
     // prove that deletion will not affect coherence of needed pods
-    let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_delete_request();
+    let req = req_msg.content.get_get_then_delete_request();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
         // 1.a. all needed pods in etcd are captured in next_local_state.needed
