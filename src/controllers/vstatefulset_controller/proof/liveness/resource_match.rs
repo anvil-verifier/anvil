@@ -591,8 +591,8 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
 {
-    lemma_get_then_delete_condemned_pod_request_returns_ok_or_not_found_err_response(
-        s, s_prime, vsts, cluster, controller_id
+    lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
+        s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts, controller_id)->0
     );
     // prove that deletion will not affect coherence of needed pods
     let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_delete_request();
@@ -687,6 +687,28 @@ ensures
             same_filter_implies_same_result(next_local_state.needed, outdated_pod_filter(triggering_cr), outdated_pod_filter(vsts));
         }
     }
+}
+
+pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    lift_local(controller_id, vsts, at_step![AfterDeleteOutdated])(s)
+        ==> pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s),
+ensures
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+    at_vsts_step(vsts, controller_id, at_step![Done])(s_prime),
+    no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+{
+    lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
+        s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts, controller_id)->0
+    );
 }
 
 }
