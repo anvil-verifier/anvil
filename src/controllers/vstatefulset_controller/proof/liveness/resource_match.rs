@@ -373,7 +373,7 @@ ensures
 }
 
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
-// TODO: speed up this proof
+// handle_after_create_or_skip_pvc_helper slows down the reasoning
 pub proof fn lemma_from_after_create_pvc_step_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
@@ -394,6 +394,11 @@ ensures
     local_state(s_prime, vsts, controller_id).pvc_index == pvc_index,
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    if local_state.pvc_index < local_state.pvcs.len() {
+        assert(next_local_state.reconcile_step == GetPVC);
+    } else if local_state.needed_index < local_state.needed.len() {}
 }
 
 /* .. -> CreateNeeded -> AfterCreateNeeded -> .. */
