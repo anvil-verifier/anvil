@@ -740,7 +740,8 @@ pub fn handle_after_delete_outdated(
     }
     if is_some_k_get_then_delete_resp!(resp_o) {
         let result = extract_some_k_get_then_delete_resp!(resp_o);
-        if result.is_ok() {
+        if result.is_ok() || (result.is_err()
+            && matches!(result.unwrap_err(), APIError::ObjectNotFound)) {
             (done_state(state), None)
         } else {
             (error_state(state), None)
