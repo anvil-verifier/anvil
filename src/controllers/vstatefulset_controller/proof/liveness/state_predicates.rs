@@ -181,7 +181,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
     &&& state.reconcile_step == DeleteCondemned ==> state.condemned_index < state.condemned.len()
     &&& state.reconcile_step == AfterDeleteCondemned ==> state.condemned_index > 0
-    &&& state.reconcile_step == AfterDeleteOutdated ==> state.needed.filter(outdated_pod_filter(vsts)).len() > 0
+    &&& state.reconcile_step == AfterDeleteOutdated ==> get_largest_unmatched_pods(vsts, state.needed) is Some
     &&& locally_at_step_or!(state, AfterCreateNeeded, AfterUpdateNeeded) ==> state.needed_index > 0
     // in these states pvc index is strictly less than pvc count
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, SkipPVC) ==> state.pvc_index < pvc_cnt
