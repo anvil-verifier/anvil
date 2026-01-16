@@ -676,8 +676,8 @@ ensures
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
     let outdated_pods = local_state.needed.filter(outdated_pod_filter(triggering_cr));
     assert(next_local_state == handle_delete_outdated(triggering_cr, None, local_state).0);
-    assert forall |pod_or_none: Option<PodView>| #[trigger] outdated_pods.contains(pod_or_none) implies 
-        pod_or_none is Some ==> pod_or_none->0.metadata.name is Some by {
+    assert forall |pod_or_none: Option<PodView>| #[trigger] outdated_pods.contains(pod_or_none)
+        && pod_or_none is Some implies pod_or_none->0.metadata.name is Some by {
         seq_filter_contains_implies_seq_contains(local_state.needed, outdated_pod_filter(triggering_cr), pod_or_none);
     }
     if let Some(pod) = get_largest_unmatched_pods(triggering_cr, local_state.needed) {
