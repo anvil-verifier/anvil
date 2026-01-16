@@ -1,5 +1,5 @@
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_api_objects::{spec::prelude::*, error::APIError::*};
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
     api_server::{types::*, state_machine::*},
@@ -92,7 +92,7 @@ ensures
 #[verifier(external_body)]
 pub proof fn lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message,
-) -> (resp_msg: Message)
+)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
@@ -102,20 +102,18 @@ requires
     req_msg.dst == HostId::APIServer,
     req_msg.content.is_get_then_delete_request(),
 ensures
-    resp_msg_matches_req_msg(resp_msg, req_msg),
-    resp_msg.content.is_get_then_delete_response(),
-    resp_msg.content.get_get_then_delete_response().res is Err
-        ==> resp_msg.content.get_get_then_delete_response().res->Err_0 is ObjectNotFound,
+    resp_msg_or_none(s_prime, vsts, controller_id) is Some,
+    ({
+        let resp_msg = resp_msg_or_none(s_prime, vsts, controller_id).unwrap();
+        &&& resp_msg.content.is_get_then_delete_response()
+        &&& resp_msg.content.get_get_then_delete_response().res is Err
+            ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+    }),
     ({ // no side effect
-        let req = req_msg.content.get_delete_request();
+        let req = req_msg.content.get_get_then_delete_request();
         &&& forall |key: ObjectRef| key != req.key() ==> (s_prime.resources().contains_key(key) == s.resources().contains_key(key))
         &&& !s_prime.resources().contains_key(req.key())
     }),
-{
-    let resp_msg = handle_get_then_update_request_msg(
-        cluster.installed_types, req_msg, s.api_server
-    ).1;
-    return resp_msg;
-}
+{}
 
 }
