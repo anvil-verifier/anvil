@@ -44,6 +44,87 @@ ensures
         )))),
 {}
 
+#[verifier(external_body)] // prove using rank function on PVC index
+pub proof fn lemma_from_at_pvc_steps_to_at_needed_pod_steps(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(or!(
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id)
+        ),
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
+            pending_list_pod_resp_in_flight(vsts, controller_id)
+        )
+    ))).leads_to(
+        lift_state(or!(
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![CreateNeeded]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id)
+            ),
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![UpdateNeeded]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id)
+            )
+        ))
+    )
+{}
+
+#[verifier(external_body)] // prove using rank function on needed index
+pub proof fn lemma_from_at_needed_pod_steps_to_at_condemned_or_outdated_pod_steps(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(or!(
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![CreateNeeded]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id)
+        ),
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![UpdateNeeded]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id)
+        )
+    ))).leads_to(
+        lift_state(or!(
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id)
+            ),
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id)
+            )
+        ))
+    )
+{}
+
 pub proof fn lemma_from_at_init_step_to_after_list_pod_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
