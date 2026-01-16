@@ -29,7 +29,7 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))),
     ensures
-        spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(vsts_cluster_invariants(spec, vsts, cluster, controller_id))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(vsts_cluster_invariants(vsts, cluster, controller_id))),
 {
     // TODO: Complete the proof
     assume(false);

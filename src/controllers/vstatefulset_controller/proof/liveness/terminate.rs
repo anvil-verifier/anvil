@@ -11,7 +11,7 @@ use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely::*},
-    proof::{predicate::*, helper_invariants, guarantee},
+    proof::{predicate::*, helper_invariants, guarantee, liveness::spec::*},
 };
 use vstd::prelude::*;
 
@@ -63,14 +63,18 @@ pub open spec fn vsts_all_states(vsts: VStatefulSetView, controller_id: int) -> 
     .or(lift_at_step_or![Error])
 }
 
+pub open spec fn vsts_terminate_preconditions(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> bool {
+    &&& cluster.type_is_installed_in_cluster::<VStatefulSetView>()
+    &&& cluster.controller_models.contains_pair(controller_id, vsts_controller_model())
+    &&& spec.entails(next_with_wf(cluster, controller_id))
+    &&& spec.entails(vsts_cluster_invariants(vsts, cluster, controller_id))
+}
+
 pub proof fn reconcile_eventually_terminates_on_vsts_object(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))))
-    ,
+    vsts_terminate_preconditions(spec, vsts, cluster, controller_id)
 ensures
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
 {
@@ -394,7 +398,7 @@ proof fn lemma_get_pvc_leads_to_create_or_update_needed(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_preconditions(spec, vsts, cluster, controller_id),
 ensures
     forall |j: nat, jl: nat| #[trigger] spec.entails(
         get_pvc_with_needed(vsts, controller_id, j, jl)
@@ -791,7 +795,7 @@ pub proof fn lemma_after_create_and_update_needed_leads_to_idle(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_preconditions(spec, vsts, cluster, controller_id),
     forall |j: nat, jl: nat| #![trigger get_pvc_with_needed(vsts, controller_id, j, jl)] spec.entails(
         get_pvc_with_needed(vsts, controller_id, j, jl)
             .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j, jl))
@@ -1061,7 +1065,7 @@ pub proof fn lemma_after_delete_condemned_leads_to_idle(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_preconditions(spec, vsts, cluster, controller_id),
     spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()))))
 ensures
     spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
