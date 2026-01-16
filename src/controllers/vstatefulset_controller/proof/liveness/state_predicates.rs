@@ -214,7 +214,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             &&& ord < state.needed.len()
             &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
             // at last step, one outdated pod will be deleted
-            &&& state.reconcile_step != AfterDeleteOutdated
+            &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
                 || outdated_pod is None
                 || ord != get_ordinal(vsts.metadata.name->0, outdated_pod->0.metadata.name->0)->0
         } ==> {
