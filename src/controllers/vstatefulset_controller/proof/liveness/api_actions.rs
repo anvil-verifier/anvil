@@ -90,21 +90,32 @@ ensures
 {}
 
 #[verifier(external_body)]
-pub proof fn lemma_get_then_delete_condemned_pod_request_returns_ok_or_not_found_err_response(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int,
-)
+pub proof fn lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message,
+) -> (resp_msg: Message)
 requires
-    req_msg_or_none(s, vsts, controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
-    pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id)(s),
+    Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    req_msg.src == HostId::Controller(controller_id, vsts.object_ref()),
+    req_msg.dst == HostId::APIServer,
+    req_msg.content.is_get_then_delete_request(),
 ensures
-    pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
+    resp_msg_matches_req_msg(resp_msg, req_msg),
+    resp_msg.content.is_get_then_delete_response(),
+    resp_msg.content.get_get_then_delete_response().res is Err
+        ==> resp_msg.content.get_get_then_delete_response().res->Err_0 is ObjectNotFound,
     ({ // no side effect
-        let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_delete_request();
-        forall |key: ObjectRef| key != req.key() ==> (s_prime.resources().contains_key(key) == s.resources().contains_key(key))
+        let req = req_msg.content.get_delete_request();
+        &&& forall |key: ObjectRef| key != req.key() ==> (s_prime.resources().contains_key(key) == s.resources().contains_key(key))
+        &&& !s_prime.resources().contains_key(req.key())
     }),
-{}
+{
+    let resp_msg = handle_get_then_update_request_msg(
+        cluster.installed_types, req_msg, s.api_server
+    ).1;
+    return resp_msg;
+}
 
 }
