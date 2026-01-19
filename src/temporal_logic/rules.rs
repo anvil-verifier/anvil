@@ -2412,7 +2412,7 @@ pub proof fn leads_to_by_borrowing_inv<T>(spec: TempPred<T>, p: TempPred<T>, q: 
 //      n <= max
 //      spec |= forall |k| []p(k) ~> q(k)
 //      spec |= forall |k| k < max => [](p(k) /\ next => p'(k) \/ p'(k+1))
-//      spec |= p(max) /\ next => p'(max)
+//      spec |= [](p(max) /\ next => p'(max))
 //      spec |= []next
 // post:
 //      spec |= p(n) ~> exists |m| n <= m <= max /\ q(n)
@@ -2499,5 +2499,60 @@ pub proof fn leads_to_by_monotonicity<T>(spec: TempPred<T>, next: TempPred<T>, p
 
     }
 }
+
+// A simplified version of leads_to_by_monotonicity where q is simply a temporal predicate
+// pre:
+//      n <= max
+//      spec |= forall |k| []p(k) ~> q
+//      spec |= forall |k| k < max => [](p(k) /\ next => p'(k) \/ p'(k+1))
+//      spec |= [](p(max) /\ next => p'(max))
+//      spec |= []next
+// post:
+//      spec |= p(n) ~> q
+pub proof fn leads_to_by_monotonicity2<T>(spec: TempPred<T>, next: TempPred<T>, p: spec_fn(int) -> TempPred<T>, q: TempPred<T>, n: int, max: int)
+    requires
+        n <= max,
+        forall |k| #![trigger p(k)] spec.entails(always(p(k)).leads_to(q)),
+        forall |k| #![trigger p(k)] k < max ==> spec.entails(always(p(k).and(next).implies(later(p(k)).or(later(p(k+1)))))),
+        spec.entails(always(p(max).and(next).implies(later(p(max))))),
+        spec.entails(always(next)),
+    ensures
+        spec.entails(p(n).leads_to(q))
+    decreases (max - n),
+{
+    if n == max {
+        leads_to_self_temp(p(max));
+        leads_to_stable(spec, next, p(max), p(max));
+        leads_to_trans(spec, p(n), always(p(max)), q);
+    } else {
+        leads_to_by_monotonicity2(spec, next, p, q, n+1, max);
+        assert(spec.entails(p(n+1).leads_to(q)));
+
+        assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p(n).leads_to(q).satisfied_by(ex) by {
+            implies_apply(ex, spec, always(next));
+            implies_apply(ex, spec, always(p(n).and(next).implies(later(p(n)).or(later(p(n+1))))));
+            always_p_or_eventually_q(ex, next, p(n), p(n+1));
+
+            assert forall |i| #[trigger] p(n).satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+                implies_apply(ex.suffix(i), p(n), always(p(n)).or(eventually(p(n+1))));
+                if always(p(n)).satisfied_by(ex.suffix(i)) {
+                    implies_apply(ex, spec, always(p(n)).leads_to(q));
+                    implies_apply(ex.suffix(i), always(p(n)), eventually(q));
+                } else {
+                    assert(eventually(p(n+1)).satisfied_by(ex.suffix(i)));
+                    let j = eventually_choose_witness(ex.suffix(i), p(n+1));
+                    implies_apply(ex, spec, p(n+1).leads_to(q));
+                    always_propagate_forwards(ex, p(n+1).implies(eventually(q)), i);
+                    implies_apply(ex.suffix(i).suffix(j), p(n+1), eventually(q));
+                    let k = eventually_choose_witness(ex.suffix(i).suffix(j), q);
+                    assert(q.satisfied_by(ex.suffix(i).suffix(j).suffix(k)));
+                    execution_equality(ex.suffix(i).suffix(j + k), ex.suffix(i).suffix(j).suffix(k));
+                }
+            }
+        }
+
+    }
+}
+
 
 }
