@@ -283,6 +283,13 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
     }
 }
 
+pub open spec fn pvc_index_is(vsts: VStatefulSetView, controller_id: int, pvc_index: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        &&& local_state.pvc_index == pvc_index
+    }
+}
+
 pub open spec fn req_msg_is_get_pvc_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
 ) -> bool {

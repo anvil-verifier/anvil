@@ -2255,6 +2255,15 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     leads_to_trans(spec, p, q.or(s), r.or(s));
 }
 
+#[verifier(external_body)]
+pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, ceiling: nat)
+    requires
+        forall |m: nat| #![trigger p(m)] m < ceiling ==> spec.entails(p(m).leads_to(p((m + 1) as nat))),
+    ensures
+        forall |m: nat| #![trigger p(m)] m < ceiling ==> spec.entails(p(m).leads_to(p(ceiling))),
+{}
+
+// TODO: deprecate this with leads_to_greater_until
 pub proof fn leads_to_greater_than_or_eq<T>(spec: TempPred<T>, p: spec_fn(nat, nat) -> TempPred<T>)
     requires
         forall |m: nat, n: nat| #![trigger p(m, n)] (m < n ==> spec.entails(p(m, n).leads_to(p((m + 1) as nat, n)))),

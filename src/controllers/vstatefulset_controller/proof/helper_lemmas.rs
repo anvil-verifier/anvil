@@ -2,7 +2,9 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
     cluster::*, 
-    message::*
+    message::*,
+    api_server::types::*,
+    network::state_machine::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
@@ -77,4 +79,46 @@ ensures
     }
 }
 
+// workaround for lemma_pre_leads_to_post_by_api_server with no lifted input
+pub proof fn lemma_pre_lead_to_post_by_api_server_handling_request_from_controller(
+    cluster: Cluster, spec: TempPred<ClusterState>, next: ActionPred<ClusterState>,
+    pre: StatePred<ClusterState>, post: StatePred<ClusterState>, controller_id: int, cr_key: ObjectRef
+)
+requires
+    forall |s, s_prime| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+    forall |s, s_prime| pre(s) && #[trigger] next(s, s_prime) 
+        && cluster.api_server_next().forward(s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg)(s, s_prime) ==> post(s_prime),
+    forall |s| #[trigger] pre(s) ==> cluster.api_server_action_pre(APIServerStep::HandleRequest, s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg)(s),
+    spec.entails(always(lift_action(next))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
+{
+    let input = |s: ClusterState| s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg;
+    // api_server_action_pre_implies_next_pre
+    let forward = |s, s_prime: ClusterState| cluster.api_server_next().forward(input(s))(s, s_prime);
+    // hack to obtain input on the fly
+    assert forall |s| #[trigger] pre(s) implies enabled(forward)(s) by {
+        let action = (cluster.api_server().step_to_action)(APIServerStep::HandleRequest);
+        let action_input = APIServerActionInput{recv: input(s)};
+        assert((action.precondition)(action_input, s.api_server));
+        assert(cluster.api_server_action_pre(APIServerStep::HandleRequest, input(s))(s));
+        let host_result = cluster.api_server().next_result(
+            APIServerActionInput{ recv: input(s) },
+            s.api_server
+        );
+        let msg_ops = MessageOps {
+            recv: input(s),
+            send: host_result->Enabled_1.send,
+        };
+        let network_result = network().next_result(msg_ops, s.network);
+        let s_prime = ClusterState {
+            api_server: host_result->Enabled_0,
+            network: network_result->Enabled_0,
+            ..s
+        };
+        assert(forward(s, s_prime));
+    };
+    assume(spec.entails(weak_fairness(forward)));
+    wf1(spec, next, forward, pre, post);
+}
 }
