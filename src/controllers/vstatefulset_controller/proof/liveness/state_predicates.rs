@@ -32,24 +32,6 @@ pub open spec fn at_vsts_step(vsts: VStatefulSetView, controller_id: int, step_p
     }
 }
 
-pub open spec fn req_msg_or_none(s: ClusterState, vsts: VStatefulSetView, controller_id: int) -> (req_msg: Option<Message>) {
-    s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg
-}
-
-pub open spec fn resp_msg_or_none(s: ClusterState, vsts: VStatefulSetView, controller_id: int) -> (resp_msg: Option<Message>) {
-    if req_msg_or_none(s, vsts, controller_id) is Some && exists |resp_msg: Message| {
-        &&& #[trigger] s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg_or_none(s, vsts, controller_id)->0)
-    } {
-        Some(choose |resp_msg: Message| {
-            &&& #[trigger] s.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg_or_none(s, vsts, controller_id)->0)
-        })
-    } else {
-        None
-    }
-}
-
 pub open spec fn local_state(s: ClusterState, vsts: VStatefulSetView, controller_id: int) -> VStatefulSetReconcileState {
     VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0
 }
@@ -322,12 +304,12 @@ pub open spec fn pending_get_pvc_resp_in_flight_reflecting_existence_of_requeste
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let (ord, i) = (local_state.needed_index, local_state.pvc_index);
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_pvc_req(vsts, controller_id, req_msg, ord, i)
-        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
         &&& resp_msg.content.is_get_response()
         &&& resp_msg.content.get_get_response().res is Err
             ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
@@ -369,12 +351,12 @@ pub open spec fn pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let (ord, i) = (local_state.needed_index, (local_state.pvc_index - 1) as nat);
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_create_pvc_req(vsts, controller_id, req_msg, ord, i)
-        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
         &&& resp_msg.content.is_create_response()
         &&& resp_msg.content.get_create_response().res is Err
             ==> resp_msg.content.get_create_response().res->Err_0 == ObjectAlreadyExists
@@ -418,14 +400,14 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
         let key = req_msg.content.get_create_request().key();
         let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
-        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
         &&& resp_msg.content.is_create_response()
         &&& resp_msg.content.get_create_response().res is Ok
         // the created Pod exists in etcd
@@ -469,14 +451,14 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
         let key = req_msg.content.get_get_then_update_request().key();
         let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
-        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
         &&& resp_msg.content.is_get_then_update_response()
         &&& resp_msg.content.get_get_then_update_response().res is Ok
         // TODO: cover volume update
@@ -517,7 +499,7 @@ pub open spec fn pending_get_then_delete_condemned_pod_resp_in_flight_and_condem
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let condemned_pod_key = ObjectRef {
             kind: Kind::PodKind,
@@ -526,7 +508,7 @@ pub open spec fn pending_get_then_delete_condemned_pod_resp_in_flight_and_condem
         };
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(vsts, controller_id, req_msg, condemned_pod_key)
-        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
         &&& resp_msg.content.is_get_then_delete_response()
         &&& resp_msg.content.get_get_then_delete_response().res is Err
             ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
@@ -567,7 +549,7 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts, controller_id)->0;
+        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
         let outdated_pod_key = ObjectRef {
@@ -577,7 +559,7 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
         };
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pod_key)
-        &&& resp_msg_or_none(s, vsts, controller_id) is Some
+        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
         &&& resp_msg.content.is_get_then_delete_response()
         &&& resp_msg.content.get_get_then_delete_response().res is Err
             ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound

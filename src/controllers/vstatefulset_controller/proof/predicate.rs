@@ -1,7 +1,7 @@
 // shared predicates and macros
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
-use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*};
+use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, rely};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::{guarantee, helper_invariants};
@@ -31,6 +31,24 @@ pub open spec fn valid_owned_object_filter(vsts: VStatefulSetView) -> spec_fn(Dy
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+    }
+}
+
+pub open spec fn req_msg_or_none(s: ClusterState, vsts_key: ObjectRef, controller_id: int) -> (req_msg: Option<Message>) {
+    s.ongoing_reconciles(controller_id)[vsts_key].pending_req_msg
+}
+
+pub open spec fn resp_msg_or_none(s: ClusterState, vsts_key: ObjectRef, controller_id: int) -> (resp_msg: Option<Message>) {
+    if req_msg_or_none(s, vsts_key, controller_id) is Some && exists |resp_msg: Message| {
+        &&& #[trigger] s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg_or_none(s, vsts_key, controller_id)->0)
+    } {
+        Some(choose |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg_or_none(s, vsts_key, controller_id)->0)
+        })
+    } else {
+        None
     }
 }
 

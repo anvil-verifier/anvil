@@ -235,7 +235,7 @@ pub proof fn lemma_from_after_send_list_pod_req_to_receive_list_pod_resp(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     pending_list_pod_req_in_flight(vsts, controller_id)(s),
@@ -255,10 +255,10 @@ pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    resp_msg_or_none(s, vsts, controller_id) is Some,
+    resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     pending_list_pod_resp_in_flight(vsts, controller_id)(s),
@@ -269,7 +269,7 @@ ensures
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
-    let resp_msg = resp_msg_or_none(s, vsts, controller_id).unwrap();
+    let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id).unwrap();
     let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
     let next_local_state = handle_after_list_pod(vsts, wrapped_resp, current_local_state).0;
     let objs = resp_msg.content.get_list_response().res->Ok_0;
@@ -430,7 +430,7 @@ pub proof fn lemma_from_after_send_get_pvc_req_to_receive_get_pvc_resp(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -452,10 +452,10 @@ pub proof fn lemma_from_get_pvc_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
-    resp_msg_or_none(s, vsts, controller_id) is Some,
+    resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -521,7 +521,7 @@ pub proof fn lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -546,7 +546,7 @@ pub proof fn lemma_from_after_create_pvc_step_to_next_state(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step_or![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -595,7 +595,7 @@ pub proof fn lemma_from_after_send_create_needed_pod_req_to_receive_create_neede
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterCreateNeeded])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -609,7 +609,7 @@ ensures
         s, s_prime, vsts, cluster, controller_id
     );
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
-    let req = req_msg_or_none(s, vsts, controller_id).unwrap().content.get_create_request();
+    let req = req_msg_or_none(s, vsts.object_ref(), controller_id).unwrap().content.get_create_request();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     // prove that creation will not affect coherence of condemned pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
@@ -656,10 +656,10 @@ pub proof fn lemma_from_create_needed_pod_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    resp_msg_or_none(s, vsts, controller_id) is Some,
+    resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterCreateNeeded])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -698,7 +698,7 @@ pub proof fn lemma_from_after_send_get_then_update_needed_pod_req_to_receive_get
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -717,10 +717,10 @@ pub proof fn lemma_from_get_then_update_needed_pod_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    resp_msg_or_none(s, vsts, controller_id) is Some,
+    resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -758,7 +758,7 @@ pub proof fn lemma_from_after_send_get_then_delete_condemned_pod_req_to_receive_
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -768,7 +768,7 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
 {
-    let req_msg = req_msg_or_none(s, vsts, controller_id).unwrap();
+    let req_msg = req_msg_or_none(s, vsts.object_ref(), controller_id).unwrap();
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
         s, s_prime, vsts, cluster, controller_id, req_msg
     );
@@ -816,7 +816,7 @@ pub proof fn lemma_from_after_delete_condemned_step_to_delete_outdated_step(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -873,7 +873,7 @@ pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_g
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts, controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -884,14 +884,14 @@ ensures
     pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id)(s_prime),
 {
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
-        s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts, controller_id)->0
+        s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts.object_ref(), controller_id)->0
     );
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let victim_pod = get_largest_unmatched_pods(vsts, local_state.needed)->0;
     let victim_ord = get_ordinal(vsts.metadata.name->0, victim_pod.metadata.name->0)->0;
-    let req = req_msg_or_none(s, vsts, controller_id)->0.content.get_get_then_delete_request();
+    let req = req_msg_or_none(s, vsts.object_ref(), controller_id)->0.content.get_get_then_delete_request();
     // prove that deletion will not affect coherence of other needed pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
         assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
@@ -928,7 +928,7 @@ pub proof fn lemma_from_after_delete_outdated_step_to_done_step(
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts, controller_id), Some(vsts.object_ref())))),
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
