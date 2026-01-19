@@ -463,6 +463,14 @@ pub proof fn tla_exists_p_tla_exists_q_equality<T, A>(p: spec_fn(A) -> TempPred<
     temp_pred_equality::<T>(tla_exists(p), tla_exists(q));
 }
 
+pub proof fn tla_forall_p_tla_forall_q_equality<T, A>(p: spec_fn(A) -> TempPred<T>, q: spec_fn(A) -> TempPred<T>)
+    requires forall |a: A| #[trigger] p(a) == q(a),
+    ensures tla_forall(p) == tla_forall(q),
+{
+    a_to_temp_pred_equality::<T, A>(p, q);
+    temp_pred_equality::<T>(tla_forall(p), tla_forall(q));
+}
+
 // Lift the "always" outside tla_forall if the function is previously wrapped by an "always"
 // Note: Verus may not able to infer that (|a| func(a))(a) equals func(a).
 //       Please turn to lemma tla_forall_always_equality_variant for troubleshooting.
@@ -1518,6 +1526,17 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
     };
     wf1_variant_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(p), lift_state(q));
 }
+
+#[verifier(external_body)]
+pub proof fn wf1_forall_input<T, A>(spec: TempPred<T>, next: ActionPred<T>, forward: spec_fn(A) -> ActionPred<T>, input: spec_fn(T) -> A, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) && forward(input(s))(s, s_prime) ==> q(s_prime),
+        forall |s: T| #[trigger] p(s) ==> enabled(forward(input(s)))(s),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|a| weak_fairness(forward(a)))),
+    ensures spec.entails(lift_state(p).leads_to(lift_state(q))),
+{}
 
 // Connects two valid implies.
 // pre:

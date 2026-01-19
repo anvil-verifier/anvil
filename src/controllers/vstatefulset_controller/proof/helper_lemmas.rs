@@ -95,13 +95,12 @@ ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     let input = |s: ClusterState| s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg;
     // api_server_action_pre_implies_next_pre
-    let forward = |s, s_prime: ClusterState| cluster.api_server_next().forward(input(s))(s, s_prime);
+    let forward = |i| cluster.api_server_next().forward(i);
     // hack to obtain input on the fly
-    assert forall |s| #[trigger] pre(s) implies enabled(forward)(s) by {
-        let action = (cluster.api_server().step_to_action)(APIServerStep::HandleRequest);
-        let action_input = APIServerActionInput{recv: input(s)};
-        assert((action.precondition)(action_input, s.api_server));
-        assert(cluster.api_server_action_pre(APIServerStep::HandleRequest, input(s))(s));
+    assert forall |s| #[trigger] pre(s) implies enabled(forward(input(s)))(s) by {
+        cluster.api_server_action_pre_implies_next_pre(
+            APIServerStep::HandleRequest, input(s)
+        );
         let host_result = cluster.api_server().next_result(
             APIServerActionInput{ recv: input(s) },
             s.api_server
@@ -116,9 +115,39 @@ ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
             network: network_result->Enabled_0,
             ..s
         };
-        assert(forward(s, s_prime));
+        assert(forward(input(s))(s, s_prime));
     };
-    assume(spec.entails(weak_fairness(forward)));
-    wf1(spec, next, forward, pre, post);
+    assert forall |i| #[trigger] cluster.api_server_next().pre(i) =~= enabled(forward(i)) by {
+        assert forall |s| #[trigger] cluster.api_server_next().pre(i)(s) == enabled(forward(i))(s) by {
+            if cluster.api_server_next().pre(i)(s) {
+                let host_result = cluster.api_server().next_result(
+                    APIServerActionInput{ recv: i },
+                    s.api_server
+                );
+                let msg_ops = MessageOps {
+                    recv: i,
+                    send: host_result->Enabled_1.send,
+                };
+                let network_result = network().next_result(msg_ops, s.network);
+                let s_prime = ClusterState {
+                    api_server: host_result->Enabled_0,
+                    network: network_result->Enabled_0,
+                    ..s
+                };
+                assert(forward(i)(s, s_prime));
+            }
+        };
+    };
+    assert forall |i| #[trigger] spec.entails(weak_fairness(forward(i))) by {
+        use_tla_forall(spec, |i| cluster.api_server_next().weak_fairness(i), i);
+        temp_pred_equality(
+            weak_fairness(cluster.api_server_next().forward(i)),
+            cluster.api_server_next().weak_fairness(i)
+        );
+    };
+    spec_entails_tla_forall(spec, |i| weak_fairness(forward(i)));
+    wf1_forall_input(
+        spec, next, forward, input, pre, post
+    );
 }
 }
