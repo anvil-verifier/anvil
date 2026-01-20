@@ -45,7 +45,8 @@ ensures
 {}
 
 // PVC loop terminates. Proved using rank function on PVC index
-pub proof fn lemma_from_get_pvc_step_to_needed_pod_steps(
+#[verifier(rlimit(100))]
+pub proof fn lemma_pvc_steps_terminates(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
@@ -96,14 +97,14 @@ ensures
             no_pending_req_in_cluster(vsts, controller_id),
             pvc_index_is(vsts, controller_id, pvc_index)
         );
-        let after_get_pvc_state_with_request = and!(
+        let after_get_pvc_state = and!(
             at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             pending_get_pvc_req_in_flight(vsts, controller_id),
             pvc_index_is(vsts, controller_id, pvc_index)
         );
-        assert(spec.entails(lift_state(get_pvc_state).leads_to(lift_state(after_get_pvc_state_with_request)))) by {
-            assert forall |s, s_prime| get_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies get_pvc_state(s_prime) || after_get_pvc_state_with_request(s_prime) by {
+        assert(spec.entails(lift_state(get_pvc_state).leads_to(lift_state(after_get_pvc_state)))) by {
+            assert forall |s, s_prime| get_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies get_pvc_state(s_prime) || after_get_pvc_state(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::APIServerStep(input) => {
@@ -119,32 +120,48 @@ ensures
             }
             let input = (None, Some(vsts.object_ref()));
             cluster.lemma_pre_leads_to_post_by_controller(
-                spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, get_pvc_state, after_get_pvc_state_with_request
+                spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, get_pvc_state, after_get_pvc_state
             );
         }
-        let after_get_pvc_state_with_response = and!(
+        let after_get_pvc_state_with_request = |msg| and!(
+            at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            pending_get_pvc_req_in_flight(vsts, controller_id),
+            pvc_index_is(vsts, controller_id, pvc_index),
+            req_msg_is(msg, vsts.object_ref(), controller_id)
+        );
+        let after_get_pvc_state = and!(
             at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             pending_get_pvc_resp_in_flight_reflecting_existence_of_requested_pvc(vsts, controller_id),
             pvc_index_is(vsts, controller_id, pvc_index)
         );
-        assert(spec.entails(lift_state(after_get_pvc_state_with_request).leads_to(lift_state(after_get_pvc_state_with_response)))) by {
-            assert forall |s, s_prime| after_get_pvc_state_with_request(s) && #[trigger] stronger_next(s, s_prime) implies after_get_pvc_state_with_request(s_prime) || after_get_pvc_state_with_response(s_prime) by {
+        assert forall |msg| spec.entails(lift_state(#[trigger] after_get_pvc_state_with_request(msg)).leads_to(lift_state(after_get_pvc_state))) by {
+            assert forall |s, s_prime| after_get_pvc_state_with_request(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+                after_get_pvc_state_with_request(msg)(s_prime) || after_get_pvc_state(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::APIServerStep(input) => {
-                        lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id);
-                    },
-                    _ => {}
+                if let Step::APIServerStep(input) = step {
+                    if input == Some(msg) {
+                        lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
+                    } else {
+                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_cocherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                    }
+                } else {
+                    assume(false);
                 }
             }
-            // cluster.lemma_pre_leads_to_post_by_api_server(
-            //     spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, after_get_pvc_state_with_request, after_get_pvc_state_with_response
-            // );
+            let input = Some(msg);
+            assert forall |s, s_prime| after_get_pvc_state_with_request(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
+                implies after_get_pvc_state(s_prime) by {
+                lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
+            }
+            cluster.lemma_pre_leads_to_post_by_api_server(
+                spec, input, stronger_next, APIServerStep::HandleRequest, after_get_pvc_state_with_request(msg), after_get_pvc_state
+            );
         }
         let skip_or_create_pvc_state = and!(
             at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC]),
-            local_state_is_valid_and_coherent(vsts, controller_id),
+            local_state_is_valid_and_coherent(vsts, controller_id), 
             no_pending_req_in_cluster(vsts, controller_id),
             pvc_index_is(vsts, controller_id, pvc_index)
         );
@@ -425,17 +442,18 @@ ensures
 }
 
 pub proof fn lemma_from_after_send_get_pvc_req_to_receive_get_pvc_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, req_msg: Message
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s),
     pvc_index_is(vsts, controller_id, pvc_index)(s),
+    req_msg_is(req_msg, vsts.object_ref(), controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
@@ -443,7 +461,7 @@ ensures
     pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
 {
     lemma_get_pvc_request_returns_ok_or_err_response(
-        s, s_prime, vsts, cluster, controller_id
+        s, s_prime, vsts, cluster, controller_id, req_msg
     );
 }
 

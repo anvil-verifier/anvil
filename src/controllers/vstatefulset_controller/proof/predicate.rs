@@ -52,6 +52,14 @@ pub open spec fn resp_msg_or_none(s: ClusterState, vsts_key: ObjectRef, controll
     }
 }
 
+pub open spec fn req_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| Cluster::pending_req_msg_is(controller_id, s, vsts_key, msg)
+}
+
+pub open spec fn resp_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| resp_msg_or_none(s, vsts_key, controller_id) == Some(msg)
+}
+
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     and!(
         Cluster::crash_disabled(controller_id),
