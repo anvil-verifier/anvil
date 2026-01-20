@@ -140,14 +140,20 @@ ensures
             assert forall |s, s_prime| after_get_pvc_state_with_request(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
                 after_get_pvc_state_with_request(msg)(s_prime) || after_get_pvc_state(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
-                if let Step::APIServerStep(input) = step {
-                    if input == Some(msg) {
-                        lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
-                    } else {
-                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_cocherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                    }
-                } else {
-                    assume(false);
+                match step {
+                    Step::ControllerStep(input) => {},
+                    Step::APIServerStep(input) => {
+                        if input == Some(msg) {
+                            lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
+                        } else {
+                            lemma_api_request_other_than_pending_req_msg_maintains_local_state_cocherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                        }
+                    },
+                    // harden proof
+                    Step::BuiltinControllersStep(_) => {},
+                    Step::PodMonkeyStep(_) => {},
+                    Step::ScheduleControllerReconcileStep(_) => {},
+                    _ => {}
                 }
             }
             let input = Some(msg);
