@@ -60,6 +60,13 @@ pub open spec fn resp_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: i
     |s: ClusterState| resp_msg_or_none(s, vsts_key, controller_id) == Some(msg)
 }
 
+pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
+    match vsts.spec.volume_claim_templates {
+        Some(pvc_templates) => pvc_templates.len(),
+        None => 0,
+    }
+}
+
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     and!(
         Cluster::crash_disabled(controller_id),

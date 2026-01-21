@@ -41,4 +41,21 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
         }
     }
 }
+
+// similar to above, but for PVCs
+// rely conditions already prevent other controllers from creating or updating PVCs
+// and VSTS controller's internal guarantee says all pvcs it creates have no owner refs
+pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pvc_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pvc_key)
+            &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
+            &&& pvc_key.namespace == vsts.metadata.namespace->0
+            &&& exists |vsts_name| pvc_name_match(pvc_key.name->0, vsts_name)
+        } ==> {
+            let pvc_obj = s.resources()[pvc_key];
+            &&& pvc_obj.metadata.owner_references is None
+        }
+    }
+}
 }
