@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    proof::{predicate::*, guarantee::*},
+    proof::{predicate::*, guarantee, helper_invariants},
     trusted::{rely::*, spec_types::*, liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
@@ -21,7 +21,7 @@ verus! {
 // about VSTS controller itself and other non-controller components in the cluster
 // So in total we have
 // 1. rely conditions for other controllers (rely::vsts_rely)
-// 2. VSTS internal rely-guarantee (guarantee::no_interfering_request_between_vsts)
+// 2. VSTS internal rely-guarantee (guarantee::guarantee::no_interfering_request_between_vsts)
 // 3.a rely conditions for builtin controllers (rely::garbage_collector_does_not_delete_vsts_pod_objects)
 // 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
 
@@ -54,11 +54,13 @@ requires
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())(s),
     Cluster::pod_monkey_disabled()(s),
     Cluster::req_drop_disabled()(s),
-    every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
+    guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
+    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)(s),
+    helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts)(s),
     // 1. rely conditions for other controllers
     forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
     // 2. VSTS internal rely-guarantee across different CRs
-    forall |other_vsts| no_interfering_request_between_vsts(controller_id, other_vsts)(s),
+    forall |other_vsts| guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     // 3. rely conditions for builtin/external controllers
     garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
@@ -81,29 +83,28 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
+        // TODO: weaken this using all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     } ==> {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
     forall |k: ObjectRef| { // ==>
-        let obj = s.resources()[k];
-        &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& #[trigger] s.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is None // required by GC
-        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& k.namespace == vsts.metadata.namespace->0
+        &&& pvc_name_match(k.name, vsts.metadata.name->0)
+        // assumed by all_pvcs_in_etcd_matching_vsts_have_no_owner_ref
+        // &&& obj.metadata.owner_references is None // required by GC
     } ==> {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
     forall |k: ObjectRef| { // <==
-        let obj = s_prime.resources()[k];
-        &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& #[trigger] s_prime.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is None // required by GC
-        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& k.namespace == vsts.metadata.namespace->0
+        &&& pvc_name_match(k.name, vsts.metadata.name->0)
     } ==> {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -155,7 +156,7 @@ ensures
                                 ..make_vsts()
                             };
                             // so msg can only be list, create, get_then_delete and get_then_update
-                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                             if msg.content.is_get_then_delete_request() || msg.content.is_get_then_update_request() {
                                 let req_owner_ref = match msg.content->APIRequest_0 {
                                     APIRequest::GetThenDeleteRequest(r) => r.owner_ref,
@@ -244,7 +245,7 @@ ensures
                                 },
                                 ..make_vsts()
                             };
-                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.controller_owner_ref() != vsts.controller_owner_ref());
                                 if msg.content.is_create_request() && !s.resources().contains_key(k) {
@@ -349,7 +350,7 @@ ensures
                     HostId::Controller(id, cr_key) => {
                         if id == controller_id {
                             // currently VSTS controller only sends create request to PVC
-                            // so this proof is trivial, we only need to instantiate no_interfering_request_between_vsts
+                            // so this proof is trivial, we only need to instantiate guarantee::no_interfering_request_between_vsts
                             assert(cr_key != vsts.object_ref());
                             let other_vsts = VStatefulSetView {
                                 metadata: ObjectMetaView {
@@ -359,7 +360,7 @@ ensures
                                 },
                                 ..make_vsts()
                             };
-                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                         } else { // from other controllers
                             assert(cluster.controller_models.contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
@@ -412,7 +413,7 @@ ensures
                                 },
                                 ..make_vsts()
                             };
-                            assert(no_interfering_request_between_vsts(controller_id, other_vsts)(s));
+                            assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.metadata.name != vsts.metadata.name);
                                 if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {

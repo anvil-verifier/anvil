@@ -51,7 +51,7 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefu
             &&& #[trigger] s.resources().contains_key(pvc_key)
             &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
             &&& pvc_key.namespace == vsts.metadata.namespace->0
-            &&& exists |vsts_name| pvc_name_match(pvc_key.name->0, vsts_name)
+            &&& exists |vsts_name| pvc_name_match(pvc_key.name, vsts_name)
         } ==> {
             let pvc_obj = s.resources()[pvc_key];
             &&& pvc_obj.metadata.owner_references is None
