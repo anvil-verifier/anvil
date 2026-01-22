@@ -58,7 +58,8 @@ requires
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts)(s),
     // 1. rely conditions for other controllers
-    forall |other_id| vsts_rely(other_id, cluster.installed_types)(s),
+    forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
+        ==> vsts_rely(other_id, cluster.installed_types)(s),
     // 2. VSTS internal rely-guarantee across different CRs
     forall |other_vsts| guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     // 3. rely conditions for builtin/external controllers
