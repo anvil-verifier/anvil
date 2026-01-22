@@ -280,12 +280,9 @@ ensures
                     Step::APIServerStep(input) => {
                         assert(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime)) by {
                             let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-                            assert({
-                                &&& s_prime.in_flight().contains(msg)
-                                &&& resp_msg_matches_req_msg(msg, req_msg)
-                            });
+                            assert(s_prime.in_flight().contains(msg) && resp_msg_matches_req_msg(msg, req_msg)); // hardener
                             lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                        }
+                        }   
                     },
                     Step::ControllerStep(input) => {
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
@@ -309,7 +306,6 @@ ensures
             tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg))),
             lift_state(skip_or_create_pvc_state)
         );
-        assume(false);
         let skip_pvc_state = and!(
             at_vsts_step(vsts, controller_id, at_step![SkipPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
@@ -322,6 +318,7 @@ ensures
             no_pending_req_in_cluster(vsts, controller_id),
             pvc_index_is(vsts, controller_id, pvc_index)
         );
+        assert(skip_or_create_pvc_state =~= or!(skip_pvc_state, create_pvc_state));
         temp_pred_equality(
             lift_state(skip_or_create_pvc_state),
             lift_state(skip_pvc_state).or(lift_state(create_pvc_state))
@@ -353,7 +350,6 @@ ensures
                 spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, create_pvc_state, after_create_pvc_state_with_request
             );
         }
-        assume(false);
         let req_msg_is_pending_msg_at_after_create_pvc_state = |msg| and!(
             at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
@@ -417,13 +413,32 @@ ensures
                 lift_state(after_create_pvc_state_with_response)
             );
         }
-        assume(false);
-        let after_create_pvc_state_with_response = and!(
+        let resp_msg_is_pending_resp_at_after_create_pvc_state = |msg| and!(
             at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
-            pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id),
+            resp_msg_is_pending_create_pvc_resp_in_flight_and_created_pvc_exists(vsts, controller_id, msg),
             pvc_index_is(vsts, controller_id, pvc_index + nat1!())
         );
+        assert(spec.entails(lift_state(after_create_pvc_state_with_response).leads_to(tla_exists(|msg| lift_state(resp_msg_is_pending_resp_at_after_create_pvc_state(msg)))))) by {
+            assert forall |ex| #[trigger] lift_state(after_create_pvc_state_with_response).satisfied_by(ex) implies
+                tla_exists(|msg| lift_state(resp_msg_is_pending_resp_at_after_create_pvc_state(msg))).satisfied_by(ex) by {
+                let s = ex.head();
+                let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                let resp_msg = choose |resp_msg: Message| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                    &&& resp_msg.content.is_create_response()
+                    &&& resp_msg.content.get_create_response().res is Ok
+                        || resp_msg.content.get_create_response().res->Err_0 == ObjectAlreadyExists
+                };
+                assert((|msg| lift_state(resp_msg_is_pending_resp_at_after_create_pvc_state(msg)))(resp_msg).satisfied_by(ex));
+            }
+            entails_implies_leads_to(spec,
+                lift_state(after_create_pvc_state_with_response),
+                tla_exists(|msg| lift_state(resp_msg_is_pending_resp_at_after_create_pvc_state(msg)))
+            );
+        }
+        assume(false);
     }
     assume(false);
 }
