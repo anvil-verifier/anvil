@@ -47,4 +47,51 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
 pub open spec fn pod_name_matches_vsts(parent_name: StringView, compared_pod_name: StringView) -> bool {
     exists |ord: nat| compared_pod_name == pod_name(parent_name, ord)
 }
+
+pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+{
+    let inv = Cluster::there_is_no_request_msg_to_external_from_controller(controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    VStatefulSetView::marshal_preserves_integrity();
+
+    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
+        implies inv(s_prime) by {
+        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+        assert forall |msg: Message|
+            inv(s)
+            && #[trigger] s_prime.in_flight().contains(msg)
+            && msg.src.is_controller_id(controller_id)
+            implies msg.dst != HostId::External(controller_id) by {
+            if s.in_flight().contains(msg) {
+                // Empty if statement required to trigger quantifiers.
+            }
+            if new_msgs.contains(msg) {
+                // Empty if statement required to trigger quantifiers.
+            }
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
 }
