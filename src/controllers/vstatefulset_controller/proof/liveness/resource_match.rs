@@ -186,7 +186,10 @@ ensures
                         lemma_from_get_pvc_to_after_get_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index);
                     }
                 },
-                _ => {}
+                Step::BuiltinControllersStep(_) => {}, // hardener
+                _ => {
+                    assert(s_prime.resources() == s.resources());
+                }
             }
         }
         let input = (None, Some(vsts.object_ref()));
@@ -232,11 +235,12 @@ ensures
                             lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                     },
-                    // harden proof
-                    Step::BuiltinControllersStep(_) => {},
-                    Step::PodMonkeyStep(_) => {},
-                    Step::ScheduleControllerReconcileStep(_) => {},
-                    _ => {}
+                    Step::BuiltinControllersStep(_) => {}, // hardener
+                    _ => {
+                        // also hardener, I have to guess which hardener works here
+                        assert(s_prime.in_flight().contains(msg));
+                        assert(s_prime.resources() == s.resources());
+                    }
                 }
             }
             let input = Some(msg);
@@ -323,9 +327,15 @@ ensures
                     Step::ControllerStep(input) => {
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                             lemma_from_get_pvc_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, msg);
+                            assert(skip_or_create_pvc_state(s_prime));
                         }
                     },
-                    _ => {}
+                    Step::BuiltinControllersStep(_) => {}, // hardener
+                    _ => {
+                        // also hardener, I have to guess which hardener works here
+                        assert(s_prime.in_flight().contains(msg));
+                        assert(s_prime.resources() == s.resources());
+                    }
                 }
             }
             let input = (Some(msg), Some(vsts.object_ref()));
