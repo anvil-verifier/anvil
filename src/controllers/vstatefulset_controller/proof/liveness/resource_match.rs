@@ -678,7 +678,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(50))]
 pub proof fn lemma_spec_entails_after_create_pvc_with_response_leads_to_pod_steps_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, resp_msg: Message
 )
@@ -691,7 +691,7 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
-    pvc_index <= pvc_cnt(vsts),
+    0 < pvc_index <= pvc_cnt(vsts),
 ensures
     pvc_index < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
@@ -761,9 +761,8 @@ ensures
                     let key = req_msg.content.get_create_request().key();
                     assert(s.resources().contains_key(key)); // trigger
                     assert(s_prime.resources().contains_key(key)) by {
-                        assume(false); // FIXME
                         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-                        let i = (local_state.needed_index, (local_state.pvc_index - 1) as nat);
+                        let i = ((local_state.pvc_index - 1) as nat, local_state.needed_index);
                         // trigger
                         assert(key.name == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1));
                         pvc_name_with_vsts_match_vsts(key.name, vsts);
