@@ -521,7 +521,7 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_skip_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index);
                     }
-                }
+                },
                 _ => {
                     assert(s.resources() == s_prime.resources());
                 }
@@ -565,7 +565,6 @@ ensures
         pvc_index_is(vsts, controller_id, pvc_index + nat1!())
     )))),
 {
-    hide(local_state_is_valid_and_coherent);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -717,7 +716,6 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id)
     ))))
 {
-    hide(local_state_is_valid_and_coherent);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
