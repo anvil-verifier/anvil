@@ -516,7 +516,7 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id),
         pvc_index_is(vsts, controller_id, pvc_index + nat1!())
     )))),
-    pvc_index < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
+    pvc_index + 1 == pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
@@ -612,7 +612,10 @@ ensures
                         assert(req_msg_is_pending_msg_at_after_create_pvc_state(msg)(s_prime));
                     },
                     Step::ScheduleControllerReconcileStep(_) => {},
-                    _ => {}
+                    _ => {
+                        assert(s_prime.in_flight().contains(msg));
+                        assert(s_prime.resources() == s.resources());
+                    }
                 }
             }
             let input = Some(msg);
@@ -640,12 +643,12 @@ ensures
         resp_msg_is_pending_create_pvc_resp_in_flight_and_created_pvc_exists(vsts, controller_id, msg),
         pvc_index_is(vsts, controller_id, pvc_index + nat1!())
     );
-    let next_state = if pvc_index < pvc_cnt(vsts) {
+    let next_state = if pvc_index + 1 < pvc_cnt(vsts) {
         and!(
             at_vsts_step(vsts, controller_id, at_step![GetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_index_is(vsts, controller_id, pvc_index)
+            pvc_index_is(vsts, controller_id, pvc_index + nat1!())
         )
     } else {
         and!(
@@ -679,7 +682,7 @@ ensures
                 match step {
                     Step::ControllerStep(input) => {
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                            lemma_from_after_create_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index);
+                            lemma_from_after_create_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, (pvc_index + 1) as nat);
                             assert(next_state(s_prime));
                         }
                     },
@@ -1101,6 +1104,7 @@ requires
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s),
     pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_index <= pvc_cnt(vsts),
 ensures
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
@@ -1108,7 +1112,7 @@ ensures
     pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
     pvc_index < pvc_cnt(vsts)
         ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
-    pvc_index >= pvc_cnt(vsts)
+    pvc_index == pvc_cnt(vsts)
         ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
