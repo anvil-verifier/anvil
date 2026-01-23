@@ -632,12 +632,9 @@ ensures
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
-                        assume(false);
                         if input.0 == controller_id && input.1 == Some(msg) && input.2 == Some(vsts.object_ref()) {
                             lemma_from_after_create_pvc_step_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index + nat1!());
                             assert(get_pvc_state(s_prime));
-                        } else {
-                            assume(false);
                         }
                     },
                     Step::APIServerStep(input) => {
