@@ -649,9 +649,9 @@ ensures
                             shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                     },
-                    Step::BuiltinControllersStep(_) => {},
+                    Step::BuiltinControllersStep(_) => {}, // hardener
                     _ => {
-                        // hardener
+                        // also hardener, I have to guess which hardener works here
                         assert(s_prime.in_flight().contains(msg));
                         assert(s_prime.resources() == s.resources());
                     }
