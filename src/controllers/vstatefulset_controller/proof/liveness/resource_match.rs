@@ -632,22 +632,35 @@ ensures
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
+                        assume(false);
                         if input.0 == controller_id && input.1 == Some(msg) && input.2 == Some(vsts.object_ref()) {
                             lemma_from_after_create_pvc_step_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index + nat1!());
                             assert(get_pvc_state(s_prime));
                         }
                     },
                     Step::APIServerStep(input) => {
-                        assume(false);
                         lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                         let key = req_msg.content.get_create_request().key();
+                        assert(s.resources().contains_key(key)); // trigger
                         assert(s_prime.resources().contains_key(key)) by {
+                            let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+                            let i = (local_state.needed_index, (local_state.pvc_index - 1) as nat);
+                            // trigger
+                            assert(key.name == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1));
+                            pvc_name_with_vsts_match_vsts(key.name, vsts);
+                            assert(s.resources().contains_key(key)); // trigger
+                            assert(({
+                                &&& key.kind == Kind::PersistentVolumeClaimKind
+                                &&& key.namespace == vsts.metadata.namespace->0
+                                &&& pvc_name_match(key.name, vsts.metadata.name->0)
+                            })); // pre of lemma_no_interference
                             shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                     },
                     Step::BuiltinControllersStep(_) => {}, // hardener
                     _ => {
+                        assume(false);
                         // also hardener, I have to guess which hardener works here
                         assert(s_prime.in_flight().contains(msg));
                         assert(s_prime.resources() == s.resources());

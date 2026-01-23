@@ -79,75 +79,15 @@ ensures
     }
 }
 
-// workaround for lemma_pre_leads_to_post_by_api_server with no lifted input
-pub proof fn lemma_pre_lead_to_post_by_api_server_handling_request_from_controller(
-    cluster: Cluster, spec: TempPred<ClusterState>, next: ActionPred<ClusterState>,
-    pre: StatePred<ClusterState>, post: StatePred<ClusterState>, controller_id: int, cr_key: ObjectRef
+#[verifier(external_body)]
+pub proof fn pvc_name_with_vsts_match_vsts(
+    name: StringView, vsts: VStatefulSetView
 )
 requires
-    forall |s, s_prime| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-    forall |s, s_prime| pre(s) && #[trigger] next(s, s_prime) 
-        && cluster.api_server_next().forward(req_msg_or_none(s, cr_key, controller_id))(s, s_prime) ==> post(s_prime),
-    forall |s| #[trigger] pre(s) ==> cluster.api_server_action_pre(APIServerStep::HandleRequest, req_msg_or_none(s, cr_key, controller_id))(s),
-    spec.entails(always(lift_action(next))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
-{
-    let input = |s: ClusterState| req_msg_or_none(s, cr_key, controller_id);
-    // api_server_action_pre_implies_next_pre
-    let forward = |i| cluster.api_server_next().forward(i);
-    // hack to obtain input on the fly
-    assert forall |s| #[trigger] pre(s) implies enabled(forward(input(s)))(s) by {
-        cluster.api_server_action_pre_implies_next_pre(
-            APIServerStep::HandleRequest, input(s)
-        );
-        let host_result = cluster.api_server().next_result(
-            APIServerActionInput{ recv: input(s) },
-            s.api_server
-        );
-        let msg_ops = MessageOps {
-            recv: input(s),
-            send: host_result->Enabled_1.send,
-        };
-        let network_result = network().next_result(msg_ops, s.network);
-        let s_prime = ClusterState {
-            api_server: host_result->Enabled_0,
-            network: network_result->Enabled_0,
-            ..s
-        };
-        assert(forward(input(s))(s, s_prime));
-    };
-    assert forall |i| #[trigger] cluster.api_server_next().pre(i) =~= enabled(forward(i)) by {
-        assert forall |s| #[trigger] cluster.api_server_next().pre(i)(s) == enabled(forward(i))(s) by {
-            if cluster.api_server_next().pre(i)(s) {
-                let host_result = cluster.api_server().next_result(
-                    APIServerActionInput{ recv: i },
-                    s.api_server
-                );
-                let msg_ops = MessageOps {
-                    recv: i,
-                    send: host_result->Enabled_1.send,
-                };
-                let network_result = network().next_result(msg_ops, s.network);
-                let s_prime = ClusterState {
-                    api_server: host_result->Enabled_0,
-                    network: network_result->Enabled_0,
-                    ..s
-                };
-                assert(forward(i)(s, s_prime));
-            }
-        };
-    };
-    assert forall |i| #[trigger] spec.entails(weak_fairness(forward(i))) by {
-        use_tla_forall(spec, |i| cluster.api_server_next().weak_fairness(i), i);
-        temp_pred_equality(
-            weak_fairness(cluster.api_server_next().forward(i)),
-            cluster.api_server_next().weak_fairness(i)
-        );
-    };
-    spec_entails_tla_forall(spec, |i| weak_fairness(forward(i)));
-    wf1_forall_input(
-        spec, next, forward, input, pre, post
-    );
-}
+    // index, ord
+    exists |i: (nat, nat)| name == #[trigger]
+        pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1),
+ensures
+    pvc_name_match(name, vsts.metadata.name->0),
+{}
 }

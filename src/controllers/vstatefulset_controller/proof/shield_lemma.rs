@@ -34,7 +34,8 @@ uninterp spec fn make_vsts() -> VStatefulSetView;
 // in other words, let =~= denotes weakly_eq,
 // forall Pod p owned by vsts: p =~= p'
 // forall PVC v owned by vsts: v =~= v'
-#[verifier(external_body)]
+// TODO: maybe it works better as an invariant?
+#[verifier(external_body)] // FIXME
 pub proof fn lemma_no_interference(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -67,7 +68,8 @@ requires
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     // msg is sent by other controllers or VSTS controller for other CRs
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
-    vsts.well_formed(),
+    vsts.metadata.name is Some,
+    vsts.metadata.namespace is Some, // well_formed is too strong as it has no rv
 ensures
     forall |k: ObjectRef| { // ==>
         let obj = s.resources()[k];
