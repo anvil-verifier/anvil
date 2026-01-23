@@ -314,6 +314,8 @@ pub open spec fn pending_get_pvc_resp_in_flight(
             &&& resp_msg.content.is_get_response()
             &&& resp_msg.content.get_get_response().res is Err
                 ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
+            &&& resp_msg.content.get_get_response().res is Ok
+                ==> s.resources().contains_key(req_msg.content.get_get_request().key())
         }
     }
 }
