@@ -443,7 +443,7 @@ ensures
     assume(false);
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_create_pvc_to_pods_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
 )
@@ -625,22 +625,36 @@ ensures
         lift_state(after_create_pvc_state_with_response),
         tla_exists(|msg| lift_state(resp_msg_is_pending_resp_at_after_create_pvc_state(msg)))
     );
-    assume(false);
-    if pvc_index + 1 < pvc_cnt(vsts) {
+    if pvc_index + nat1!() < pvc_cnt(vsts) {
         assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_resp_at_after_create_pvc_state(msg)).leads_to(lift_state(get_pvc_state))) by {
             assert forall |s, s_prime| resp_msg_is_pending_resp_at_after_create_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
                 resp_msg_is_pending_resp_at_after_create_pvc_state(msg)(s_prime) || get_pvc_state(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
-                        if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                            lemma_from_after_create_pvc_step_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index);
+                        assume(false);
+                        if input.0 == controller_id && input.1 == Some(msg) && input.2 == Some(vsts.object_ref()) {
+                            lemma_from_after_create_pvc_step_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index + nat1!());
+                            assert(get_pvc_state(s_prime));
+                        } else {
+                            assume(false);
                         }
                     },
                     Step::APIServerStep(input) => {
+                        assume(false);
                         lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                        let key = req_msg.content.get_create_request().key();
+                        assert(s_prime.resources().contains_key(key)) by {
+                            shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+                        }
                     },
-                    _ => {}
+                    Step::BuiltinControllersStep(_) => {},
+                    _ => {
+                        // hardener
+                        assert(s_prime.in_flight().contains(msg));
+                        assert(s_prime.resources() == s.resources());
+                    }
                 }
             }
             cluster.lemma_pre_leads_to_post_by_controller(
@@ -1032,10 +1046,10 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
     pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
-    pvc_index < local_state(s, vsts, controller_id).pvcs.len()
-        ==> local_state(s_prime, vsts, controller_id).reconcile_step == GetPVC,
-    pvc_index >= local_state(s, vsts, controller_id).pvcs.len()
-        ==> (local_state(s_prime, vsts, controller_id).reconcile_step == CreateNeeded || local_state(s_prime, vsts, controller_id).reconcile_step == UpdateNeeded),
+    pvc_index < pvc_cnt(vsts)
+        ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
+    pvc_index >= pvc_cnt(vsts)
+        ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();

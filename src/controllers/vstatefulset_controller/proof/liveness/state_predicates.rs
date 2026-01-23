@@ -123,9 +123,7 @@ pub open spec fn local_state_is_valid_and_coherent(vsts: VStatefulSetView, contr
 }
 
 pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> bool {
-    let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
-        vsts.spec.volume_claim_templates->0.len()
-    } else {0};
+    let pvc_cnt = pvc_cnt(vsts);
     &&& state.needed.len() == vsts.spec.replicas.unwrap_or(1)
     &&& state.needed_index <= state.needed.len() // they have nat type so always >= 0
     &&& state.condemned_index <= state.condemned.len()
