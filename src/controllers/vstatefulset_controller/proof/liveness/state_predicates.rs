@@ -170,6 +170,8 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
 // coherence between local state and etcd state
 // Note: there are many exceptions when the object is just updated or the index haven't been incremented yet
 // message predicates for each exceptional states carry the necessary information to repair the coherence
+// because of the complexity, don't forget to hide this spec when needed by
+// hide(local_state_is_coherent_with_etcd);
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
@@ -330,6 +332,8 @@ pub open spec fn resp_msg_is_pending_get_pvc_resp_in_flight(
         &&& resp_msg.content.is_get_response()
         &&& resp_msg.content.get_get_response().res is Err
             ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
+        &&& resp_msg.content.get_get_response().res is Ok
+            ==> s.resources().contains_key(req_msg.content.get_get_request().key())
     }
 }
 

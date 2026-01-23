@@ -479,6 +479,7 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id)
     ))))
 {
+    hide(local_state_is_valid_and_coherent);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -564,6 +565,7 @@ ensures
         pvc_index_is(vsts, controller_id, pvc_index + nat1!())
     )))),
 {
+    hide(local_state_is_valid_and_coherent);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -715,6 +717,7 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id)
     ))))
 {
+    hide(local_state_is_valid_and_coherent);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -1050,7 +1053,6 @@ ensures
     );
 }
 
-// TODO: talk about pvc_index's rank
 pub proof fn lemma_from_get_pvc_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, resp_msg: Message
 )
