@@ -39,12 +39,41 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
     // we can extract the needed invariants
 
     // For now, vsts_cluster_invariants only contains phase I invariants
+    // Extract specific vsts instance from tla_forall
+    always_tla_forall_apply(
+        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
+        |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())),
+        vsts
+    );
+
     combine_spec_entails_always_n!(
         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
         lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled())
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::etcd_objects_have_unique_uids()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)),
+        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
+        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()))
     );
 
     // Step 3: Complete the leads_to chain
@@ -243,7 +272,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
 
         if i == 2 {
-            assume(false);
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vsts.object_ref());

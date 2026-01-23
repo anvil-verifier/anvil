@@ -59,35 +59,34 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
 pub open spec fn vsts_cluster_invariants(
     vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 ) -> StatePred<ClusterState> {
-    // Phase I invariants only for now
+    // General cluster invariants
     and!(
     Cluster::crash_disabled(controller_id),
     Cluster::req_drop_disabled(),
     Cluster::pod_monkey_disabled(),
-    Cluster::every_in_flight_msg_has_unique_id()
+    Cluster::every_in_flight_msg_has_unique_id(),
+    Cluster::every_in_flight_msg_has_lower_id_than_allocator(),
+    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id),
+    Cluster::each_object_in_etcd_is_weakly_well_formed(),
+    Cluster::etcd_objects_have_unique_uids(),
+    cluster.each_builtin_object_in_etcd_is_well_formed(),
+    cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(),
+    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id),
+    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
+    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id),
+    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id),
+    Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id),
+    Cluster::ongoing_reconciles_is_finite(controller_id),
+    Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id),
+    Cluster::etcd_is_finite(),
+    Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()),
+    Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id),
+    Cluster::no_pending_request_to_api_server_from_non_controllers(),
+    Cluster::desired_state_is(vsts),
+    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())
     )
-    // .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
-    // .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
-    // .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
-    // .and(always(lift_state(Cluster::etcd_objects_have_unique_uids())))
-    // .and(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
-    // .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())))
-    // .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))))
-    // .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
-    // .and(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())))
-    // .and(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id))))
-    // .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))))
-    // .and(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))))
-    // .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
-    // .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
-    // .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))))
-    // .and(always(lift_state(Cluster::etcd_is_finite())))
-    // .and(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))))
-    // .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))))
-    // .and(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())))
-    // .and(always(lift_state(Cluster::desired_state_is(vsts))))
-    // .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()))))
-
     // .and(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts))))
     // .and(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))))
     // .and(always(lift_state(guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id))))
@@ -101,6 +100,7 @@ pub open spec fn derived_invariants_since_beginning(vsts: VStatefulSetView, clus
     always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
+    .and(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())))
     .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
     .and(always(lift_state(Cluster::etcd_objects_have_unique_uids())))
     .and(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
