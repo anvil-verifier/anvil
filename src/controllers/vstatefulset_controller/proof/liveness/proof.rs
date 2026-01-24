@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, rely::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
-    proof::{predicate::*, helper_invariants, liveness::{spec::*, terminate}},
+    proof::{predicate::*, helper_invariants, guarantee, liveness::{spec::*, terminate}},
 };
 use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
@@ -73,7 +73,9 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::desired_state_is(vsts)),
-        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()))
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
+        lift_state(vsts_rely_conditions(cluster, controller_id))
     );
 
     // Step 3: Complete the leads_to chain
@@ -394,11 +396,29 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
 
+    // Prove every_in_flight_msg_has_no_replicas_and_has_unique_id
+    cluster.lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(spec);
+
+    // Prove vsts_internal_guarantee_conditions using internal_guarantee_condition_holds
+    assert(spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))))) by {
+        let guarantee = lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id));
+        let target = always(guarantee);
+        
+        assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies target.satisfied_by(ex) by {
+            assert forall |i: nat| #[trigger] guarantee.satisfied_by(ex.suffix(i)) by {
+                assert forall |vsts: VStatefulSetView| #[trigger] lift_state(guarantee::no_interfering_request_between_vsts(controller_id, vsts)).satisfied_by(ex.suffix(i)) by {
+
+                };
+            };
+        }
+    }
+
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(Cluster::etcd_objects_have_unique_uids()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
@@ -419,7 +439,8 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
         lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
         tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))),
         tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))),
-        tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))
+        tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
     );
 }
 

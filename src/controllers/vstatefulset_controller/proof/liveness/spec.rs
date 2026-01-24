@@ -1,17 +1,26 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::{
-    spec::{api_server::{state_machine::*, types::*}, cluster::*, controller::types::*, message::*, esr::*,},
     proof::{controller_runtime_liveness::*, network::*},
+    spec::{
+        api_server::{state_machine::*, types::*},
+        cluster::*,
+        controller::types::*,
+        esr::*,
+        message::*,
+    },
 };
 
+use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, rely::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
-    proof::{predicate::*, liveness::*, guarantee, helper_invariants},
+    proof::{guarantee, helper_invariants, liveness::*, predicate::*},
+    trusted::{
+        liveness_theorem::*, rely::*, spec_types::*, step::VStatefulSetReconcileStepView::*,
+        step::*,
+    },
 };
-use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
@@ -85,12 +94,12 @@ pub open spec fn vsts_cluster_invariants(
     Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id),
     Cluster::no_pending_request_to_api_server_from_non_controllers(),
     Cluster::desired_state_is(vsts),
-    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())
+    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
+    vsts_rely_conditions(cluster, controller_id)
     )
     // .and(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts))))
     // .and(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))))
     // .and(always(lift_state(guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id))))
-    // .and(always(lift_state(vsts_rely_conditions(cluster, controller_id))))
     // .and(always(lift_state(garbage_collector_does_not_delete_vsts_pod_objects(vsts))))
 }
 
@@ -122,6 +131,7 @@ pub open spec fn derived_invariants_since_beginning(vsts: VStatefulSetView, clus
     .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))))
     .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)))))
     .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))))
+    .and(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
@@ -129,6 +139,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
 {
     always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_unique_id()));
     always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()));
+    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()));
     always_p_is_stable(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)));
     always_p_is_stable(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()));
     always_p_is_stable(lift_state(Cluster::etcd_objects_have_unique_uids()));
@@ -151,10 +162,12 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
     always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))));
     always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))));
     always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))));
+    always_p_is_stable(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)));
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
         always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
         always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))),
+        always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())),
         always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
         always(lift_state(Cluster::etcd_objects_have_unique_uids())),
         always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
@@ -175,7 +188,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
         always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
         always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
         always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))
+        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))),
+        always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))
     );
 }
 
