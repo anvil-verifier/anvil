@@ -2274,12 +2274,21 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     leads_to_trans(spec, p, q.or(s), r.or(s));
 }
 
+// usage: leads_to_greater_until!(spec, p, p_n, max)
+// Prove p leads_to p_n(max) by showing that for each n < max, p_n(n) leads_to p_n(n + 1).
+// pre:
+//     forall |n: nat|, n < max ==> spec |= p_n(n) ~> p_n(n + 1)
+//     p |= p(n) for some n <= max
+// post:
+//     spec |= p ~> p_n(max)
 #[verifier(external_body)]
-pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, ceiling: nat)
+pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, max: nat)
     requires
-        forall |m: nat| #![trigger p(m)] m < ceiling ==> spec.entails(p(m).leads_to(p((m + 1) as nat))),
+        // here we cannot use tla_exists because n <= max cannot be encoded in that way
+        forall |ex: Execution<T>| (#[trigger] p.satisfied_by(ex) ==> exists |n: nat| n <= max && #[trigger] p_n(n).satisfied_by(ex)),
+        forall |n: nat| #![trigger p_n(n)] n < max ==> spec.entails(p_n(n).leads_to(p_n((n + 1) as nat))),
     ensures
-        forall |m: nat| #![trigger p(m)] m < ceiling ==> spec.entails(p(m).leads_to(p(ceiling))),
+        spec.entails(p.leads_to(p_n(max))),
 {}
 
 // TODO: deprecate this with leads_to_greater_until

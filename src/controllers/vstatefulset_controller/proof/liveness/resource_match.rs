@@ -44,8 +44,79 @@ ensures
         )))),
 {}
 
+pub proof fn lemma_spec_entails_get_pvc_leads_to_create_or_update_needed(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    pvc_cnt(vsts) > 0, // otherwise GetPVC is unreachable
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id), 
+        no_pending_req_in_cluster(vsts, controller_id)
+    )))),
+{
+    let get_pvc_state = lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id)
+    ));
+    let get_pvc_state_with_index = |pvc_index: nat| lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_index_is(vsts, controller_id, pvc_index)
+    ));
+    let max_minus_one = (pvc_cnt(vsts) - 1) as nat;
+    assert forall |ex| #[trigger] get_pvc_state.satisfied_by(ex) implies
+        (exists |i: nat| i <= max_minus_one && #[trigger] get_pvc_state_with_index(i).satisfied_by(ex)) by {
+        let s = ex.head();
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let i = local_state.pvc_index;
+        assert((|i: nat| get_pvc_state_with_index(i))(i).satisfied_by(ex));
+    }
+    let next_state = lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id), 
+        no_pending_req_in_cluster(vsts, controller_id)
+    ));
+    assert forall |i: nat| #![trigger get_pvc_state_with_index(i)] 0 < i < pvc_cnt(vsts)
+        implies spec.entails(get_pvc_state_with_index((i - 1) as nat).leads_to(get_pvc_state_with_index(i))) by {
+        lemma_spec_entails_get_pvc_of_i_leads_to_get_pvc_of_i_plus_one_or_pod_steps(
+            vsts, spec, cluster, controller_id, (i - 1) as nat
+        );
+    }
+    leads_to_greater_until(spec,
+        get_pvc_state,
+        get_pvc_state_with_index,
+        max_minus_one,
+    );
+    assert(spec.entails(get_pvc_state_with_index(max_minus_one).leads_to(next_state))) by {
+        lemma_spec_entails_get_pvc_of_i_leads_to_get_pvc_of_i_plus_one_or_pod_steps(
+            vsts, spec, cluster, controller_id, max_minus_one
+        );
+    }
+    leads_to_trans(spec,
+        get_pvc_state,
+        get_pvc_state_with_index(max_minus_one),
+        next_state
+    );
+}
+
 // PVC loop terminates. Proved using rank function on PVC index
-pub proof fn lemma_from_after_get_pvc_state_with_resp_to_create_or_skip_pvc_to_next_step(
+pub proof fn lemma_spec_entails_get_pvc_of_i_leads_to_get_pvc_of_i_plus_one_or_pod_steps(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
@@ -57,7 +128,7 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
-    0 < pvc_index < pvc_cnt(vsts),
+    0 <= pvc_index < pvc_cnt(vsts),
 ensures
     pvc_index + 1 < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
@@ -133,17 +204,15 @@ ensures
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id)
     );
-    lemma_from_get_pvc_to_skip_or_create_pvc(
+    lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
         vsts, spec, cluster, controller_id, pvc_index
     );
-    lemma_spec_entails_skip_pvc_leads_to_pod_steps_or_get_pvc(
+    lemma_spec_entails_skip_pvc_leads_to_craete_or_update_needed_or_get_pvc(
         vsts, spec, cluster, controller_id, pvc_index
     );
-    assert(spec.entails(lift_state(create_pvc_state).leads_to(lift_state(next_state)))) by {
-        lemma_spec_entails_create_pvc_leads_to_pod_steps_or_get_pvc(
-            vsts, spec, cluster, controller_id, pvc_index
-        );
-    }
+    lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
+        vsts, spec, cluster, controller_id, pvc_index
+    );
     or_leads_to_combine(spec,
         lift_state(skip_pvc_state),
         lift_state(create_pvc_state),
@@ -162,7 +231,7 @@ ensures
 }
 
 #[verifier(rlimit(50))]
-pub proof fn lemma_from_get_pvc_to_skip_or_create_pvc(
+pub proof fn lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
@@ -396,7 +465,7 @@ ensures
     );
 }
 
-pub proof fn lemma_spec_entails_skip_pvc_leads_to_pod_steps_or_get_pvc(
+pub proof fn lemma_spec_entails_skip_pvc_leads_to_craete_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
@@ -491,7 +560,7 @@ ensures
 }
 
 #[verifier(rlimit(50))]
-pub proof fn lemma_spec_entails_create_pvc_leads_to_pod_steps_or_get_pvc(
+pub proof fn lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
