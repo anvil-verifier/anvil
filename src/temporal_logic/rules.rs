@@ -1527,17 +1527,6 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
     wf1_variant_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(p), lift_state(q));
 }
 
-#[verifier(external_body)]
-pub proof fn wf1_forall_input<T, A>(spec: TempPred<T>, next: ActionPred<T>, forward: spec_fn(A) -> ActionPred<T>, input: spec_fn(T) -> A, p: StatePred<T>, q: StatePred<T>)
-    requires
-        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) ==> p(s_prime) || q(s_prime),
-        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) && forward(input(s))(s, s_prime) ==> q(s_prime),
-        forall |s: T| #[trigger] p(s) ==> enabled(forward(input(s)))(s),
-        spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|a| weak_fairness(forward(a)))),
-    ensures spec.entails(lift_state(p).leads_to(lift_state(q))),
-{}
-
 // Connects two valid implies.
 // pre:
 //     p |= q
