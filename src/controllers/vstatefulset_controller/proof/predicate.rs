@@ -67,6 +67,13 @@ pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
     }
 }
 
+pub open spec fn replicas(vsts: VStatefulSetView) -> nat {
+    match vsts.spec.replicas {
+        Some(r) => r as nat,
+        None => 1,
+    }
+}
+
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     and!(
         Cluster::crash_disabled(controller_id),

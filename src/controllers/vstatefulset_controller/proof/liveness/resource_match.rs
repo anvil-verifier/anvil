@@ -128,7 +128,7 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
-    0 < pvc_index < pvc_cnt(vsts), // otherwise GetPVC is unreachable
+    pvc_index < pvc_cnt(vsts), // otherwise GetPVC is unreachable
 ensures
     pvc_index + 1 < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
@@ -207,7 +207,7 @@ ensures
     lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
         vsts, spec, cluster, controller_id, pvc_index
     );
-    lemma_spec_entails_skip_pvc_leads_to_craete_or_update_needed_or_get_pvc(
+    lemma_spec_entails_skip_pvc_leads_to_create_or_update_needed_or_get_pvc(
         vsts, spec, cluster, controller_id, pvc_index
     );
     lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
@@ -466,7 +466,7 @@ ensures
 }
 
 #[verifier(rlimit(50))]
-pub proof fn lemma_spec_entails_skip_pvc_leads_to_craete_or_update_needed_or_get_pvc(
+pub proof fn lemma_spec_entails_skip_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
 )
 requires
@@ -573,7 +573,7 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
-    0 < pvc_index < pvc_cnt(vsts),
+    pvc_index < pvc_cnt(vsts),
 ensures
     pvc_index + 1 < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
@@ -805,6 +805,23 @@ ensures
         lift_state(next_state)
     );
 }
+
+pub proof fn lemma_spec_entails_create_or_update_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, i: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|j| cluster.api_server_next().weak_fairness(j))),
+    spec.entails(tla_forall(|j: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, j.0, j.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    i < replicas(vsts),
+ensures
+    true,
+{}
 
 pub proof fn lemma_from_init_to_after_list_pod(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
