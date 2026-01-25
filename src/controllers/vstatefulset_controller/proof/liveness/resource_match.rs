@@ -806,8 +806,9 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_spec_entails_create_or_update_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, i: nat
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, i: (nat, nat, nat) // needed_index, condemned_index, condemned_len
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -818,9 +819,17 @@ requires
     spec.entails(tla_forall(|j: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, j.0, j.1)))),
     spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
-    i < replicas(vsts),
+    i.0 < replicas(vsts),
+    i.1 <= i.2,
 ensures
-    true,
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, (pvc_cnt(vsts), i.0, i.1, i.2))
+    )).leads_to(lift_state(
+        after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, (i.0 + nat1!(), i.1, i.2))
+    ))),
 {}
 
 pub proof fn lemma_from_init_to_after_list_pod(
