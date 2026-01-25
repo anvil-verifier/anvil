@@ -147,7 +147,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
     &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
         let pod = needed_pods[i]->0;
         &&& pod.metadata.name is Some
-        &&& get_ordinal(vsts.metadata.name->0, pod) is Some
+        &&& get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pod.metadata.owner_references is Some
         &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
@@ -155,7 +155,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
     &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
         let pod = condemned_pods[i];
         &&& pod.metadata.name is Some
-        &&& get_ordinal(vsts.metadata.name->0, pod) is Some
+        &&& get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pod.metadata.owner_references is Some
         &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
@@ -617,8 +617,8 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(msg.content.is_get_then_update_request());
                                     let req = msg.content.get_get_then_update_request();
                                     let pod = state.needed[state.needed_index as int]->0;
-                                    assert(get_ordinal(vsts.object_ref().name, pod) is Some);
-                                    let ord = get_ordinal(vsts.object_ref().name, pod)->0;
+                                    assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
+                                    let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
                                     assert(req.name == pod_name(vsts.object_ref().name, ord));
                                     let controller_owner_references = pod.metadata.owner_references->0.filter(controller_owner_filter());
                                     let owner_ref = controller_owner_references[0];
@@ -628,19 +628,24 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
                                     let condemned_pod = state.condemned[state.condemned_index as int];
-                                    assert(get_ordinal(vsts.object_ref().name, condemned_pod) is Some);
-                                    let ord = get_ordinal(vsts.object_ref().name, condemned_pod)->0;
+                                    assert(get_ordinal(vsts.object_ref().name, condemned_pod.metadata.name->0) is Some);
+                                    let ord = get_ordinal(vsts.object_ref().name, condemned_pod.metadata.name->0)->0;
                                     assert(req.key().name == pod_name(vsts.object_ref().name, ord));
                                 },
                                 VStatefulSetReconcileStepView::DeleteOutdated => {
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
-                                    let ordinal = get_largest_ordinal_of_unmatched_pods(triggering_vsts, state.needed)->0;
-                                    lemma_get_largest_ordinal_of_unmatched_well_behaved(triggering_vsts, state.needed);
-                                    let pod = state.needed[ordinal as int]->0;
-                                    assert(get_ordinal(vsts.object_ref().name, pod) is Some);
-                                    let ord = get_ordinal(vsts.object_ref().name, pod)->0;
-                                    assert(req.key().name == pod_name(vsts.object_ref().name, ord));
+                                    if let Some(pod) = get_largest_unmatched_pods(triggering_vsts, state.needed) {
+                                        seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(triggering_vsts), Some(pod));
+                                        // trigger for local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
+                                        assert(exists |i: int| #[trigger] state.needed[i] == Some(pod));
+                                        assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
+                                        let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
+                                        get_ordinal_eq_pod_name(vsts.object_ref().name, ord, pod.metadata.name->0);
+                                        assert(req.key().name == pod.metadata.name->0);
+                                    } else {
+                                        assert(false); // should not has any new message
+                                    }
                                 },
                                 _ => {
                                     // other cases are trivial
