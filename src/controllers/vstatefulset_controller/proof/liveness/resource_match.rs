@@ -1027,7 +1027,8 @@ requires
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     resp_msg_is_pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id, msg)(s),
     pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)(s),
-    input->0.src != HostId::Controller(controller_id, vsts.object_ref())
+    input->0.src != HostId::Controller(controller_id, vsts.object_ref()),
+    needed_index > 0,
 ensures
     resp_msg_is_pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id, msg)(s_prime),
 {
@@ -1039,7 +1040,7 @@ ensures
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
     assert(s_prime.resources().contains_key(key) && weakly_eq(s_prime.resources()[key], s.resources()[key])) by {
-        assert(key.name == pod_name(vsts.metadata.name->0, needed_index));
+        assert(key.name == pod_name(vsts.metadata.name->0, (needed_index - 1) as nat));
         assert(({
             &&& s.resources().contains_key(key) // trigger
             &&& key.kind == Kind::PodKind
