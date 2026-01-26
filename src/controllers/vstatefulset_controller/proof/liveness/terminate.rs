@@ -3,14 +3,15 @@ use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::*},
     cluster::*,
     controller::types::*,
-    message::*
+    message::*,
+    esr::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
-    proof::predicate::*,
+    trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely::*},
+    proof::{predicate::*, helper_invariants, guarantee, liveness::spec::*},
 };
 use vstd::prelude::*;
 
@@ -36,7 +37,33 @@ pub open spec fn create_or_update_or_error_with_needed(vsts: VStatefulSetView, c
     lift_state(lift_local(controller_id, vsts, at_step_or![(CreateNeeded, needed_index_and_len(needed, needed_l)), (UpdateNeeded, needed_index_and_len(needed, needed_l)), Error]))
 }
 
-pub open spec fn vsts_cluster_invariants(
+pub open spec fn vsts_all_states(vsts: VStatefulSetView, controller_id: int) -> TempPred<ClusterState> {
+    macro_rules! lift_at_step_or {
+        [$($tail:tt)*] => {
+            lift_state(lift_local(controller_id, vsts, at_step_or![$($tail)*]))
+        }
+    }
+    lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
+    .or(lift_at_step_or![Init])
+    .or(lift_at_step_or![AfterListPod])
+    .or(lift_at_step_or![GetPVC])
+    .or(lift_at_step_or![AfterGetPVC])
+    .or(lift_at_step_or![CreatePVC])
+    .or(lift_at_step_or![AfterCreatePVC])
+    .or(lift_at_step_or![SkipPVC])
+    .or(lift_at_step_or![CreateNeeded])
+    .or(lift_at_step_or![AfterCreateNeeded])
+    .or(lift_at_step_or![UpdateNeeded])
+    .or(lift_at_step_or![AfterUpdateNeeded])
+    .or(lift_at_step_or![DeleteCondemned])
+    .or(lift_at_step_or![AfterDeleteCondemned])
+    .or(lift_at_step_or![DeleteOutdated])
+    .or(lift_at_step_or![AfterDeleteOutdated])
+    .or(lift_at_step_or![Done])
+    .or(lift_at_step_or![Error])
+}
+
+pub open spec fn vsts_terminate_invariants(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 ) -> bool {
     &&& spec.entails(always(lift_action(cluster.next())))
@@ -77,37 +104,11 @@ pub open spec fn vsts_cluster_invariants(
     &&& spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))
 }
 
-pub open spec fn vsts_all_states(vsts: VStatefulSetView, controller_id: int) -> TempPred<ClusterState> {
-    macro_rules! lift_at_step_or {
-        [$($tail:tt)*] => {
-            lift_state(lift_local(controller_id, vsts, at_step_or![$($tail)*]))
-        }
-    }
-    lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) })
-    .or(lift_at_step_or![Init])
-    .or(lift_at_step_or![AfterListPod])
-    .or(lift_at_step_or![GetPVC])
-    .or(lift_at_step_or![AfterGetPVC])
-    .or(lift_at_step_or![CreatePVC])
-    .or(lift_at_step_or![AfterCreatePVC])
-    .or(lift_at_step_or![SkipPVC])
-    .or(lift_at_step_or![CreateNeeded])
-    .or(lift_at_step_or![AfterCreateNeeded])
-    .or(lift_at_step_or![UpdateNeeded])
-    .or(lift_at_step_or![AfterUpdateNeeded])
-    .or(lift_at_step_or![DeleteCondemned])
-    .or(lift_at_step_or![AfterDeleteCondemned])
-    .or(lift_at_step_or![DeleteOutdated])
-    .or(lift_at_step_or![AfterDeleteOutdated])
-    .or(lift_at_step_or![Done])
-    .or(lift_at_step_or![Error])
-}
-
 pub proof fn reconcile_eventually_terminates_on_vsts_object(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_invariants(spec, vsts, cluster, controller_id)
 ensures
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
 {
@@ -431,7 +432,7 @@ proof fn lemma_get_pvc_leads_to_create_or_update_needed(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_invariants(spec, vsts, cluster, controller_id),
 ensures
     forall |j: nat, jl: nat| #[trigger] spec.entails(
         get_pvc_with_needed(vsts, controller_id, j, jl)
@@ -828,7 +829,7 @@ pub proof fn lemma_after_create_and_update_needed_leads_to_idle(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_invariants(spec, vsts, cluster, controller_id),
     forall |j: nat, jl: nat| #![trigger get_pvc_with_needed(vsts, controller_id, j, jl)] spec.entails(
         get_pvc_with_needed(vsts, controller_id, j, jl)
             .leads_to(create_or_update_or_error_with_needed(vsts, controller_id, j, jl))
@@ -1098,7 +1099,7 @@ pub proof fn lemma_after_delete_condemned_leads_to_idle(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
-    vsts_cluster_invariants(spec, vsts, cluster, controller_id),
+    vsts_terminate_invariants(spec, vsts, cluster, controller_id),
     spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![DeleteOutdated])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()))))
 ensures
     spec.entails(lift_state(lift_local(controller_id, vsts, at_step_or![AfterDeleteCondemned])).leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),

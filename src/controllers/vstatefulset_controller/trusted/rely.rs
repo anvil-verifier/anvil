@@ -182,9 +182,6 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
         } ==> {
             let req = msg.content.get_delete_request(); 
             &&& msg.content.is_delete_request()
-            // &&& req.preconditions is Some
-            // &&& req.preconditions.unwrap().uid is Some
-            // &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
                 &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())

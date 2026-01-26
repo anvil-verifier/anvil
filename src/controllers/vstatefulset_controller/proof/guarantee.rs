@@ -74,6 +74,20 @@ pub open spec fn vsts_internal_guarantee_conditions(controller_id: int) -> State
     }
 }
 
+pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
+    controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
+            let content = msg.content;
+            &&& s.in_flight().contains(msg)
+            &&& msg.src.is_controller_id(controller_id)
+        } ==> {
+            msg.src->Controller_1.kind == VStatefulSetView::kind()
+        }
+    }
+}
+
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
 pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -201,21 +215,6 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
                 // Cluster::each_object_in_etcd_has_at_most_one_controller_owner
                 &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
             }
-        }
-    }
-}
-
-// helper invariant for shield lemma
-pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
-    controller_id: int,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
-            let content = msg.content;
-            &&& s.in_flight().contains(msg)
-            &&& msg.src.is_controller_id(controller_id)
-        } ==> {
-            msg.src->Controller_1.kind == VStatefulSetView::kind()
         }
     }
 }
@@ -676,6 +675,34 @@ pub proof fn internal_guarantee_condition_holds(
     }
 
     init_invariant(spec, cluster.init(), stronger_next, invariant);
+}
+
+pub proof fn internal_guarantee_condition_holds_on_all_vsts(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(lift_state(vsts_internal_guarantee_conditions(controller_id))))
+{
+    let guarantee = lift_state(vsts_internal_guarantee_conditions(controller_id));
+    let target = always(guarantee);
+    let no_interfering_request = |vsts: VStatefulSetView| lift_state(no_interfering_request_between_vsts(controller_id, vsts));
+    assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies target.satisfied_by(ex) by {
+        assert forall |vsts: VStatefulSetView| #![trigger no_interfering_request(vsts)] always(no_interfering_request(vsts)).satisfied_by(ex) by {
+            internal_guarantee_condition_holds(spec, cluster, controller_id, vsts);
+            assert(spec.entails(always(no_interfering_request(vsts))));
+            assert(valid(spec.implies(always(no_interfering_request(vsts)))));
+            assert(spec.implies(always(no_interfering_request(vsts))).satisfied_by(ex));
+        }
+        assert(forall |vsts: VStatefulSetView, i: nat| #[trigger] no_interfering_request(vsts).satisfied_by(ex.suffix(i)));
+        assert forall |i: nat| #[trigger] guarantee.satisfied_by(ex.suffix(i)) by {
+            assert forall |vsts: VStatefulSetView| #[trigger] no_interfering_request_between_vsts(controller_id, vsts)(ex.suffix(i).head()) by {
+                assert(no_interfering_request(vsts).satisfied_by(ex.suffix(i)));
+            }
+        };
+    }
 }
 
 }

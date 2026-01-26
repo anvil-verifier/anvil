@@ -17,6 +17,17 @@ use vstd::{seq_lib::*, map_lib::*, set_lib::*};
 use vstd::prelude::*;
 
 verus! {
+#[verifier(external_body)]
+pub proof fn vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+    ensures
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))))
+        <==>
+            spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+{}
+
 
 pub proof fn get_ordinal_eq_pod_name(vsts_name: StringView, ord: nat, compared_pod_name: StringView)
 ensures

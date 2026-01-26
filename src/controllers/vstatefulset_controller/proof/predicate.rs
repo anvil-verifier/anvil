@@ -1,10 +1,10 @@
 // shared predicates and macros
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
-use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, rely};
+use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, esr::*, message::*};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
-use crate::vstatefulset_controller::proof::{guarantee, helper_invariants};
+use crate::vstatefulset_controller::proof::{helper_invariants, guarantee};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -220,7 +220,6 @@ macro_rules! not {
         })
     };
 }
-
 
 pub use or;
 pub use or_internal;
