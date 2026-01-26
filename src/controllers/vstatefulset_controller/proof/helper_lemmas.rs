@@ -17,7 +17,7 @@ pub proof fn vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(
         (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))))
         <==>
-            spec.entails(always(lifted_vsts_rely_condition(cluster, controller_id))),
+            spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
 {}
 
 pub open spec fn get_largest_ordinal_of_unmatched_properties(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> bool {

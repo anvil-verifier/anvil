@@ -138,11 +138,4 @@ pub use and;
 pub use and_internal;
 pub use not;
 
-pub open spec fn lifted_vsts_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
-    lift_state(|s| {
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> #[trigger] vsts_rely(other_id, cluster.installed_types)(s)
-    })
-}
-
 }
