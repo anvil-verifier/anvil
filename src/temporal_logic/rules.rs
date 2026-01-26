@@ -2270,15 +2270,42 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
 //     p |= p(n) for some n <= max
 // post:
 //     spec |= p ~> p_n(max)
-#[verifier(external_body)]
 pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, max: nat)
     requires
         // here we cannot use tla_exists because n <= max cannot be encoded in that way
-        forall |ex: Execution<T>| (#[trigger] p.satisfied_by(ex) ==> exists |n: nat| n <= max && #[trigger] p_n(n).satisfied_by(ex)),
+        forall |ex: Execution<T>| #[trigger] p.satisfied_by(ex) ==> exists |n: nat| (n <= max && #[trigger] p_n(n).satisfied_by(ex)),
         forall |n: nat| #![trigger p_n(n)] n < max ==> spec.entails(p_n(n).leads_to(p_n((n + 1) as nat))),
     ensures
         spec.entails(p.leads_to(p_n(max))),
-{}
+{
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies p.leads_to(p_n(max)).satisfied_by(ex) by {
+        assert forall |i: nat| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p_n(max)).satisfied_by(ex.suffix(i)) by {
+            let witness_n = choose |n: nat| n <= max && #[trigger] p_n(n).satisfied_by(ex.suffix(i));
+            leads_to_greater_until_helper(spec, p_n, witness_n, max);
+            entails_apply::<T>(ex, spec, p_n(witness_n).leads_to(p_n(max)));
+            p_leads_to_q_is_stable(p_n(witness_n), p_n(max));
+            stable_unfold::<T>(ex, p_n(witness_n).leads_to(p_n(max)));
+            leads_to_unfold::<T>(ex.suffix(i), p_n(witness_n), p_n(max));
+            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
+        };
+    };
+}
+
+proof fn leads_to_greater_until_helper<T>(spec: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, n: nat, max: nat)
+    requires
+        forall |n: nat| #![trigger p_n(n)] n < max ==> spec.entails(p_n(n).leads_to(p_n((n + 1) as nat))),
+        n <= max,
+    ensures
+        spec.entails(p_n(n).leads_to(p_n(max))),
+    decreases (max - n),
+{
+    if n < max {
+        leads_to_greater_until_helper(spec, p_n, (n + 1) as nat, max);
+        leads_to_trans(spec, p_n(n), p_n((n + 1) as nat), p_n(max));
+    } else {
+        leads_to_self_temp(p_n(max));
+    }
+}
 
 // TODO: deprecate this with leads_to_greater_until
 pub proof fn leads_to_greater_than_or_eq<T>(spec: TempPred<T>, p: spec_fn(nat, nat) -> TempPred<T>)
