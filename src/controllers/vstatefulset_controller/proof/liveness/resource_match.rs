@@ -1100,7 +1100,7 @@ ensures
     }
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat
 )
@@ -1270,7 +1270,9 @@ ensures
                     },
                     Step::APIServerStep(input) => { // slowest part, we can harden this by creating another proof with coherence predicate hidden
                         lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                        assert(s_prime.in_flight().contains(msg));
+                        resp_msg_is_pending_msg_at_after_update_needed_state_is_preserved_after_api_server_step(
+                            s, s_prime, vsts, cluster, controller_id, msg, needed_index + nat1!(), condemned_len, input
+                        );
                     },
                     _ => {
                         assert(s_prime.in_flight().contains(msg));
@@ -1304,6 +1306,42 @@ ensures
         lift_state(after_update_needed_state_with_response),
         lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len))
     );
+}
+
+proof fn resp_msg_is_pending_msg_at_after_update_needed_state_is_preserved_after_api_server_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message, needed_index: nat, condemned_len: nat, input: Option<Message>
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::APIServerStep(input)),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id, msg)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)(s),
+    input->0.src != HostId::Controller(controller_id, vsts.object_ref()),
+    needed_index > 0,
+ensures
+    resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id, msg)(s_prime),
+{
+    hide(local_state_is_valid_and_coherent);
+    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+    let key = req_msg.content.get_get_then_update_request().key();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+    assert(s_prime.resources().contains_key(key) && weakly_eq(s_prime.resources()[key], s.resources()[key])) by {
+        assert(key.name == pod_name(vsts.metadata.name->0, (needed_index - 1) as nat));
+        assert(({
+            &&& s.resources().contains_key(key) // trigger
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(key.name, vsts.metadata.name->0)
+        })); // pre of lemma_no_interference
+        shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+    }
 }
 
 pub proof fn lemma_from_init_to_after_list_pod(
