@@ -1180,7 +1180,80 @@ ensures
             lift_state(after_update_needed_state_with_response)
         );
     }
-    assume(false);
+    let resp_msg_is_pending_msg_at_after_update_needed_state = |msg| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id, msg),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index + nat1!(), nat0!(), condemned_len)
+    );
+    assert(spec.entails(lift_state(after_update_needed_state_with_response).leads_to(lift_state(
+        after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len)
+    )))) by {
+        assert forall |ex| #[trigger] lift_state(after_update_needed_state_with_response).satisfied_by(ex) implies
+            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg))).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+            let resp_msg = choose |resp_msg: Message| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.is_get_then_update_response()
+                &&& resp_msg.content.get_get_then_update_response().res is Ok
+            };
+            assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg)))(resp_msg).satisfied_by(ex));
+        }
+        entails_implies_leads_to(spec,
+            lift_state(after_update_needed_state_with_response),
+            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg)))
+        );
+        assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_update_needed_state(msg)).leads_to(lift_state(
+            after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len)
+        ))) by {
+            assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_update_needed_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+                resp_msg_is_pending_msg_at_after_update_needed_state(msg)(s_prime) || after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len)(s_prime) by {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep(input) => {
+                        if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                            lemma_from_get_then_update_needed_pod_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, msg, needed_index + nat1!(), condemned_len);
+                            assert(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len)(s_prime));
+                        }
+                    },
+                    Step::APIServerStep(input) => { // slowest part, we can harden this by creating another proof with coherence predicate hidden
+                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                        assert(s_prime.in_flight().contains(msg));
+                    },
+                    _ => {
+                        assert(s_prime.in_flight().contains(msg));
+                        assert(s_prime.resources() == s.resources());
+                    }
+                }
+            }
+            let input = (Some(msg), Some(vsts.object_ref()));
+            assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_update_needed_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime)
+                implies after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len)(s_prime) by {
+                lemma_from_get_then_update_needed_pod_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, msg, needed_index + nat1!(), condemned_len);
+            }
+            cluster.lemma_pre_leads_to_post_by_controller(
+                spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_update_needed_state(msg),
+                after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len)
+            );
+        }
+        leads_to_exists_intro(spec,
+            |msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg)),
+            lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len))
+        );
+        leads_to_trans(spec,
+            lift_state(after_update_needed_state_with_response),
+            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg))),
+            lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len))
+        );
+    }
+    leads_to_trans_n!(spec,
+        lift_state(update_needed_state),
+        lift_state(after_update_needed_state_with_request),
+        lift_state(after_update_needed_state_with_response),
+        lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len))
+    );
 }
 
 pub proof fn lemma_from_init_to_after_list_pod(
@@ -1698,21 +1771,19 @@ ensures
 }
 
 pub proof fn lemma_from_get_then_update_needed_pod_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, needed_index: nat, condemned_len: nat
 )
 requires
-    resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
-    pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id)(s),
+    resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id, resp_msg)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)(s),
 ensures
-    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated])(s_prime),
-    no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
