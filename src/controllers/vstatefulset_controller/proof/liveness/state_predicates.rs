@@ -531,20 +531,42 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
         let key = req_msg.content.get_get_then_update_request().key();
         let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
-        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
-        &&& resp_msg.content.is_get_then_update_response()
-        &&& resp_msg.content.get_get_then_update_response().res is Ok
-        // TODO: cover volume update
         &&& s.resources().contains_key(key)
         // that obj's owner reference is not changed
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& exists |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_get_then_update_response()
+            &&& resp_msg.content.get_get_then_update_response().res is Ok
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let ord = (local_state.needed_index - 1) as nat;
+        let key = req_msg.content.get_get_then_update_request().key();
+        let obj = s.resources()[key];
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
+        &&& s.resources().contains_key(key)
+        // that obj's owner reference is not changed
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.is_get_then_update_response()
+        &&& resp_msg.content.get_get_then_update_response().res is Ok
     }
 }
 

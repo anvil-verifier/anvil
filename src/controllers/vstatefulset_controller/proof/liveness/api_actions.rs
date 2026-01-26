@@ -77,10 +77,10 @@ ensures
 
 #[verifier(external_body)]
 pub proof fn lemma_get_then_update_needed_pod_request_returns_ok_response(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int,
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
 requires
-    req_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
+    req_msg_is(req_msg, vsts.object_ref(), controller_id)(s),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     pending_get_then_update_needed_pod_req_in_flight(vsts, controller_id)(s),
