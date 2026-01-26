@@ -207,6 +207,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             };
             let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
+            // can be removed if we assume local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             // TODO: cover pod updates
         }
@@ -273,14 +274,14 @@ pub open spec fn pvc_index_is(vsts: VStatefulSetView, controller_id: int, pvc_in
 }
 
 pub open spec fn pvc_needed_condemned_index_and_condemned_len_are(
-    vsts: VStatefulSetView, controller_id: int, i: (nat, nat, nat, nat) // pvc_index, needed_index, condemned_index, condemned_len
+    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_index: nat, condemned_len: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        &&& local_state.pvc_index == i.0
-        &&& local_state.needed_index == i.1
-        &&& local_state.condemned_index == i.2
-        &&& local_state.condemned.len() == i.3
+        &&& local_state.pvc_index == pvc_index
+        &&& local_state.needed_index == needed_index
+        &&& local_state.condemned_index == condemned_index
+        &&& local_state.condemned.len() == condemned_len
     }
 }
 
@@ -461,13 +462,38 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
         let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
-        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
-        &&& resp_msg.content.is_create_response()
-        &&& resp_msg.content.get_create_response().res is Ok
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
-        // relaxed from exact equality to contains
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& exists |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_create_response()
+            &&& resp_msg.content.get_create_response().res is Err
+                ==> resp_msg.content.get_create_response().res->Err_0 == ObjectAlreadyExists
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_created_pod_exists(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let ord = (local_state.needed_index - 1) as nat;
+        let key = req_msg.content.get_create_request().key();
+        let obj = s.resources()[key];
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
+        // the created Pod exists in etcd
+        &&& s.resources().contains_key(key)
+        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.is_create_response()
+        &&& resp_msg.content.get_create_response().res is Err
+            ==> resp_msg.content.get_create_response().res->Err_0 == ObjectAlreadyExists
     }
 }
 
@@ -623,34 +649,37 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
 }
 
 pub open spec fn after_handle_after_create_or_after_update_needed_helper(
-    vsts: VStatefulSetView, controller_id: int, i: (nat, nat, nat) // needed_index, condemned_index, condemned_len
+    vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat
 ) -> StatePred<ClusterState> {
     let next_without_step = and!(
         local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id),
-        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, (nat0!(), i.0, i.1, i.2))
+        no_pending_req_in_cluster(vsts, controller_id)
     );
-    if i.0 < replicas(vsts) {
+    if needed_index < replicas(vsts) {
         if pvc_cnt(vsts) > 0 {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len),
                 next_without_step
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len),
                 next_without_step
             )
         }
     } else {
-        if i.1 < i.2 {
+        if condemned_len > 0 {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len),
                 next_without_step
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len),
                 next_without_step
             )
         }

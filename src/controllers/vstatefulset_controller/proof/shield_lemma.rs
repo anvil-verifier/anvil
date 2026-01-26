@@ -72,22 +72,19 @@ requires
     vsts.metadata.namespace is Some, // well_formed is too strong as it has no rv
 ensures
     forall |k: ObjectRef| { // ==>
-        let obj = s.resources()[k];
-        &&& k.kind == Kind::PodKind
         &&& #[trigger] s.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& k.kind == Kind::PodKind
+        &&& k.namespace == vsts.metadata.namespace->0
+        &&& pod_name_match(k.name, vsts.metadata.name->0)
     } ==> {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
     },
     forall |k: ObjectRef| { // <==
-        let obj = s_prime.resources()[k];
-        &&& k.kind == Kind::PodKind
         &&& #[trigger] s_prime.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
-        // TODO: weaken this using all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& k.kind == Kind::PodKind
+        &&& k.namespace == vsts.metadata.namespace->0
+        &&& pod_name_match(k.name, vsts.metadata.name->0)
     } ==> {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])

@@ -122,6 +122,11 @@ pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool
         && dash_free(i.0) // PVC template name should not contain dash
 }
 
+// Helper spec to check if a pod name matches a vsts naming pattern
+pub open spec fn pod_name_match(compared_pod_name: StringView, parent_name: StringView) -> bool {
+    exists |ord: nat| compared_pod_name == pod_name(parent_name, ord)
+}
+
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
 #[macro_export]

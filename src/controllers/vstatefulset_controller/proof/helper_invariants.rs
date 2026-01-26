@@ -34,7 +34,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
             &&& pod_key.namespace == vsts.metadata.namespace->0
             &&& vsts.metadata.name is Some
             &&& vsts.metadata.namespace is Some
-            &&& pod_name_matches_vsts(vsts.metadata.name->0, pod_key.name)
+            &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
             let pod_obj = s.resources()[pod_key];
             &&& pod_obj.metadata.owner_references_contains(vsts.controller_owner_ref())
@@ -58,11 +58,6 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefu
             &&& pvc_obj.metadata.owner_references is None
         }
     }
-}
-
-// Helper spec to check if a pod name matches a vsts naming pattern
-pub open spec fn pod_name_matches_vsts(parent_name: StringView, compared_pod_name: StringView) -> bool {
-    exists |ord: nat| compared_pod_name == pod_name(parent_name, ord)
 }
 
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
