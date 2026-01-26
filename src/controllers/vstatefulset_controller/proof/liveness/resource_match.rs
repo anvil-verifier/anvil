@@ -806,6 +806,55 @@ ensures
     );
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_spec_entails_create_or_update_needed_leads_to_delete_condemned_or_outdated(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    condemned_len > 0 ==> spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), nat0!(), condemned_len)
+    )))),
+    condemned_len == 0 ==> spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        condemned_size_is(vsts, controller_id, condemned_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), nat0!(), nat0!())
+    )))),
+{
+    let create_or_update_needed_state = and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id)
+    );
+    let create_or_update_needed_state_with_needed_index = |needed_index: nat| and!(
+        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
+    );
+}
+
 #[verifier(rlimit(50))]
 pub proof fn lemma_spec_entails_create_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat
