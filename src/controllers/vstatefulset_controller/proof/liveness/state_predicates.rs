@@ -168,7 +168,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     // precondition to transit to CreateNeeded or UpdateNeeded
     &&& locally_at_step_or!(state, CreateNeeded, UpdateNeeded) ==> state.pvc_index == pvc_cnt
     // before reaching condemned step the index is 0
-    &&& !locally_at_step_or!(state, DeleteCondemned, AfterDeleteCondemned) ==> state.condemned_index == 0
+    &&& !locally_at_step_or!(state, DeleteCondemned, AfterDeleteCondemned, DeleteOutdated, AfterDeleteOutdated) ==> state.condemned_index == 0
 }
 
 // coherence between local state and etcd state

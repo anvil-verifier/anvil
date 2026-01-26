@@ -1954,7 +1954,7 @@ ensures
 }
 
 pub proof fn lemma_from_after_delete_condemned_to_delete_outdated(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1964,10 +1964,16 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), condemned_index, condemned_len)(s),
+    condemned_index <= condemned_len,
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    at_vsts_step(vsts, controller_id, at_step_or![DeleteOutdated, DeleteCondemned])(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), condemned_index, condemned_len)(s_prime),
+    condemned_index < condemned_len
+        ==> at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])(s_prime),
+    condemned_index >= condemned_len
+        ==> at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
