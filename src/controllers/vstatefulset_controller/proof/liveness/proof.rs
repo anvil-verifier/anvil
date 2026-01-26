@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, rely::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
-    proof::{predicate::*, helper_invariants, guarantee, liveness::{spec::*, terminate}},
+    proof::{predicate::*, helper_invariants, helper_lemmas::*, guarantee, liveness::{spec::*, terminate}},
 };
 use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
@@ -32,7 +32,7 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))))),
 {
     spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
-
+    vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(spec, cluster, controller_id);
 
     always_tla_forall_apply(
         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
@@ -67,9 +67,9 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::desired_state_is(vsts)),
-        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()))
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
         // lift_state(vsts_rely_conditions(cluster, controller_id)),
-        // lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
     );
 
     entails_implies_leads_to(
@@ -305,13 +305,38 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(next_with_wf(cluster, controller_id)),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))),
     ensures
         spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id))
             .entails(stable_spec(cluster, controller_id).and(invariants(vsts, cluster, controller_id))),
 {
     let pre = spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id));
 
-    // Proof of stable_spec (which is just next_with_wf)
+    // Proof of stable_spec
+    vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(
+        spec,
+        cluster,
+        controller_id
+    );
+    entails_and_n!(
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lifted_vsts_rely_condition(cluster, controller_id))
+    );
+
+    entails_and_different_temp(
+        spec,
+        derived_invariants_since_beginning(vsts, cluster, controller_id),
+        stable_spec(cluster, controller_id),
+        true_pred()
+    );
+    temp_pred_equality(
+        stable_spec(cluster, controller_id).and(true_pred()),
+        stable_spec(cluster, controller_id)
+    );
+
+    // Proof of invariants
     entails_and_different_temp(
         spec,
         derived_invariants_since_beginning(vsts, cluster, controller_id),
@@ -322,8 +347,6 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
         next_with_wf(cluster, controller_id).and(true_pred()),
         next_with_wf(cluster, controller_id)
     );
-
-    // Proof of invariants
     entails_and_n!(
         pre,
         next_with_wf(cluster, controller_id),

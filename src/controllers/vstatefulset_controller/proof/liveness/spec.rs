@@ -15,7 +15,7 @@ use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    proof::{guarantee, helper_invariants, liveness::*, predicate::*},
+    proof::{guarantee, helper_invariants, helper_lemmas::*, liveness::*, predicate::*},
     trusted::{
         liveness_theorem::*, rely::*, spec_types::*, step::VStatefulSetReconcileStepView::*,
         step::*,
@@ -95,8 +95,8 @@ pub open spec fn vsts_cluster_invariants(
     Cluster::no_pending_request_to_api_server_from_non_controllers(),
     Cluster::desired_state_is(vsts),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
-    vsts_rely_conditions(cluster, controller_id),
     guarantee::vsts_internal_guarantee_conditions(controller_id)
+    // vsts_rely_conditions(cluster, controller_id),
     )
     // .and(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts))))
     // .and(always(lift_state(guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id))))
@@ -379,12 +379,14 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vsts: VStatefulSe
     invariants_since_phase_i_is_stable(controller_id, vsts);
     invariants_since_phase_ii_is_stable(controller_id, vsts);
     invariants_since_phase_iii_is_stable(vsts, cluster, controller_id);
+    always_p_is_stable(lifted_vsts_rely_condition(cluster, controller_id));
     stable_and_n!(
         invariants(vsts, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vsts))),
         invariants_since_phase_i(controller_id, vsts),
         invariants_since_phase_ii(controller_id, vsts),
-        invariants_since_phase_iii(vsts, cluster, controller_id)
+        invariants_since_phase_iii(vsts, cluster, controller_id),
+        always(lifted_vsts_rely_condition(cluster, controller_id))
     );
 }
 
@@ -417,12 +419,18 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 
 pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     next_with_wf(cluster, controller_id)
+    .and(always(lifted_vsts_rely_condition(cluster, controller_id)))
 }
 
 pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
+    always_p_is_stable(lifted_vsts_rely_condition(cluster, controller_id));
+    stable_and_n!(
+        next_with_wf(cluster, controller_id),
+        always(lifted_vsts_rely_condition(cluster, controller_id))
+    );
 }
 
 }
