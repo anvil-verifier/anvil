@@ -457,16 +457,12 @@ pub open spec fn handle_after_create_or_after_update_needed_helper(vsts: VStatef
                 // Create the pod
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::CreateNeeded,
-                    pvcs: new_pvcs,
-                    pvc_index: new_pvc_index,
                     ..state
                 }, None)
             } else {
                 // Update the pod
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::UpdateNeeded,
-                    pvcs: new_pvcs,
-                    pvc_index: new_pvc_index,
                     ..state
                 }, None)
             }

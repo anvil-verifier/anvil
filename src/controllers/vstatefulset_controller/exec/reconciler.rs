@@ -823,8 +823,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::CreateNeeded,
-                        pvcs: new_pvcs,
-                        pvc_index: new_pvc_index,
                         ..state
                     },
                     None,
@@ -833,8 +831,6 @@ pub fn handle_after_create_or_after_update_needed_helper(
                 (
                     VStatefulSetReconcileState {
                         reconcile_step: VStatefulSetReconcileStep::UpdateNeeded,
-                        pvcs: new_pvcs,
-                        pvc_index: new_pvc_index,
                         ..state
                     },
                     None,
