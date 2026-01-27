@@ -968,7 +968,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_create_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat
@@ -1240,7 +1240,8 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat
 )
@@ -1515,6 +1516,7 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_deleted_condemned_of_i_leads_to_delete_condemned_of_i_plus_one_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat
 )
