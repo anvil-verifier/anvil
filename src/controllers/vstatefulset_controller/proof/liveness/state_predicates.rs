@@ -168,7 +168,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     // precondition to transit to CreateNeeded or UpdateNeeded
     &&& locally_at_step_or!(state, CreateNeeded, UpdateNeeded) ==> state.pvc_index == pvc_cnt
     // before reaching condemned step the index is 0
-    &&& !locally_at_step_or!(state, DeleteCondemned, AfterDeleteCondemned, DeleteOutdated, AfterDeleteOutdated) ==> state.condemned_index == 0
+    &&& !locally_at_step_or!(state, DeleteCondemned, AfterDeleteCondemned, DeleteOutdated, AfterDeleteOutdated, Done) ==> state.condemned_index == 0
 }
 
 // coherence between local state and etcd state
@@ -267,13 +267,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 &&& s.resources().contains_key(key)
             }
         }
-    }
-}
-
-pub open spec fn pvc_index_is(vsts: VStatefulSetView, controller_id: int, pvc_index: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        &&& local_state.pvc_index == pvc_index
     }
 }
 

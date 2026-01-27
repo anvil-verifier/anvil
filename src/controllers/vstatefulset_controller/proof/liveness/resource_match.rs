@@ -45,7 +45,7 @@ ensures
 {}
 
 pub proof fn lemma_spec_entails_get_pvc_leads_to_create_or_update_needed(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -61,55 +61,46 @@ ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id), 
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     )))),
 {
-    let get_pvc_state = lift_state(and!(
-        at_vsts_step(vsts, controller_id, at_step![GetPVC]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
-    ));
     let get_pvc_state_with_index = |pvc_index: nat| lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     ));
-    let max_minus_one = (pvc_cnt(vsts) - 1) as nat;
-    assert forall |ex| #[trigger] get_pvc_state.satisfied_by(ex) implies
-        (exists |i: nat| i <= max_minus_one && #[trigger] get_pvc_state_with_index(i).satisfied_by(ex)) by {
-        let s = ex.head();
-        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        let i = local_state.pvc_index;
-        assert((|i: nat| get_pvc_state_with_index(i))(i).satisfied_by(ex));
-    }
     let next_state = lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id), 
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     ));
-    assert forall |i: nat| #![trigger get_pvc_state_with_index(i)] 0 < i < pvc_cnt(vsts)
-        implies spec.entails(get_pvc_state_with_index((i - 1) as nat).leads_to(get_pvc_state_with_index(i))) by {
+    let max_minus_one = (pvc_cnt(vsts) - 1) as nat;
+    assert forall |i: nat| #![trigger get_pvc_state_with_index(i)] i < max_minus_one
+        implies spec.entails(get_pvc_state_with_index(i).leads_to(get_pvc_state_with_index((i + 1) as nat))) by {
         lemma_spec_entails_get_pvc_of_i_leads_to_get_pvc_of_i_plus_one_or_pod_steps(
-            vsts, spec, cluster, controller_id, (i - 1) as nat
+            vsts, spec, cluster, controller_id, i, needed_index, condemned_len
         );
     }
-    leads_to_greater_until(spec,
-        get_pvc_state,
+    leads_to_greater_until_rec(spec,
         get_pvc_state_with_index,
-        max_minus_one,
+        nat0!(),
+        max_minus_one
     );
     assert(spec.entails(get_pvc_state_with_index(max_minus_one).leads_to(next_state))) by {
         lemma_spec_entails_get_pvc_of_i_leads_to_get_pvc_of_i_plus_one_or_pod_steps(
-            vsts, spec, cluster, controller_id, max_minus_one
+            vsts, spec, cluster, controller_id, max_minus_one, needed_index, condemned_len
         );
     }
     leads_to_trans(spec,
-        get_pvc_state,
+        get_pvc_state_with_index(nat0!()),
         get_pvc_state_with_index(max_minus_one),
         next_state
     );
@@ -117,7 +108,7 @@ ensures
 
 // PVC loop terminates. Proved using rank function on PVC index
 pub proof fn lemma_spec_entails_get_pvc_of_i_leads_to_get_pvc_of_i_plus_one_or_pod_steps(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -134,22 +125,23 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
     )))),
     pvc_index + 1 == pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id), 
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     )))),
 {
     let stronger_next = |s, s_prime: ClusterState| {
@@ -165,53 +157,49 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let skip_or_create_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id), 
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let skip_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![SkipPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id), 
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let create_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id), 
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let next_state = if pvc_index + 1 < pvc_cnt(vsts) {
         and!(
             at_vsts_step(vsts, controller_id, at_step![GetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
         )
     } else {
         and!(
             at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
             local_state_is_valid_and_coherent(vsts, controller_id), 
-            no_pending_req_in_cluster(vsts, controller_id)
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
         )
     };
-    let create_or_update_needed_state = and!(
-        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
-    );
     lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
-        vsts, spec, cluster, controller_id, pvc_index
+        vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len
     );
     lemma_spec_entails_skip_pvc_leads_to_create_or_update_needed_or_get_pvc(
-        vsts, spec, cluster, controller_id, pvc_index
+        vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len
     );
     lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
-        vsts, spec, cluster, controller_id, pvc_index
+        vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len
     );
     or_leads_to_combine(spec,
         lift_state(skip_pvc_state),
@@ -232,7 +220,7 @@ ensures
 
 #[verifier(rlimit(50))]
 pub proof fn lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -248,26 +236,26 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     ))
     .leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )))),
 {
     let get_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let after_get_pvc_state_with_req = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_get_pvc_req_in_flight(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -287,7 +275,7 @@ ensures
                 },
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                        lemma_from_get_pvc_to_after_get_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index);
+                        lemma_from_get_pvc_to_after_get_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len);
                     }
                 },
                 Step::BuiltinControllersStep(_) => {}, // hardener
@@ -305,14 +293,14 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_get_pvc_req_in_flight(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len),
         req_msg_is(msg, vsts.object_ref(), controller_id)
     );
     let after_get_pvc_state_with_resp = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_get_pvc_resp_in_flight(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     assert(spec.entails(lift_state(after_get_pvc_state_with_req).leads_to(lift_state(after_get_pvc_state_with_resp)))) by {
         assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(after_get_pvc_state_with_req).satisfied_by(ex) implies
@@ -370,13 +358,13 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         resp_msg_is_pending_get_pvc_resp_in_flight(vsts, controller_id, msg),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let skip_or_create_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     assert(spec.entails(lift_state(after_get_pvc_state_with_resp).leads_to(lift_state(skip_or_create_pvc_state)))) by {
         assert forall |ex| #[trigger] lift_state(after_get_pvc_state_with_resp).satisfied_by(ex) implies
@@ -430,7 +418,7 @@ ensures
                     },
                     Step::ControllerStep(input) => {
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                            lemma_from_get_pvc_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, msg);
+                            lemma_from_get_pvc_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, msg, needed_index, condemned_len);
                             assert(skip_or_create_pvc_state(s_prime));
                         }
                     },
@@ -467,7 +455,7 @@ ensures
 
 #[verifier(rlimit(50))]
 pub proof fn lemma_spec_entails_skip_pvc_leads_to_create_or_update_needed_or_get_pvc(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -484,22 +472,23 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![SkipPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
     )))),
     pvc_index + 1 == pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![SkipPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     ))))
 {
     let stronger_next = |s, s_prime: ClusterState| {
@@ -515,20 +504,21 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![SkipPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let next_state = if pvc_index + 1 < pvc_cnt(vsts) {
         and!(
             at_vsts_step(vsts, controller_id, at_step![GetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
         )
     } else {
         and!(
             at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
             local_state_is_valid_and_coherent(vsts, controller_id),
-            no_pending_req_in_cluster(vsts, controller_id)
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
         )
     };
     assert(spec.entails(lift_state(skip_pvc_state).leads_to(lift_state(next_state)))) by {
@@ -541,7 +531,7 @@ ensures
                 },
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                        lemma_from_skip_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index);
+                        lemma_from_skip_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len);
                     }
                 },
                 _ => {
@@ -552,7 +542,7 @@ ensures
         let input = (None, Some(vsts.object_ref()));
         assert forall |s, s_prime| skip_pvc_state(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime)
             implies next_state(s_prime) by {
-            lemma_from_skip_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index);
+            lemma_from_skip_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len);
         }
         cluster.lemma_pre_leads_to_post_by_controller(
             spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, skip_pvc_state, next_state
@@ -562,7 +552,7 @@ ensures
 
 #[verifier(rlimit(50))]
 pub proof fn lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -579,22 +569,23 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
     )))),
     pvc_index + 1 == pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     ))))
 {
     let stronger_next = |s, s_prime: ClusterState| {
@@ -610,13 +601,13 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
     );
     let after_create_pvc_state_with_request = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_create_pvc_req_in_flight(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
     );
     assert(spec.entails(lift_state(create_pvc_state).leads_to(lift_state(after_create_pvc_state_with_request)))) by {
         assert forall |s, s_prime| create_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies
@@ -628,7 +619,7 @@ ensures
                 },
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                        lemma_from_create_pvc_to_after_create_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index);
+                        lemma_from_create_pvc_to_after_create_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len);
                     }
                 },
                 _ => {}
@@ -643,14 +634,14 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_create_pvc_req_in_flight(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!()),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len),
         req_msg_is(msg, vsts.object_ref(), controller_id)
     );
     let after_create_pvc_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
     );
     assert(spec.entails(lift_state(after_create_pvc_state_with_request).leads_to(lift_state(after_create_pvc_state_with_response)))) by {
         assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(after_create_pvc_state_with_request).satisfied_by(ex) implies
@@ -711,20 +702,21 @@ ensures
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         resp_msg_is_pending_create_pvc_resp_in_flight_and_created_pvc_exists(vsts, controller_id, msg),
-        pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
     );
     let next_state = if pvc_index + 1 < pvc_cnt(vsts) {
         and!(
             at_vsts_step(vsts, controller_id, at_step![GetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_index_is(vsts, controller_id, pvc_index + nat1!())
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index + nat1!(), needed_index, nat0!(), condemned_len)
         )
     } else {
         and!(
             at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
             local_state_is_valid_and_coherent(vsts, controller_id),
-            no_pending_req_in_cluster(vsts, controller_id)
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
         )
     };
     assert(spec.entails(lift_state(after_create_pvc_state_with_response).leads_to(lift_state(next_state)))) by {
@@ -752,7 +744,7 @@ ensures
                 match step {
                     Step::ControllerStep(input) => {
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                            lemma_from_after_create_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, (pvc_index + 1) as nat);
+                            lemma_from_after_create_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, (pvc_index + 1) as nat, needed_index, condemned_len);
                             assert(next_state(s_prime));
                         }
                     },
@@ -806,6 +798,7 @@ ensures
     );
 }
 
+// similar to lemma_spec_entails_get_pvc_leads_to_create_or_update_needed
 #[verifier(external_body)]
 pub proof fn lemma_spec_entails_create_or_update_needed_leads_to_delete_condemned_or_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat
@@ -823,7 +816,8 @@ ensures
     condemned_len > 0 ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        condemned_size_is(vsts, controller_id, condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
         local_state_is_valid_and_coherent(vsts, controller_id),
@@ -845,7 +839,8 @@ ensures
     let create_or_update_needed_state = and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
+        no_pending_req_in_cluster(vsts, controller_id),
+        condemned_size_is(vsts, controller_id, condemned_len)
     );
     let create_or_update_needed_state_with_needed_index = |needed_index: nat| and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
@@ -853,6 +848,46 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id),
         pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     );
+    assert forall |ex| #[trigger] lift_state(create_or_update_needed_state).satisfied_by(ex) implies
+        exists |needed_index: nat| (needed_index < replicas(vsts) && #[trigger] lift_state(create_or_update_needed_state_with_needed_index(needed_index)).satisfied_by(ex)) by {
+        let s = ex.head();
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let needed_index = local_state.needed_index as nat;
+        assert((|needed_index: nat| lift_state(create_or_update_needed_state_with_needed_index(needed_index)))(needed_index).satisfied_by(ex));
+    }
+    let next_state = if condemned_len > 0 {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), nat0!(), condemned_len)
+        )
+    } else {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), nat0!(), nat0!())
+        )
+    };
+    assert forall |needed_index: nat| needed_index < replicas(vsts) ==>
+        spec.entails(lift_state(#[trigger] create_or_update_needed_state_with_needed_index(needed_index))
+            .leads_to(lift_state(create_or_update_needed_state_with_needed_index(needed_index + 1)))) by {
+        lemma_spec_entails_create_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
+            vsts, spec, cluster, controller_id, needed_index, condemned_len
+        );
+        if pvc_cnt(vsts) > 0 {
+            let get_pvc_state = and!(
+                at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, needed_index, replicas(vsts), nat0!(), condemned_len)
+            );
+            lemma_spec_entails_get_pvc_leads_to_create_or_update_needed(
+                vsts, spec, cluster, controller_id, needed_index + nat1!(), condemned_len
+            );
+        }
+    }
 }
 
 #[verifier(rlimit(50))]
@@ -1536,7 +1571,7 @@ ensures
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */
 pub proof fn lemma_from_get_pvc_to_after_get_pvc(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1546,18 +1581,18 @@ requires
     at_vsts_step(vsts, controller_id, at_step![GetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_after_send_get_pvc_req_to_receive_get_pvc_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, req_msg: Message
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, req_msg: Message, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1567,13 +1602,13 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_pvc_req_in_flight(vsts, controller_id)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
     req_msg_is(req_msg, vsts.object_ref(), controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_get_pvc_resp_in_flight(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s_prime),
 {
     lemma_get_pvc_request_returns_ok_or_err_response(
         s, s_prime, vsts, cluster, controller_id, req_msg
@@ -1581,7 +1616,7 @@ ensures
 }
 
 pub proof fn lemma_from_get_pvc_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, resp_msg: Message
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, resp_msg: Message, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1591,18 +1626,18 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterGetPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     resp_msg_is_pending_get_pvc_resp_in_flight(vsts, controller_id, resp_msg)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC])(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_skip_pvc_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1612,7 +1647,7 @@ requires
     at_vsts_step(vsts, controller_id, at_step![SkipPVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
 ensures
     pvc_index + 1 < pvc_cnt(vsts)
         ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
@@ -1620,7 +1655,7 @@ ensures
         ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, (pvc_index + 1) as nat)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, (pvc_index + 1) as nat, needed_index, nat0!(), condemned_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
@@ -1629,7 +1664,7 @@ ensures
 }
 
 pub proof fn lemma_from_create_pvc_to_after_create_pvc(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1639,18 +1674,18 @@ requires
     at_vsts_step(vsts, controller_id, at_step![CreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_pvc_req_in_flight(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, (pvc_index + 1) as nat)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, (pvc_index + 1) as nat, needed_index, nat0!(), condemned_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, req_msg: Message
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, req_msg: Message, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1660,13 +1695,13 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_create_pvc_req_in_flight(vsts, controller_id)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
     req_msg_is(req_msg, vsts.object_ref(), controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s_prime),
 {
     lemma_create_pvc_request_returns_ok_or_already_exists_err_response(
         s, s_prime, vsts, cluster, controller_id, req_msg
@@ -1676,7 +1711,7 @@ ensures
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
 // handle_after_create_or_skip_pvc_helper slows down the reasoning
 pub proof fn lemma_from_after_create_pvc_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1686,13 +1721,13 @@ requires
     at_vsts_step(vsts, controller_id, at_step_or![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s),
-    pvc_index_is(vsts, controller_id, pvc_index)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s),
     pvc_index <= pvc_cnt(vsts),
 ensures
     at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
-    pvc_index_is(vsts, controller_id, pvc_index)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)(s_prime),
     pvc_index < pvc_cnt(vsts)
         ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
     pvc_index == pvc_cnt(vsts)

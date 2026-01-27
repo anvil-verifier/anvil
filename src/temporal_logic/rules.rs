@@ -2281,7 +2281,7 @@ pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: s
     assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies p.leads_to(p_n(max)).satisfied_by(ex) by {
         assert forall |i: nat| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p_n(max)).satisfied_by(ex.suffix(i)) by {
             let witness_n = choose |n: nat| n <= max && #[trigger] p_n(n).satisfied_by(ex.suffix(i));
-            leads_to_greater_until_helper(spec, p_n, witness_n, max);
+            leads_to_greater_until_rec(spec, p_n, witness_n, max);
             entails_apply::<T>(ex, spec, p_n(witness_n).leads_to(p_n(max)));
             p_leads_to_q_is_stable(p_n(witness_n), p_n(max));
             stable_unfold::<T>(ex, p_n(witness_n).leads_to(p_n(max)));
@@ -2291,7 +2291,7 @@ pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: s
     };
 }
 
-proof fn leads_to_greater_until_helper<T>(spec: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, n: nat, max: nat)
+pub proof fn leads_to_greater_until_rec<T>(spec: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, n: nat, max: nat)
     requires
         forall |n: nat| #![trigger p_n(n)] n < max ==> spec.entails(p_n(n).leads_to(p_n((n + 1) as nat))),
         n <= max,
@@ -2300,7 +2300,7 @@ proof fn leads_to_greater_until_helper<T>(spec: TempPred<T>, p_n: spec_fn(nat) -
     decreases (max - n),
 {
     if n < max {
-        leads_to_greater_until_helper(spec, p_n, (n + 1) as nat, max);
+        leads_to_greater_until_rec(spec, p_n, (n + 1) as nat, max);
         leads_to_trans(spec, p_n(n), p_n((n + 1) as nat), p_n(max));
     } else {
         leads_to_self_temp(p_n(max));
@@ -2316,7 +2316,7 @@ pub proof fn leads_to_greater_than_or_eq<T>(spec: TempPred<T>, p: spec_fn(nat, n
 {
     assert forall |m: nat, n: nat| #![trigger p(m, n)] m < n implies #[trigger] spec.entails(p(m, n).leads_to(p(n, n))) by {
         if m < n {
-            leads_to_greater_until_helper(spec, |k: nat| p(k, n), m, n);
+            leads_to_greater_until_rec(spec, |k: nat| p(k, n), m, n);
         } else {
             leads_to_self_temp(p(n, n));
         }
