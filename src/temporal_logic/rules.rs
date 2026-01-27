@@ -2291,6 +2291,14 @@ pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: s
     };
 }
 
+// this helper can be used standalone
+// usage: leads_to_greater_until_rec!(spec, p_n, n, max)
+// Prove p_n(n) leads_to p_n(max) by showing that for each n < max, p_n(n) leads_to p_n(n + 1).
+// pre:
+//     forall |n: nat|, n < max ==> spec |= p_n(n) ~> p_n(n + 1)
+//     n <= max
+// post:
+//     spec |= p_n(n) ~> p_n(max)
 pub proof fn leads_to_greater_until_rec<T>(spec: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, n: nat, max: nat)
     requires
         forall |n: nat| #![trigger p_n(n)] n < max ==> spec.entails(p_n(n).leads_to(p_n((n + 1) as nat))),
