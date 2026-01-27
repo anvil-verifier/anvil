@@ -270,13 +270,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
     }
 }
 
-pub open spec fn condemned_size_is(vsts: VStatefulSetView, controller_id: int, condemned_len: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        &&& local_state.condemned.len() == condemned_len
-    }
-}
-
 pub open spec fn pvc_needed_condemned_index_and_condemned_len_are(
     vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_index: nat, condemned_len: nat
 ) -> StatePred<ClusterState> {
@@ -603,21 +596,46 @@ pub open spec fn pending_get_then_delete_condemned_pod_resp_in_flight_and_condem
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let condemned_pod_key = ObjectRef {
             kind: Kind::PodKind,
             name: local_state.condemned[local_state.condemned_index - 1].metadata.name->0,
             namespace: vsts.metadata.namespace->0
         };
+        // condemned pod is deleted from etcd
+        &&& !s.resources().contains_key(condemned_pod_key)
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(vsts, controller_id, req_msg, condemned_pod_key)
-        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
+        &&& exists |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_get_then_delete_response()
+            &&& resp_msg.content.get_get_then_delete_response().res is Err
+                ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let condemned_pod_key = ObjectRef {
+            kind: Kind::PodKind,
+            name: local_state.condemned[local_state.condemned_index - 1].metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        // condemned pod is deleted from etcd
+        &&& !s.resources().contains_key(condemned_pod_key)
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(vsts, controller_id, req_msg, condemned_pod_key)
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_delete_response()
         &&& resp_msg.content.get_get_then_delete_response().res is Err
             ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
-        // condemned pod is deleted from etcd
-        &&& !s.resources().contains_key(condemned_pod_key)
     }
 }
 
