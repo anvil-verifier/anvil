@@ -1489,7 +1489,6 @@ ensures
         pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len)
     );
     assert(spec.entails(lift_state(delete_condemned_state).leads_to(lift_state(after_delete_condemned_state_with_request)))) by {
-        assume(false);
         assert forall |s, s_prime| delete_condemned_state(s) && #[trigger] stronger_next(s, s_prime) implies
             delete_condemned_state(s_prime) || after_delete_condemned_state_with_request(s_prime) by {
             let step = choose |step| cluster.next_step(s, s_prime, step);
@@ -1573,7 +1572,124 @@ ensures
             lift_state(after_delete_condemned_state_with_response)
         );
     }
-    assume(false);
+    let resp_msg_is_pending_msg_at_after_delete_condemned_state = |msg| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        resp_msg_is_pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id, msg),
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len)
+    );
+    let delete_condemned_or_outdated_state = if condemned_index + nat1!() == condemned_len {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len)
+        )
+    } else {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len)
+        )
+    };
+    assert(spec.entails(lift_state(after_delete_condemned_state_with_response).leads_to(lift_state(delete_condemned_or_outdated_state)))) by {
+        assert forall |ex| #[trigger] lift_state(after_delete_condemned_state_with_response).satisfied_by(ex) implies
+            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg))).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+            let resp_msg = choose |resp_msg: Message| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.is_get_then_delete_response()
+                &&& resp_msg.content.get_get_then_delete_response().res is Err
+                    ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+            };
+            assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)))(resp_msg).satisfied_by(ex));
+        }
+        entails_implies_leads_to(spec,
+            lift_state(after_delete_condemned_state_with_response),
+            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)))
+        );
+        assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)).leads_to(lift_state(delete_condemned_or_outdated_state))) by {
+            assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+                resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s_prime) || delete_condemned_or_outdated_state(s_prime) by {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep(input) => {
+                        if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                            lemma_from_after_delete_condemned_to_delete_condemned_or_outdated(s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len);
+                            assert(delete_condemned_or_outdated_state(s_prime));
+                        }
+                    },
+                    Step::APIServerStep(input) => { // slowest part, we can harden this by creating another proof with coherence predicate hidden
+                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                        resp_msg_is_pending_msg_at_after_delete_condemned_state_is_preserved_after_api_server_step(
+                            s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len, input
+                        );
+                    },
+                    _ => {
+                        assert(s_prime.in_flight().contains(msg));
+                        assert(s_prime.resources() == s.resources());
+                    }
+                }
+            }
+            let input = (Some(msg), Some(vsts.object_ref()));
+            assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime)
+                implies delete_condemned_or_outdated_state(s_prime) by {
+                lemma_from_after_delete_condemned_to_delete_condemned_or_outdated(s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len);
+            }
+            cluster.lemma_pre_leads_to_post_by_controller(
+                spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_delete_condemned_state(msg),
+                delete_condemned_or_outdated_state
+            );
+        }
+        leads_to_exists_intro(spec,
+            |msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)),
+            lift_state(delete_condemned_or_outdated_state)
+        );
+        leads_to_trans(spec,
+            lift_state(after_delete_condemned_state_with_response),
+            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg))),
+            lift_state(delete_condemned_or_outdated_state)
+        );
+    }
+    leads_to_trans_n!(spec,
+        lift_state(delete_condemned_state),
+        lift_state(after_delete_condemned_state_with_request),
+        lift_state(after_delete_condemned_state_with_response),
+        lift_state(delete_condemned_or_outdated_state)
+    );
+}
+
+proof fn resp_msg_is_pending_msg_at_after_delete_condemned_state_is_preserved_after_api_server_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message, condemned_index: nat, condemned_len: nat, input: Option<Message>
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next_step(s, s_prime, Step::APIServerStep(input)),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    resp_msg_is_pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id, msg)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len)(s),
+    input->0.src != HostId::Controller(controller_id, vsts.object_ref()),
+    0 < condemned_index <= condemned_len,
+ensures
+    resp_msg_is_pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id, msg)(s_prime),
+{
+    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+    let key = req_msg.content.get_get_then_delete_request().key();
+    if s_prime.resources().contains_key(key) {
+        let ord = get_ordinal(vsts.metadata.name->0, key.name)->0;
+        assert(key.name == pod_name(vsts.metadata.name->0, ord));
+        assert(s.resources().contains_key(key)) by {
+            shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+        }
+        assert(false);
+    }
 }
 
 pub proof fn lemma_from_init_to_after_list_pod(
@@ -2190,8 +2306,8 @@ ensures
     }
 }
 
-pub proof fn lemma_from_after_delete_condemned_to_delete_outdated(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat
+pub proof fn lemma_from_after_delete_condemned_to_delete_condemned_or_outdated(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, condemned_index: nat, condemned_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -2200,13 +2316,13 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
-    pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s),
-    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), condemned_index, condemned_len)(s),
+    resp_msg_is_pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id, resp_msg)(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len)(s),
     condemned_index <= condemned_len,
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
-    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), condemned_index, condemned_len)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len)(s_prime),
     condemned_index < condemned_len
         ==> at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])(s_prime),
     condemned_index >= condemned_len
