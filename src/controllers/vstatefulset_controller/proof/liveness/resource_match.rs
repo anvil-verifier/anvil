@@ -816,7 +816,7 @@ ensures
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        condemned_size_is(vsts, controller_id, condemned_len)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
         local_state_is_valid_and_coherent(vsts, controller_id),
@@ -827,7 +827,7 @@ ensures
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
-        condemned_size_is(vsts, controller_id, condemned_len)
+        pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), condemned_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
         local_state_is_valid_and_coherent(vsts, controller_id),
@@ -835,12 +835,6 @@ ensures
         pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), nat0!(), nat0!())
     )))),
 {
-    let create_or_update_needed_state = and!(
-        at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id),
-        condemned_size_is(vsts, controller_id, condemned_len)
-    );
     let create_or_update_needed_state_with_needed_index = |needed_index: nat| and!(
         at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
         local_state_is_valid_and_coherent(vsts, controller_id),
@@ -859,14 +853,7 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id),
         pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
     );
-    assert forall |ex| #[trigger] lift_state(create_or_update_needed_state).satisfied_by(ex) implies
-        exists |needed_index: nat| (needed_index < replicas(vsts) && #[trigger] lift_state(create_or_update_needed_state_with_needed_index(needed_index)).satisfied_by(ex)) by {
-        let s = ex.head();
-        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        let needed_index = local_state.needed_index as nat;
-        assert((|needed_index: nat| lift_state(create_or_update_needed_state_with_needed_index(needed_index)))(needed_index).satisfied_by(ex));
-    }
-    let next_state = if condemned_len > 0 {
+    let delete_condemned_or_outdated_state = if condemned_len > 0 {
         and!(
             at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
             local_state_is_valid_and_coherent(vsts, controller_id),
@@ -890,8 +877,6 @@ ensures
         lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
             vsts, spec, cluster, controller_id, needed_index, condemned_len
         );
-        assert(create_or_update_needed_state_with_needed_index(needed_index)
-            =~= or!(create_needed_state_with_needed_index(needed_index), (update_needed_state_with_needed_index(needed_index))));
         temp_pred_equality(
             lift_state(create_or_update_needed_state_with_needed_index(needed_index)),
             lift_state(create_needed_state_with_needed_index(needed_index)).or(lift_state(update_needed_state_with_needed_index(needed_index)))
@@ -924,7 +909,33 @@ ensures
             );
         }
     }
-    assume(false);
+    leads_to_greater_until_rec(spec,
+        |needed_index| lift_state(create_or_update_needed_state_with_needed_index(needed_index)),
+        nat0!(),
+        max_minus_one
+    );
+    assert(spec.entails(lift_state(create_or_update_needed_state_with_needed_index(max_minus_one)).leads_to(lift_state(delete_condemned_or_outdated_state)))) by {
+        temp_pred_equality(
+            lift_state(create_or_update_needed_state_with_needed_index(max_minus_one)),
+            lift_state(create_needed_state_with_needed_index(max_minus_one)).or(lift_state(update_needed_state_with_needed_index(max_minus_one)))
+        );
+        lemma_spec_entails_create_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
+            vsts, spec, cluster, controller_id, max_minus_one, condemned_len
+        );
+        lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
+            vsts, spec, cluster, controller_id, max_minus_one, condemned_len
+        );
+        or_leads_to_combine(spec,
+            lift_state(create_needed_state_with_needed_index(max_minus_one)),
+            lift_state(update_needed_state_with_needed_index(max_minus_one)),
+            lift_state(delete_condemned_or_outdated_state)
+        );
+    }
+    leads_to_trans(spec,
+        lift_state(create_or_update_needed_state_with_needed_index(nat0!())),
+        lift_state(create_or_update_needed_state_with_needed_index(max_minus_one)),
+        lift_state(delete_condemned_or_outdated_state)
+    );
 }
 
 #[verifier(rlimit(50))]
