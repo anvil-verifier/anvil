@@ -690,6 +690,26 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
     }
 }
 
+pub open spec fn after_handle_create_or_skip_pvc_helper(
+    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
+) -> StatePred<ClusterState> {
+    if pvc_index < pvc_cnt(vsts) {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
+        )
+    } else {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+            local_state_is_valid_and_coherent(vsts, controller_id),
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
+        )
+    }
+}
+
 pub open spec fn after_handle_after_create_or_after_update_needed_helper(
     vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat
 ) -> StatePred<ClusterState> {
