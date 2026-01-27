@@ -218,7 +218,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
@@ -453,7 +453,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_skip_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
@@ -550,7 +550,7 @@ ensures
     }
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
 )
@@ -938,7 +938,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_create_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat
 )
@@ -1427,7 +1427,7 @@ ensures
     }
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_deleted_condemned_of_i_leads_to_delete_condemned_of_i_plus_one_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat
 )
