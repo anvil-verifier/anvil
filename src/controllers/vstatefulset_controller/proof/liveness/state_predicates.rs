@@ -675,36 +675,36 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
 pub open spec fn after_handle_after_create_or_after_update_needed_helper(
     vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat
 ) -> StatePred<ClusterState> {
-    let next_without_step = and!(
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
-    );
     if needed_index < replicas(vsts) {
         if pvc_cnt(vsts) > 0 {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![GetPVC]),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len),
-                next_without_step
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len),
-                next_without_step
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
             )
         }
     } else {
         if condemned_len > 0 {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len),
-                next_without_step
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len),
-                next_without_step
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
             )
         }
     }
