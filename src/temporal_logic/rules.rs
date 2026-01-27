@@ -2272,7 +2272,6 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
 //     spec |= p ~> p_n(max)
 pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: spec_fn(nat) -> TempPred<T>, max: nat)
     requires
-        // here we cannot use tla_exists because n <= max cannot be encoded in that way
         forall |ex: Execution<T>| #[trigger] p.satisfied_by(ex) ==> exists |n: nat| (n <= max && #[trigger] p_n(n).satisfied_by(ex)),
         forall |n: nat| #![trigger p_n(n)] n < max ==> spec.entails(p_n(n).leads_to(p_n((n + 1) as nat))),
     ensures
