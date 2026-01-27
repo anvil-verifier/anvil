@@ -1,16 +1,16 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::{state_machine::*, types::InstalledTypes},
-    cluster::*,
+    api_server::{state_machine::*, types::InstalledTypes}, 
+    cluster::*, 
     message::*
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     trusted::{
-        liveness_theorem::*,
-        rely::*,
-        spec_types::*,
+        liveness_theorem::*, 
+        rely::*, 
+        spec_types::*, 
         step::*
     },
     proof::{
@@ -34,7 +34,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
             &&& pod_key.namespace == vsts.metadata.namespace->0
             &&& vsts.metadata.name is Some
             &&& vsts.metadata.namespace is Some
-            &&& pod_name_matches_vsts(vsts.metadata.name->0, pod_key.name)
+            &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
             let pod_obj = s.resources()[pod_key];
             &&& pod_obj.metadata.owner_references_contains(vsts.controller_owner_ref())
@@ -43,9 +43,21 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
     }
 }
 
-// Helper spec to check if a pod name matches a vsts naming pattern
-pub open spec fn pod_name_matches_vsts(parent_name: StringView, compared_pod_name: StringView) -> bool {
-    exists |ord: nat| compared_pod_name == pod_name(parent_name, ord)
+// similar to above, but for PVCs
+// rely conditions already prevent other controllers from creating or updating PVCs
+// and VSTS controller's internal guarantee says all pvcs it creates have no owner refs
+pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pvc_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pvc_key)
+            &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
+            &&& pvc_key.namespace == vsts.metadata.namespace->0
+            &&& exists |vsts_name| pvc_name_match(pvc_key.name, vsts_name)
+        } ==> {
+            let pvc_obj = s.resources()[pvc_key];
+            &&& pvc_obj.metadata.owner_references is None
+        }
+    }
 }
 
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(

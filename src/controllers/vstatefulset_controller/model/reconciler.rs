@@ -178,8 +178,8 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
             (error_state(state), None)
         } else {
             let pods = pods_or_none->0;
-            let filtered_pods = filter_pods(pods, vsts);
-            let replicas = if vsts.spec.replicas is Some { vsts.spec.replicas->0 } else { 1 }; // 1 by default
+            let filtered_pods = pods.filter(pod_filter(vsts));
+            let replicas = vsts.spec.replicas.unwrap_or(1); // 1 by default
             if replicas >= 0 {
                 let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas as nat, filtered_pods);
                 let needed_index = 0;
@@ -228,7 +228,7 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
                             ..state_without_step
                         }, None)
                     } else {
-                        (delete_outdated_state(state), None)
+                        (delete_outdated_state(state_without_step), None)
                     }
                 }
             } else {
@@ -309,7 +309,7 @@ pub open spec fn handle_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, 
 pub open spec fn handle_after_create_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_create_resp_view(resp_o) {
         let result = extract_some_k_create_resp_view(resp_o);
-        if result is Ok || (result is Err && result->Err_0 is ObjectAlreadyExists) {
+        if result is Ok || result->Err_0 is ObjectAlreadyExists {
             handle_after_create_or_skip_pvc_helper(vsts, state)
         } else {
             (error_state(state), None)
@@ -383,7 +383,7 @@ pub open spec fn handle_create_needed(vsts: VStatefulSetView, resp_o: DefaultRes
 pub open spec fn handle_after_create_needed(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_create_resp_view(resp_o) {
         let result = extract_some_k_create_resp_view(resp_o);
-        if result is Ok {
+        if result is Ok || result->Err_0 is ObjectAlreadyExists {
             handle_after_create_or_after_update_needed_helper(vsts, state)
         } else {
             (error_state(state), None)
@@ -457,16 +457,12 @@ pub open spec fn handle_after_create_or_after_update_needed_helper(vsts: VStatef
                 // Create the pod
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::CreateNeeded,
-                    pvcs: new_pvcs,
-                    pvc_index: new_pvc_index,
                     ..state
                 }, None)
             } else {
                 // Update the pod
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::UpdateNeeded,
-                    pvcs: new_pvcs,
-                    pvc_index: new_pvc_index,
                     ..state
                 }, None)
             }
@@ -513,11 +509,10 @@ pub open spec fn handle_delete_condemned(vsts: VStatefulSetView, resp_o: Default
 pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view(resp_o) {
         let result = extract_some_k_get_then_delete_resp_view(resp_o);
-        if result is Ok {
+        if result is Ok || result->Err_0 is ObjectNotFound {
             if state.condemned_index < state.condemned.len() {
                 (VStatefulSetReconcileState {
                     reconcile_step: VStatefulSetReconcileStepView::DeleteCondemned,
-                    needed_index: state.condemned_index,
                     ..state
                 }, None)
             } else {
@@ -533,10 +528,7 @@ pub open spec fn handle_after_delete_condemned(vsts: VStatefulSetView, resp_o: D
 }
 
 pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    let ordinal_or_none = get_largest_ordinal_of_unmatched_pods(vsts, state.needed);
-    if ordinal_or_none is Some {
-        let ordinal = ordinal_or_none->0;
-        let pod = state.needed[ordinal as int]->0;
+    if let Some(pod) = get_largest_unmatched_pods(vsts, state.needed) {
         if pod.metadata.name is Some {
             let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
                 key: ObjectRef {
@@ -562,7 +554,7 @@ pub open spec fn handle_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultR
 pub open spec fn handle_after_delete_outdated(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     if is_some_k_get_then_delete_resp_view(resp_o) {
         let result = extract_some_k_get_then_delete_resp_view(resp_o);
-        if result is Ok {
+        if result is Ok || result->Err_0 is ObjectNotFound {
             (done_state(state), None)
         } else {
             (error_state(state), None)
@@ -610,35 +602,32 @@ pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
     VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(parent_name, ordinal)
 }
 
-pub open spec fn filter_pods(pods: Seq<PodView>, vsts: VStatefulSetView) -> Seq<PodView> {
-    pods.filter(|pod: PodView|
+pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool {
+    |pod: PodView| {
         // See https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/controller_ref_manager.go#L72-L82
         pod.metadata.owner_references_contains(vsts.controller_owner_ref())
         && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
         && vsts.metadata.name is Some
-        && get_ordinal(vsts.metadata.name->0, pod) is Some
-    )
+        && pod.metadata.name is Some
+        && get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some
+    }
 }
 
-pub open spec fn get_ordinal(parent_name: StringView, pod: PodView) -> Option<nat> {
-    if (exists |ord| pod.metadata.name->0 == pod_name(parent_name, ord)) {
-        Some(choose |ord| pod.metadata.name->0 == pod_name(parent_name, ord))
+pub open spec fn get_ordinal(parent_name: StringView, compared_pod_name: StringView) -> Option<nat> {
+    if (exists |ord| compared_pod_name == pod_name(parent_name, ord)) {
+        Some(choose |ord| compared_pod_name == pod_name(parent_name, ord))
     } else {
         None
     }
 }
 
 pub open spec fn pod_has_ord(parent_name: StringView, ord: nat) -> (spec_fn(PodView) -> bool) {
-    |pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 == ord
-}
-
-pub open spec fn filter_pods_by_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Seq<PodView> {
-    pods.filter(pod_has_ord(parent_name, ord))
+    |pod: PodView| get_ordinal(parent_name, pod.metadata.name->0) == Some(ord)
 }
 
 pub open spec fn get_pod_with_ord(parent_name: StringView, pods: Seq<PodView>, ord: nat) -> Option<PodView> {
-    let filtered = filter_pods_by_ord(parent_name, pods, ord);
+    let filtered = pods.filter(pod_has_ord(parent_name, ord));
     if filtered.len() > 0 {
         Some(filtered[0])
     } else {
@@ -656,8 +645,8 @@ pub open spec fn partition_pods(parent_name: StringView, replicas: nat, pods: Se
     // condemned is sorted by the decreasing order of the ordinal number of each pod
     // deletion will start with the pod with the largest ordinal number
     let condemned = pods
-        .filter(|pod: PodView| get_ordinal(parent_name, pod) is Some && get_ordinal(parent_name, pod)->0 >= replicas)
-        .sort_by(|p1, p2| get_ordinal(parent_name, p1)->0 >= get_ordinal(parent_name, p2)->0);
+        .filter(|pod: PodView| get_ordinal(parent_name, pod.metadata.name->0) is Some && get_ordinal(parent_name, pod.metadata.name->0)->0 >= replicas)
+        .sort_by(|p1: PodView, p2: PodView| get_ordinal(parent_name, p1.metadata.name->0)->0 >= get_ordinal(parent_name, p2.metadata.name->0)->0);
     (needed, condemned)
 }
 
@@ -783,7 +772,7 @@ pub open spec fn identity_matches(vsts: VStatefulSetView, pod: PodView) -> bool 
 pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     let claims = vsts.spec.volume_claim_templates->0;
     let volumes = pod.spec->0.volumes->0;
-    let ordinal = get_ordinal(vsts.metadata.name->0, pod);
+    let ordinal = get_ordinal(vsts.metadata.name->0, pod.metadata.name->0);
     vsts.spec.volume_claim_templates is Some
     ==> pod.spec->0.volumes is Some
         && forall |i: int| #![trigger claims[i]] 0 <= i < claims.len()
@@ -801,35 +790,18 @@ pub open spec fn pod_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     &&& pod.spec->0.without_volumes() == vsts.spec.template.spec->0.without_volumes()
 }
 
-// Check whether the ordinal is the largest ordinal of pods that don't match vsts
-pub open spec fn is_the_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>, ordinal: nat) -> bool {
-    &&& ordinal < pods.len()
-    &&& pods[ordinal as int] is Some
-    // pods[ordinal] doesn't match vsts
-    &&& !pod_matches(vsts, pods[ordinal as int]->0)
-    // and for any other pods[other_ordinal] that doesn't match vsts, other_ordinal is no larger than ordinal
-    &&& forall |other_ordinal: nat| other_ordinal < pods.len() && #[trigger] pods[other_ordinal as int] is Some && !pod_matches(vsts, pods[other_ordinal as int]->0)
-        ==> other_ordinal <= ordinal
-}
-
-// if exists |p: | ...
-//  choose 
-
-pub open spec fn get_largest_ordinal_of_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<nat> {
-    let filtered = Seq::new(pods.len(), |i: int| i as nat)
-                                .filter(|ordinal: nat| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
-    if filtered.len() > 0 {
-        Some(filtered.last())
-    } else {
-        None
+pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
+    |pod_or_none: Option<PodView>| {
+        let pod = pod_or_none->0;
+        &&& pod_or_none is Some
+        &&& !pod_matches(vsts, pod)
     }
-}
+} 
 
-pub open spec fn get_largest_ordinal_of_unmatched_pods_usize(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<usize> {
-    let filtered = Seq::new(pods.len(), |i: int| i as usize)
-                                .filter(|ordinal: usize| pods[ordinal as int] is Some && !pod_matches(vsts, pods[ordinal as int]->0));
+pub open spec fn get_largest_unmatched_pods(vsts: VStatefulSetView, pods: Seq<Option<PodView>>) -> Option<PodView> {
+    let filtered = pods.filter(outdated_pod_filter(vsts));
     if filtered.len() > 0 {
-        Some(filtered.last())
+        filtered.last()
     } else {
         None
     }
