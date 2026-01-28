@@ -26,10 +26,9 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             };
             let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             // spec is updated
-            &&& PodView::unmarshal_spec(obj.spec) is Ok
-            &&& PodView::unmarshal_spec(obj.spec)->Ok_0 == vsts.spec.template.spec
+            &&& PodView::unmarshal(obj) is Ok
+            &&& pod_matches(vsts, PodView::unmarshal(obj)->Ok_0)
             // labels are updated
             // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
