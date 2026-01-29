@@ -2218,6 +2218,7 @@ requires
     pending_create_needed_pod_req_in_flight(vsts, controller_id)(s),
     req_msg_is(req_msg, vsts.object_ref(), controller_id)(s),
     pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)(s),
+    needed_index > 0,
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterCreateNeeded])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
@@ -2266,6 +2267,18 @@ ensures
                 get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, req.key().name);
                 get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, req.key().name);
                 assert(false);
+            }
+        }
+        assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
+            if outdated_obj_keys_in_etcd(s_prime, vsts).contains(req.key()) {
+                assert(next_local_state.needed[next_local_state.needed_index - 1 as int] is None);
+                assert(exists |pod_opt: Option<PodView>| #[trigger] next_local_state.needed.filter(outdated_pod_filter(vsts)).contains(pod_opt) && pod_opt->0.object_ref() == req.key());
+                let pod_opt = choose |pod_opt: Option<PodView>| #[trigger] next_local_state.needed.filter(outdated_pod_filter(vsts)).contains(pod_opt) && pod_opt->0.object_ref() == req.key();
+                seq_filter_contains_implies_seq_contains(next_local_state.needed, outdated_pod_filter(vsts), pod_opt);
+                let pod_ord = choose |ord: nat| pod_opt == #[trigger] next_local_state.needed[ord as int];
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, pod_ord as nat, pod_opt->0.metadata.name->0);
+                assert(false);
+                // contradition from the pot_opt is Some while the pod at needed_index - 1 is None, and they have the same ordinal
             }
         }
     }
@@ -2433,17 +2446,7 @@ ensures
         }
         assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             if outdated_obj_keys_in_etcd(s, vsts).contains(req.key()) {
-                let filter = |key: ObjectRef| {
-                    &&& s.resources().contains_key(key)
-                    &&& exists |ord: nat| 0 <= ord < replicas(vsts) ==> key == ObjectRef {
-                        kind: PodView::kind(),
-                        name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-                        namespace: vsts.metadata.namespace->0
-                    }
-                    &&& PodView::unmarshal(s.resources()[key]) is Ok
-                    &&& !pod_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
-                };
-                axiom_set_new(filter, req.key());
+                assert(outdated_obj_key_filter(s, vsts)(req.key()));
                 let ord = choose |ord: nat| 0 <= ord < replicas(vsts) && req.key() == ObjectRef {
                     kind: PodView::kind(),
                     name: #[trigger] pod_name(vsts.metadata.name->0, ord),

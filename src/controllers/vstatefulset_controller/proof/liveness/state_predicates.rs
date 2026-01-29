@@ -158,6 +158,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.reconcile_step == AfterCreatePVC ==> state.pvc_index > 0
     // reachable condition
     &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
+    &&& state.reconcile_step == AfterCreateNeeded ==> state.needed[state.needed_index - 1] is None
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
     &&& state.reconcile_step == DeleteCondemned ==> state.condemned_index < state.condemned.len()
     &&& state.reconcile_step == AfterDeleteCondemned ==> state.condemned_index > 0
