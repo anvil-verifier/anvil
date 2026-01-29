@@ -211,7 +211,9 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
+            let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates() // optional?
