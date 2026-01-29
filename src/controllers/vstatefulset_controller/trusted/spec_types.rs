@@ -1,12 +1,13 @@
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{label_selector::*, pod_template_spec::*, persistent_volume_claim::*, prelude::*};
 use crate::vstd_ext::string_view::*;
+use crate::vstatefulset_controller::trusted::exec_types;
 use vstd::prelude::*;
 
 verus! {
 
-pub spec const StatefulSetPodNameLabel: StringView = "statefulset.kubernetes.io/pod-name"@;
-pub spec const StatefulSetOrdinalLabel: StringView = "apps.kubernetes.io/pod-index"@;
+pub spec const StatefulSetPodNameLabel: StringView = exec_types::StatefulSetPodNameLabel@;
+pub spec const StatefulSetOrdinalLabel: StringView = exec_types::StatefulSetOrdinalLabel@;
 
 pub struct VStatefulSetView {
     pub metadata: ObjectMetaView,
@@ -58,9 +59,11 @@ impl VStatefulSetView {
         &&& self.spec.template.spec is Some
         // selector matches template's metadata's labels
         &&& self.spec.selector.matches(self.spec.template.metadata->0.labels.unwrap_or(Map::empty()))
-        &&& self.spec.template.metadata->0.labels is Some ==>
-            (!self.spec.template.metadata->0.labels->0.contains_key(StatefulSetPodNameLabel) &&
-            !self.spec.template.metadata->0.labels->0.contains_key(StatefulSetOrdinalLabel))
+        &&& self.spec.template.metadata->0.labels is Some ==> {
+            let labels = self.spec.template.metadata->0.labels->0;
+            &&& !labels.contains_key(StatefulSetPodNameLabel)
+            &&& !labels.contains_key(StatefulSetOrdinalLabel)
+        }
 
         // replicas is non‑negative
         &&& self.spec.replicas is Some ==>

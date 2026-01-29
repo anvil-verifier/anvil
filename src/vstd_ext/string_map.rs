@@ -50,7 +50,7 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
-    pub fn contains_key(&self, key: &str) -> (res: bool)
+    pub fn contains_key(&self, key: &String) -> (res: bool)
         ensures res == self@.contains_key(key@),
     {
         self.inner.contains_key(key)
