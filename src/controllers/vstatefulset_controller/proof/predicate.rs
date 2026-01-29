@@ -60,6 +60,19 @@ pub open spec fn resp_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: i
     |s: ClusterState| resp_msg_or_none(s, vsts_key, controller_id) == Some(msg)
 }
 
+pub open spec fn outdated_obj_keys_in_etcd(s: ClusterState, vsts: VStatefulSetView) -> Set<ObjectRef> {
+    Set::new(|key: ObjectRef| {
+        &&& s.resources().contains_key(key)
+        &&& exists |ord: nat| 0 <= ord < replicas(vsts) ==> key == ObjectRef {
+            kind: PodView::kind(),
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        }
+        &&& PodView::unmarshal(s.resources()[key]) is Ok
+        &&& !pod_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
+    })
+}
+
 pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
     match vsts.spec.volume_claim_templates {
         Some(pvc_templates) => pvc_templates.len(),
