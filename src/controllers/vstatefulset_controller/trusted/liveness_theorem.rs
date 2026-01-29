@@ -55,6 +55,8 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             // TODO: prove the invariant
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }
+        // 4. No outdated pod in etcd
+        &&& outdated_obj_keys_in_etcd(s, vsts).is_empty()
     }
 }
 

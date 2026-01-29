@@ -195,6 +195,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             _ => state.condemned_index,
         };
         let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
+        let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
         // 1. coherence of needed pods
         &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
             &&& ord < state.needed.len()
@@ -210,8 +211,11 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 namespace: vsts.metadata.namespace->0
             };
             &&& s.resources().contains_key(key)
-            // TODO: cover pod updates
         }
+        // all outdated pods are captured
+        &&& outdated_pod_keys.no_duplicates() // optional?
+        &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done) ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+        &&& (state.reconcile_step == Done && outdated_pod is Some) ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).remove(outdated_pod->0.object_ref())
         // coherence of condemned pods
         // we have 2 ways to encode this:
         // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index].metadata.name->0) are deleted
