@@ -2596,7 +2596,7 @@ ensures
 }
 
 pub proof fn lemma_local_state_is_valid_and_coherent_with_zero_old_pods_implies_current_state_matches(
-    s: ClusterState, vsts: VStatefulSetView, controller_id: int
+    s: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
