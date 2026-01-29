@@ -2608,9 +2608,10 @@ ensures
     current_state_matches(vsts)(s),
 {
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    let outdated_pod = get_largest_unmatched_pods(vsts, local_state.needed);
-    assert(outdated_pod is None) by {
-        assume(false);
+    if let Some(outdated_pod) = get_largest_unmatched_pods(vsts, local_state.needed) {
+        assert(local_state.needed.filter(outdated_pod_filter(vsts)).len() > 0);
+        assert(!outdated_obj_keys_in_etcd(s, vsts).is_empty());
+        assert(false);
     }
     assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)]
         0 <= ord < replicas(vsts) implies forall |i: nat| i < pvc_cnt(vsts) ==> {
