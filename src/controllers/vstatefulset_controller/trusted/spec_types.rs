@@ -5,6 +5,9 @@ use vstd::prelude::*;
 
 verus! {
 
+pub spec const StatefulSetPodNameLabel: StringView = "statefulset.kubernetes.io/pod-name"@;
+pub spec const StatefulSetOrdinalLabel: StringView = "apps.kubernetes.io/pod-index"@;
+
 pub struct VStatefulSetView {
     pub metadata: ObjectMetaView,
     pub spec: VStatefulSetSpecView,
@@ -55,6 +58,9 @@ impl VStatefulSetView {
         &&& self.spec.template.spec is Some
         // selector matches template's metadata's labels
         &&& self.spec.selector.matches(self.spec.template.metadata->0.labels.unwrap_or(Map::empty()))
+        &&& self.spec.template.metadata->0.labels is Some ==>
+            (!self.spec.template.metadata->0.labels->0.contains_key(StatefulSetPodNameLabel) &&
+            !self.spec.template.metadata->0.labels->0.contains_key(StatefulSetOrdinalLabel))
 
         // replicas is non‑negative
         &&& self.spec.replicas is Some ==>

@@ -693,8 +693,8 @@ pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: 
                     Map::<StringView, StringView>::empty()
                 } else {
                     pod.metadata.labels->0
-                }.insert("statefulset.kubernetes.io/pod-name"@, pod.metadata.name->0)
-                .insert("apps.kubernetes.io/pod-index"@, int_to_string_view(ordinal as int))),
+                }.insert(StatefulSetPodNameLabel, pod.metadata.name->0)
+                .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
             ..pod.metadata
         },
         ..pod

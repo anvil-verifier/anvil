@@ -50,6 +50,13 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
+    pub fn contains_key(&self, key: &str) -> (res: bool)
+        ensures res == self@.contains_key(key@),
+    {
+        self.inner.contains_key(key)
+    }
+
+    #[verifier(external_body)]
     pub fn insert(&mut self, key: String, value: String) -> (old_v: Option<String>)
         ensures
             self@ == old(self)@.insert(key@, value@),

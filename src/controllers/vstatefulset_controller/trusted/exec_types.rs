@@ -24,6 +24,9 @@ implement_object_wrapper_type!(
     spec_types::VStatefulSetView
 );
 
+pub exec const StatefulSetPodNameLabel: &'static str = "statefulset.kubernetes.io/pod-name";
+pub exec const StatefulSetOrdinalLabel: &'static str = "apps.kubernetes.io/pod-index";
+
 impl VStatefulSet {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: VStatefulSetSpec)
