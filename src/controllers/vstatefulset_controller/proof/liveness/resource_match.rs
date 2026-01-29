@@ -2596,53 +2596,50 @@ ensures
 }
 
 pub proof fn lemma_local_state_is_valid_and_coherent_with_zero_old_pods_implies_current_state_matches(
-    s: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat
 )
 requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     outdated_obj_keys_in_etcd(s, vsts).is_empty(),
     at_vsts_step(vsts, controller_id, at_step![Done])(s),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len)(s),
 ensures
     current_state_matches(vsts)(s),
 {
-    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] 0 <= ord < replicas(vsts) implies {
-        let key = ObjectRef {
-            kind: PodView::kind(),
-            name: pod_name(vsts.metadata.name->0, ord),
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let outdated_pod = get_largest_unmatched_pods(vsts, local_state.needed);
+    assert(outdated_pod is None) by {
+        assume(false);
+    }
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)]
+        0 <= ord < replicas(vsts) implies forall |i: nat| i < pvc_cnt(vsts) ==> {
+        let pvc_key = ObjectRef {
+            kind: PersistentVolumeClaimView::kind(),
+            name: #[trigger] pvc_name(
+                vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
+                vsts.metadata.name->0,
+                ord
+            ),
             namespace: vsts.metadata.namespace->0
         };
-        let obj = s.resources()[key];
-        &&& s.resources().contains_key(key)
-        // spec is updated
-        &&& PodView::unmarshal(obj) is Ok
-        &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
-        // labels are updated
-        // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
-        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-        // 2. Bound PVCs exist
-        &&& forall |i: int| #![trigger vsts.spec.volume_claim_templates->0[i]] 0 <= i < pvc_cnt(vsts) ==> {
-            let pvc_template = vsts.spec.volume_claim_templates->0[i];
+        &&& s.resources().contains_key(pvc_key)
+    } by {
+        assert forall |i: nat| i < pvc_cnt(vsts) implies {
             let pvc_key = ObjectRef {
                 kind: PersistentVolumeClaimView::kind(),
-                name: pvc_name(pvc_template.metadata.name->0, vsts.metadata.name->0, ord),
+                name: #[trigger] pvc_name(
+                    vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
+                    vsts.metadata.name->0,
+                    ord
+                ),
                 namespace: vsts.metadata.namespace->0
             };
             &&& s.resources().contains_key(pvc_key)
+        } by {
+            let index = (ord, i); // trigger the pvc coherence part in local_state_is_coherent_with_etcd
+            assert(index.0 < replicas(vsts) && index.1 < pvc_cnt(vsts));
         }
-    } by {
-        assume(false);
-    }
-    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] ord >= replicas(vsts) implies !{
-        let key = ObjectRef {
-            kind: PodView::kind(),
-            name: pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        let obj = s.resources()[key];
-        &&& s.resources().contains_key(key)
-    } by {
-        assume(false);
     }
 }
 

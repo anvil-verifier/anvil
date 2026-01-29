@@ -15,7 +15,7 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
     |s: ClusterState| {
         // 1. All needed pods exist and are up-to-date
         // TODO: cover updates to pod.spec.{volumes|hostname|subdomain} and pod.metadata.labels
-        &&& forall |ord: nat| 0 <= ord < replicas(vsts) ==> {
+        &&& forall |ord: nat| ord < replicas(vsts) ==> {
             let key = ObjectRef {
                 kind: PodView::kind(),
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
@@ -30,11 +30,11 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
             // 2. Bound PVCs exist
-            &&& forall |i: int| 0 <= i < pvc_cnt(vsts) ==> {
+            &&& forall |i: nat| i < pvc_cnt(vsts) ==> {
                 let pvc_key = ObjectRef {
                     kind: PersistentVolumeClaimView::kind(),
                     name: #[trigger] pvc_name(
-                        vsts.spec.volume_claim_templates->0[i].metadata.name->0,
+                        vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
                         vsts.metadata.name->0,
                         ord
                     ),

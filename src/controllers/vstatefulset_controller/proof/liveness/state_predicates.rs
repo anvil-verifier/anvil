@@ -198,7 +198,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
         let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
+        &&& forall |ord: nat| {
             &&& ord < state.needed.len()
             &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
             // at last step, one outdated pod will be deleted
@@ -208,17 +208,18 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         } ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
             let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates() // optional?
         &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done) ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
-        &&& (state.reconcile_step == Done && outdated_pod is Some) ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).remove(outdated_pod->0.object_ref())
+        &&& (state.reconcile_step == Done && outdated_pod is Some) ==> outdated_pod_keys.to_set().insert(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts)
         // coherence of condemned pods
         // we have 2 ways to encode this:
         // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index].metadata.name->0) are deleted
