@@ -15,5 +15,6 @@ pub mod unit_tests;
 pub mod vstd_ext;
 
 pub mod vstatefulset_controller;
+pub mod rabbitmq_controller;
 
 use vstd::prelude::*;

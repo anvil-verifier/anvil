@@ -1,17 +1,21 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-
-pub mod external_api;
+#[path = "external_shim_layer/mod.rs"]
+pub mod external_shim_layer;
 pub mod kubernetes_api_objects;
+#[path = "kubernetes_cluster/mod.rs"]
 pub mod kubernetes_cluster;
-#[path = "controller_examples/rabbitmq_controller/mod.rs"]
-pub mod rabbitmq_controller;
+#[path = "reconciler/mod.rs"]
 pub mod reconciler;
+#[path = "shim_layer/mod.rs"]
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
 pub mod vstd_ext;
+
+#[path = "controllers/rabbitmq_controller/mod.rs"]
+pub mod rabbitmq_controller;
 
 use crate::rabbitmq_controller::exec::reconciler::RabbitmqReconciler;
 use deps_hack::anyhow::Result;
