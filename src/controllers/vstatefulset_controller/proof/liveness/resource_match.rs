@@ -14,7 +14,7 @@ use crate::vstatefulset_controller::{
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*};
+use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*, set::*};
 use vstd::prelude::*;
 
 verus! {
@@ -2429,6 +2429,29 @@ ensures
                     assert(!s.resources().contains_key(key));
                     assert(false);
                 }
+            }
+        }
+        assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
+            if outdated_obj_keys_in_etcd(s, vsts).contains(req.key()) {
+                let filter = |key: ObjectRef| {
+                    &&& s.resources().contains_key(key)
+                    &&& exists |ord: nat| 0 <= ord < replicas(vsts) ==> key == ObjectRef {
+                        kind: PodView::kind(),
+                        name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                        namespace: vsts.metadata.namespace->0
+                    }
+                    &&& PodView::unmarshal(s.resources()[key]) is Ok
+                    &&& !pod_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
+                };
+                axiom_set_new(filter, req.key());
+                let ord = choose |ord: nat| 0 <= ord < replicas(vsts) && req.key() == ObjectRef {
+                    kind: PodView::kind(),
+                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                    namespace: vsts.metadata.namespace->0
+                };
+                // it cannot be in condemned pods at the same time
+                get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, req.key().name);
+                assert(false);
             }
         }
     }

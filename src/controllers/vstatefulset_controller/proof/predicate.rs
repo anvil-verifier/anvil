@@ -63,7 +63,7 @@ pub open spec fn resp_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: i
 pub open spec fn outdated_obj_keys_in_etcd(s: ClusterState, vsts: VStatefulSetView) -> Set<ObjectRef> {
     Set::new(|key: ObjectRef| {
         &&& s.resources().contains_key(key)
-        &&& exists |ord: nat| 0 <= ord < replicas(vsts) ==> key == ObjectRef {
+        &&& exists |ord: nat| 0 <= ord < replicas(vsts) && key == ObjectRef {
             kind: PodView::kind(),
             name: #[trigger] pod_name(vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0
