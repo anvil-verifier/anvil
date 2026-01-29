@@ -1468,9 +1468,9 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-pub fn pod_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
+pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
-    ensures res == model_reconciler::pod_matches(vsts@, pod@)
+    ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)
 {
     if let Some(mut spec) = pod.spec() {
         let mut vsts_spec = vsts.spec().template().spec().unwrap();
@@ -1510,7 +1510,7 @@ pub fn get_largest_unmatched_pods(
         decreases pods.len() - ord,
     {
         let pod_or_none = &pods[ord];
-        if pod_or_none.is_some() && !pod_matches(vsts, pod_or_none.clone().unwrap()) {
+        if pod_or_none.is_some() && !pod_spec_matches(vsts, pod_or_none.clone().unwrap()) {
             proof {
                 assert(model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view()));
             }

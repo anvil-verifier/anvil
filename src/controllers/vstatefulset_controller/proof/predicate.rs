@@ -72,7 +72,7 @@ pub open spec fn outdated_obj_key_filter(s: ClusterState, vsts: VStatefulSetView
             namespace: vsts.metadata.namespace->0
         }
         &&& PodView::unmarshal(s.resources()[key]) is Ok
-        &&& !pod_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
+        &&& !pod_spec_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
     }
 }
 

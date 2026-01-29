@@ -784,7 +784,7 @@ pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
 }
 
 // TODO: compare other fields of the pod if necessary
-pub open spec fn pod_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
+pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     // from validation we know vsts.spec.template.spec is Some
     &&& pod.spec is Some
     &&& pod.spec->0.without_volumes() == vsts.spec.template.spec->0.without_volumes()
@@ -794,7 +794,7 @@ pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<P
     |pod_or_none: Option<PodView>| {
         let pod = pod_or_none->0;
         &&& pod_or_none is Some
-        &&& !pod_matches(vsts, pod)
+        &&& !pod_spec_matches(vsts, pod)
     }
 } 
 

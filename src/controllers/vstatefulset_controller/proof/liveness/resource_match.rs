@@ -2605,6 +2605,45 @@ requires
     at_vsts_step(vsts, controller_id, at_step![Done])(s),
 ensures
     current_state_matches(vsts)(s),
-{}
+{
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] 0 <= ord < replicas(vsts) implies {
+        let key = ObjectRef {
+            kind: PodView::kind(),
+            name: pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        let obj = s.resources()[key];
+        &&& s.resources().contains_key(key)
+        // spec is updated
+        &&& PodView::unmarshal(obj) is Ok
+        &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
+        // labels are updated
+        // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        // 2. Bound PVCs exist
+        &&& forall |i: int| #![trigger vsts.spec.volume_claim_templates->0[i]] 0 <= i < pvc_cnt(vsts) ==> {
+            let pvc_template = vsts.spec.volume_claim_templates->0[i];
+            let pvc_key = ObjectRef {
+                kind: PersistentVolumeClaimView::kind(),
+                name: pvc_name(pvc_template.metadata.name->0, vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& s.resources().contains_key(pvc_key)
+        }
+    } by {
+        assume(false);
+    }
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] ord >= replicas(vsts) implies !{
+        let key = ObjectRef {
+            kind: PodView::kind(),
+            name: pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        let obj = s.resources()[key];
+        &&& s.resources().contains_key(key)
+    } by {
+        assume(false);
+    }
+}
 
 }
