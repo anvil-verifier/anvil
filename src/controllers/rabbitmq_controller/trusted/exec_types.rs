@@ -53,78 +53,25 @@ impl View for RabbitmqReconcileState {
     }
 }
 
-#[verifier(external_body)]
-pub struct RabbitmqCluster {
-    inner: deps_hack::RabbitmqCluster
-}
-
-impl View for RabbitmqCluster {
-    type V = spec_types::RabbitmqClusterView;
-
-    uninterp spec fn view(&self) -> spec_types::RabbitmqClusterView;
-}
+implement_custom_object_wrapper_type!(
+    RabbitmqCluster,
+    deps_hack::RabbitmqCluster,
+    spec_types::RabbitmqClusterView
+);
 
 impl RabbitmqCluster {
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: RabbitmqClusterSpec)
         ensures spec@ == self@.spec,
     {
         RabbitmqClusterSpec { inner: self.inner.spec.clone() }
     }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == spec_types::RabbitmqClusterView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::RabbitmqCluster>(&()))
-    }
-
-    #[verifier(external_body)]
-    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-        ensures owner_reference@ == self@.controller_owner_ref(),
-    {
-        // We can safely unwrap here because the trait method implementation always returns a Some(...)
-        OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
-    }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RabbitmqCluster, UnmarshalError>)
-        ensures
-            res is Ok == spec_types::RabbitmqClusterView::unmarshal(obj@) is Ok,
-            res is Ok ==> res->Ok_0@ == spec_types::RabbitmqClusterView::unmarshal(obj@)->Ok_0,
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::RabbitmqCluster>();
-        if parse_result.is_ok() {
-            let res = RabbitmqCluster { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
-    }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::RabbitmqCluster> for RabbitmqCluster {
-    fn from_kube(inner: deps_hack::RabbitmqCluster) -> RabbitmqCluster { RabbitmqCluster { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::RabbitmqCluster { self.inner }
-}
+implement_view_trait!(
+    RabbitmqClusterSpec,
+    spec_types::RabbitmqClusterSpecView
+);
 
 #[verifier(external_body)]
 pub struct RabbitmqClusterSpec {
@@ -132,8 +79,6 @@ pub struct RabbitmqClusterSpec {
 }
 
 impl RabbitmqClusterSpec {
-    pub uninterp spec fn view(&self) -> spec_types::RabbitmqClusterSpecView;
-
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: i32)
         ensures replicas as int == self@.replicas,
@@ -155,7 +100,7 @@ impl RabbitmqClusterSpec {
             rabbitmq_config is Some ==> rabbitmq_config->0@ == self@.rabbitmq_config->0,
     {
         match &self.inner.rabbitmq_config {
-            Some(n) => Some(RabbitmqConfig { inner: n.clone()}),
+            Some(n) => Some(RabbitmqConfig::from_kube(n.clone())),
             None => None,
         }
     }
@@ -164,7 +109,7 @@ impl RabbitmqClusterSpec {
     pub fn persistence(&self) -> (persistence: RabbitmqClusterPersistenceSpec)
         ensures persistence@ == self@.persistence,
     {
-        RabbitmqClusterPersistenceSpec { inner: self.inner.persistence.clone() }
+        RabbitmqClusterPersistenceSpec::from_kube(self.inner.persistence.clone())
     }
 
     #[verifier(external_body)]
@@ -237,14 +182,13 @@ impl RabbitmqClusterSpec {
     }
 }
 
-#[verifier(external_body)]
-pub struct RabbitmqConfig {
-    inner: deps_hack::RabbitmqConfig,
-}
+implement_field_wrapper_type!(
+    RabbitmqConfig,
+    deps_hack::RabbitmqConfig,
+    spec_types::RabbitmqConfigView
+);
 
 impl RabbitmqConfig {
-    pub uninterp spec fn view(&self) -> spec_types::RabbitmqConfigView;
-
     #[verifier(external_body)]
     pub fn additional_config(&self) -> (additional_config: Option<String>)
         ensures
@@ -273,14 +217,13 @@ impl RabbitmqConfig {
     }
 }
 
-#[verifier(external_body)]
-pub struct RabbitmqClusterPersistenceSpec {
-    inner: deps_hack::RabbitmqClusterPersistenceSpec,
-}
+implement_field_wrapper_type!(
+    RabbitmqClusterPersistenceSpec,
+    deps_hack::RabbitmqClusterPersistenceSpec,
+    spec_types::RabbitmqClusterPersistenceSpecView
+);
 
 impl RabbitmqClusterPersistenceSpec {
-    pub uninterp spec fn view(&self) -> spec_types::RabbitmqClusterPersistenceSpecView;
-
     #[verifier(external_body)]
     pub fn storage(&self) -> (storage: String)
         ensures storage@ == self@.storage,
