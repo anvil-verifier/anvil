@@ -89,24 +89,24 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    let pod_list = objects_to_pods(resp_objs)->0;
+    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
-    &&& resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()))
-        .to_set().map(|obj: DynamicObjectView| obj.object_ref())
+    &&& owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
         == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    &&& forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) ==> {
         let key = obj.object_ref();
         let etcd_obj = s.resources()[key];
+        &&& s.resources().contains_key(key)
+        &&& weakly_eq(obj, etcd_obj)
+    }
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
         &&& obj.kind == Kind::PodKind
         &&& PodView::unmarshal(obj) is Ok
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
-        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
-        &&& s.resources().contains_key(key)
-        &&& weakly_eq(etcd_obj, obj) // FIXME: constrain the scope to only cover objects owned by vsts
     }
     &&& objects_to_pods(resp_objs) is Some
 }
@@ -271,6 +271,12 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 &&& s.resources().contains_key(key)
             }
         }
+    }
+}
+
+pub open spec fn etcd_contains_outdated_pods_of(vsts: VStatefulSetView, n: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        outdated_obj_keys_in_etcd(s, vsts).len() == n
     }
 }
 
