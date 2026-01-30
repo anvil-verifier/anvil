@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
@@ -11,6 +10,7 @@ use crate::rabbitmq_controller::model::resource::*;
 use crate::rabbitmq_controller::trusted::maker::*;
 use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -20,15 +20,14 @@ use vstd::string::*;
 
 verus! {
 
-impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
-    type T = RabbitmqReconcileState;
+impl Reconciler<RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView> for RabbitmqReconciler {
 
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
-    open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState)
-    -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) {
+    open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<VoidERespView>>, state: RabbitmqReconcileState)
+    -> (RabbitmqReconcileState, Option<RequestView<VoidEReqView>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -39,8 +38,6 @@ impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
         reconcile_error(state)
     }
-
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* Don't expect anything from the user except the cr object*/ }
 }
 
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {
@@ -65,8 +62,8 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<VoidERespView>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<VoidEReqView>>)
     recommends
         rabbitmq.metadata.name is Some,
         rabbitmq.metadata.namespace is Some,
@@ -116,8 +113,8 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState>>(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<VoidERespView>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<VoidEReqView>>)
     recommends
         rabbitmq.metadata.name is Some,
         rabbitmq.metadata.namespace is Some,
@@ -290,7 +287,7 @@ impl Maker for RabbitmqMaker {
 
     open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView { make_role_binding(rabbitmq) }
 
-    open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView { make_stateful_set(rabbitmq, config_map_rv) }
+    open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> VStatefulSetView { make_stateful_set(rabbitmq, config_map_rv) }
 }
 
 }
