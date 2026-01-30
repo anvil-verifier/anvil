@@ -315,3 +315,22 @@ jobs:
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
           ./build.sh tla_demo.rs --crate-type lib --time
+
+  rabbitmq-verification:
+    needs: setup-toolchain
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Verify vstatefulset controller
+        run: |
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          ./build.sh rabbitmq_controller.rs --rlimit 50 --time --verify-module rabbitmq_controller
