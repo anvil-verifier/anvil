@@ -10,6 +10,7 @@ use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::model::resource::config_map::make_server_config_map_key;
 use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
+use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, VStatefulSetSpecView};
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -35,10 +36,10 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
-        let sts = StatefulSetView::unmarshal(obj);
+        let sts = VStatefulSetView::unmarshal(obj);
         let found_sts = sts->Ok_0;
         if sts is Ok && found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-        && state.latest_config_map_rv_opt is Some && found_sts.spec is Some {
+        && state.latest_config_map_rv_opt is Some {
             Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt->0).marshal())
         } else {
             Err(())
@@ -46,7 +47,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
-        let sts = StatefulSetView::unmarshal(obj);
+        let sts = VStatefulSetView::unmarshal(obj);
         if sts is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
@@ -59,7 +60,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
-        let sts = StatefulSetView::unmarshal(obj);
+        let sts = VStatefulSetView::unmarshal(obj);
         if sts is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
@@ -74,7 +75,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
 
 pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
-        kind: StatefulSetView::kind(),
+        kind: VStatefulSetView::kind(),
         name: make_stateful_set_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace->0,
     }
@@ -84,9 +85,9 @@ pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> String
 
 pub open spec fn sts_restart_annotation() -> StringView { "anvil.dev/lastRestartAt"@ }
 
-pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_stateful_set: StatefulSetView, config_map_rv: StringView) -> StatefulSetView {
-    let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec->0;
-    StatefulSetView {
+pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_stateful_set: VStatefulSetView, config_map_rv: StringView) -> VStatefulSetView {
+    let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec;
+    VStatefulSetView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(rabbitmq)),
             finalizers: None,
@@ -94,17 +95,17 @@ pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_statef
             annotations: make_stateful_set(rabbitmq, config_map_rv).metadata.annotations,
             ..found_stateful_set.metadata
         },
-        spec: Some(StatefulSetSpecView {
+        spec: VStatefulSetSpecView {
             replicas: made_spec.replicas,
             template: made_spec.template,
             persistent_volume_claim_retention_policy: made_spec.persistent_volume_claim_retention_policy,
-            ..found_stateful_set.spec->0
-        }),
+            ..found_stateful_set.spec
+        },
         ..found_stateful_set
     }
 }
 
-pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView {
+pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> VStatefulSetView {
     let name = rabbitmq.metadata.name->0;
     let sts_name = make_stateful_set_name(rabbitmq);
     let namespace = rabbitmq.metadata.namespace->0;
@@ -117,7 +118,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
         .with_labels(make_labels(rabbitmq))
         .with_annotations(rabbitmq.spec.annotations);
 
-    let spec = StatefulSetSpecView {
+    let spec = VStatefulSetSpecView {
         replicas: Some(rabbitmq.spec.replicas),
         service_name: name + "-nodes"@,
         selector: LabelSelectorView::default().with_match_labels(labels),
@@ -155,11 +156,11 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
         }),
         pod_management_policy: Some(rabbitmq.spec.pod_management_policy),
         persistent_volume_claim_retention_policy: rabbitmq.spec.persistent_volume_claim_retention_policy,
-        ..StatefulSetSpecView::default()
+        ..VStatefulSetSpecView::default()
 
     };
 
-    StatefulSetView::default().with_metadata(metadata).with_spec(spec)
+    VStatefulSetView::default().with_metadata(metadata).with_spec(spec)
 }
 
 pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpecView {

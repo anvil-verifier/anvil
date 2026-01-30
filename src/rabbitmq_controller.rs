@@ -17,6 +17,9 @@ pub mod vstd_ext;
 #[path = "controllers/rabbitmq_controller/mod.rs"]
 pub mod rabbitmq_controller;
 
+#[path = "controllers/vstatefulset_controller/mod.rs"]
+pub mod vstatefulset_controller;
+
 // use crate::rabbitmq_controller::exec::reconciler::RabbitmqReconciler;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;

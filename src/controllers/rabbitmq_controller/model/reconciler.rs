@@ -10,6 +10,7 @@ use crate::rabbitmq_controller::model::resource::*;
 use crate::rabbitmq_controller::trusted::maker::*;
 use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -286,7 +287,7 @@ impl Maker for RabbitmqMaker {
 
     open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView { make_role_binding(rabbitmq) }
 
-    open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView { make_stateful_set(rabbitmq, config_map_rv) }
+    open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> VStatefulSetView { make_stateful_set(rabbitmq, config_map_rv) }
 }
 
 }
