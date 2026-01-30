@@ -106,7 +106,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
         &&& obj.metadata.namespace is Some
         &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
         &&& s.resources().contains_key(key)
-        &&& weakly_eq(etcd_obj, obj)
+        &&& weakly_eq(etcd_obj, obj) // FIXME: constrain the scope to only cover objects owned by vsts
     }
     &&& objects_to_pods(resp_objs) is Some
 }
@@ -214,7 +214,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates() // optional?

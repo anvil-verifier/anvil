@@ -1870,7 +1870,7 @@ ensures
 // and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
-)
+) -> (condemned_len: nat)
 requires
     resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1881,8 +1881,12 @@ requires
     pending_list_pod_resp_in_flight(vsts, controller_id)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    at_vsts_step(vsts, controller_id, at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated])(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, 0, 0, 0, condemned_len)(s_prime),
+    replicas(vsts) > 0 && pvc_cnt(vsts) > 0 ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
+    replicas(vsts) > 0 && pvc_cnt(vsts) == 0 ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
+    replicas(vsts) == 0 && condemned_len > 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])(s_prime),
+    replicas(vsts) == 0 && condemned_len == 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s_prime),
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
@@ -1906,10 +1910,10 @@ ensures
     assert(next_local_state.reconcile_step != Error);
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
     let vsts_name = vsts.metadata.name->0;
+    let filtered_pods = pods.filter(pod_filter(vsts));
+    let (needed, condemned) = partition_pods(vsts_name, replicas, filtered_pods);
     assert(replicas >= 0);
     assert(local_state_is_valid_and_coherent(vsts, controller_id)(s_prime)) by {
-        let filtered_pods = pods.filter(pod_filter(vsts));
-        let (needed, condemned) = partition_pods(vsts_name, replicas, filtered_pods);
         assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
             &&& pod.metadata.name is Some
             &&& pod.metadata.namespace is Some
@@ -1951,12 +1955,26 @@ ensures
                 namespace: vsts.metadata.namespace->0,
                 name: needed_pod.metadata.name->0,
             };
+            let obj = s.resources()[key];
             &&& needed_pod.object_ref() == key
             &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& s.resources().contains_key(key)
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
         } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                namespace: vsts.metadata.namespace->0,
+                name: needed[ord as int]->0.metadata.name->0,
+            };
+            let obj = s.resources()[key];
             assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
+            // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
+            get_ordinal_eq_pod_name(vsts_name, ord, key.name);
+            assert(pod_name_match(key.name, vsts_name));
+            assert(s.resources().contains_key(key));
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts)(s));
         }
         // no negative sample of uncaptured condemned pods or needed pods, prove by contradiction
         assert forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) implies {
@@ -2009,7 +2027,18 @@ ensures
                 }
             }
         }
+        let outdated_pod_keys = needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
+        assert(outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)) by {
+            assert forall |key: ObjectRef| #[trigger] outdated_pod_keys.to_set().contains(key) implies outdated_obj_keys_in_etcd(s, vsts).contains(key) by {
+                assert(outdated_pod_keys.contains(key));
+                assert(exists |pod: PodView| needed.filter(outdated_pod_filter(vsts)).contains(pod) && pod.object_ref() == key);
+                let pod = choose |pod: PodView| needed.filter(outdated_pod_filter(vsts)).contains(pod) && pod.object_ref() == key;
+                seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod);
+                assert(s.resources().contains_key(key));
+            }
+        }
     }
+    return condemned.len();
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */

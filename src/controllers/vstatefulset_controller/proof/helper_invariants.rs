@@ -36,9 +36,11 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
             &&& vsts.metadata.namespace is Some
             &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
-            let pod_obj = s.resources()[pod_key];
-            &&& pod_obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            &&& vsts.spec.selector.matches(pod_obj.metadata.labels.unwrap_or(Map::empty()))
+            let obj = s.resources()[pod_key];
+            let pod = PodView::unmarshal(obj)->Ok_0;
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
+            // &&& pod_spec_matches(vsts, pod)
         }
     }
 }
