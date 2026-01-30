@@ -19,15 +19,14 @@ use vstd::string::*;
 
 verus! {
 
-impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
-    type T = RabbitmqReconcileState;
+impl Reconciler<RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView> for RabbitmqReconciler {
 
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
-    open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState)
-    -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) {
+    open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<VoidERespView>>, state: RabbitmqReconcileState)
+    -> (RabbitmqReconcileState, Option<RequestView<VoidEReqView>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -38,8 +37,6 @@ impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
         reconcile_error(state)
     }
-
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* Don't expect anything from the user except the cr object*/ }
 }
 
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {
@@ -64,8 +61,8 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<VoidERespView>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<VoidEReqView>>)
     recommends
         rabbitmq.metadata.name is Some,
         rabbitmq.metadata.namespace is Some,
@@ -115,8 +112,8 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState>>(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<VoidERespView>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<VoidEReqView>>)
     recommends
         rabbitmq.metadata.name is Some,
         rabbitmq.metadata.namespace is Some,

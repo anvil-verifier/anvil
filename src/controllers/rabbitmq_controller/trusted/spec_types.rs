@@ -1,24 +1,16 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
     affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*, owner_reference::*,
     resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
-use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
+use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
-
-pub type RMQStep = Step<RMQMessage>;
-
-pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
-
-pub type RMQMessage = Message<EmptyTypeView, EmptyTypeView>;
-
 pub struct RabbitmqReconciler {}
 
 pub struct RabbitmqReconcileState {
