@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
@@ -25,17 +24,17 @@ verus! {
 pub struct RabbitmqReconciler {}
 
 impl Reconciler for RabbitmqReconciler {
-    type R = RabbitmqCluster;
-    type T = RabbitmqReconcileState;
-    type ExternalAPIType = EmptyAPIShimLayer;
-
-    open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool { rabbitmq@.well_formed() }
+    type S = RabbitmqReconcileState;
+    type K = RabbitmqCluster;
+    type EReq = VoidEReq;
+    type EResp = VoidEResp;
+    type M = spec_types::RabbitmqReconciler;
 
     fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
+    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<VoidEResp>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<VoidEReq>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -75,10 +74,9 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
+pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<VoidEResp>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<VoidEReq>>))
     requires rabbitmq@.well_formed(),
-    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
-        // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
+    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(rabbitmq@, resp_o.deep_view(), state@),
 {
     match &state.reconcile_step {
         RabbitmqReconcileStep::Init => {
@@ -113,13 +111,13 @@ pub fn reconcile_helper<
     SpecBuilder: SpecResourceBuilder<spec_types::RabbitmqClusterView, spec_types::RabbitmqReconcileState>,
     Builder: ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, SpecBuilder>
 >(
-    rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState
-) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
+    rabbitmq: &RabbitmqCluster, resp_o: Option<Response<VoidEResp>>, state: RabbitmqReconcileState
+) -> (res: (RabbitmqReconcileState, Option<Request<VoidEReq>>))
     requires
         rabbitmq@.well_formed(),
         Builder::requirements(rabbitmq@),
         state.reconcile_step is AfterKRequestStep,
-    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(rabbitmq@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_helper::<SpecBuilder>(rabbitmq@, resp_o.deep_view(), state@),
 {
     let step = state.reconcile_step.clone();
     match step {

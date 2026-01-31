@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use super::common::*;
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*, volume_resource_requirements::*,
@@ -11,6 +10,7 @@ use crate::rabbitmq_controller::model::resource as model_resource;
 use crate::rabbitmq_controller::trusted::exec_types::*;
 use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
 use crate::rabbitmq_controller::trusted::step::*;
+use crate::vstatefulset_controller::trusted::exec_types::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -27,7 +27,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
-            api_resource: StatefulSet::api_resource(),
+            api_resource: VStatefulSet::api_resource(),
             name: make_stateful_set_name(rabbitmq),
             namespace: rabbitmq.metadata().namespace().unwrap(),
         }
@@ -49,11 +49,11 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
         // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
         // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
         // will go to create a new one.
-        let sts = StatefulSet::unmarshal(obj);
+        let sts = VStatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let found_sts = sts.unwrap();
             if found_sts.metadata().owner_references_only_contains(&rabbitmq.controller_owner_ref())
-            && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
+            && state.latest_config_map_rv_opt.is_some() {
                 return Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
             }
         }
@@ -61,7 +61,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     }
 
     fn state_after_create(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
-        let sts = StatefulSet::unmarshal(obj);
+        let sts = VStatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
@@ -74,7 +74,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     }
 
     fn state_after_update(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
-        let sts = StatefulSet::unmarshal(obj);
+        let sts = VStatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
@@ -87,19 +87,18 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     }
 }
 
-pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: StatefulSet, config_map_rv: &String) -> (stateful_set: StatefulSet)
+pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: VStatefulSet, config_map_rv: &String) -> (stateful_set: VStatefulSet)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace is Some,
-        found_stateful_set@.spec is Some,
     ensures stateful_set@ == model_resource::update_stateful_set(rabbitmq@, found_stateful_set@, config_map_rv@),
 {
     let made_sts = make_stateful_set(rabbitmq, config_map_rv);
 
     let mut stateful_set = found_stateful_set.clone();
     stateful_set.set_spec({
-        let mut sts_spec = found_stateful_set.spec().unwrap();
-        let made_spec = made_sts.spec().unwrap();
+        let mut sts_spec = found_stateful_set.spec();
+        let made_spec = made_sts.spec();
         sts_spec.set_replicas(made_spec.replicas().unwrap());
         sts_spec.set_template(made_spec.template());
         let pvc_retention_policy = made_spec.persistent_volume_claim_retention_policy();
@@ -141,13 +140,13 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     rabbitmq.metadata().name().unwrap().concat("-server")
 }
 
-pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: StatefulSet)
+pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: VStatefulSet)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace is Some,
     ensures stateful_set@ == model_resource::make_stateful_set(rabbitmq@, config_map_rv@),
 {
-    let mut stateful_set = StatefulSet::default();
+    let mut stateful_set = VStatefulSet::default();
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(rabbitmq));
@@ -158,7 +157,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
         metadata
     });
     stateful_set.set_spec({
-        let mut stateful_set_spec = StatefulSetSpec::default();
+        let mut stateful_set_spec = VStatefulSetSpec::default();
         // Set the replicas number
         stateful_set_spec.set_replicas(rabbitmq.spec().replicas());
         // Set the headless service to assign DNS entry to each Rabbitmq server
@@ -180,7 +179,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                 proof {
                     assert_seqs_equal!(
                         empty_pvc@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec->0.volume_claim_templates->0
+                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec.volume_claim_templates->0
                     );
                 }
                 empty_pvc
@@ -208,7 +207,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                                 assert_seqs_equal!(
                                     access_modes@.map_values(|mode: String| mode@),
                                     model_resource::make_stateful_set(rabbitmq@, config_map_rv@)
-                                        .spec->0.volume_claim_templates->0[0]
+                                        .spec.volume_claim_templates->0[0]
                                         .spec->0.access_modes->0
                                 );
                             }
@@ -232,7 +231,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                 proof {
                     assert_seqs_equal!(
                         volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec->0.volume_claim_templates->0
+                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec.volume_claim_templates->0
                     );
                 }
                 volume_claim_templates

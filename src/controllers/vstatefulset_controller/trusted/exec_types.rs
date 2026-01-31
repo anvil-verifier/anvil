@@ -29,7 +29,14 @@ impl VStatefulSet {
     pub fn spec(&self) -> (spec: VStatefulSetSpec)
         ensures spec@ == self@.spec,
     {
-        VStatefulSetSpec::from_kube(self.inner.spec.to_native())
+        VStatefulSetSpec::from_kube(self.inner.spec)
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: VStatefulSetSpec)
+        ensures self@ == old(self)@.with_spec(spec@)
+    {
+        self.inner.spec = spec.into_kube()
     }
 
     // TODO: move controller_owner_ref to implement_object_wrapper_type
@@ -44,9 +51,12 @@ impl VStatefulSet {
 
 implement_field_wrapper_type!(
     VStatefulSetSpec,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec,
+    deps_hack::VStatefulSetSpec,
     spec_types::VStatefulSetSpecView
 );
+
+// NOTE: updates to statefulset spec for fields other than 'replicas', 'ordinals', 'template', 
+// 'updateStrategy', 'persistentVolumeClaimRetentionPolicy' and 'minReadySeconds' should not be made
 
 impl VStatefulSetSpec {
     #[verifier(external_body)]

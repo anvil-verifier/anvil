@@ -61,10 +61,25 @@ implement_custom_object_wrapper_type!(
 
 impl RabbitmqCluster {
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed_for_namespaced()
+        && self.state_validation()
+    }
+
+    #[verifier(external_body)]
     pub fn spec(&self) -> (spec: RabbitmqClusterSpec)
         ensures spec@ == self@.spec,
     {
         RabbitmqClusterSpec { inner: self.inner.spec.clone() }
+    }
+
+    #[verifier(external_body)]
+    pub fn state_validation(&mut self) -> (b: bool)
+        ensures b == self@.state_validation()
+    {
+        self.inner.spec.replicas >= 0
     }
 }
 
