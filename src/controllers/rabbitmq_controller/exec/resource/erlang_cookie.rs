@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use super::common::*;
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
@@ -88,7 +87,7 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
         owner_references.push(rabbitmq.controller_owner_ref());
         proof {
             assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                owner_references.deep_view(),
                 model_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@).metadata.owner_references->0
             );
         }

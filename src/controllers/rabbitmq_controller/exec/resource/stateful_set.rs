@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use super::common::*;
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*, volume_resource_requirements::*,
@@ -11,6 +10,7 @@ use crate::rabbitmq_controller::model::resource as model_resource;
 use crate::rabbitmq_controller::trusted::exec_types::*;
 use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
 use crate::rabbitmq_controller::trusted::step::*;
+use crate::vstatefulset_controller::trusted::exec_types::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -27,7 +27,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
-            api_resource: StatefulSet::api_resource(),
+            api_resource: VStatefulSet::api_resource(),
             name: make_stateful_set_name(rabbitmq),
             namespace: rabbitmq.metadata().namespace().unwrap(),
         }
@@ -49,11 +49,11 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
         // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
         // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
         // will go to create a new one.
-        let sts = StatefulSet::unmarshal(obj);
+        let sts = VStatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let found_sts = sts.unwrap();
             if found_sts.metadata().owner_references_only_contains(&rabbitmq.controller_owner_ref())
-            && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
+            && state.latest_config_map_rv_opt.is_some() {
                 return Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
             }
         }
@@ -61,7 +61,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     }
 
     fn state_after_create(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
-        let sts = StatefulSet::unmarshal(obj);
+        let sts = VStatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
@@ -74,7 +74,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     }
 
     fn state_after_update(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
-        let sts = StatefulSet::unmarshal(obj);
+        let sts = VStatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
@@ -87,19 +87,18 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     }
 }
 
-pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: StatefulSet, config_map_rv: &String) -> (stateful_set: StatefulSet)
+pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: VStatefulSet, config_map_rv: &String) -> (stateful_set: VStatefulSet)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace is Some,
-        found_stateful_set@.spec is Some,
     ensures stateful_set@ == model_resource::update_stateful_set(rabbitmq@, found_stateful_set@, config_map_rv@),
 {
     let made_sts = make_stateful_set(rabbitmq, config_map_rv);
 
     let mut stateful_set = found_stateful_set.clone();
     stateful_set.set_spec({
-        let mut sts_spec = found_stateful_set.spec().unwrap();
-        let made_spec = made_sts.spec().unwrap();
+        let mut sts_spec = found_stateful_set.spec();
+        let made_spec = made_sts.spec();
         sts_spec.set_replicas(made_spec.replicas().unwrap());
         sts_spec.set_template(made_spec.template());
         let pvc_retention_policy = made_spec.persistent_volume_claim_retention_policy();
@@ -141,13 +140,13 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     rabbitmq.metadata().name().unwrap().concat("-server")
 }
 
-pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: StatefulSet)
+pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: VStatefulSet)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace is Some,
     ensures stateful_set@ == model_resource::make_stateful_set(rabbitmq@, config_map_rv@),
 {
-    let mut stateful_set = StatefulSet::default();
+    let mut stateful_set = VStatefulSet::default();
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(rabbitmq));
@@ -158,7 +157,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
         metadata
     });
     stateful_set.set_spec({
-        let mut stateful_set_spec = StatefulSetSpec::default();
+        let mut stateful_set_spec = VStatefulSetSpec::default();
         // Set the replicas number
         stateful_set_spec.set_replicas(rabbitmq.spec().replicas());
         // Set the headless service to assign DNS entry to each Rabbitmq server
@@ -179,8 +178,8 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                 let empty_pvc = Vec::<PersistentVolumeClaim>::new();
                 proof {
                     assert_seqs_equal!(
-                        empty_pvc@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec->0.volume_claim_templates->0
+                        empty_pvc.deep_view(),
+                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec.volume_claim_templates->0
                     );
                 }
                 empty_pvc
@@ -206,9 +205,9 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                             access_modes.push("ReadWriteOnce".to_string());
                             proof {
                                 assert_seqs_equal!(
-                                    access_modes@.map_values(|mode: String| mode@),
+                                    access_modes.deep_view(),
                                     model_resource::make_stateful_set(rabbitmq@, config_map_rv@)
-                                        .spec->0.volume_claim_templates->0[0]
+                                        .spec.volume_claim_templates->0[0]
                                         .spec->0.access_modes->0
                                 );
                             }
@@ -231,8 +230,8 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                 });
                 proof {
                     assert_seqs_equal!(
-                        volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec->0.volume_claim_templates->0
+                        volume_claim_templates.deep_view(),
+                        model_resource::make_stateful_set(rabbitmq@, config_map_rv@).spec.volume_claim_templates->0
                     );
                 }
                 volume_claim_templates
@@ -310,7 +309,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                             });
                             proof {
                                 assert_seqs_equal!(
-                                    items@.map_values(|item: KeyToPath| item@),
+                                    items.deep_view(),
                                     model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
                                     .sources->0[0].config_map->0.items->0
                                 );
@@ -336,7 +335,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                             });
                             proof {
                                 assert_seqs_equal!(
-                                    items@.map_values(|item: KeyToPath| item@),
+                                    items.deep_view(),
                                     model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
                                     .sources->0[1].secret->0.items->0
                                 );
@@ -349,7 +348,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 });
                 proof {
                     assert_seqs_equal!(
-                        sources@.map_values(|source: VolumeProjection| source@),
+                        sources.deep_view(),
                         model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
                         .sources->0
                     );
@@ -401,7 +400,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 });
                 proof {
                     assert_seqs_equal!(
-                        items@.map_values(|item: DownwardAPIVolumeFile| item@),
+                        items.deep_view(),
                         model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[5].downward_api->0.items->0
                     );
                 }
@@ -421,7 +420,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     }
     proof {
         assert_seqs_equal!(
-            volumes@.map_values(|vol: Volume| vol@),
+            volumes.deep_view(),
             model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0
         );
     }
@@ -445,7 +444,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                         "-c"@,
                         "cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30"@
                     ];
-                    assert_seqs_equal!(command@.map_values(|s: String| s@), spec_cmd);
+                    assert_seqs_equal!(command.deep_view(), spec_cmd);
                 }
 
                 command
@@ -508,7 +507,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
                 proof {
                     assert_seqs_equal!(
-                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
+                        volume_mounts.deep_view(),
                         model_resource::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()[0].volume_mounts->0
                     );
                 }
@@ -518,7 +517,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         proof {
             assert_seqs_equal!(
-                containers@.map_values(|container: Container| container@),
+                containers.deep_view(),
                 model_resource::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()
             );
         }
@@ -552,7 +551,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
                             proof {
                                 assert_seqs_equal!(
-                                    command@.map_values(|s: String| s@),
+                                    command.deep_view(),
                                     model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].lifecycle->0.pre_stop->0.exec_->0.command->0
                                 );
                             }
@@ -638,7 +637,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
                 proof {
                     assert_seqs_equal!(
-                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
+                        volume_mounts.deep_view(),
                         model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].volume_mounts->0
                     );
                 }
@@ -652,7 +651,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
                 proof {
                     assert_seqs_equal!(
-                        ports@.map_values(|port: ContainerPort| port@),
+                        ports.deep_view(),
                         model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].ports->0
                     );
                 }
@@ -677,7 +676,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         proof {
             assert_seqs_equal!(
-                containers@.map_values(|container: Container| container@),
+                containers.deep_view(),
                 model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers
             );
         }
@@ -698,7 +697,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
 pub fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
     requires rabbitmq@.well_formed(),
-    ensures env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env_vars(rabbitmq@)
+    ensures env_vars.deep_view() == model_resource::make_env_vars(rabbitmq@)
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
@@ -728,7 +727,7 @@ pub fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
     ));
     proof {
         assert_seqs_equal!(
-            env_vars@.map_values(|v: EnvVar| v@),
+            env_vars.deep_view(),
             model_resource::make_env_vars(rabbitmq@)
         );
     }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use super::common::*;
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
@@ -103,7 +102,7 @@ pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
 
 pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
     requires rabbitmq@.well_formed(),
-    ensures rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(rabbitmq@).policy_rules->0,
+    ensures rules.deep_view() == model_resource::make_role(rabbitmq@).policy_rules->0,
 {
     let mut rules = Vec::new();
     rules.push({
@@ -113,7 +112,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             api_groups.push("".to_string());
             proof{
                 assert_seqs_equal!(
-                    api_groups@.map_values(|p: String| p@),
+                    api_groups.deep_view(),
                     model_resource::make_role(rabbitmq@).policy_rules->0[0].api_groups->0
                 );
             }
@@ -124,7 +123,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             resources.push("endpoints".to_string());
             proof{
                 assert_seqs_equal!(
-                    resources@.map_values(|p: String| p@),
+                    resources.deep_view(),
                     model_resource::make_role(rabbitmq@).policy_rules->0[0].resources->0
                 );
             }
@@ -135,7 +134,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             verbs.push("get".to_string());
             proof{
                 assert_seqs_equal!(
-                    verbs@.map_values(|p: String| p@),
+                    verbs.deep_view(),
                     model_resource::make_role(rabbitmq@).policy_rules->0[0].verbs
                 );
             }
@@ -150,7 +149,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             api_groups.push("".to_string());
             proof{
                 assert_seqs_equal!(
-                    api_groups@.map_values(|p: String| p@),
+                    api_groups.deep_view(),
                     model_resource::make_role(rabbitmq@).policy_rules->0[1].api_groups->0
                 );
             }
@@ -161,7 +160,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             resources.push("events".to_string());
             proof{
                 assert_seqs_equal!(
-                    resources@.map_values(|p: String| p@),
+                    resources.deep_view(),
                     model_resource::make_role(rabbitmq@).policy_rules->0[1].resources->0
                 );
             }
@@ -172,7 +171,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             verbs.push("create".to_string());
             proof{
                 assert_seqs_equal!(
-                    verbs@.map_values(|p: String| p@),
+                    verbs.deep_view(),
                     model_resource::make_role(rabbitmq@).policy_rules->0[1].verbs
                 );
             }
@@ -182,7 +181,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
     });
     proof{
         assert_seqs_equal!(
-            rules@.map_values(|p: PolicyRule| p@),
+            rules.deep_view(),
             model_resource::make_role(rabbitmq@).policy_rules->0
         );
     }

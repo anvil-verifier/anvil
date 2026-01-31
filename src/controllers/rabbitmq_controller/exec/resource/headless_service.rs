@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use super::common::*;
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
@@ -126,7 +125,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     ports.push(ServicePort::new_with("cluster-rpc".to_string(), 25672));
     proof {
         assert_seqs_equal!(
-            ports@.map_values(|port: ServicePort| port@),
+            ports.deep_view(),
             model_resource::make_headless_service(rabbitmq@).spec->0.ports->0
         );
     }

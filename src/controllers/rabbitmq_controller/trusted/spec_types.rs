@@ -33,6 +33,13 @@ impl RabbitmqClusterView {
         &&& self.metadata.uid is Some
     }
 
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> RabbitmqClusterView {
+        RabbitmqClusterView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
         OwnerReferenceView {
             block_owner_deletion: None,
@@ -113,6 +120,16 @@ pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
     pub advanced_config: Option<StringView>,
     pub env_config: Option<StringView>,
+}
+
+impl RabbitmqConfigView {
+    pub open spec fn default() -> RabbitmqConfigView {
+        RabbitmqConfigView {
+            additional_config: None,
+            advanced_config: None,
+            env_config: None,
+        }
+    }
 }
 
 pub struct RabbitmqClusterPersistenceSpecView {

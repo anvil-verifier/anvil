@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
@@ -28,13 +27,13 @@ pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
 
 pub fn make_owner_references(rabbitmq: &RabbitmqCluster) -> (owner_references: Vec<OwnerReference>)
     requires rabbitmq@.well_formed(),
-    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(rabbitmq@),
+    ensures owner_references.deep_view() ==  model_resource::make_owner_references(rabbitmq@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(rabbitmq.controller_owner_ref());
     proof {
         assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            owner_references.deep_view(),
             model_resource::make_owner_references(rabbitmq@)
         );
     }
@@ -61,7 +60,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
 
 pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
     requires rabbitmq@.well_formed(),
-    ensures service@ == model_resource::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
+    ensures service@ == model_resource::make_service(rabbitmq@, name@, ports.deep_view(), cluster_ip)
 {
     let mut service = Service::default();
     service.set_metadata({

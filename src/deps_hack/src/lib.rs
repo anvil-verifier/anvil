@@ -114,7 +114,7 @@ pub struct ZookeeperPersistence {
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource, Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "RabbitmqCluster")]
 #[kube(shortname = "rbmq", namespaced)]
@@ -155,6 +155,15 @@ pub fn default_pod_management_policy() -> String {
     "Parallel".to_string()
 }
 
+impl Default for RabbitmqCluster {
+    fn default() -> Self {
+        Self {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+            spec: RabbitmqClusterSpec::default(),
+        }
+    }
+}
+
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
     RabbitmqClusterPersistenceSpec {
         storage_class_name: default_storage_class_name(),
@@ -162,7 +171,7 @@ pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqConfig {
     #[serde(rename = "additionalConfig")]
     pub additional_config: Option<String>,
@@ -180,7 +189,7 @@ pub fn default_storage() -> k8s_openapi::apimachinery::pkg::api::resource::Quant
     k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string())
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqClusterPersistenceSpec {
     #[serde(rename = "storageClassName", default = "default_storage_class_name")]
     pub storage_class_name: String,
