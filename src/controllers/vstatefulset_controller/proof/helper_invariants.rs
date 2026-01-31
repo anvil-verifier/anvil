@@ -40,6 +40,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
             let pod = PodView::unmarshal(obj)->Ok_0;
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
+            &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         }
     }
 }

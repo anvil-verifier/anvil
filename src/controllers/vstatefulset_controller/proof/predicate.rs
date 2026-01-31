@@ -21,6 +21,11 @@ pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView)
     &&& obj.spec == obj_prime.spec
 }
 
+pub open spec fn pod_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
+    &&& pod.metadata.without_resource_version() == pod_prime.metadata.without_resource_version()
+    &&& pod.spec == pod_prime.spec
+}
+
 pub open spec fn has_vsts_prefix(name: StringView) -> bool {
     exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
@@ -66,7 +71,7 @@ pub open spec fn outdated_obj_keys_in_etcd(s: ClusterState, vsts: VStatefulSetVi
 
 pub open spec fn outdated_obj_key_filter(s: ClusterState, vsts: VStatefulSetView) -> spec_fn(ObjectRef) -> bool {
     |key: ObjectRef| {
-        &&& exists |ord: nat| 0 <= ord < replicas(vsts) && key == ObjectRef {
+        &&& exists |ord: nat| ord < replicas(vsts) && key == ObjectRef {
             kind: PodView::kind(),
             name: #[trigger] pod_name(vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0

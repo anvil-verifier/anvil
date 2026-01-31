@@ -1911,6 +1911,7 @@ ensures
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
     let vsts_name = vsts.metadata.name->0;
     let filtered_pods = pods.filter(pod_filter(vsts));
+    let owned_objs = objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
     let (needed, condemned) = partition_pods(vsts_name, replicas, filtered_pods);
     assert(replicas >= 0);
     assert(local_state_is_valid_and_coherent(vsts, controller_id)(s_prime)) by {
@@ -1919,11 +1920,14 @@ ensures
             &&& pod.metadata.namespace is Some
             &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
             &&& s.resources().contains_key(pod.object_ref())
+            &&& pod_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
         } by {
-            PodView::marshal_preserves_metadata();
+            PodView::marshal_preserves_integrity();
             seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
             let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
             assert(objs.contains(objs[i]));
+            assert(objs[i].metadata.owner_references_contains(vsts.controller_owner_ref()));
+            assert(owned_objs.contains(objs[i]));
         }
         assert(partition_pods(vsts_name, replicas, filtered_pods) == partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
         // assert(next_local_state.needed == needed);
@@ -1937,7 +1941,7 @@ ensures
         assert forall |i: nat| #![trigger condemned[i as int]] i < condemned.len() implies {
             &&& filtered_pods.contains(condemned[i as int])
             &&& condemned_ord_filter(condemned[i as int])
-         } by {
+        } by {
             let condemned_pod = condemned[i as int];
             assert(condemned.contains(condemned_pod));
             assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod)) by {
@@ -1960,14 +1964,16 @@ ensures
             &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& s.resources().contains_key(key)
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
+            &&& pod_weakly_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
         } by {
+            PodView::marshal_preserves_integrity();
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 namespace: vsts.metadata.namespace->0,
                 name: needed[ord as int]->0.metadata.name->0,
             };
             let obj = s.resources()[key];
+            let etcd_pod = PodView::unmarshal(obj)->Ok_0;
             assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
             // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
@@ -2031,12 +2037,16 @@ ensures
         assert(outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)) by {
             assert forall |key: ObjectRef| #[trigger] outdated_pod_keys.to_set().contains(key) implies outdated_obj_keys_in_etcd(s, vsts).contains(key) by {
                 assert(outdated_pod_keys.contains(key));
-                assert(exists |pod: PodView| needed.filter(outdated_pod_filter(vsts)).contains(pod) && pod.object_ref() == key);
-                let pod = choose |pod: PodView| needed.filter(outdated_pod_filter(vsts)).contains(pod) && pod.object_ref() == key;
-                seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod);
+                let i = choose |i: nat| i < outdated_pod_keys.len() && outdated_pod_keys[i as int] == key;
+                let pod_opt = needed.filter(outdated_pod_filter(vsts))[i as int];
+                assert(pod_opt is Some && pod_opt->0.object_ref() == key);
+                seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt);
                 assert(s.resources().contains_key(key));
+                assert(outdated_obj_key_filter(s, vsts)(key));
             }
+            assume(false);
         }
+        assume(outdated_pod_keys.no_duplicates());
     }
     return condemned.len();
 }

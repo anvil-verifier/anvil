@@ -89,6 +89,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    // these objects can be guarded by rely conditions
     let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
@@ -107,6 +108,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
         &&& PodView::unmarshal(obj) is Ok
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
     }
     &&& objects_to_pods(resp_objs) is Some
 }
@@ -214,6 +216,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates() // optional?
