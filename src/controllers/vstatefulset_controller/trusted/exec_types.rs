@@ -29,7 +29,7 @@ impl VStatefulSet {
     pub fn spec(&self) -> (spec: VStatefulSetSpec)
         ensures spec@ == self@.spec,
     {
-        VStatefulSetSpec::from_kube(self.inner.spec)
+        VStatefulSetSpec::from_kube(self.inner.spec.clone())
     }
 
     #[verifier(external_body)]

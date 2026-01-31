@@ -76,7 +76,7 @@ impl RabbitmqCluster {
     }
 
     #[verifier(external_body)]
-    pub fn state_validation(&mut self) -> (b: bool)
+    pub fn state_validation(&self) -> (b: bool)
         ensures b == self@.state_validation()
     {
         self.inner.spec.replicas >= 0
@@ -143,7 +143,7 @@ impl RabbitmqClusterSpec {
     pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
         ensures
             self@.tolerations is Some == tolerations is Some,
-            tolerations is Some ==> tolerations->0@.map_values(|t: Toleration| t@) == self@.tolerations->0,
+            tolerations is Some ==> tolerations->0.deep_view() == self@.tolerations->0,
     {
         match &self.inner.tolerations {
             Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),

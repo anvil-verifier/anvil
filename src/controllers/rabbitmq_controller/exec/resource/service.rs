@@ -138,7 +138,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     });
     proof {
         assert_seqs_equal!(
-            ports@.map_values(|port: ServicePort| port@),
+            ports.deep_view(),
             model_resource::make_main_service(rabbitmq@).spec->0.ports->0
         );
     }

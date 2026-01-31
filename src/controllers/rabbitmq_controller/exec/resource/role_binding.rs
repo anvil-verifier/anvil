@@ -113,7 +113,7 @@ pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
 
 pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     requires rabbitmq@.well_formed(),
-    ensures subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(rabbitmq@).subjects->0,
+    ensures subjects.deep_view() == model_resource::make_role_binding(rabbitmq@).subjects->0,
 {
     let mut subjects = Vec::new();
     subjects.push({
@@ -125,7 +125,7 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     });
     proof{
         assert_seqs_equal!(
-            subjects@.map_values(|p: Subject| p@),
+            subjects.deep_view(),
             model_resource::make_role_binding(rabbitmq@).subjects->0
         );
     }
