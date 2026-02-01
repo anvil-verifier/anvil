@@ -224,9 +224,23 @@ impl PodSpecView {
         }
     }
 
+    pub open spec fn without_hostname(self) -> PodSpecView {
+        PodSpecView {
+            hostname: None,
+            ..self
+        }
+    }
+
     pub open spec fn with_subdomain(self, subdomain: StringView) -> PodSpecView {
         PodSpecView {
             subdomain: Some(subdomain),
+            ..self
+        }
+    }
+
+    pub open spec fn without_subdomain(self) -> PodSpecView {
+        PodSpecView {
+            subdomain: None,
             ..self
         }
     }
