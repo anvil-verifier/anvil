@@ -224,8 +224,16 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates() // optional?
-        &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done) ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
-        &&& (state.reconcile_step == Done && outdated_pod is Some) ==> outdated_pod_keys.to_set().insert(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts)
+        &&& outdated_pod is None ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+        &&& outdated_pod is Some ==> match state.reconcile_step {
+            AfterDeleteOutdated => if s.resources().contains_key(outdated_pod->0.object_ref()) { // not deleted yet
+                outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+            } else {
+                outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).insert(outdated_pod->0.object_ref())
+            },
+            Done => outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).insert(outdated_pod->0.object_ref()),
+            _ => outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts),
+        }
         // coherence of condemned pods
         // we have 2 ways to encode this:
         // either all pods with ord greater or equal than get_ordinal(vsts_name, state.condemned[condemned_index].metadata.name->0) are deleted
@@ -673,10 +681,10 @@ pub open spec fn pending_get_then_delete_outdated_pod_req_in_flight(
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+        let outdated_pod = get_largest_unmatched_pods(vsts, local_state.needed)->0;
         let outdated_pod_key = ObjectRef {
             kind: Kind::PodKind,
-            name: outdated_pods.last()->0.metadata.name->0,
+            name: outdated_pod.metadata.name->0,
             namespace: vsts.metadata.namespace->0
         };
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
@@ -706,6 +714,13 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
             ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
         // outdated pod is deleted from etcd
         &&& !s.resources().contains_key(outdated_pod_key)
+    }
+}
+
+pub open spec fn outdated_pod_exists_or_not(vsts: VStatefulSetView, controller_id: int, flag: bool) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        &&& get_largest_unmatched_pods(vsts, local_state.needed) is Some == flag
     }
 }
 

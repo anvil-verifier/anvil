@@ -1515,7 +1515,7 @@ ensures
     }
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_deleted_condemned_of_i_leads_to_delete_condemned_of_i_plus_one_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat
@@ -2636,8 +2636,8 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
 }
 
-pub proof fn lemma_from_delete_outdated_to_after_delete_outdated(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+pub proof fn lemma_from_delete_outdated_to_after_delete_outdated_or_done(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, outdated_pod_flag: bool
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -2647,13 +2647,15 @@ requires
     at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
+    outdated_pod_exists_or_not(vsts, controller_id, outdated_pod_flag)(s),
 ensures
-    at_vsts_step(vsts, controller_id, at_step_or![AfterDeleteOutdated, Done])(s_prime),
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    lift_local(controller_id, vsts, at_step![AfterDeleteOutdated])(s_prime) ==>
-        pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s_prime),
-    lift_local(controller_id, vsts, at_step![Done])(s_prime) ==>
-        no_pending_req_in_cluster(vsts, controller_id)(s_prime),
+    outdated_pod_flag ==>
+        pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s_prime) &&
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s_prime),
+    !outdated_pod_flag ==>
+        no_pending_req_in_cluster(vsts, controller_id)(s_prime) &&
+        at_vsts_step(vsts, controller_id, at_step![Done])(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
@@ -2665,11 +2667,14 @@ ensures
         && pod_or_none is Some implies pod_or_none->0.metadata.name is Some by {
         seq_filter_contains_implies_seq_contains(local_state.needed, outdated_pod_filter(triggering_cr), pod_or_none);
     }
+    assert(get_largest_unmatched_pods(triggering_cr, next_local_state.needed) ==
+        get_largest_unmatched_pods(vsts, next_local_state.needed)) by {
+        same_filter_implies_same_result(next_local_state.needed, outdated_pod_filter(triggering_cr), outdated_pod_filter(vsts));
+    }
     if let Some(pod) = get_largest_unmatched_pods(triggering_cr, local_state.needed) {
         assert(outdated_pods.contains(Some(pod))); // trigger
-        assert(get_largest_unmatched_pods(triggering_cr, next_local_state.needed) ==
-            get_largest_unmatched_pods(vsts, next_local_state.needed)) by {
-            same_filter_implies_same_result(next_local_state.needed, outdated_pod_filter(triggering_cr), outdated_pod_filter(vsts));
+        assert(s_prime.resources().contains_key(pod.object_ref())) by {
+            seq_filter_contains_implies_seq_contains(local_state.needed, outdated_pod_filter(triggering_cr), Some(pod));
         }
     }
 }
