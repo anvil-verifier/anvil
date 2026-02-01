@@ -2685,8 +2685,9 @@ ensures
     }
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -2696,33 +2697,40 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s),
+    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s),
+    outdated_len > 0,
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s_prime),
     pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id)(s_prime),
+    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s_prime),
 {
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
         s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts.object_ref(), controller_id)->0
     );
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    let victim_pod = get_largest_unmatched_pods(vsts, local_state.needed)->0;
-    let victim_ord = get_ordinal(vsts.metadata.name->0, victim_pod.metadata.name->0)->0;
+    let outdated_pod = get_largest_unmatched_pods(vsts, next_local_state.needed)->0;
+    let outdated_ord = get_ordinal(vsts.metadata.name->0, outdated_pod.metadata.name->0)->0;
     let req = req_msg_or_none(s, vsts.object_ref(), controller_id)->0.content.get_get_then_delete_request();
+    get_ordinal_eq_pod_name(vsts.metadata.name->0, outdated_ord, outdated_pod.metadata.name->0);
+    assert(get_largest_unmatched_pods(vsts, next_local_state.needed) is Some);
     // prove that deletion will not affect coherence of other needed pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
         assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
             &&& ord < next_local_state.needed.len()
             &&& next_local_state.needed[ord as int] is Some || ord < next_local_state.needed_index
-            &&& ord != victim_ord
+            &&& ord != outdated_ord
         } implies {
             let key = ObjectRef {
                 kind: Kind::PodKind,
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
+            let obj = s_prime.resources()[key];
             &&& s_prime.resources().contains_key(key)
+            &&& vsts.spec.selector.matches(PodView::unmarshal(obj)->Ok_0.metadata.labels.unwrap_or(Map::empty()))
+            &&& next_local_state.needed[ord as int] is Some ==> pod_weakly_eq(next_local_state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
         } by {
             let key = ObjectRef {
                 kind: Kind::PodKind,
@@ -2731,10 +2739,12 @@ ensures
             };
             if !s_prime.resources().contains_key(key) && req.key() == key {
                 get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
-                get_ordinal_eq_pod_name(vsts.metadata.name->0, victim_ord, key.name);
                 assert(false);
             }
         }
+        let outdated_pod_keys = next_local_state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
+        assert(!s_prime.resources().contains_key(outdated_pod.object_ref()));
+        assert(outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).insert(outdated_pod.object_ref()));
     }
 }
 
