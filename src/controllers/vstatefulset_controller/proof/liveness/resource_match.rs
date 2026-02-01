@@ -550,7 +550,7 @@ ensures
     }
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
@@ -662,7 +662,7 @@ ensures
                 match step {
                     Step::APIServerStep(input) => {
                         if input == Some(msg) {
-                            lemma_create_pvc_request_returns_ok_or_already_exists_err_response(s, s_prime, vsts, cluster, controller_id, msg);
+                            lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(s, s_prime, vsts, cluster, controller_id, pvc_index + nat1!(), msg, needed_index, condemned_len, outdated_len);
                             assert(after_create_pvc_state_with_response(s_prime));
                         } else {
                             lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
@@ -1689,7 +1689,8 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_delete_condemned_leads_to_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat, outdated_len: nat
 )
