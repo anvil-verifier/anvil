@@ -2487,30 +2487,6 @@ ensures
         assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             assume(false);
         }
-        assert forall |ord: nat| {
-            &&& ord < next_local_state.needed.len()
-            &&& next_local_state.needed[ord as int] is Some || ord < needed_index
-        } implies {
-            let key = ObjectRef {
-                kind: Kind::PodKind,
-                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            let obj = s_prime.resources()[key];
-            &&& s_prime.resources().contains_key(key)
-            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            &&& next_local_state.needed[ord as int] is Some ==> pod_weakly_eq(next_local_state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
-        } by {
-            let key = ObjectRef {
-                kind: Kind::PodKind,
-                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-                namespace: vsts.metadata.namespace->0
-            };
-            let obj = s_prime.resources()[key];
-            if req.key() == key {
-                assert(vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty())));
-            }
-        }
     }
 }
 
