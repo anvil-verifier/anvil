@@ -22,8 +22,11 @@ pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView)
 }
 
 pub open spec fn pod_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
-    &&& pod.metadata.without_resource_version() == pod_prime.metadata.without_resource_version()
-    &&& pod.spec == pod_prime.spec
+    &&& pod.metadata.without_resource_version().without_labels() == pod_prime.metadata.without_resource_version().without_labels()
+    &&& pod.spec is Some
+    &&& pod_prime.spec is Some
+    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == pod_prime.spec->0.without_volumes().without_hostname().without_subdomain()
 }
 
 pub open spec fn has_vsts_prefix(name: StringView) -> bool {

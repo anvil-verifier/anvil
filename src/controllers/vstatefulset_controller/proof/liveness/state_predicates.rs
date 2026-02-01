@@ -133,7 +133,10 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.pvcs.len() == pvc_cnt
     &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
     &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
-        ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        ==> {
+            &&& state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+            &&& vsts.spec.selector.matches(state.needed[ord as int]->0.metadata.labels.unwrap_or(Map::empty()))
+        }
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
         ==> {
             let condemned_pod = state.condemned[i as int];
@@ -162,6 +165,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
     &&& state.reconcile_step == AfterCreateNeeded ==> state.needed[state.needed_index - 1] is None
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
+    &&& state.reconcile_step == AfterUpdateNeeded ==> state.needed[state.needed_index - 1] is Some
     &&& state.reconcile_step == DeleteCondemned ==> state.condemned_index < state.condemned.len()
     &&& state.reconcile_step == AfterDeleteCondemned ==> state.condemned_index > 0
     &&& state.reconcile_step == AfterDeleteOutdated ==> get_largest_unmatched_pods(vsts, state.needed) is Some
@@ -505,7 +509,7 @@ pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_create
 }
 
 pub open spec fn req_msg_is_get_then_update_needed_pod_req(
-    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, needed_pod: PodView
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, old_pod: PodView
 ) -> bool {
     let req = req_msg.content.get_get_then_update_request();
     let key = ObjectRef {
@@ -521,7 +525,9 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
     // the request does not change the update status of the pod
-    &&& pod_spec_matches(vsts, pod) == pod_spec_matches(vsts, needed_pod)
+    &&& pod_weakly_eq(pod, old_pod)
+    // pod has matching labels
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
 }
 
 pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
@@ -531,10 +537,10 @@ pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
-        let needed_pod = local_state.needed[local_state.needed_index - 1]->0;
+        let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, needed_pod)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
     }
 }
 
@@ -545,11 +551,11 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
-        let needed_pod = local_state.needed[local_state.needed_index - 1]->0;
+        let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
-        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, needed_pod)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -566,11 +572,11 @@ pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
-        let needed_pod = local_state.needed[local_state.needed_index - 1]->0;
+        let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
-        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, needed_pod)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_update_response()

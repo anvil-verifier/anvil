@@ -1921,6 +1921,7 @@ ensures
             &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
             &&& s.resources().contains_key(pod.object_ref())
             &&& pod_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
+            &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         } by {
             PodView::marshal_preserves_integrity();
             seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
@@ -1964,6 +1965,7 @@ ensures
             &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& s.resources().contains_key(key)
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
             &&& pod_weakly_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
         } by {
             PodView::marshal_preserves_integrity();
@@ -2036,12 +2038,14 @@ ensures
         let outdated_pod_keys = needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
         assert(outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)) by {
             assert forall |key: ObjectRef| #[trigger] outdated_pod_keys.to_set().contains(key) implies outdated_obj_keys_in_etcd(s, vsts).contains(key) by {
+                PodView::marshal_preserves_integrity();
                 assert(outdated_pod_keys.contains(key));
                 let i = choose |i: nat| i < outdated_pod_keys.len() && outdated_pod_keys[i as int] == key;
                 let pod_opt = needed.filter(outdated_pod_filter(vsts))[i as int];
                 assert(pod_opt is Some && pod_opt->0.object_ref() == key);
                 seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt);
                 assert(s.resources().contains_key(key));
+                assert(pod_weakly_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
                 assert(outdated_obj_key_filter(s, vsts)(key));
             }
             assert forall |key: ObjectRef| #[trigger] outdated_obj_keys_in_etcd(s, vsts).contains(key) implies outdated_pod_keys.to_set().contains(key) by {
@@ -2433,9 +2437,14 @@ ensures
     }
     let req = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0.content.get_get_then_update_request();
     assert(req.obj == new_pod.marshal());
-    assert(pod_spec_matches(vsts, old_pod) == pod_spec_matches(vsts, new_pod)) by {
+    assert(pod_weakly_eq(new_pod, old_pod)) by {
         assert(new_pod.spec->0.without_volumes().without_hostname().without_subdomain()
             == old_pod.spec->0.without_volumes().without_hostname().without_subdomain());
+    }
+    assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))) by {
+        assert(req.obj.metadata == new_pod.metadata);
+        assert(vsts.spec.selector.matches(old_pod.metadata.labels.unwrap_or(Map::empty())));
+        assert(vsts.spec.selector.matches(update_identity(old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
     }
 }
 
@@ -2461,6 +2470,48 @@ ensures
     lemma_get_then_update_needed_pod_request_returns_ok_response(
         s, s_prime, vsts, cluster, controller_id, req_msg
     );
+    let req = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0.content.get_get_then_update_request();
+    let updated_pod = PodView::unmarshal(req.obj)->Ok_0;
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    if s.resources().contains_key(req.key()) {
+        PodView::marshal_spec_preserves_integrity();
+        let pod = PodView::unmarshal(s.resources()[req.key()])->Ok_0;
+        let pod_prime = PodView::unmarshal(s_prime.resources()[req.key()])->Ok_0;
+        assert(pod_weakly_eq(updated_pod, pod)) by {
+            let local_pod = local_state.needed[needed_index - 1]->0;
+            assert(local_state.needed[needed_index - 1] is Some);
+            assert(pod_weakly_eq(local_pod, pod));
+            assert(pod_weakly_eq(updated_pod, local_pod));
+        }
+        assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
+            assume(false);
+        }
+        assert forall |ord: nat| {
+            &&& ord < next_local_state.needed.len()
+            &&& next_local_state.needed[ord as int] is Some || ord < needed_index
+        } implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s_prime.resources()[key];
+            &&& s_prime.resources().contains_key(key)
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& next_local_state.needed[ord as int] is Some ==> pod_weakly_eq(next_local_state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+        } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            let obj = s_prime.resources()[key];
+            if req.key() == key {
+                assert(vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty())));
+            }
+        }
+    }
 }
 
 pub proof fn lemma_from_get_then_update_needed_pod_resp_to_next_state(
