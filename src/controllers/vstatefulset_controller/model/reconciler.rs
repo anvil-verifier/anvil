@@ -402,7 +402,7 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
         // addede this to be defensive, but it should actually be unreachable
         if old_pod.metadata.name is Some {
             let ordinal = state.needed_index;
-            let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
+            let new_pod = update_storage(vsts, update_identity(old_pod, ordinal), ordinal);
             let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
                 name: new_pod.metadata.name->0,
                 namespace: vsts.metadata.namespace->0,
@@ -675,7 +675,7 @@ pub open spec fn make_pod(vsts: VStatefulSetView, ordinal: nat) -> PodView {
 }
 
 pub open spec fn init_identity(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
-    let updated_pod = update_identity(vsts, pod, ordinal);
+    let updated_pod = update_identity(pod, ordinal);
     PodView {
         spec: Some(PodSpecView {
             hostname: updated_pod.metadata.name,
@@ -686,7 +686,7 @@ pub open spec fn init_identity(vsts: VStatefulSetView, pod: PodView, ordinal: na
     }
 }
 
-pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
+pub open spec fn update_identity(pod: PodView, ordinal: nat) -> PodView {
     PodView {
         metadata: ObjectMetaView {
             labels: Some(if pod.metadata.labels is None {

@@ -551,7 +551,7 @@ pub fn handle_update_needed(
         }
 
         let ordinal = state.needed_index;
-        let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
+        let new_pod = update_storage(vsts, update_identity(old_pod, ordinal), ordinal);
 
         let req = KubeAPIRequest::GetThenUpdateRequest(
             KubeGetThenUpdateRequest {
@@ -972,7 +972,7 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
         result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat),
 {
     
-    let mut updated_pod = update_identity(vsts, pod, ordinal);
+    let mut updated_pod = update_identity(pod, ordinal);
     let mut pod_spec = updated_pod.spec().unwrap();
 
     pod_spec.set_hostname(updated_pod.metadata().name().unwrap());
@@ -984,12 +984,11 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
 }
 
 // TODO: implement this
-pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
+pub fn update_identity(pod: Pod, ordinal: usize) -> (result: Pod)
     requires
-        vsts@.well_formed(),
         pod@.metadata.name is Some,
     ensures
-        result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat),
+        result@ == model_reconciler::update_identity(pod@, ordinal as nat),
 {
 
     let mut result = pod.clone();
