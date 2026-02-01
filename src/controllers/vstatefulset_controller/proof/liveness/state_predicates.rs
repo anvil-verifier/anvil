@@ -295,8 +295,8 @@ pub open spec fn etcd_contains_outdated_pods_of(vsts: VStatefulSetView, n: nat) 
     }
 }
 
-pub open spec fn pvc_needed_condemned_index_and_condemned_len_are(
-    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_index: nat, condemned_len: nat
+pub open spec fn pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
@@ -304,6 +304,7 @@ pub open spec fn pvc_needed_condemned_index_and_condemned_len_are(
         &&& local_state.needed_index == needed_index
         &&& local_state.condemned_index == condemned_index
         &&& local_state.condemned.len() == condemned_len
+        &&& outdated_obj_keys_in_etcd(s, vsts).len() == outdated_len
     }
 }
 
@@ -725,27 +726,27 @@ pub open spec fn outdated_pod_exists_or_not(vsts: VStatefulSetView, controller_i
 }
 
 pub open spec fn after_handle_create_or_skip_pvc_helper(
-    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
+    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
     if pvc_index < pvc_cnt(vsts) {
         and!(
             at_vsts_step(vsts, controller_id, at_step![GetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
         )
     } else {
         and!(
             at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
         )
     }
 }
 
 pub open spec fn after_handle_after_create_or_after_update_needed_helper(
-    vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat
+    vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
     if needed_index < replicas(vsts) {
         if pvc_cnt(vsts) > 0 {
@@ -753,14 +754,14 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
                 at_vsts_step(vsts, controller_id, at_step![GetPVC]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len, outdated_len)
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len, outdated_len)
             )
         }
     } else {
@@ -769,14 +770,14 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
                 at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
             )
         }
     }
