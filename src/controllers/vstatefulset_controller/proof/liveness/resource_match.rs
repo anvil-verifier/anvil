@@ -2421,6 +2421,22 @@ ensures
     pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index + nat1!(), nat0!(), condemned_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    PodView::marshal_preserves_integrity();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
+    let old_pod = local_state.needed[needed_index as int]->0;
+    let new_pod = update_storage(vsts, update_identity(old_pod, needed_index), needed_index);
+    assert(update_storage(vsts, update_identity(old_pod, needed_index), needed_index)
+        == update_storage(triggering_cr, update_identity(old_pod, needed_index), needed_index)) by {
+        assert(triggering_cr.spec == vsts.spec);
+        assert(make_pvcs(triggering_cr, needed_index) == make_pvcs(vsts, needed_index));
+    }
+    let req = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0.content.get_get_then_update_request();
+    assert(req.obj == new_pod.marshal());
+    assert(pod_spec_matches(vsts, old_pod) == pod_spec_matches(vsts, new_pod)) by {
+        assert(new_pod.spec->0.without_volumes().without_hostname().without_subdomain()
+            == old_pod.spec->0.without_volumes().without_hostname().without_subdomain());
+    }
 }
 
 pub proof fn lemma_from_after_send_get_then_update_needed_pod_req_to_receive_get_then_update_needed_pod_resp(
