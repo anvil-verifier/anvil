@@ -2247,6 +2247,10 @@ ensures
     lemma_create_pvc_request_returns_ok_or_already_exists_err_response(
         s, s_prime, vsts, cluster, controller_id, req_msg
     );
+    assert(outdated_obj_keys_in_etcd(s_prime, vsts) == outdated_obj_keys_in_etcd(s, vsts)) by {
+        assert(forall |key| (#[trigger] outdated_obj_key_filter(s, vsts)(key) || outdated_obj_key_filter(s_prime, vsts)(key)) ==>
+            key.kind == Kind::PodKind);
+    }
 }
 
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
