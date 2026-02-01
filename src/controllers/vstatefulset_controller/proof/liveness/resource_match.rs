@@ -2108,7 +2108,7 @@ ensures
             assert(false);
         }
     }
-    return (condemned.len(), outdated_obj_keys_in_etcd(s, vsts).len());
+    return (condemned.len(), next_local_state.needed.filter(outdated_pod_filter(vsts)).len());
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */
