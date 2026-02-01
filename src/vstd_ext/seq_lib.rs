@@ -402,6 +402,13 @@ pub proof fn lemma_homomorphism_of_map_values<A, B, C>(s: Seq<A>, f1: spec_fn(A)
     }
 }
 
+#[verifier(external_body)] // TODO
+pub proof fn lemma_different_filtered_elem_maps_to_different_elems<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+ensures
+    forall |i, j| 0 <= i < s.filter(pred).len() && 0 <= j < s.filter(pred).len() && i != j ==>
+        exists |m, n| 0 <= m < s.len() && 0 <= n < s.len() && #[trigger] s.filter(pred)[i] == s[m] && #[trigger] s.filter(pred)[j] == s[n] && m != n,
+{}
+
 // currently not provable because sort_by is closed spec
 #[verifier(external_body)]
 pub proof fn lemma_sort_by_does_not_add_or_delete_elements<A>(s: Seq<A>, leq: spec_fn(A, A) -> bool)

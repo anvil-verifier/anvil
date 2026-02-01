@@ -2080,7 +2080,28 @@ ensures
                 assert(outdated_pod_keys.contains(key));
             }
         }
-        assume(outdated_pod_keys.no_duplicates());
+        assert(outdated_pod_keys.no_duplicates()) by {
+            if exists |i: nat, j: nat| i < outdated_pod_keys.len() && j < outdated_pod_keys.len()
+                && i != j && outdated_pod_keys[i as int] == outdated_pod_keys[j as int] {
+                let (i, j) = choose |i: nat, j: nat| i < outdated_pod_keys.len() && j < outdated_pod_keys.len()
+                    && i != j && outdated_pod_keys[i as int] == outdated_pod_keys[j as int];
+                let key = outdated_pod_keys[i as int];
+                let pod_opt_i = needed.filter(outdated_pod_filter(vsts))[i as int];
+                let pod_opt_j = needed.filter(outdated_pod_filter(vsts))[j as int];
+                assert(pod_opt_i is Some && pod_opt_j is Some);
+                seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_i);
+                seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_j);
+                let pod_ord_i = choose |ord: nat| ord < replicas && needed[ord as int] == pod_opt_i;
+                assert(exists |ord: nat| ord < replicas && needed[ord as int] == pod_opt_j && ord != pod_ord_i) by {
+                    lemma_different_filtered_elem_maps_to_different_elems(needed, outdated_pod_filter(vsts));
+                };
+                let pod_ord_j = choose |ord: nat| ord < replicas && needed[ord as int] == pod_opt_j && ord != pod_ord_i;
+                get_ordinal_eq_pod_name(vsts_name, pod_ord_i, key.name);
+                get_ordinal_eq_pod_name(vsts_name, pod_ord_j, key.name);
+                assert(pod_ord_i == pod_ord_j);
+                assert(false);
+            }
+        }
     }
     return condemned.len();
 }
