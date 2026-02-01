@@ -1474,7 +1474,11 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
     if let Some(mut spec) = pod.spec() {
         let mut vsts_spec = vsts.spec().template().spec().unwrap();
         spec.unset_volumes();
+        spec.unset_hostname();
+        spec.unset_subdomain();
         vsts_spec.unset_volumes();
+        vsts_spec.unset_hostname();
+        vsts_spec.unset_subdomain();
         return spec.eq_spec(&vsts_spec);
     } else {
         return false;
