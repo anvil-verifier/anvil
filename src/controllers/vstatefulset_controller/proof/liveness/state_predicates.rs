@@ -304,7 +304,7 @@ pub open spec fn pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
         &&& local_state.needed_index == needed_index
         &&& local_state.condemned_index == condemned_index
         &&& local_state.condemned.len() == condemned_len
-        &&& outdated_obj_keys_in_etcd(s, vsts).len() == outdated_len
+        &&& local_state.needed.filter(outdated_pod_filter(vsts)).len() == outdated_len
     }
 }
 

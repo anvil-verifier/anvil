@@ -2761,18 +2761,12 @@ pub proof fn lemma_local_state_is_valid_and_coherent_with_zero_old_pods_implies_
 requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
-    outdated_obj_keys_in_etcd(s, vsts).is_empty(),
     at_vsts_step(vsts, controller_id, at_step![Done])(s),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, nat0!())(s),
 ensures
     current_state_matches(vsts)(s),
 {
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    if let Some(outdated_pod) = get_largest_unmatched_pods(vsts, local_state.needed) {
-        assert(local_state.needed.filter(outdated_pod_filter(vsts)).len() > 0);
-        assert(!outdated_obj_keys_in_etcd(s, vsts).is_empty());
-        assert(false);
-    }
     assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)]
         0 <= ord < replicas(vsts) implies forall |i: nat| i < pvc_cnt(vsts) ==> {
         let pvc_key = ObjectRef {
@@ -2800,6 +2794,33 @@ ensures
         } by {
             let index = (ord, i); // trigger the pvc coherence part in local_state_is_coherent_with_etcd
             assert(index.0 < replicas(vsts) && index.1 < pvc_cnt(vsts));
+        }
+    }
+    assert(get_largest_unmatched_pods(vsts, local_state.needed) is None);
+    assert forall |ord: nat| ord < replicas(vsts) implies {
+        let pod_key = ObjectRef {
+            kind: PodView::kind(),
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        let obj = s.resources()[pod_key];
+        &&& s.resources().contains_key(pod_key)
+        &&& PodView::unmarshal(obj) is Ok
+        &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
+    } by {
+        assert(ord < local_state.needed_index);
+        let key = ObjectRef {
+            kind: PodView::kind(),
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        let obj = s.resources()[key];
+        assert(s.resources().contains_key(key));
+        if !pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0) {
+            PodView::marshal_preserves_integrity();
+            assert(outdated_obj_key_filter(s, vsts)(key));
+            assert(outdated_obj_keys_in_etcd(s, vsts).contains(key));
+            assert(false);
         }
     }
 }
