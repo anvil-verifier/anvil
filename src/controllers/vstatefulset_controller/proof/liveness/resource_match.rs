@@ -2485,7 +2485,13 @@ ensures
             assert(pod_weakly_eq(updated_pod, local_pod));
         }
         assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
-            assume(false);
+            assert forall |key: ObjectRef| #[trigger] s.resources().contains_key(key) implies
+                outdated_obj_key_filter(s, vsts)(key) == outdated_obj_key_filter(s_prime, vsts)(key) by {
+                if key == req.key() {
+                    PodView::marshal_spec_preserves_integrity();
+                    assert(pod_weakly_eq(pod_prime, pod));
+                }
+            }
         }
     }
 }
