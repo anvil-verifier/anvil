@@ -1872,7 +1872,7 @@ ensures
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
 // and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, outdated_len: nat
 ) -> (condemned_outdated_len: (nat, nat))
 requires
     resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
@@ -1882,6 +1882,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     pending_list_pod_resp_in_flight(vsts, controller_id)(s),
+    outdated_obj_keys_in_etcd(s, vsts).len() == outdated_len,
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
@@ -2638,7 +2639,7 @@ ensures
 }
 
 pub proof fn lemma_from_delete_outdated_to_after_delete_outdated_or_done(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, outdated_pod_flag: bool
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -2648,13 +2649,13 @@ requires
     at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     no_pending_req_in_cluster(vsts, controller_id)(s),
-    outdated_pod_exists_or_not(vsts, controller_id, outdated_pod_flag)(s),
+    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    outdated_pod_flag ==>
+    outdated_len > 0 ==>
         pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s_prime) &&
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s_prime),
-    !outdated_pod_flag ==>
+    outdated_len == 0 ==>
         no_pending_req_in_cluster(vsts, controller_id)(s_prime) &&
         at_vsts_step(vsts, controller_id, at_step![Done])(s_prime),
 {
@@ -2672,11 +2673,15 @@ ensures
         get_largest_unmatched_pods(vsts, next_local_state.needed)) by {
         same_filter_implies_same_result(next_local_state.needed, outdated_pod_filter(triggering_cr), outdated_pod_filter(vsts));
     }
-    if let Some(pod) = get_largest_unmatched_pods(triggering_cr, local_state.needed) {
+    if outdated_len > 0 {
+        assert(get_largest_unmatched_pods(triggering_cr, local_state.needed) is Some);
+        let pod = get_largest_unmatched_pods(triggering_cr, local_state.needed)->0;
         assert(outdated_pods.contains(Some(pod))); // trigger
         assert(s_prime.resources().contains_key(pod.object_ref())) by {
             seq_filter_contains_implies_seq_contains(local_state.needed, outdated_pod_filter(triggering_cr), Some(pod));
         }
+    } else {
+        assert(get_largest_unmatched_pods(triggering_cr, local_state.needed) is None);
     }
 }
 
