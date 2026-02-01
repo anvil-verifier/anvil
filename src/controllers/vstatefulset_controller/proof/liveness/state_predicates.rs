@@ -365,7 +365,6 @@ pub open spec fn resp_msg_is_pending_get_pvc_resp_in_flight(
 pub open spec fn req_msg_is_create_pvc_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
 ) -> bool {
-    let req = req_msg.content->APIRequest_0;
     let key = ObjectRef {
         kind: Kind::PersistentVolumeClaimKind,
         namespace: vsts.metadata.namespace->0,
@@ -440,10 +439,13 @@ pub open spec fn req_msg_is_create_needed_pod_req(
         name: pod_name(vsts.metadata.name->0, ord),
         namespace: vsts.metadata.namespace->0
     };
+    let pod = PodView::unmarshal(req.obj)->Ok_0;
     &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_create_request_msg(key)(req_msg)
+    &&& PodView::unmarshal(req.obj) is Ok
+    &&& pod_spec_matches(vsts, pod)
 }
 
 pub open spec fn pending_create_needed_pod_req_in_flight(

@@ -2365,14 +2365,11 @@ ensures
         }
         assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             if outdated_obj_keys_in_etcd(s_prime, vsts).contains(req.key()) {
-                assert(next_local_state.needed[next_local_state.needed_index - 1 as int] is None);
-                assert(exists |pod_opt: Option<PodView>| #[trigger] next_local_state.needed.filter(outdated_pod_filter(vsts)).contains(pod_opt) && pod_opt->0.object_ref() == req.key());
-                let pod_opt = choose |pod_opt: Option<PodView>| #[trigger] next_local_state.needed.filter(outdated_pod_filter(vsts)).contains(pod_opt) && pod_opt->0.object_ref() == req.key();
-                seq_filter_contains_implies_seq_contains(next_local_state.needed, outdated_pod_filter(vsts), pod_opt);
-                let pod_ord = choose |ord: nat| pod_opt == #[trigger] next_local_state.needed[ord as int];
-                get_ordinal_eq_pod_name(vsts.metadata.name->0, pod_ord as nat, pod_opt->0.metadata.name->0);
-                assert(false);
-                // contradition from the pot_opt is Some while the pod at needed_index - 1 is None, and they have the same ordinal
+                if s.resources().contains_key(req.key()) { // noop
+                } else {
+                    PodView::marshal_spec_preserves_integrity();
+                    assert(false);
+                }
             }
         }
     }
