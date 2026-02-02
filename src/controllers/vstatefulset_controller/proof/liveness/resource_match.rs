@@ -120,6 +120,8 @@ ensures
     assume(false);
 }
 
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -160,7 +162,64 @@ ensures
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
-                    assume(false);
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                    let owned_obj_keys = s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref());
+                    let owned_obj_keys_prime = s_prime.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref());
+                    assert(owned_obj_keys == owned_obj_keys_prime) by {
+                        if exists |key: ObjectRef| owned_obj_keys.contains(key) && !owned_obj_keys_prime.contains(key) {
+                            let key = choose |key: ObjectRef| owned_obj_keys.contains(key) && !owned_obj_keys_prime.contains(key);
+                            let obj = s.resources()[key];
+                            assert({
+                                &&& s.resources().contains_key(key)
+                                &&& key.kind == Kind::PodKind
+                                &&& key.namespace == vsts.metadata.namespace->0
+                                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                            }); // pre of lemma_no_interference
+                            if s_prime.resources().contains_key(key) {
+                                let obj_prime = s_prime.resources()[key];
+                                if(valid_owned_object_filter(vsts)(obj_prime)) {
+                                    assert(s_prime.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj_prime));
+                                    assert(owned_obj_keys_prime.contains(key));
+                                    assert(false);
+                                }
+                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                assert(false);
+                            } else {
+                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                assert(false);
+                            }
+                        }
+                        if exists |key: ObjectRef| owned_obj_keys_prime.contains(key) && !owned_obj_keys.contains(key) {
+                            let key = choose |key: ObjectRef| owned_obj_keys_prime.contains(key) && !owned_obj_keys.contains(key);
+                            let obj_prime = s_prime.resources()[key];
+                            assert({
+                                &&& s_prime.resources().contains_key(key)
+                                &&& key.kind == Kind::PodKind
+                                &&& key.namespace == vsts.metadata.namespace->0
+                                &&& obj_prime.metadata.owner_references_contains(vsts.controller_owner_ref())
+                            }); // pre of lemma_no_interference
+                            if s.resources().contains_key(key) {
+                                let obj = s.resources()[key];
+                                if (valid_owned_object_filter(vsts)(obj)) {
+                                    assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
+                                    assert(owned_obj_keys.contains(key));
+                                    assert(false);
+                                }
+                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                assert(false);
+                            } else {
+                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                assert(false);
+                            }
+                        }
+                    }
+                    assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies
+                        s_prime.resources().contains_key(obj.object_ref()) && weakly_eq(obj, s_prime.resources()[obj.object_ref()]) by {
+                        assume(false);
+                    }
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0, outdated_len);
+                    assert(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime));
                 },
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
@@ -550,7 +609,7 @@ ensures
                                         &&& key.namespace == vsts.metadata.namespace->0
                                         &&& pvc_name_match(key.name, vsts.metadata.name->0)
                                     })); // pre of lemma_no_interference
-                                    shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+                                    shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
                                 }
                             }
                         }
@@ -943,7 +1002,7 @@ ensures
                             &&& key.namespace == vsts.metadata.namespace->0
                             &&& pvc_name_match(key.name, vsts.metadata.name->0)
                         })); // pre of lemma_no_interference
-                        shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+                        shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                 },
                 Step::BuiltinControllersStep(_) => {}, // hardener
@@ -1351,7 +1410,7 @@ ensures
                             &&& key.namespace == vsts.metadata.namespace->0
                             &&& pod_name_match(key.name, vsts.metadata.name->0)
                         })); // pre of lemma_no_interference
-                        shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+                        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                 },
                 _ => {
@@ -1625,7 +1684,7 @@ ensures
                                 &&& key.namespace == vsts.metadata.namespace->0
                                 &&& pod_name_match(key.name, vsts.metadata.name->0)
                             })); // pre of lemma_no_interference
-                            shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+                            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                     },
                     _ => {
@@ -1939,7 +1998,7 @@ ensures
                         let ord = get_ordinal(vsts.metadata.name->0, key.name)->0;
                         assert(key.name == pod_name(vsts.metadata.name->0, ord));
                         assert(s.resources().contains_key(key)) by {
-                            shield_lemma::lemma_no_interference(s, s_prime, vsts, cluster, controller_id, input->0);
+                            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                         assert(false);
                     }

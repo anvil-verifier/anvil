@@ -38,6 +38,7 @@ pub open spec fn valid_owned_object_filter(vsts: VStatefulSetView) -> spec_fn(Dy
         &&& obj.kind == Kind::PodKind
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     }
 }
