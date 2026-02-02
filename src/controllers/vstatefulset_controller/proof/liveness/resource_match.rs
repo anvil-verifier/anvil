@@ -2775,6 +2775,15 @@ ensures
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    let req = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0.content.get_get_then_delete_request();
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let outdated_pod = get_largest_unmatched_pods(vsts, next_local_state.needed)->0;
+    assert(req.key() == outdated_pod.object_ref()) by {
+        // so outdated pod follows needed pod naming convention
+        seq_filter_contains_implies_seq_contains(
+            next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
+        );
+    }
 }
 
 pub proof fn lemma_local_state_is_valid_and_coherent_with_zero_old_pods_implies_current_state_matches(
