@@ -225,10 +225,15 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
                     if condemned_index < condemned.len() {
                         (VStatefulSetReconcileState {
                             reconcile_step: VStatefulSetReconcileStepView::DeleteCondemned,
+                            pvc_index: pvcs.len(), // reset the index when entering DeleteCondemned state
                             ..state_without_step
                         }, None)
                     } else {
-                        (delete_outdated_state(state_without_step), None)
+                        (VStatefulSetReconcileState {
+                            reconcile_step: VStatefulSetReconcileStepView::DeleteOutdated,
+                            pvc_index: pvcs.len(),
+                            ..state_without_step
+                        }, None)
                     }
                 }
             } else {

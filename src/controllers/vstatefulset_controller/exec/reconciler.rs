@@ -286,12 +286,20 @@ pub fn handle_after_list_pod(
                         (
                             VStatefulSetReconcileState {
                                 reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                                pvc_index: pvcs.len(), // reset the index when entering DeleteCondemned state
                                 ..state_without_step
                             },
                             None,
                         )
                     } else {
-                        (delete_outdated_state(state_without_step), None)
+                        (
+                            VStatefulSetReconcileState {
+                                reconcile_step: VStatefulSetReconcileStep::DeleteOutdated,
+                                pvc_index: pvcs.len(),
+                                ..state_without_step
+                            },
+                            None,
+                        )
                     }
                 }
             } else {
