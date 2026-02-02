@@ -129,6 +129,6 @@ requires
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-{}  
+{}
 
 }

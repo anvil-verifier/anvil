@@ -722,10 +722,15 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
     }
 }
 
-pub open spec fn outdated_pod_exists_or_not(vsts: VStatefulSetView, controller_id: int, flag: bool) -> StatePred<ClusterState> {
+pub open spec fn n_outdated_pods_in_etcd(vsts: VStatefulSetView, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        &&& get_largest_unmatched_pods(vsts, local_state.needed) is Some == flag
+        outdated_obj_keys_in_etcd(s, vsts).len() == n
+    }
+}
+
+pub open spec fn reconcile_idle(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
     }
 }
 

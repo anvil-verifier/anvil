@@ -1832,6 +1832,74 @@ ensures
     );
 }
 
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_spec_entails_done_leads_to_reconcile_idle(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![Done]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        n_outdated_pods_in_etcd(vsts, outdated_len)
+    )).leads_to(lift_state(and!(
+        reconcile_idle(vsts, controller_id),
+        n_outdated_pods_in_etcd(vsts, outdated_len)
+    )))),
+{
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+    );
+    let done_state = and!(
+        at_vsts_step(vsts, controller_id, at_step![Done]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        n_outdated_pods_in_etcd(vsts, outdated_len)
+    );
+    let reconcile_idle_state = and!(
+        reconcile_idle(vsts, controller_id),
+        n_outdated_pods_in_etcd(vsts, outdated_len)
+    );
+    assert(spec.entails(lift_state(done_state).leads_to(lift_state(reconcile_idle_state)))) by {
+        assert forall |s, s_prime| done_state(s) && #[trigger] stronger_next(s, s_prime) implies
+            done_state(s_prime) || reconcile_idle_state(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {}
+                },
+                Step::APIServerStep(input) => {
+                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                    assert(done_state(s_prime));
+                },
+                _ => {
+                    assert(s_prime.resources() == s.resources());
+                }
+            }
+        }
+        let input = (None, Some(vsts.object_ref()));
+        cluster.lemma_pre_leads_to_post_by_controller(
+            spec, controller_id, input, stronger_next, ControllerStep::EndReconcile, done_state, reconcile_idle_state
+        );
+    }
+}
+
 pub proof fn lemma_from_init_to_after_list_pod(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
