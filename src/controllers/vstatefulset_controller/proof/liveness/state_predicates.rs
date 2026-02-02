@@ -138,41 +138,41 @@ pub open spec fn after_handle_list_pod_helper(
     if replicas(vsts) > 0 {
         if pvc_cnt(vsts) > 0 {
             and!(
+                at_vsts_step(vsts, controller_id, at_step![GetPVC]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
                     vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
-                ),
-                at_vsts_step(vsts, controller_id, at_step![GetPVC])
+                )
             )
         } else {
             and!(
+                at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
                     vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
-                ),
-                at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])
+                )
             )
         }
     } else {
         if condemned_len > 0 {
             and!(
+                at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
-                    vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
-                ),
-                at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])
+                    vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), condemned_len, outdated_len
+                )
             )
         } else {
             and!(
+                at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
-                    vsts, controller_id, nat0!(), nat0!(), nat0!(), nat0!(), outdated_len
-                ),
-                at_vsts_step(vsts, controller_id, at_step_or![DeleteOutdated, Done])
+                    vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), nat0!(), outdated_len
+                )
             )
         }
     }
@@ -355,12 +355,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 &&& s.resources().contains_key(key)
             }
         }
-    }
-}
-
-pub open spec fn etcd_contains_outdated_pods_of(vsts: VStatefulSetView, n: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        outdated_obj_keys_in_etcd(s, vsts).len() == n
     }
 }
 

@@ -141,9 +141,9 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     req_msg.dst == HostId::APIServer,
-    etcd_contains_outdated_pods_of(vsts, outdated_len)(s),
+    n_outdated_pods_in_etcd(vsts, outdated_len)(s),
 ensures
-    etcd_contains_outdated_pods_of(vsts, outdated_len)(s_prime),
+    n_outdated_pods_in_etcd(vsts, outdated_len)(s_prime),
 {}
 
 }
