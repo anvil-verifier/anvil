@@ -67,7 +67,7 @@ pub open spec fn pending_list_pod_req_in_flight(
     }
 }
 
-pub open spec fn pending_list_pod_resp_in_flight(
+pub open spec fn pending_list_pod_resp_in_flight_with_n_condemned_pods(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -76,10 +76,82 @@ pub open spec fn pending_list_pod_resp_in_flight(
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
         // predicate on resp_msg
-        &&& exists |resp_msg| {
-            &&& #[trigger] s.in_flight().contains(resp_msg)
+        &&& exists |i: (Message, nat)| #![trigger s.in_flight().contains(i.0)] {
+            let (resp_msg, condemned_len) = i;
+            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+            let pods = objects_to_pods(resp_objs)->0;
+            let filtered_pods = pods.filter(pod_filter(vsts));
+            let (_, condemned_pods) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+            &&& s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
+            &&& condemned_pods.len() == condemned_len
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message, condemned_len: nat
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let pods = objects_to_pods(resp_objs)->0;
+        let filtered_pods = pods.filter(pod_filter(vsts));
+        let (_, condemned_pods) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
+        // predicate on resp_msg
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
+        &&& condemned_pods.len() == condemned_len
+    }
+}
+
+pub open spec fn after_handle_list_pod_helper(
+    vsts: VStatefulSetView, controller_id: int, condemned_len: nat, outdated_len: nat
+) -> StatePred<ClusterState> {
+    if replicas(vsts) > 0 {
+        if pvc_cnt(vsts) > 0 {
+            and!(
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
+                ),
+                at_vsts_step(vsts, controller_id, at_step![GetPVC])
+            )
+        } else {
+            and!(
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
+                ),
+                at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])
+            )
+        }
+    } else {
+        if condemned_len > 0 {
+            and!(
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
+                ),
+                at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])
+            )
+        } else {
+            and!(
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, nat0!(), nat0!(), nat0!(), nat0!(), outdated_len
+                ),
+                at_vsts_step(vsts, controller_id, at_step_or![DeleteOutdated, Done])
+            )
         }
     }
 }

@@ -70,7 +70,7 @@ ensures
 
 #[verifier(external_body)]
 pub proof fn lemma_spen_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
-    vsts: VStatefulSetView, spen: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
+    vsts: VStatefulSetView, spen: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -82,36 +82,7 @@ requires
     spen.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spen.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
 ensures
-    spen.entails(lift_state(and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        no_pending_req_in_cluster(vsts, controller_id)
-    )).leads_to(lift_state(or!(
-        and!(
-            at_vsts_step(vsts, controller_id, at_step_or![GetPVC]),
-            local_state_is_valid_and_coherent(vsts, controller_id),
-            no_pending_req_in_cluster(vsts, controller_id),
-            exists_condemned_len_implies_5_indices_predicate(vsts, controller_id, outdated_len)
-        ),
-        and!(
-            at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
-            local_state_is_valid_and_coherent(vsts, controller_id), 
-            no_pending_req_in_cluster(vsts, controller_id),
-            exists_condemned_len_implies_5_indices_predicate(vsts, controller_id, outdated_len)
-        ),
-        and!(
-            at_vsts_step(vsts, controller_id, at_step_or![DeleteCondemned]),
-            local_state_is_valid_and_coherent(vsts, controller_id), 
-            no_pending_req_in_cluster(vsts, controller_id),
-            exists_condemned_len_implies_5_indices_predicate(vsts, controller_id, outdated_len)
-        ),
-        and!(
-            at_vsts_step(vsts, controller_id, at_step_or![DeleteOutdated]),
-            local_state_is_valid_and_coherent(vsts, controller_id), 
-            no_pending_req_in_cluster(vsts, controller_id),
-            exists_condemned_len_implies_5_indices_predicate(vsts, controller_id, outdated_len)
-        )
-    )))),
+
 {}
 
 
@@ -2000,7 +1971,7 @@ requires
     pending_list_pod_req_in_flight(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s_prime),
-    pending_list_pod_resp_in_flight(vsts, controller_id)(s_prime),
+    pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id)(s_prime),
 {
     lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
         s, s_prime, vsts, cluster, controller_id
@@ -2011,8 +1982,8 @@ ensures
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
 // and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, outdated_len: nat
-) -> (condemned_len: nat)
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat, resp_msg: Message
+)
 requires
     resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -2020,16 +1991,10 @@ requires
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, resp_msg_or_none(s, vsts.object_ref(), controller_id), Some(vsts.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
-    pending_list_pod_resp_in_flight(vsts, controller_id)(s),
+    resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, resp_msg, condemned_len)(s),
     outdated_obj_keys_in_etcd(s, vsts).len() == outdated_len,
 ensures
-    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-    no_pending_req_in_cluster(vsts, controller_id)(s_prime),
-    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, 0, 0, 0, condemned_len, outdated_len)(s_prime),
-    replicas(vsts) > 0 && pvc_cnt(vsts) > 0 ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
-    replicas(vsts) > 0 && pvc_cnt(vsts) == 0 ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
-    replicas(vsts) == 0 && condemned_len > 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])(s_prime),
-    replicas(vsts) == 0 && condemned_len == 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s_prime),
+    after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len)(s_prime),
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
@@ -2250,7 +2215,6 @@ ensures
     }
     outdated_pod_keys.unique_seq_to_set();
     assert(outdated_pod_keys.len() == outdated_len);
-    return condemned.len();
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */

@@ -30,7 +30,7 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
-    pending_list_pod_resp_in_flight(vsts, controller_id)(s_prime),
+    pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id)(s_prime),
 {}
 
 #[verifier(external_body)]
