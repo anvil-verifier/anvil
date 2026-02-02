@@ -819,6 +819,20 @@ pub open spec fn reconcile_idle(vsts: VStatefulSetView, controller_id: int) -> S
     }
 }
 
+pub open spec fn reconcile_scheduled(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
+    }
+}
+
+pub open spec fn reconcile_idle_and_not_scheduled(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+        &&& !s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
+    }
+}
+
 pub open spec fn after_handle_create_or_skip_pvc_helper(
     vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
