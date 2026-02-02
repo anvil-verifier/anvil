@@ -1873,7 +1873,7 @@ ensures
 // and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, outdated_len: nat
-) -> (condemned_outdated_len: (nat, nat))
+) -> (condemned_len: nat)
 requires
     resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1886,11 +1886,11 @@ requires
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
     no_pending_req_in_cluster(vsts, controller_id)(s_prime),
-    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, 0, 0, 0, condemned_outdated_len.0, condemned_outdated_len.1)(s_prime),
+    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, 0, 0, 0, condemned_len, outdated_len)(s_prime),
     replicas(vsts) > 0 && pvc_cnt(vsts) > 0 ==> at_vsts_step(vsts, controller_id, at_step![GetPVC])(s_prime),
     replicas(vsts) > 0 && pvc_cnt(vsts) == 0 ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
-    replicas(vsts) == 0 && condemned_outdated_len.0 > 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])(s_prime),
-    replicas(vsts) == 0 && condemned_outdated_len.0 == 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s_prime),
+    replicas(vsts) == 0 && condemned_len > 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteCondemned])(s_prime),
+    replicas(vsts) == 0 && condemned_len == 0 ==> at_vsts_step(vsts, controller_id, at_step![DeleteOutdated])(s_prime),
 {
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
@@ -2109,7 +2109,9 @@ ensures
             assert(false);
         }
     }
-    return (condemned.len(), next_local_state.needed.filter(outdated_pod_filter(vsts)).len());
+    outdated_pod_keys.unique_seq_to_set();
+    assert(outdated_pod_keys.len() == outdated_len);
+    return condemned.len();
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */
