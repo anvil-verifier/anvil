@@ -2685,7 +2685,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
@@ -2718,8 +2717,7 @@ ensures
     // prove that deletion will not affect coherence of other needed pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
         assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]] {
-            &&& ord < next_local_state.needed.len()
-            &&& next_local_state.needed[ord as int] is Some || ord < next_local_state.needed_index
+            &&& ord < replicas(vsts)
             &&& ord != outdated_ord
         } implies {
             let key = ObjectRef {
@@ -2743,8 +2741,17 @@ ensures
             }
         }
         let outdated_pod_keys = next_local_state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
-        assert(!s_prime.resources().contains_key(outdated_pod.object_ref()));
-        assert(outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).insert(outdated_pod.object_ref()));
+        assert(req.key() == outdated_pod.object_ref()) by {
+            // so outdated pod follows needed pod naming convention
+            seq_filter_contains_implies_seq_contains(
+                next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
+            );
+        }
+        assert(outdated_pod_keys.to_set().remove(outdated_pod.object_ref()) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
+            if s.resources().contains_key(req.key()) {
+                assert(outdated_obj_keys_in_etcd(s_prime, vsts) == outdated_obj_keys_in_etcd(s, vsts).remove(req.key()));
+            }
+        }
     }
 }
 

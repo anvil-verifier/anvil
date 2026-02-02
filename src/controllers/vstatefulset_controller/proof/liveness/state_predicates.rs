@@ -135,6 +135,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
         ==> {
             &&& state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+            &&& state.needed[ord as int]->0.metadata.namespace == Some(vsts.metadata.namespace->0)
             &&& vsts.spec.selector.matches(state.needed[ord as int]->0.metadata.labels.unwrap_or(Map::empty()))
         }
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
@@ -227,11 +228,14 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         &&& outdated_pod is None ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
         &&& outdated_pod is Some ==> match state.reconcile_step {
             AfterDeleteOutdated => if s.resources().contains_key(outdated_pod->0.object_ref()) { // not deleted yet
+                // this predicate is crafted in a way that even if we don't know if s.resources contains the key,
+                // which is the case here because the controller tolerates NotFound error,
                 outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
             } else {
-                outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).insert(outdated_pod->0.object_ref())
+                // the post condition is still strong enough
+                outdated_pod_keys.to_set().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts)
             },
-            Done => outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts).insert(outdated_pod->0.object_ref()),
+            Done => outdated_pod_keys.to_set().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts),
             _ => outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts),
         }
         // coherence of condemned pods
