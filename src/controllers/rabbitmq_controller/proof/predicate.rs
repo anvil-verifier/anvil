@@ -77,8 +77,11 @@ pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: Rabbitm
     }
 }
 
-pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> spec_fn(RabbitmqReconcileState) -> bool {
-    |s: RabbitmqReconcileState| s.reconcile_step == step
+pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> spec_fn(ReconcileLocalState) -> bool {
+    |s: ReconcileLocalState| {
+        let state = RabbitmqReconcileState::unmarshal(s).unwrap();
+        state.reconcile_step == step
+    }
 }
 
 pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
