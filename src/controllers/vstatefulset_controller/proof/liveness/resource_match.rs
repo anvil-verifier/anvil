@@ -2258,6 +2258,10 @@ ensures
                 }
             }
             let input = (None, Some(vsts.object_ref()));
+            assert forall |s, s_prime| delete_outdated_state(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime)
+                implies after_delete_outdated_state_with_request(s_prime) by {
+                lemma_from_delete_outdated_to_after_delete_outdated_or_done(s, s_prime, vsts, cluster, controller_id, condemned_len, outdated_len);
+            }
             cluster.lemma_pre_leads_to_post_by_controller(
                 spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, delete_outdated_state, after_delete_outdated_state_with_request
             );
