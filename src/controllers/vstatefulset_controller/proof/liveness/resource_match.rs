@@ -971,7 +971,8 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
