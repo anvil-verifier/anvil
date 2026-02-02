@@ -216,7 +216,17 @@ ensures
                     }
                     assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies
                         s_prime.resources().contains_key(obj.object_ref()) && weakly_eq(obj, s_prime.resources()[obj.object_ref()]) by {
-                        assume(false);
+                        let key = obj.object_ref();
+                        seq_filter_contains_implies_seq_contains(
+                            resp_objs, |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()), obj
+                        );
+                        assert({
+                            &&& s.resources().contains_key(key)
+                            &&& key.kind == Kind::PodKind
+                            &&& key.namespace == vsts.metadata.namespace->0
+                            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                        });
+                        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                     lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0, outdated_len);
                     assert(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime));
