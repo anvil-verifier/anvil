@@ -34,6 +34,7 @@ requires
 ensures
     outdated_len > 0 ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
@@ -42,6 +43,7 @@ ensures
     )))),
     outdated_len == 0 ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
@@ -62,6 +64,7 @@ ensures
     let inv = cluster_invariants_since_reconciliation(cluster, vsts, controller_id);
     let init_state = and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, outdated_len)
     );
     let after_list_pod_state = and!(
@@ -69,6 +72,11 @@ ensures
         pending_list_pod_resp_in_flight(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, outdated_len)
     );
+    assert(spec.entails(lift_state(init_state).leads_to(lift_state(after_list_pod_state)))) by {
+        lemma_spec_entails_init_leads_to_after_list_pod_with_resp(
+            vsts, spec, cluster, controller_id, outdated_len
+        );
+    }
     let resp_msg_is_pending_at_after_list_pod_state_with_condemned_len = |i: (Message, nat)| and!(
         at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
         resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, i.0, i.1),
@@ -89,6 +97,12 @@ ensures
         let condemned_len = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods).1.len();
         assert((|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)))((resp_msg, condemned_len)).satisfied_by(ex));
     }
+    entails_implies_leads_to(spec, lift_state(after_list_pod_state), tla_exists(|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i))));
+    leads_to_trans(spec,
+        lift_state(init_state),
+        lift_state(after_list_pod_state),
+        tla_exists(|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)))
+    );
     let done_state = if outdated_len > 0 {
         and!(
             at_vsts_step(vsts, controller_id, at_step![Done]),
@@ -134,7 +148,6 @@ ensures
             pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
         );
         if replicas(vsts) > 0 {
-            assume(false);
             if pvc_cnt(vsts) > 0 {
                 let get_pvc_state = and!(
                     at_vsts_step(vsts, controller_id, at_step![GetPVC]),
@@ -154,6 +167,9 @@ ensures
                     lift_state(get_pvc_state),
                     lift_state(create_or_update_needed_state)
                 );
+            } else {
+                assert(get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated_state
+                    == create_or_update_needed_state);
             }
             if condemned_len > 0 {
                 assert(spec.entails(lift_state(create_or_update_needed_state).leads_to(lift_state(delete_condemned_state)))) by {
@@ -166,8 +182,6 @@ ensures
                         vsts, spec, cluster, controller_id, condemned_len, outdated_len
                     );
                 }
-                assert(get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated_state
-                    == create_or_update_needed_state);
                 leads_to_trans_n!(spec,
                     lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)),
                     lift_state(create_or_update_needed_state),
@@ -180,8 +194,6 @@ ensures
                         vsts, spec, cluster, controller_id, condemned_len, outdated_len
                     );
                 }
-                assert(get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated_state
-                    == create_or_update_needed_state);
                 leads_to_trans(spec,
                     lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)),
                     lift_state(create_or_update_needed_state),
