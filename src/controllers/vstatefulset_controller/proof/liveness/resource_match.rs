@@ -68,22 +68,119 @@ ensures
     );
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_spen_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
-    vsts: VStatefulSetView, spen: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
+pub proof fn lemma_spec_entails_after_list_pod_leads_to_done(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spen.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
-    spen.entails(always(lift_action(cluster.next()))),
-    spen.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spen.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spen.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spen.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
 ensures
+    true
+{
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+    );
+    let after_list_pod_state = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
+        pending_list_pod_resp_in_flight(vsts, controller_id),
+        etcd_contains_outdated_pods_of(vsts, outdated_len)
+    );
+    let resp_msg_is_pending_at_after_list_pod_state_with_condemned_len = |i: (Message, nat)| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
+        resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, i.0, i.1),
+        etcd_contains_outdated_pods_of(vsts, outdated_len)
+    );
+    assert forall |ex| #[trigger] lift_state(after_list_pod_state).satisfied_by(ex) implies
+        tla_exists(|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i))).satisfied_by(ex) by {
+        let s = ex.head();
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
+        let resp_msg = choose |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
+        };
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let pods = objects_to_pods(resp_objs)->0;
+        let filtered_pods = pods.filter(pod_filter(vsts));
+        let condemned_len = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods).1.len();
+        assert((|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)))((resp_msg, condemned_len)).satisfied_by(ex));
+    }
+    assume(false);
+}
 
-{}
+pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
+        resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, msg, condemned_len),
+        etcd_contains_outdated_pods_of(vsts, outdated_len)
+    )).leads_to(lift_state(after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len)))),
+{
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+    );
+    let resp_msg_is_pending_at_after_list_pod_state_with_condemned_len = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
+        resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, msg, condemned_len),
+        etcd_contains_outdated_pods_of(vsts, outdated_len)
+    );
+    let next_state = after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len);
+    assert(spec.entails(lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len).leads_to(lift_state(next_state)))) by {
+        assert forall |s, s_prime| resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s) && #[trigger] stronger_next(s, s_prime) implies
+            resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime) || next_state(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::APIServerStep(input) => {
+                    assume(false);
+                },
+                Step::ControllerStep(input) => {
+                    if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                        lemma_from_list_resp_to_next_state(
+                            s, s_prime, vsts, cluster, controller_id, msg, condemned_len, outdated_len
+                        );
+                    }
+                },
+                Step::BuiltinControllersStep(_) => {},
+                _ => {
+                    assert(s_prime.in_flight().contains(msg));
+                    assert(s_prime.resources() == s.resources());
+                }
+            }
+        }
+        cluster.lemma_pre_leads_to_post_by_controller(
+            spec, controller_id, (Some(msg), Some(vsts.object_ref())), stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_at_after_list_pod_state_with_condemned_len, next_state
+        );
+    }
+}
 
 
 pub proof fn lemma_spec_entails_get_pvc_leads_to_create_or_update_needed(
@@ -1971,7 +2068,7 @@ requires
     pending_list_pod_req_in_flight(vsts, controller_id)(s),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s_prime),
-    pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id)(s_prime),
+    pending_list_pod_resp_in_flight(vsts, controller_id)(s_prime),
 {
     lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
         s, s_prime, vsts, cluster, controller_id
@@ -1982,7 +2079,7 @@ ensures
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
 // and go to next step with local_state_is_valid_and_coherent
 pub proof fn lemma_from_list_resp_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat, resp_msg: Message
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, condemned_len: nat, outdated_len: nat
 )
 requires
     resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some,

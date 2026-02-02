@@ -67,7 +67,7 @@ pub open spec fn pending_list_pod_req_in_flight(
     }
 }
 
-pub open spec fn pending_list_pod_resp_in_flight_with_n_condemned_pods(
+pub open spec fn pending_list_pod_resp_in_flight(
     vsts: VStatefulSetView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -76,16 +76,10 @@ pub open spec fn pending_list_pod_resp_in_flight_with_n_condemned_pods(
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
         // predicate on resp_msg
-        &&& exists |i: (Message, nat)| #![trigger s.in_flight().contains(i.0)] {
-            let (resp_msg, condemned_len) = i;
-            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            let pods = objects_to_pods(resp_objs)->0;
-            let filtered_pods = pods.filter(pod_filter(vsts));
-            let (_, condemned_pods) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
-            &&& s.in_flight().contains(resp_msg)
+        &&& exists |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
-            &&& condemned_pods.len() == condemned_len
         }
     }
 }
@@ -98,7 +92,6 @@ pub open spec fn resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_po
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         let pods = objects_to_pods(resp_objs)->0;
         let filtered_pods = pods.filter(pod_filter(vsts));
-        let (_, condemned_pods) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
         // predicate on req_msg, it's not in_flight
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
@@ -106,8 +99,37 @@ pub open spec fn resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_po
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
-        &&& condemned_pods.len() == condemned_len
+        &&& partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods).1.len() == condemned_len
     }
+}
+
+// because we have controller_owner_ref which requires uid, key alone is not enough
+pub open spec fn resp_msg_is_ok_list_resp_of_pods(
+    vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
+) -> bool {
+    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    // these objects can be guarded by rely conditions
+    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+    &&& resp_msg.content.is_list_response()
+    &&& resp_msg.content.get_list_response().res is Ok
+    &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
+    // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
+    &&& owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
+        == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
+    &&& forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) ==> {
+        let key = obj.object_ref();
+        let etcd_obj = s.resources()[key];
+        &&& s.resources().contains_key(key)
+        &&& weakly_eq(obj, etcd_obj)
+    }
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+        &&& obj.kind == Kind::PodKind
+        &&& PodView::unmarshal(obj) is Ok
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    }
+    &&& objects_to_pods(resp_objs) is Some
 }
 
 pub open spec fn after_handle_list_pod_helper(
@@ -154,35 +176,6 @@ pub open spec fn after_handle_list_pod_helper(
             )
         }
     }
-}
-
-// because we have controller_owner_ref which requires uid, key alone is not enough
-pub open spec fn resp_msg_is_ok_list_resp_of_pods(
-    vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
-) -> bool {
-    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    // these objects can be guarded by rely conditions
-    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
-    &&& resp_msg.content.is_list_response()
-    &&& resp_msg.content.get_list_response().res is Ok
-    &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
-    &&& owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
-        == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
-    &&& forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) ==> {
-        let key = obj.object_ref();
-        let etcd_obj = s.resources()[key];
-        &&& s.resources().contains_key(key)
-        &&& weakly_eq(obj, etcd_obj)
-    }
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
-        &&& obj.kind == Kind::PodKind
-        &&& PodView::unmarshal(obj) is Ok
-        &&& obj.metadata.name is Some
-        &&& obj.metadata.namespace is Some
-        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
-    }
-    &&& objects_to_pods(resp_objs) is Some
 }
 
 pub open spec fn local_state_is_valid_and_coherent(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
@@ -381,18 +374,6 @@ pub open spec fn pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
         &&& local_state.condemned_index == condemned_index
         &&& local_state.condemned.len() == condemned_len
         &&& local_state.needed.filter(outdated_pod_filter(vsts)).len() == outdated_len
-    }
-}
-
-pub open spec fn exists_condemned_len_implies_5_indices_predicate(
-    vsts: VStatefulSetView, controller_id: int, outdated_len: nat
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        exists |condemned_len: nat| {
-            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
-                vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
-            )(s)
-        }
     }
 }
 
