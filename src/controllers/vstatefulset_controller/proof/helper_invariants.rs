@@ -108,4 +108,12 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+// we don't need to talk about ongoing_reconcile as it's covered by at_vsts_step
+pub open spec fn vsts_in_reconciles_has_no_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+        &&& s.scheduled_reconciles(controller_id)[vsts.object_ref()].metadata.deletion_timestamp is None
+        &&& VStatefulSetView::unmarshal(s.scheduled_reconciles(controller_id)[vsts.object_ref()]).unwrap().metadata().deletion_timestamp is None
+    }
+}
+
 }
