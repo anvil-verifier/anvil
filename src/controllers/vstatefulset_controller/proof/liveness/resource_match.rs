@@ -2788,6 +2788,37 @@ ensures
     }
 }
 
+pub proof fn lemma_done_with_outdated_len_reflects_outdated_pods_in_etcd(
+    s: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    at_vsts_step(vsts, controller_id, at_step![Done])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+    pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s),
+ensures
+    outdated_len > 0 ==> outdated_obj_keys_in_etcd(s, vsts).len() == outdated_len - 1,
+    outdated_len == 0 ==> outdated_obj_keys_in_etcd(s, vsts).len() == 0,
+{
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
+    let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+    let outdated_pod_keys = local_state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
+    outdated_pod_keys.unique_seq_to_set();
+    if outdated_len > 0 {
+        assert(get_largest_unmatched_pods(vsts, local_state.needed) is Some);
+        let outdated_pod_opt = get_largest_unmatched_pods(vsts, local_state.needed);
+        assert(outdated_pods.contains(outdated_pod_opt));
+        assert(exists |i: int| 0 <= i < outdated_pods.len() && #[trigger] outdated_pods[i] == outdated_pod_opt);
+        let i = choose |i: int| 0 <= i < outdated_pods.len() && #[trigger] outdated_pods[i] == outdated_pod_opt;
+        let outdated_pod_keys = outdated_pods.map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
+        assert(outdated_pod_keys[i] == outdated_pod_opt->0.object_ref());
+        assert(outdated_pod_keys.contains(outdated_pods[i]->0.object_ref()));
+        assert(outdated_obj_keys_in_etcd(s, vsts).len() == outdated_pod_keys.to_set().remove(outdated_pod_opt->0.object_ref()).len() == outdated_len - 1);
+    } else {
+        assert(get_largest_unmatched_pods(vsts, local_state.needed) is None);
+    }
+}
+
 pub proof fn lemma_local_state_is_valid_and_coherent_with_zero_old_pods_implies_current_state_matches(
     s: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat
 )
