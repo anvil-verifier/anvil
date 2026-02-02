@@ -2262,13 +2262,14 @@ ensures
             pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
         );
         assert(spec.entails(lift_state(after_delete_outdated_state_with_request).leads_to(lift_state(after_delete_outdated_state_with_response)))) by {
+            
         }
     }
 }
 
 #[verifier(rlimit(50))]
 pub proof fn lemma_spec_entails_after_delete_outdated_leads_to_done(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -2284,7 +2285,7 @@ ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated]),
         local_state_is_valid_and_coherent(vsts, controller_id),
-        resp_msg_is_pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id, msg),
+        pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
@@ -2305,6 +2306,12 @@ ensures
     let after_delete_outdated_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated]),
         local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
+    );
+    let resp_msg_is_pending_msg_at_after_delete_outdated_state = |msg| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
         resp_msg_is_pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id, msg),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     );
@@ -2314,9 +2321,26 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len - nat1!())
     );
-    assert(spec.entails(lift_state(after_delete_outdated_state_with_response).leads_to(lift_state(done_state)))) by {
-        assert forall |s, s_prime| after_delete_outdated_state_with_response(s) && #[trigger] stronger_next(s, s_prime) implies
-            after_delete_outdated_state_with_response(s_prime) || done_state(s_prime) by {
+    assert forall |ex| #[trigger] lift_state(after_delete_outdated_state_with_response).satisfied_by(ex) implies
+        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg))).satisfied_by(ex) by {
+        let s = ex.head();
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = choose |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_get_then_delete_response()
+            &&& resp_msg.content.get_get_then_delete_response().res is Err
+                ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+        };
+        assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)))(resp_msg).satisfied_by(ex));
+    }
+    entails_implies_leads_to(spec,
+        lift_state(after_delete_outdated_state_with_response),
+        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)))
+    );
+    assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)).leads_to(lift_state(done_state))) by {
+        assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+            resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s_prime) || done_state(s_prime) by {
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
@@ -2358,6 +2382,15 @@ ensures
             spec, controller_id, input, stronger_next, ControllerStep::EndReconcile, after_delete_outdated_state_with_response, done_state
         );
     }
+    leads_to_exists_intro(spec,
+        |msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)),
+        lift_state(done_state)
+    );
+    leads_to_trans(spec,
+        lift_state(after_delete_outdated_state_with_response),
+        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg))),
+        lift_state(done_state)
+    );
 }
 
 #[verifier(rlimit(200))]
