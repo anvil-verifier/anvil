@@ -19,7 +19,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn lemma_spec_entails_init_leads_to_done(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
 )
@@ -38,7 +37,6 @@ ensures
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, outdated_len - nat1!())
     )))),
@@ -47,7 +45,6 @@ ensures
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
         no_pending_req_in_cluster(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, outdated_len),
         current_state_matches(vsts)
@@ -65,32 +62,6 @@ ensures
     let init_state = and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
         n_outdated_pods_in_etcd(vsts, outdated_len)
-    );
-}
-
-pub proof fn lemma_spec_entails_after_list_pod_leads_to_done(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
-)
-requires
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
-ensures
-    true
-{
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
     );
     let after_list_pod_state = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
@@ -117,7 +88,76 @@ ensures
         let condemned_len = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods).1.len();
         assert((|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)))((resp_msg, condemned_len)).satisfied_by(ex));
     }
-    assume(false);
+    let done_state = if outdated_len > 0 {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![Done]),
+            no_pending_req_in_cluster(vsts, controller_id),
+            n_outdated_pods_in_etcd(vsts, outdated_len - nat1!())
+        )
+    } else {
+        and!(
+            at_vsts_step(vsts, controller_id, at_step![Done]),
+            no_pending_req_in_cluster(vsts, controller_id),
+            n_outdated_pods_in_etcd(vsts, outdated_len),
+            current_state_matches(vsts)
+        )
+    };
+    assert forall |i: (Message, nat)| spec.entails(
+        lift_state(#[trigger] resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)).leads_to(lift_state(done_state))
+    ) by {
+        let condemned_len = i.1;
+        let get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated_state = after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len);
+        assert(spec.entails(lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i))
+            .leads_to(lift_state(get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated_state))
+        )) by {
+            lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
+                vsts, spec, cluster, controller_id, i.0, condemned_len, outdated_len
+            );
+        }
+        let create_or_update_needed_state = and!(
+            at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+            local_state_is_valid_and_coherent(vsts, controller_id), 
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), condemned_len, outdated_len)
+        );
+        if pvc_cnt(vsts) > 0 {
+            let get_pvc_state = and!(
+                at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len)
+            );
+            assert(spec.entails(lift_state(get_pvc_state).leads_to(lift_state(create_or_update_needed_state)))) by {
+                lemma_spec_entails_get_pvc_leads_to_create_or_update_needed(
+                    vsts, spec, cluster, controller_id, nat0!(), condemned_len, outdated_len
+                );
+            }
+        }
+        let delete_condemned_state = and!(
+            at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+            local_state_is_valid_and_coherent(vsts, controller_id), 
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), condemned_len, outdated_len)
+        );
+        let delete_outdated_state = and!(
+            at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+            local_state_is_valid_and_coherent(vsts, controller_id), 
+            no_pending_req_in_cluster(vsts, controller_id),
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(),  condemned_len, outdated_len)
+        );
+        if condemned_len > 0 {
+            assert(spec.entails(lift_state(create_or_update_needed_state).leads_to(lift_state(delete_condemned_state)))) by {
+            }
+            assert(spec.entails(lift_state(delete_condemned_state).leads_to(lift_state(delete_outdated_state)))) by {
+                lemma_spec_entails_delete_condemned_leads_to_delete_outdated(
+                    vsts, spec, cluster, controller_id, condemned_len, outdated_len
+                );
+            }
+        } else {
+            assert(spec.entails(lift_state(create_or_update_needed_state).leads_to(lift_state(delete_outdated_state)))) by {
+            }
+        }
+    }
 }
 
 #[verifier(rlimit(200))]
@@ -1723,6 +1763,68 @@ ensures
             lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len))
         );
     }
+}
+
+pub proof fn lemma_spec_entails_delete_condemned_leads_to_delete_outdated(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    condemned_len > 0,
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), nat0!(), condemned_len, outdated_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
+    )))),
+{
+    let lifted_delete_condemned_with_index = |condemned_index: nat| lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len, outdated_len)
+    ));
+    let max_minus_one = (condemned_len - 1) as nat;
+    assert forall |i: nat| #![trigger lifted_delete_condemned_with_index(i)] i < max_minus_one implies
+        spec.entails(lifted_delete_condemned_with_index(i).leads_to(lifted_delete_condemned_with_index((i + 1) as nat))) by {
+        lemma_spec_entails_deleted_condemned_of_i_leads_to_delete_condemned_of_i_plus_one_or_delete_outdated(
+            vsts, spec, cluster, controller_id, i, condemned_len, outdated_len
+        );
+    }
+    leads_to_greater_until_rec(spec,
+        lifted_delete_condemned_with_index,
+        nat0!(),
+        max_minus_one
+    );
+    let delete_outdated_state = and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
+    );
+    assert(spec.entails(lifted_delete_condemned_with_index(max_minus_one).leads_to(lift_state(delete_outdated_state)))) by {
+        lemma_spec_entails_deleted_condemned_of_i_leads_to_delete_condemned_of_i_plus_one_or_delete_outdated(
+            vsts, spec, cluster, controller_id, max_minus_one, condemned_len, outdated_len
+        );
+    }
+    leads_to_trans(spec,
+        lifted_delete_condemned_with_index(nat0!()),
+        lifted_delete_condemned_with_index(max_minus_one),
+        lift_state(delete_outdated_state)
+    );
 }
 
 #[verifier(rlimit(200))]
