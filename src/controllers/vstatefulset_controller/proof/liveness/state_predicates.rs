@@ -312,6 +312,18 @@ pub open spec fn pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
     }
 }
 
+pub open spec fn exists_condemned_len_implies_5_indices_predicate(
+    vsts: VStatefulSetView, controller_id: int, outdated_len: nat
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        exists |condemned_len: nat| {
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
+            )(s)
+        }
+    }
+}
+
 pub open spec fn req_msg_is_get_pvc_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
 ) -> bool {
