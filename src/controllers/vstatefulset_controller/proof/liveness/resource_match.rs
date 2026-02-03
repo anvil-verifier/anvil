@@ -4181,8 +4181,24 @@ ensures
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     match step {
         Step::APIServerStep(input) => {
+            let msg = input->0;
             if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
-                assume(false);
+                VStatefulSetReconcileState::marshal_preserves_integrity();
+                let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+                if msg.src != HostId::Controller(controller_id, vsts.object_ref()) {
+                    assume(false);
+                } else {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    assert(input == Some(req_msg));
+                    if local_state.reconcile_step == AfterListPod {
+                        assume(false);
+                    } else if local_state.reconcile_step == AfterUpdateNeeded {
+                        assume(false);
+                    } else {
+                        assert(req_msg.content.is_get_request());
+                    }
+                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
+                }
             } else {
                 lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
                     s, s_prime, vsts, cluster, controller_id, input->0
