@@ -891,4 +891,35 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
     }
 }
 
+pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& current_state_matches(vsts)(s)
+        &&& outdated_obj_keys_in_etcd(s, vsts).len() == 0
+        &&& s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+            let local_state =  VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+            &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
+            &&& local_state.reconcile_step == AfterListPod ==> {
+                let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
+                &&& forall |msg| {
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> {
+                    let objs = msg.content.get_list_response().res.unwrap();
+                    let pods = objects_to_pods(objs)->0;
+                    let filtered_pods = pods.filter(pod_filter(vsts));
+                    let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+                    &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
+                    // no condemned pods
+                    &&& condemned.len() == 0
+                    // no outdated pods
+                    &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
+                }
+            }
+        }
+    }
+}
+
 }
