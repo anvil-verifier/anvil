@@ -225,10 +225,15 @@ pub open spec fn handle_after_list_pod(vsts: VStatefulSetView, resp_o: DefaultRe
                     if condemned_index < condemned.len() {
                         (VStatefulSetReconcileState {
                             reconcile_step: VStatefulSetReconcileStepView::DeleteCondemned,
+                            pvc_index: pvcs.len(), // reset the index when entering DeleteCondemned state
                             ..state_without_step
                         }, None)
                     } else {
-                        (delete_outdated_state(state_without_step), None)
+                        (VStatefulSetReconcileState {
+                            reconcile_step: VStatefulSetReconcileStepView::DeleteOutdated,
+                            pvc_index: pvcs.len(),
+                            ..state_without_step
+                        }, None)
                     }
                 }
             } else {
@@ -402,7 +407,7 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
         // addede this to be defensive, but it should actually be unreachable
         if old_pod.metadata.name is Some {
             let ordinal = state.needed_index;
-            let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
+            let new_pod = update_storage(vsts, update_identity(old_pod, ordinal), ordinal);
             let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
                 name: new_pod.metadata.name->0,
                 namespace: vsts.metadata.namespace->0,
@@ -675,7 +680,7 @@ pub open spec fn make_pod(vsts: VStatefulSetView, ordinal: nat) -> PodView {
 }
 
 pub open spec fn init_identity(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
-    let updated_pod = update_identity(vsts, pod, ordinal);
+    let updated_pod = update_identity(pod, ordinal);
     PodView {
         spec: Some(PodSpecView {
             hostname: updated_pod.metadata.name,
@@ -686,15 +691,15 @@ pub open spec fn init_identity(vsts: VStatefulSetView, pod: PodView, ordinal: na
     }
 }
 
-pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
+pub open spec fn update_identity(pod: PodView, ordinal: nat) -> PodView {
     PodView {
         metadata: ObjectMetaView {
             labels: Some(if pod.metadata.labels is None {
                     Map::<StringView, StringView>::empty()
                 } else {
                     pod.metadata.labels->0
-                }.insert("statefulset.kubernetes.io/pod-name"@, pod.metadata.name->0)
-                .insert("apps.kubernetes.io/pod-index"@, int_to_string_view(ordinal as int))),
+                }.insert(StatefulSetPodNameLabel, pod.metadata.name->0)
+                .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
             ..pod.metadata
         },
         ..pod
@@ -784,17 +789,18 @@ pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
 }
 
 // TODO: compare other fields of the pod if necessary
-pub open spec fn pod_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
+pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     // from validation we know vsts.spec.template.spec is Some
     &&& pod.spec is Some
-    &&& pod.spec->0.without_volumes() == vsts.spec.template.spec->0.without_volumes()
+    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain()
 }
 
 pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
     |pod_or_none: Option<PodView>| {
         let pod = pod_or_none->0;
         &&& pod_or_none is Some
-        &&& !pod_matches(vsts, pod)
+        &&& !pod_spec_matches(vsts, pod)
     }
 } 
 

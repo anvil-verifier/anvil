@@ -2,7 +2,7 @@
 
 use crate::kubernetes_api_objects::{spec::{resource::*, prelude::*}, error::APIError::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*, liveness_theorem::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::predicate::*;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -76,11 +76,30 @@ pub open spec fn pending_list_pod_resp_in_flight(
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
         // predicate on resp_msg
-        &&& exists |resp_msg| {
+        &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
         }
+    }
+}
+
+pub open spec fn resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message, condemned_len: nat
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let pods = objects_to_pods(resp_objs)->0;
+        let filtered_pods = pods.filter(pod_filter(vsts));
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
+        // predicate on resp_msg
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s)
+        &&& partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods).1.len() == condemned_len
     }
 }
 
@@ -89,26 +108,74 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    let pod_list = objects_to_pods(resp_objs)->0;
+    // these objects can be guarded by rely conditions
+    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
-    &&& resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()))
-        .to_set().map(|obj: DynamicObjectView| obj.object_ref())
+    &&& owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
         == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    &&& forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) ==> {
         let key = obj.object_ref();
         let etcd_obj = s.resources()[key];
+        &&& s.resources().contains_key(key)
+        &&& weakly_eq(obj, etcd_obj)
+    }
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
         &&& obj.kind == Kind::PodKind
         &&& PodView::unmarshal(obj) is Ok
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
         &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
-        &&& s.resources().contains_key(key)
-        &&& weakly_eq(etcd_obj, obj)
     }
     &&& objects_to_pods(resp_objs) is Some
+}
+
+pub open spec fn after_handle_list_pod_helper(
+    vsts: VStatefulSetView, controller_id: int, condemned_len: nat, outdated_len: nat
+) -> StatePred<ClusterState> {
+    if replicas(vsts) > 0 {
+        if pvc_cnt(vsts) > 0 {
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
+                )
+            )
+        } else {
+            and!(
+                at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, nat0!(), nat0!(), nat0!(), condemned_len, outdated_len
+                )
+            )
+        }
+    } else {
+        if condemned_len > 0 {
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), condemned_len, outdated_len
+                )
+            )
+        } else {
+            and!(
+                at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
+                local_state_is_valid_and_coherent(vsts, controller_id),
+                no_pending_req_in_cluster(vsts, controller_id),
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+                    vsts, controller_id, pvc_cnt(vsts), nat0!(), nat0!(), nat0!(), outdated_len
+                )
+            )
+        }
+    }
 }
 
 pub open spec fn local_state_is_valid_and_coherent(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
@@ -131,7 +198,11 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.pvcs.len() == pvc_cnt
     &&& state.reconcile_step == GetPVC ==> state.pvc_index < state.pvcs.len()
     &&& forall |ord: nat| #![trigger state.needed[ord as int]] ord < state.needed.len() && state.needed[ord as int] is Some
-        ==> state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        ==> {
+            &&& state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+            &&& state.needed[ord as int]->0.metadata.namespace == Some(vsts.metadata.namespace->0)
+            &&& vsts.spec.selector.matches(state.needed[ord as int]->0.metadata.labels.unwrap_or(Map::empty()))
+        }
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
         ==> {
             let condemned_pod = state.condemned[i as int];
@@ -158,7 +229,9 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
     &&& state.reconcile_step == AfterCreatePVC ==> state.pvc_index > 0
     // reachable condition
     &&& state.reconcile_step == CreateNeeded ==> state.needed[state.needed_index as int] is None
+    &&& state.reconcile_step == AfterCreateNeeded ==> state.needed[state.needed_index - 1] is None
     &&& state.reconcile_step == UpdateNeeded ==> state.needed[state.needed_index as int] is Some
+    &&& state.reconcile_step == AfterUpdateNeeded ==> state.needed[state.needed_index - 1] is Some
     &&& state.reconcile_step == DeleteCondemned ==> state.condemned_index < state.condemned.len()
     &&& state.reconcile_step == AfterDeleteCondemned ==> state.condemned_index > 0
     &&& state.reconcile_step == AfterDeleteOutdated ==> get_largest_unmatched_pods(vsts, state.needed) is Some
@@ -195,8 +268,9 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             _ => state.condemned_index,
         };
         let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
+        let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
         // 1. coherence of needed pods
-        &&& forall |ord: nat| #![trigger state.needed[ord as int]] {
+        &&& forall |ord: nat| {
             &&& ord < state.needed.len()
             &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
             // at last step, one outdated pod will be deleted
@@ -206,14 +280,28 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         } ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
-                name: pod_name(vsts.metadata.name->0, ord),
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
             let obj = s.resources()[key];
             &&& s.resources().contains_key(key)
-            // can be removed if we assume local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            // TODO: cover pod updates
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+        }
+        // all outdated pods are captured
+        &&& outdated_pod_keys.no_duplicates() // optional?
+        &&& outdated_pod is None ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+        &&& outdated_pod is Some ==> match state.reconcile_step {
+            AfterDeleteOutdated => if s.resources().contains_key(outdated_pod->0.object_ref()) { // not deleted yet
+                // this predicate is crafted in a way that even if we don't know if s.resources contains the key,
+                // which is the case here because the controller tolerates NotFound error,
+                outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+            } else {
+                // the post condition is still strong enough
+                outdated_pod_keys.to_set().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts)
+            },
+            Done => outdated_pod_keys.to_set().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts),
+            _ => outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts),
         }
         // coherence of condemned pods
         // we have 2 ways to encode this:
@@ -270,8 +358,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
     }
 }
 
-pub open spec fn pvc_needed_condemned_index_and_condemned_len_are(
-    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_index: nat, condemned_len: nat
+pub open spec fn pvc_needed_condemned_index_condemned_len_and_outdated_len_are(
+    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
@@ -279,6 +367,7 @@ pub open spec fn pvc_needed_condemned_index_and_condemned_len_are(
         &&& local_state.needed_index == needed_index
         &&& local_state.condemned_index == condemned_index
         &&& local_state.condemned.len() == condemned_len
+        &&& local_state.needed.filter(outdated_pod_filter(vsts)).len() == outdated_len
     }
 }
 
@@ -352,7 +441,6 @@ pub open spec fn resp_msg_is_pending_get_pvc_resp_in_flight(
 pub open spec fn req_msg_is_create_pvc_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
 ) -> bool {
-    let req = req_msg.content->APIRequest_0;
     let key = ObjectRef {
         kind: Kind::PersistentVolumeClaimKind,
         namespace: vsts.metadata.namespace->0,
@@ -427,11 +515,13 @@ pub open spec fn req_msg_is_create_needed_pod_req(
         name: pod_name(vsts.metadata.name->0, ord),
         namespace: vsts.metadata.namespace->0
     };
+    let pod = PodView::unmarshal(req.obj)->Ok_0;
     &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_create_request_msg(key)(req_msg)
-    &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+    &&& PodView::unmarshal(req.obj) is Ok
+    &&& pod_spec_matches(vsts, pod)
 }
 
 pub open spec fn pending_create_needed_pod_req_in_flight(
@@ -456,12 +546,10 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
         let key = req_msg.content.get_create_request().key();
-        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -480,12 +568,10 @@ pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_create
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
         let key = req_msg.content.get_create_request().key();
-        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_create_response()
@@ -495,7 +581,7 @@ pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_create
 }
 
 pub open spec fn req_msg_is_get_then_update_needed_pod_req(
-    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, old_pod: PodView
 ) -> bool {
     let req = req_msg.content.get_get_then_update_request();
     let key = ObjectRef {
@@ -503,11 +589,17 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
         name: pod_name(vsts.metadata.name->0, ord),
         namespace: vsts.metadata.namespace->0
     };
+    let pod = PodView::unmarshal(req.obj)->Ok_0;
     &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_get_then_update_request_msg(key)(req_msg)
     &&& req.owner_ref == vsts.controller_owner_ref()
+    &&& PodView::unmarshal(req.obj) is Ok
+    // the request does not change the update status of the pod
+    &&& pod_weakly_eq(pod, old_pod)
+    // pod has matching labels
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
 }
 
 pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
@@ -517,9 +609,10 @@ pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
+        let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
     }
 }
 
@@ -530,12 +623,11 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
+        let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
-        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -552,12 +644,11 @@ pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
+        let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
-        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord)
+        &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_update_response()
@@ -654,10 +745,10 @@ pub open spec fn pending_get_then_delete_outdated_pod_req_in_flight(
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+        let outdated_pod = get_largest_unmatched_pods(vsts, local_state.needed)->0;
         let outdated_pod_key = ObjectRef {
             kind: Kind::PodKind,
-            name: outdated_pods.last()->0.metadata.name->0,
+            name: outdated_pod.metadata.name->0,
             namespace: vsts.metadata.namespace->0
         };
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
@@ -671,7 +762,6 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-        let resp_msg = resp_msg_or_none(s, vsts.object_ref(), controller_id)->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
         let outdated_pod_key = ObjectRef {
@@ -680,38 +770,91 @@ pub open spec fn pending_get_then_delete_outdated_pod_resp_in_flight_and_outdate
             namespace: vsts.metadata.namespace->0
         };
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        // outdated pod is deleted from etcd
+        &&& !s.resources().contains_key(outdated_pod_key)
         &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pod_key)
-        &&& resp_msg_or_none(s, vsts.object_ref(), controller_id) is Some
+        &&& exists |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_get_then_delete_response()
+            &&& resp_msg.content.get_get_then_delete_response().res is Err
+                ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(
+    vsts: VStatefulSetView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+        let outdated_pods = local_state.needed.filter(outdated_pod_filter(vsts));
+        let outdated_pod_key = ObjectRef {
+            kind: Kind::PodKind,
+            name: outdated_pods.last()->0.metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        // outdated pod is deleted from etcd
+        &&& !s.resources().contains_key(outdated_pod_key)
+        &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& req_msg_is_get_then_delete_outdated_pod_req(vsts, controller_id, req_msg, outdated_pod_key)
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_delete_response()
         &&& resp_msg.content.get_get_then_delete_response().res is Err
             ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
-        // outdated pod is deleted from etcd
-        &&& !s.resources().contains_key(outdated_pod_key)
+    }
+}
+
+pub open spec fn n_outdated_pods_in_etcd(vsts: VStatefulSetView, n: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        outdated_obj_keys_in_etcd(s, vsts).len() == n
+    }
+}
+
+pub open spec fn reconcile_idle(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+    }
+}
+
+pub open spec fn reconcile_scheduled(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
+    }
+}
+
+pub open spec fn reconcile_idle_and_not_scheduled(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+        &&& !s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
     }
 }
 
 pub open spec fn after_handle_create_or_skip_pvc_helper(
-    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat
+    vsts: VStatefulSetView, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
     if pvc_index < pvc_cnt(vsts) {
         and!(
             at_vsts_step(vsts, controller_id, at_step![GetPVC]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
         )
     } else {
         and!(
             at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
             local_state_is_valid_and_coherent(vsts, controller_id),
             no_pending_req_in_cluster(vsts, controller_id),
-            pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len)
+            pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
         )
     }
 }
 
 pub open spec fn after_handle_after_create_or_after_update_needed_helper(
-    vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat
+    vsts: VStatefulSetView, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 ) -> StatePred<ClusterState> {
     if needed_index < replicas(vsts) {
         if pvc_cnt(vsts) > 0 {
@@ -719,14 +862,14 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
                 at_vsts_step(vsts, controller_id, at_step![GetPVC]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len, outdated_len)
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), needed_index, nat0!(), condemned_len, outdated_len)
             )
         }
     } else {
@@ -735,14 +878,14 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
                 at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
             )
         } else {
             and!(
                 at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
                 local_state_is_valid_and_coherent(vsts, controller_id),
                 no_pending_req_in_cluster(vsts, controller_id),
-                pvc_needed_condemned_index_and_condemned_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len)
+                pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
             )
         }
     }

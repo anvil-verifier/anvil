@@ -36,9 +36,11 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
             &&& vsts.metadata.namespace is Some
             &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
-            let pod_obj = s.resources()[pod_key];
-            &&& pod_obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-            &&& vsts.spec.selector.matches(pod_obj.metadata.labels.unwrap_or(Map::empty()))
+            let obj = s.resources()[pod_key];
+            let pod = PodView::unmarshal(obj)->Ok_0;
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
+            &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         }
     }
 }
@@ -104,6 +106,14 @@ ensures
         lift_state(Cluster::there_is_the_controller_state(controller_id))
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
+// we don't need to talk about ongoing_reconcile as it's covered by at_vsts_step
+pub open spec fn vsts_in_reconciles_has_no_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+        &&& s.scheduled_reconciles(controller_id)[vsts.object_ref()].metadata.deletion_timestamp is None
+        &&& VStatefulSetView::unmarshal(s.scheduled_reconciles(controller_id)[vsts.object_ref()]).unwrap().metadata().deletion_timestamp is None
+    }
 }
 
 }

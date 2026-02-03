@@ -103,6 +103,13 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn without_labels(self) -> ObjectMetaView {
+        ObjectMetaView {
+            labels: None,
+            ..self
+        }
+    }
+
     pub open spec fn with_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             annotations: Some(annotations),

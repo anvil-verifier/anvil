@@ -286,12 +286,20 @@ pub fn handle_after_list_pod(
                         (
                             VStatefulSetReconcileState {
                                 reconcile_step: VStatefulSetReconcileStep::DeleteCondemned,
+                                pvc_index: pvcs.len(), // reset the index when entering DeleteCondemned state
                                 ..state_without_step
                             },
                             None,
                         )
                     } else {
-                        (delete_outdated_state(state_without_step), None)
+                        (
+                            VStatefulSetReconcileState {
+                                reconcile_step: VStatefulSetReconcileStep::DeleteOutdated,
+                                pvc_index: pvcs.len(),
+                                ..state_without_step
+                            },
+                            None,
+                        )
                     }
                 }
             } else {
@@ -551,7 +559,7 @@ pub fn handle_update_needed(
         }
 
         let ordinal = state.needed_index;
-        let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
+        let new_pod = update_storage(vsts, update_identity(old_pod, ordinal), ordinal);
 
         let req = KubeAPIRequest::GetThenUpdateRequest(
             KubeGetThenUpdateRequest {
@@ -972,7 +980,7 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
         result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat),
 {
     
-    let mut updated_pod = update_identity(vsts, pod, ordinal);
+    let mut updated_pod = update_identity(pod, ordinal);
     let mut pod_spec = updated_pod.spec().unwrap();
 
     pod_spec.set_hostname(updated_pod.metadata().name().unwrap());
@@ -984,12 +992,11 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
 }
 
 // TODO: implement this
-pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
+pub fn update_identity(pod: Pod, ordinal: usize) -> (result: Pod)
     requires
-        vsts@.well_formed(),
         pod@.metadata.name is Some,
     ensures
-        result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat),
+        result@ == model_reconciler::update_identity(pod@, ordinal as nat),
 {
 
     let mut result = pod.clone();
@@ -1468,14 +1475,18 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-pub fn pod_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
+pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
-    ensures res == model_reconciler::pod_matches(vsts@, pod@)
+    ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)
 {
     if let Some(mut spec) = pod.spec() {
         let mut vsts_spec = vsts.spec().template().spec().unwrap();
         spec.unset_volumes();
+        spec.unset_hostname();
+        spec.unset_subdomain();
         vsts_spec.unset_volumes();
+        vsts_spec.unset_hostname();
+        vsts_spec.unset_subdomain();
         return spec.eq_spec(&vsts_spec);
     } else {
         return false;
@@ -1510,7 +1521,7 @@ pub fn get_largest_unmatched_pods(
         decreases pods.len() - ord,
     {
         let pod_or_none = &pods[ord];
-        if pod_or_none.is_some() && !pod_matches(vsts, pod_or_none.clone().unwrap()) {
+        if pod_or_none.is_some() && !pod_spec_matches(vsts, pod_or_none.clone().unwrap()) {
             proof {
                 assert(model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view()));
             }

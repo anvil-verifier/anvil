@@ -129,6 +129,21 @@ requires
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-{}  
+{}
+
+#[verifier(external_body)]
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
+    req_msg.dst == HostId::APIServer,
+    n_outdated_pods_in_etcd(vsts, outdated_len)(s),
+ensures
+    n_outdated_pods_in_etcd(vsts, outdated_len)(s_prime),
+{}
 
 }

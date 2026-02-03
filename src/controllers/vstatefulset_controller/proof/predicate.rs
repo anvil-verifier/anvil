@@ -2,7 +2,7 @@
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, esr::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely, liveness_theorem::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::{helper_invariants, guarantee};
 use crate::temporal_logic::{defs::*, rules::*};
@@ -21,6 +21,14 @@ pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView)
     &&& obj.spec == obj_prime.spec
 }
 
+pub open spec fn pod_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
+    &&& pod.metadata.without_resource_version().without_labels() == pod_prime.metadata.without_resource_version().without_labels()
+    &&& pod.spec is Some
+    &&& pod_prime.spec is Some
+    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == pod_prime.spec->0.without_volumes().without_hostname().without_subdomain()
+}
+
 pub open spec fn has_vsts_prefix(name: StringView) -> bool {
     exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
@@ -30,6 +38,7 @@ pub open spec fn valid_owned_object_filter(vsts: VStatefulSetView) -> spec_fn(Dy
         &&& obj.kind == Kind::PodKind
         &&& obj.metadata.name is Some
         &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
         &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
     }
 }
@@ -60,17 +69,19 @@ pub open spec fn resp_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: i
     |s: ClusterState| resp_msg_or_none(s, vsts_key, controller_id) == Some(msg)
 }
 
-pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
-    match vsts.spec.volume_claim_templates {
-        Some(pvc_templates) => pvc_templates.len(),
-        None => 0,
-    }
+pub open spec fn outdated_obj_keys_in_etcd(s: ClusterState, vsts: VStatefulSetView) -> Set<ObjectRef> {
+    s.resources().dom().filter(outdated_obj_key_filter(s, vsts))
 }
 
-pub open spec fn replicas(vsts: VStatefulSetView) -> nat {
-    match vsts.spec.replicas {
-        Some(r) => r as nat,
-        None => 1,
+pub open spec fn outdated_obj_key_filter(s: ClusterState, vsts: VStatefulSetView) -> spec_fn(ObjectRef) -> bool {
+    |key: ObjectRef| {
+        &&& exists |ord: nat| ord < replicas(vsts) && key == ObjectRef {
+            kind: PodView::kind(),
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        }
+        &&& PodView::unmarshal(s.resources()[key]) is Ok
+        &&& !pod_spec_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
     }
 }
 
@@ -90,6 +101,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
         Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
         Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id),
+        Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts),
         Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id),
         Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id),
@@ -105,6 +117,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
         helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts),
         helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts),
+        helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id),
         guarantee::vsts_internal_guarantee_conditions(controller_id),
         guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
         rely::vsts_rely_conditions(cluster, controller_id),

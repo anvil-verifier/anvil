@@ -196,10 +196,24 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
+    pub fn unset_hostname(&mut self)
+        ensures self@ == old(self)@.without_hostname()
+    {
+        self.inner.hostname = None;
+    }
+
+    #[verifier(external_body)]
     pub fn set_subdomain(&mut self, subdomain: String)
         ensures self@ == old(self)@.with_subdomain(subdomain@)
     {
         self.inner.subdomain = Some(subdomain);
+    }
+
+    #[verifier(external_body)]
+    pub fn unset_subdomain(&mut self)
+        ensures self@ == old(self)@.without_subdomain()
+    {
+        self.inner.subdomain = None;
     }
 
     // TODO: fix this for VSTS controller
