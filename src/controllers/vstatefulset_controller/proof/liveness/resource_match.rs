@@ -3321,7 +3321,7 @@ ensures
         assert forall |key: ObjectRef| #[trigger] outdated_obj_keys_in_etcd(s, vsts).contains(key) implies outdated_pod_keys.to_set().contains(key) by {
             PodView::marshal_preserves_integrity();
             let ord = choose |ord: nat| ord < replicas && key == ObjectRef {
-                kind: PodView::kind(),
+                kind: Kind::PodKind,
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
@@ -3869,7 +3869,7 @@ ensures
             if outdated_obj_keys_in_etcd(s, vsts).contains(req.key()) {
                 assert(outdated_obj_key_filter(s, vsts)(req.key()));
                 let ord = choose |ord: nat| 0 <= ord < replicas(vsts) && req.key() == ObjectRef {
-                    kind: PodView::kind(),
+                    kind: Kind::PodKind,
                     name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                     namespace: vsts.metadata.namespace->0
                 };
@@ -4137,7 +4137,7 @@ ensures
     assert(get_largest_unmatched_pods(vsts, local_state.needed) is None);
     assert forall |ord: nat| ord < replicas(vsts) implies {
         let pod_key = ObjectRef {
-            kind: PodView::kind(),
+            kind: Kind::PodKind,
             name: #[trigger] pod_name(vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0
         };
@@ -4148,7 +4148,7 @@ ensures
     } by {
         assert(ord < local_state.needed_index);
         let key = ObjectRef {
-            kind: PodView::kind(),
+            kind: Kind::PodKind,
             name: #[trigger] pod_name(vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0
         };
@@ -4194,44 +4194,6 @@ ensures
                     assert(input == Some(req_msg));
                     if local_state.reconcile_step == AfterListPod {
                         assume(false);
-                    } else if local_state.reconcile_step == AfterUpdateNeeded {
-                        let req = req_msg.content.get_get_then_update_request();
-                        if s.resources().contains_key(req.key()) {
-                            PodView::marshal_preserves_integrity();
-                            let pod = PodView::unmarshal(req.obj)->Ok_0;
-                            let ord = (local_state.needed_index - 1) as nat;
-                            let old_pod = local_state.needed[ord as int]->0;
-                            assert(vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty())));
-                            assert(pod_weakly_eq(pod, old_pod));
-                            assert(pod_spec_matches(vsts, pod));
-                            assert forall |i: nat| i < replicas(vsts) implies {
-                                let pod_key = ObjectRef {
-                                    kind: PodView::kind(),
-                                    name: #[trigger] pod_name(vsts.metadata.name->0, i),
-                                    namespace: vsts.metadata.namespace->0
-                                };
-                                let obj = s_prime.resources()[pod_key];
-                                &&& s_prime.resources().contains_key(pod_key)
-                                &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
-                                &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-                            } by {
-                                let key = ObjectRef {
-                                    kind: PodView::kind(),
-                                    name: #[trigger] pod_name(vsts.metadata.name->0, i),
-                                    namespace: vsts.metadata.namespace->0
-                                };
-                                if i == ord {
-                                    assert(key == req.key());
-                                } else {
-                                    get_ordinal_eq_pod_name(vsts.metadata.name->0, i, key.name);
-                                    get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
-                                    assert(key != pod.object_ref());
-                                    assert(s_prime.resources()[key] == s.resources()[key]);
-                                }
-                            }
-                        }
-                    } else {
-                        assert(req_msg.content.is_get_request());
                     }
                     assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
                 }
