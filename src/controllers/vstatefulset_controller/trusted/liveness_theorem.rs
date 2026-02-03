@@ -4,7 +4,6 @@ use crate::temporal_logic::defs::*;
 use crate::vstatefulset_controller::{
     model::reconciler::*,
     trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*},
-    proof::predicate::*
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -52,6 +51,20 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             };
             &&& s.resources().contains_key(key)
         }
+    }
+}
+
+pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
+    match vsts.spec.volume_claim_templates {
+        Some(pvc_templates) => pvc_templates.len(),
+        None => 0,
+    }
+}
+
+pub open spec fn replicas(vsts: VStatefulSetView) -> nat {
+    match vsts.spec.replicas {
+        Some(r) => r as nat,
+        None => 1,
     }
 }
 

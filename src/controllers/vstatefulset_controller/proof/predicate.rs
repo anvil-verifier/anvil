@@ -2,7 +2,7 @@
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, esr::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely, liveness_theorem::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::{helper_invariants, guarantee};
 use crate::temporal_logic::{defs::*, rules::*};
@@ -82,20 +82,6 @@ pub open spec fn outdated_obj_key_filter(s: ClusterState, vsts: VStatefulSetView
         }
         &&& PodView::unmarshal(s.resources()[key]) is Ok
         &&& !pod_spec_matches(vsts, PodView::unmarshal(s.resources()[key])->Ok_0)
-    }
-}
-
-pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
-    match vsts.spec.volume_claim_templates {
-        Some(pvc_templates) => pvc_templates.len(),
-        None => 0,
-    }
-}
-
-pub open spec fn replicas(vsts: VStatefulSetView) -> nat {
-    match vsts.spec.replicas {
-        Some(r) => r as nat,
-        None => 1,
     }
 }
 

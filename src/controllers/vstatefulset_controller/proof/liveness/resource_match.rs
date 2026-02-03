@@ -3367,7 +3367,7 @@ ensures
             seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_j);
             let pod_ord_i = choose |ord: nat| ord < replicas && needed[ord as int] == pod_opt_i;
             assert(exists |ord: nat| ord < replicas && needed[ord as int] == pod_opt_j && ord != pod_ord_i) by {
-                lemma_different_filtered_elem_maps_to_different_elems(needed, outdated_pod_filter(vsts));
+                lemma_different_filtered_elems_map_to_different_elems(needed, outdated_pod_filter(vsts));
             };
             let pod_ord_j = choose |ord: nat| ord < replicas && needed[ord as int] == pod_opt_j && ord != pod_ord_i;
             get_ordinal_eq_pod_name(vsts_name, pod_ord_i, key.name);

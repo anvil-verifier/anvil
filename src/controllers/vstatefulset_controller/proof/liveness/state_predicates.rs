@@ -2,7 +2,7 @@
 
 use crate::kubernetes_api_objects::{spec::{resource::*, prelude::*}, error::APIError::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*, liveness_theorem::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::predicate::*;
 use crate::temporal_logic::{defs::*, rules::*};
