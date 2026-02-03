@@ -146,4 +146,19 @@ ensures
     n_outdated_pods_in_etcd(vsts, outdated_len)(s_prime),
 {}
 
+#[verifier(external_body)]
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
+    req_msg.dst == HostId::APIServer,
+    current_state_matches(vsts)(s),
+ensures
+    current_state_matches(vsts)(s_prime),
+{}
+
 }

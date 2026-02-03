@@ -4163,4 +4163,42 @@ ensures
     }
 }
 
+pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, step: Step
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
+    cluster.next_step(s, s_prime, step),
+    inductive_current_state_matches(vsts, controller_id)(s),
+ensures
+    inductive_current_state_matches(vsts, controller_id)(s_prime),
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    PodView::marshal_preserves_integrity();
+    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+    match step {
+        Step::APIServerStep(input) => {
+            if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
+                assume(false);
+            } else {
+                lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
+                    s, s_prime, vsts, cluster, controller_id, input->0
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
+                    s, s_prime, vsts, cluster, controller_id, input->0, nat0!()
+                );
+            }
+        },
+        Step::ControllerStep(input) => {
+            assume(false);
+        },
+        _ => {
+            assume(false);
+        }
+    }
+}
+
 }
