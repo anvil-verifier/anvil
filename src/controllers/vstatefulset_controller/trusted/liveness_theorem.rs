@@ -15,7 +15,7 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
         // TODO: cover updates to pod.spec.{volumes|hostname|subdomain} and pod.metadata.labels
         &&& forall |ord: nat| ord < replicas(vsts) ==> {
             let key = ObjectRef {
-                kind: PodView::kind(),
+                kind: Kind::PodKind,
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };

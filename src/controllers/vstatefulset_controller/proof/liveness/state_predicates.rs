@@ -596,7 +596,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& resource_get_then_update_request_msg(key)(req_msg)
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
-    // the request does not change the update status of the pod
+    // the request does not change the uptodate status of the pod
     &&& pod_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
@@ -894,9 +894,25 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
 pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& current_state_matches(vsts)(s)
-        &&& outdated_obj_keys_in_etcd(s, vsts).len() == 0
+        // &&& outdated_obj_keys_in_etcd(s, vsts).len() == 0
         &&& s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
             let local_state =  VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+            // weaker version of local state is valid
+            // so at UpdateNeeded step the request will not break current_state_matches
+            &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < replicas(vsts) ==> {
+                let needed_pod = local_state.needed[ord as int]->0;
+                let key = ObjectRef {
+                    kind: Kind::PodKind,
+                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                    namespace: vsts.metadata.namespace->0
+                };
+                &&& local_state.needed[ord as int] is Some
+                &&& needed_pod.object_ref() == key
+                &&& pod_spec_matches(vsts, needed_pod)
+                &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+            }
+            &&& local_state.needed_index <= replicas(vsts)
+            &&& !locally_at_step_or!(local_state, Init, AfterListPod)==> local_state.needed.len() == replicas(vsts)
             &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
             &&& match local_state.reconcile_step {
                 AfterListPod => {
@@ -920,7 +936,12 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                     }
                 },
                 AfterUpdateNeeded => {
-                    true
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    let ord = (local_state.needed_index - 1) as nat;
+                    let old_pod = local_state.needed[local_state.needed_index - 1]->0;
+                    &&& local_state.needed_index > 0
+                    &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                    &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
                 },
                 AfterGetPVC => {
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
