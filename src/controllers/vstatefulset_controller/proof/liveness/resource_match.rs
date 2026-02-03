@@ -3137,7 +3137,7 @@ ensures
     outdated_obj_keys_in_etcd(s, vsts).len() == outdated_len,
 {
     lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
-        s, s_prime, vsts, cluster, controller_id
+        s, s_prime, vsts, cluster, controller_id, msg
     );
 }
 
@@ -4193,6 +4193,45 @@ ensures
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                     assert(input == Some(req_msg));
                     if local_state.reconcile_step == AfterListPod {
+                        assert(s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some);
+                        assert(req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg));
+                        assert forall |msg| {
+                            &&& #[trigger] s.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies {
+                            let objs = msg.content.get_list_response().res.unwrap();
+                            let pods = objects_to_pods(objs)->0;
+                            let filtered_pods = pods.filter(pod_filter(vsts));
+                            let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+                            &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
+                            // no condemned pods
+                            &&& condemned.len() == 0
+                            // no outdated pods
+                            &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
+                        } by {
+                            if !new_msgs.contains(msg) {
+                                assert(s.in_flight().contains(msg));
+                            } else {
+                                lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
+                                    s, s_prime, vsts, cluster, controller_id, req_msg,
+                                );
+                                let objs = msg.content.get_list_response().res.unwrap();
+                                let pods = objects_to_pods(objs)->0;
+                                let filtered_pods = pods.filter(pod_filter(vsts));
+                                let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+                                assume(condemned.len() == 0);
+                                assume(needed.filter(outdated_pod_filter(vsts)).len() == 0);
+                            }
+                        }
+                        VStatefulSetReconcileState::marshal_preserves_integrity();
+                        let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+                        assert(next_local_state == local_state);
+                        assert(next_local_state.needed.len() == local_state.needed.len());
+                        assert(next_local_state.reconcile_step == local_state.reconcile_step);
+                        assert(next_local_state.needed_index <= replicas(vsts));
+                        assert(!locally_at_step_or!(next_local_state, Init, AfterListPod) ==> next_local_state.needed.len() == replicas(vsts));
+                        assert(at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s_prime));
                         assume(false);
                     }
                     assert(inductive_current_state_matches(vsts, controller_id)(s_prime));

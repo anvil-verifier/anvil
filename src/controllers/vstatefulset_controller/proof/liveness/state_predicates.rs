@@ -912,7 +912,7 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                 &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
             }
             &&& local_state.needed_index <= replicas(vsts)
-            &&& !locally_at_step_or!(local_state, Init, AfterListPod)==> local_state.needed.len() == replicas(vsts)
+            &&& !locally_at_step_or!(local_state, Init, AfterListPod) ==> local_state.needed.len() == replicas(vsts)
             &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
             &&& match local_state.reconcile_step {
                 AfterListPod => {
