@@ -3248,11 +3248,11 @@ ensures
         let etcd_pod = PodView::unmarshal(obj)->Ok_0;
         assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
         seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
-        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
+        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
         get_ordinal_eq_pod_name(vsts_name, ord, key.name);
         assert(pod_name_match(key.name, vsts_name));
         assert(s.resources().contains_key(key));
-        assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts)(s));
+        assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s));
     }
     // no negative sample of uncaptured condemned pods or needed pods, prove by contradiction
     assert forall |ord: nat| ord >= replicas implies {
@@ -3275,11 +3275,11 @@ ensures
             let filtered_resp_objs = objs.filter(owner_ref_filter);
             get_ordinal_eq_pod_name(vsts_name, ord, key.name);
             // prove that object can pass through all filters
-            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts)(s));
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s));
             assert({
                 &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                 &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels
+            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
@@ -4163,6 +4163,8 @@ ensures
     }
 }
 
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, step: Step
 )
@@ -4219,9 +4221,7 @@ ensures
                                     namespace: vsts.metadata.namespace->0
                                 };
                                 if i == ord {
-                                    assume(false);
-                                    assert(pod_spec_matches(vsts, pod));
-                                    assert(vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty())));
+                                    assert(key == req.key());
                                 } else {
                                     get_ordinal_eq_pod_name(vsts.metadata.name->0, i, key.name);
                                     get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
