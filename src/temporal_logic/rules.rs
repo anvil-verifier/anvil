@@ -2554,5 +2554,70 @@ pub proof fn leads_to_by_monotonicity2<T>(spec: TempPred<T>, next: TempPred<T>, 
     }
 }
 
+pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>, n: nat)
+    requires
+        forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
+        forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
+        forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))),
+    ensures
+        spec.entails(p(n).leads_to(always(p(0)))),
+    decreases n
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p(n).leads_to(always(p(0))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p(n).satisfied_by(ex.suffix(i)) implies eventually(always(p(0))).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex, spec, always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m)))))));
+            implies_apply(ex.suffix(i), p(n), always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m)))));
+            assert(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m)))).satisfied_by(ex.suffix(i)));
+            if n == 0 {
+                assert (tla_exists(|m: nat| lift_state(|s| m <= 0).and(p(m))) == p(0)) by {
+                    assert forall |ex| #[trigger] p(0).satisfied_by(ex) implies tla_exists(|m: nat| lift_state(|s| m <= 0).and(p(m))).satisfied_by(ex) by {
+                        assert((|m: nat| lift_state(|s| m <= 0).and(p(m)))(0).satisfied_by(ex));
+                    }
+                    temp_pred_equality(tla_exists(|m: nat| lift_state(|s| m <= 0).and(p(m))), p(0));
+                }
+                assert(always(p(0)).satisfied_by(ex.suffix(i)));
+                execution_equality(ex.suffix(i), ex.suffix(i).suffix(0));
+                eventually_proved_by_witness(ex.suffix(i), always(p(0)), 0);
+            } else {
+                if always(p(n)).satisfied_by(ex.suffix(i)) {
+                    leads_to_trans(spec, always(p(n)), always(q(n)), not(p(n)));
+                    implies_apply(ex, spec, always(p(n)).leads_to(not(p(n))));
+                    implies_apply(ex.suffix(i), always(p(n)), eventually(not(p(n))));
+                    assert(exists |m: nat| #![trigger p(m)] m < n && eventually(p(m)).satisfied_by(ex.suffix(i)));
+                } else {
+                    assert(exists |j| not(p(n)).satisfied_by(ex.suffix(i).suffix(j)));
+                    assert (exists |m: nat| #![trigger p(m)] m < n && eventually(p(m)).satisfied_by(ex.suffix(i))) by {
+                        let j = choose |j| not(p(n)).satisfied_by(ex.suffix(i).suffix(j));
+                        assert(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))).satisfied_by(ex.suffix(i).suffix(j)));
+                        assert(exists |m: nat| #![trigger p(m)] m <= n && p(m).satisfied_by(ex.suffix(i).suffix(j)));
+                    }
+                }
+                let m = choose |m: nat| #![trigger p(m)] m < n && eventually(p(m)).satisfied_by(ex.suffix(i));
+                assert(eventually(p(m)).satisfied_by(ex.suffix(i)));
+                let j = eventually_choose_witness(ex.suffix(i), p(m));
+                execution_equality(ex.suffix(i).suffix(j), ex.suffix(i+j));
+                leads_to_by_monotonicity3_rec(spec, p, q, m);
+                implies_apply(ex, spec, p(m).leads_to(always(p(0))));
+                implies_apply(ex.suffix(i+j), p(m), eventually(always(p(0))));
+                let k = eventually_choose_witness(ex.suffix(i+j), always(p(0)));
+                execution_equality(ex.suffix(i).suffix(j+k), ex.suffix(i+j).suffix(k));
+            }
+        }
+    }
+}
+
+pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>)
+    requires
+        forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
+        forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
+        forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))),
+    ensures
+        forall |n| #![trigger p(n)] spec.entails(p(n).leads_to(always(p(0)))),
+{
+    assert forall |n| #[trigger] spec.entails(p(n).leads_to(always(p(0)))) by {
+        leads_to_by_monotonicity3_rec(spec, p, q, n);
+    }
+}
+
 
 }
