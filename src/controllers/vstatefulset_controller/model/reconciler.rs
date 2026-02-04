@@ -269,12 +269,12 @@ pub open spec fn handle_after_get_pvc(vsts: VStatefulSetView, resp_o: DefaultRes
     if is_some_k_get_resp_view(resp_o) {
         let result = extract_some_k_get_resp_view(resp_o);
         if result is Ok {
-                // The pvc exists, so we don't do anything to it
-                let state_prime = VStatefulSetReconcileState {
-                    reconcile_step: VStatefulSetReconcileStepView::SkipPVC,
-                    ..state
-                };
-                (state_prime, None)
+            // The pvc exists, so we don't do anything to it
+            let state_prime = VStatefulSetReconcileState {
+                reconcile_step: VStatefulSetReconcileStepView::SkipPVC,
+                ..state
+            };
+            (state_prime, None)
         } else {
             if result->Err_0 is ObjectNotFound {
                 // The pvc doesn't exists, so we create it in the next step

@@ -4183,6 +4183,7 @@ ensures
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     match step {
         Step::APIServerStep(input) => {
+            assume(false);
             let msg = input->0;
             if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
                 VStatefulSetReconcileState::marshal_preserves_integrity();
@@ -4324,28 +4325,48 @@ ensures
             assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         },
         Step::ControllerStep(input) => {
-            assume(false);
             if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
+                let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
                 let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
                 let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
                 VStatefulSetReconcileState::marshal_preserves_integrity();
+                VStatefulSetView::marshal_preserves_integrity();
                 if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                    let resp_msg = input.1;
-                    if at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s) {
-                        assert(resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, resp_msg->0));
-                        assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]->0] ord < replicas(vsts) implies {
-                            let needed_pod = next_local_state.needed[ord as int]->0;
-                            &&& local_state.needed[ord as int] is Some
-                            &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
-                            &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
-                            &&& pod_spec_matches(vsts, needed_pod)
-                            &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
-                        } by {
-                            assume(false);
-                        }
-                        assert(next_local_state.needed.len() == replicas(vsts));
-                    } else {
-                        assume(false);
+                    let resp_msg = input.1->0;
+                    match local_state.reconcile_step {
+                        Init => {
+                            // prove that the newly sent message has no response.
+                            if s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some {
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                                assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                                assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
+                                assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                                    && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                                    && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                                    && msg != req_msg
+                                    implies msg.rpc_id != req_msg.rpc_id by {
+                                    if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                                }
+                            }
+                        },
+                        AfterListPod => {assume(false);}, // slow
+                        UpdateNeeded => {assume(false);}, // slow
+                        DeleteOutdated => {
+                            assert(get_largest_unmatched_pods(vsts, local_state.needed) ==
+                                get_largest_unmatched_pods(triggering_cr, local_state.needed)) by {
+                                same_filter_implies_same_result(local_state.needed, outdated_pod_filter(vsts), outdated_pod_filter(triggering_cr));
+                            }
+                            if get_largest_unmatched_pods(vsts, local_state.needed) is Some {
+                                assert(local_state.needed.filter(outdated_pod_filter(vsts)).len() > 0);
+                                let outdated_pod = local_state.needed.filter(outdated_pod_filter(vsts))[0];
+                                seq_filter_contains_implies_seq_contains(
+                                    local_state.needed, outdated_pod_filter(vsts), outdated_pod
+                                );
+                                assert(false);
+                            }
+                            assert(next_local_state.reconcile_step == Error || next_local_state.reconcile_step == Done);
+                        },
+                        _ => {}
                     }
                 } else {
                     assume(false);

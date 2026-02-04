@@ -910,8 +910,9 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                 &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
             }
             &&& local_state.needed_index <= replicas(vsts)
+            &&& local_state.condemned.len() == 0
             &&& !locally_at_step_or!(local_state, Init, AfterListPod) ==> local_state.needed.len() == replicas(vsts)
-            &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
+            &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
             &&& match local_state.reconcile_step {
                 AfterListPod => {
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
@@ -935,6 +936,11 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
                     &&& req_msg.content.is_get_request()
+                },
+                AfterCreatePVC => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                    &&& req_msg.content.is_create_request()
                 },
                 _ => {
                     s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is None
