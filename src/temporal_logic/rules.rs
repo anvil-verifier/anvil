@@ -2606,6 +2606,18 @@ pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat)
     }
 }
 
+// Prove leads to by monotonicity
+// pre:
+//      forall n. spec |= []p(n) ~> []q(n)
+//      forall n. spec |= [](p(n) ==> [](exists |m| m <= n /\ p(m))
+//      forall n. n > 0 ==> spec |= []q(n) ~> !p(n)
+// post:
+//      forall n. spec |= p(n) ~> []p(0)
+//
+// This lemma is used for reasoning about monotonic updates. Here p and q takes a ranking function (nat).
+// The first premise is ESR, the second premise says that the ranking for p never increases, and the third premise says
+// that if the ranking has not reached 0 and q(n) always holds, then the system eventually invalidates p(n).
+// The second and the third premised combined proves that if q(n) holds stably, then the ranking for p eventually decreases.
 pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>)
     requires
         forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
