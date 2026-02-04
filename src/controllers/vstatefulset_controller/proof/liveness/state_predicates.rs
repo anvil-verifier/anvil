@@ -931,6 +931,8 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                         &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
                         // no condemned pods
                         &&& condemned.len() == 0
+                        // all needed pods exist
+                        &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
                         // no outdated pods
                         &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
                     }
