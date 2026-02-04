@@ -4191,7 +4191,37 @@ ensures
                 let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
                 let vsts_name = vsts.metadata.name->0;
                 if msg.src != HostId::Controller(controller_id, vsts.object_ref()) {
-                    assume(false);
+                    lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
+                        s, s_prime, vsts, cluster, controller_id, msg
+                    );
+                    if local_state.reconcile_step == AfterListPod {
+                        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                        assert forall |msg| {
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies {
+                            let objs = msg.content.get_list_response().res.unwrap();
+                            let pods = objects_to_pods(objs)->0;
+                            let filtered_pods = pods.filter(pod_filter(vsts));
+                            let (needed, condemned) = partition_pods(vsts_name, replicas(vsts), filtered_pods);
+                            // &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
+                            &&& resp_msg_is_ok_list_resp_of_pods_no_coherence(vsts, msg, s)
+                            // no condemned pods
+                            &&& condemned.len() == 0
+                            // all needed pods exist
+                            &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
+                            // no outdated pods
+                            &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
+                        } by {
+                            assert(s.in_flight().contains(msg)) by {
+                                if !s.in_flight().contains(msg) {
+                                    assert(new_msgs.contains(msg));
+                                    assert(!resp_msg_matches_req_msg(msg, req_msg));
+                                }
+                            }
+                        }
+                    }
                 } else {
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                     assert(input == Some(req_msg));
@@ -4208,12 +4238,9 @@ ensures
                             let pods = objects_to_pods(objs)->0;
                             let filtered_pods = pods.filter(pod_filter(vsts));
                             let (needed, condemned) = partition_pods(vsts_name, replicas(vsts), filtered_pods);
-                            &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
-                            // no condemned pods
+                            &&& resp_msg_is_ok_list_resp_of_pods_no_coherence(vsts, msg, s)
                             &&& condemned.len() == 0
-                            // all needed pods exist
                             &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
-                            // no outdated pods
                             &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
                         } by {
                             if !new_msgs.contains(msg) {

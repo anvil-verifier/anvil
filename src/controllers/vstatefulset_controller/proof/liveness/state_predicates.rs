@@ -928,7 +928,8 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                         let pods = objects_to_pods(objs)->0;
                         let filtered_pods = pods.filter(pod_filter(vsts));
                         let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
-                        &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
+                        // &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
+                        &&& resp_msg_is_ok_list_resp_of_pods_no_coherence(vsts, msg, s)
                         // no condemned pods
                         &&& condemned.len() == 0
                         // all needed pods exist
@@ -956,6 +957,25 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
             }
         }
     }
+}
+
+// weakened version of resp_msg_is_ok_list_resp_of_pods
+pub open spec fn resp_msg_is_ok_list_resp_of_pods_no_coherence(
+    vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
+) -> bool {
+    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    // these objects can be guarded by rely conditions
+    &&& resp_msg.content.is_list_response()
+    &&& resp_msg.content.get_list_response().res is Ok
+    &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+        &&& obj.kind == Kind::PodKind
+        &&& PodView::unmarshal(obj) is Ok
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    }
+    &&& objects_to_pods(resp_objs) is Some
 }
 
 }
