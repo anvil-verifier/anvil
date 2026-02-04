@@ -4349,8 +4349,8 @@ ensures
                                 }
                             }
                         },
-                        AfterListPod => {assume(false);}, // slow
-                        UpdateNeeded => {assume(false);}, // slow
+                        AfterListPod => {},
+                        UpdateNeeded => {}, // slow
                         DeleteOutdated => {
                             assert(get_largest_unmatched_pods(vsts, local_state.needed) ==
                                 get_largest_unmatched_pods(triggering_cr, local_state.needed)) by {
