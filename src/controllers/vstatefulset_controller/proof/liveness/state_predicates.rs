@@ -899,7 +899,7 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
             let local_state =  VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
             // weaker version of local state is valid
             // so at UpdateNeeded step the request will not break current_state_matches
-            &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < replicas(vsts) ==> {
+            &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < local_state.needed.len() ==> {
                 let needed_pod = local_state.needed[ord as int]->0;
                 let key = ObjectRef {
                     kind: Kind::PodKind,

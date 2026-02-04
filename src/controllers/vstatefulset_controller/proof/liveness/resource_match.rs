@@ -4257,10 +4257,10 @@ ensures
                                     &&& obj.object_ref().namespace == vsts.metadata.namespace->0
                                     &&& obj.object_ref().kind == Kind::PodKind
                                 };
-                                assert(objs == s.resources().values().filter(list_req_filter).to_seq());
                                 lemma_values_finite(s.resources());
                                 finite_set_to_finite_filtered_set(s.resources().values(), list_req_filter);
                                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+                                assert(objs == s.resources().values().filter(list_req_filter).to_seq());
                                 if objects_to_pods(objs) is Some {
                                     assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
                                         &&& s.resources().contains_key(pod.object_ref())
@@ -4345,9 +4345,20 @@ ensures
                 //     s, s_prime, vsts, cluster, controller_id, input->0, nat0!()
                 // );
             }
+            assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         },
         Step::ControllerStep(input) => {
-            assume(false);
+            if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
+                assume(false);
+            } else {
+                if s_prime.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) { // RunScheduledReconcile
+                    assert(s_prime.resources() == s.resources());
+                    assert(at_vsts_step(vsts, controller_id, at_step![Init])(s_prime));
+                } else {
+                    assert(s_prime.resources() == s.resources());
+                }
+            }
+            assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         },
         _ => {
             assume(false);
