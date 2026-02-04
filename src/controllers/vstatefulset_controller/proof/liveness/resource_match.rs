@@ -4231,6 +4231,9 @@ ensures
                                     &&& obj.object_ref().kind == Kind::PodKind
                                 };
                                 assert(objs == s.resources().values().filter(list_req_filter).to_seq());
+                                lemma_values_finite(s.resources());
+                                finite_set_to_finite_filtered_set(s.resources().values(), list_req_filter);
+                                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
                                 if objects_to_pods(objs) is Some {
                                     assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
                                         &&& s.resources().contains_key(pod.object_ref())
@@ -4242,9 +4245,6 @@ ensures
                                         let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
                                         assert(objs.contains(objs[i]));
                                         assert(PodView::unmarshal(objs[i])->Ok_0 == pod);
-                                        lemma_values_finite(s.resources());
-                                        finite_set_to_finite_filtered_set(s.resources().values(), list_req_filter);
-                                        finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
                                         assert(s.resources().values().filter(list_req_filter).contains(objs[i]));
                                         assert(s.resources().values().contains(objs[i]));
                                         assert(s.resources().contains_key(pod.object_ref()));
@@ -4271,7 +4271,30 @@ ensures
                                         assert(false);
                                     }
                                     assert(needed.all(|pod_opt: Option<PodView>| pod_opt is Some)) by {
-                                        assume(false);
+                                        if exists |ord: nat| ord < needed.len() && needed[ord as int] is None {
+                                            let ord = choose |ord: nat| ord < needed.len() && needed[ord as int] is None;
+                                            let key = ObjectRef {
+                                                kind: Kind::PodKind,
+                                                name: pod_name(vsts_name, ord),
+                                                namespace: vsts.metadata.namespace->0
+                                            };
+                                            assert(s.resources().contains_key(key));
+                                            let obj = s.resources()[key];
+                                            assert(list_req_filter(obj));
+                                            assert(s.resources().values().filter(list_req_filter).contains(obj));
+                                            assert(objs.contains(obj));
+                                            let i = choose |i: int| 0 <= i < objs.len() && objs[i] == obj;
+                                            let pod = PodView::unmarshal(obj)->Ok_0;
+                                            PodView::marshal_preserves_integrity();
+                                            assert(pods[i] == pod);
+                                            assert(pod.object_ref() == key);
+                                            assert(filtered_pods.contains(pod));
+                                            get_ordinal_eq_pod_name(vsts_name, ord, pod.metadata.name->0);
+                                            assert(filtered_pods.filter(pod_has_ord(vsts_name, ord)).len() > 0) by {
+                                                assert(filtered_pods.filter(pod_has_ord(vsts_name, ord)).contains(pod));
+                                            }
+                                            assert(false);
+                                        }
                                     }
                                     if needed.filter(outdated_pod_filter(vsts)).len() > 0 {
                                         let outdated_pod = needed.filter(outdated_pod_filter(vsts))[0];
