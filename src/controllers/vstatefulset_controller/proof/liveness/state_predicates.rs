@@ -249,6 +249,8 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
 // message predicates for each exceptional states carry the necessary information to repair the coherence
 // because of the complexity, don't forget to hide this spec when needed by
 // hide(local_state_is_coherent_with_etcd);
+// TODO: simplify this by removing unnecessary coherence predicates
+// because controller tolerates NotFound/AlreadyExists errors
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
@@ -596,7 +598,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& resource_get_then_update_request_msg(key)(req_msg)
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
-    // the request does not change the update status of the pod
+    // the request does not change the uptodate status of the pod
     &&& pod_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
@@ -888,6 +890,98 @@ pub open spec fn after_handle_after_create_or_after_update_needed_helper(
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
             )
         }
+    }
+}
+
+pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& current_state_matches(vsts)(s)
+        // &&& outdated_obj_keys_in_etcd(s, vsts).len() == 0
+        &&& s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+            let local_state =  VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+            // weaker version of local state is valid
+            // so at UpdateNeeded step the request will not break current_state_matches
+            &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < local_state.needed.len() ==> {
+                let needed_pod = local_state.needed[ord as int]->0;
+                &&& local_state.needed[ord as int] is Some
+                &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
+                &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+                &&& pod_spec_matches(vsts, needed_pod)
+                &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+            }
+            &&& local_state.needed_index <= replicas(vsts)
+            &&& local_state.condemned.len() == 0
+            &&& !locally_at_step_or!(local_state, Init, AfterListPod) ==> local_state.needed.len() == replicas(vsts)
+            &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
+            &&& match local_state.reconcile_step {
+                AfterListPod => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                    &&& req_msg_is_list_pod_req(vsts.object_ref(), controller_id, req_msg)
+                    &&& forall |msg| {
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& msg.src is APIServer
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                    } ==> resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, msg)
+                },
+                AfterUpdateNeeded => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    let ord = (local_state.needed_index - 1) as nat;
+                    let old_pod = local_state.needed[local_state.needed_index - 1]->0;
+                    &&& local_state.needed_index > 0
+                    &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                    &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
+                },
+                AfterGetPVC => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                    &&& req_msg.content.is_get_request()
+                },
+                AfterCreatePVC => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    let req = req_msg.content.get_create_request();
+                    &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
+                    &&& req_msg.content.is_create_request()
+                    &&& req.key().kind == Kind::PersistentVolumeClaimKind
+                },
+                _ => {
+                    s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is None
+                }
+            }
+        }
+    }
+}
+
+// weakened version of resp_msg_is_ok_list_resp_of_pods
+pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
+    vsts: VStatefulSetView, resp_msg: Message
+) -> bool {
+    let resp_objs = resp_msg.content.get_list_response().res->Ok_0;
+    let pods = objects_to_pods(resp_objs)->0;
+    let filtered_pods = pods.filter(pod_filter(vsts));
+    let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+    // these objects can be guarded by rely conditions
+    &&& resp_msg.content.is_list_response()
+    &&& resp_msg.content.get_list_response().res is Ok
+    &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+        &&& obj.kind == Kind::PodKind
+        &&& PodView::unmarshal(obj) is Ok
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    }
+    &&& objects_to_pods(resp_objs) is Some
+    // no outdated or condemned pods exist in etcd
+    &&& condemned.len() == 0
+    // &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
+    &&& forall |ord: nat| #![trigger needed[ord as int]->0] ord < needed.len() ==> {
+        let needed_pod = needed[ord as int]->0;
+        &&& needed[ord as int] is Some
+        &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+        &&& pod_spec_matches(vsts, needed_pod)
+        &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
     }
 }
 

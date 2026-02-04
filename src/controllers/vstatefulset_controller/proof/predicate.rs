@@ -115,7 +115,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         Cluster::no_pending_request_to_api_server_from_non_controllers(),
         Cluster::desired_state_is(vsts),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
-        helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts),
+        helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts),
         helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts),
         helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id),
         guarantee::vsts_internal_guarantee_conditions(controller_id),

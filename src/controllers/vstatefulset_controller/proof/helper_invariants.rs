@@ -26,7 +26,7 @@ verus! {
 // name collision prevention invariant, eventually holds
 // In the corner case when one vsts was created and then deleted, just before
 // another vsts with the same name comes, GC will delete pods owned by the previous vsts
-pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_labels(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pod_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pod_key)
@@ -39,6 +39,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_label
             let obj = s.resources()[pod_key];
             let pod = PodView::unmarshal(obj)->Ok_0;
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& obj.metadata.deletion_timestamp is None
             &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
             &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         }
