@@ -939,8 +939,10 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                 },
                 AfterCreatePVC => {
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                    let req = req_msg.content.get_create_request();
                     &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
                     &&& req_msg.content.is_create_request()
+                    &&& req.key().kind == Kind::PersistentVolumeClaimKind
                 },
                 _ => {
                     s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is None
