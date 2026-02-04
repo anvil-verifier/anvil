@@ -4331,7 +4331,7 @@ ensures
                 let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
                 VStatefulSetReconcileState::marshal_preserves_integrity();
                 VStatefulSetView::marshal_preserves_integrity();
-                if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                if input.0 == controller_id && input.2 == Some(vsts.object_ref()) { // same controller, same cr
                     let resp_msg = input.1->0;
                     match local_state.reconcile_step {
                         Init => {
@@ -4368,8 +4368,22 @@ ensures
                         },
                         _ => {}
                     }
-                } else {
-                    assume(false);
+                } else { // same controller, different cr
+                    assert(s.ongoing_reconciles(controller_id)[vsts.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()]);
+                    assert(s.resources() == s_prime.resources());
+                    if at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s) {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                        assert forall |msg| {
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, msg) by {
+                            if !new_msgs.contains(msg) {
+                                assert(s.in_flight().contains(msg));
+                            }
+                        }
+                    }
+                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
                 }
             } else {
                 if s_prime.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) { // RunScheduledReconcile
