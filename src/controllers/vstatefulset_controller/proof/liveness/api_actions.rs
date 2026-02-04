@@ -102,7 +102,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_get_pvc_request_returns_ok_or_err_response(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -114,7 +113,10 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
     pending_get_pvc_resp_in_flight(vsts, controller_id)(s_prime),
-{}
+{
+    let resp_msg = handle_get_request_msg(req_msg, s.api_server).1;
+    assert(s_prime.in_flight().contains(resp_msg));
+}
 
 #[verifier(external_body)]
 pub proof fn lemma_create_pvc_request_returns_ok_or_already_exists_err_response(
