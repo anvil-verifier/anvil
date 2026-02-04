@@ -945,7 +945,6 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
 }
 
 // weakened version of resp_msg_is_ok_list_resp_of_pods
-// TODO: strengthen
 pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
     vsts: VStatefulSetView, resp_msg: Message
 ) -> bool {
@@ -967,8 +966,15 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
     &&& objects_to_pods(resp_objs) is Some
     // no outdated or condemned pods exist in etcd
     &&& condemned.len() == 0
-    &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
-    &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
+    // &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
+    &&& forall |ord: nat| #![trigger needed[ord as int]->0] ord < needed.len() ==> {
+        let needed_pod = needed[ord as int]->0;
+        &&& needed[ord as int] is Some
+        &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+        &&& pod_spec_matches(vsts, needed_pod)
+        &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+    }
 }
 
 }
