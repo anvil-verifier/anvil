@@ -46,8 +46,38 @@ ensures
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
-        assume(objects_to_pods(resp_objs) is Some);
-        assume(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates());
+        lemma_values_finite(s.resources());
+        assert(resp_objs.no_duplicates()) by {
+            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
+        }
+        assert forall |o| #[trigger] resp_objs.contains(o) implies {
+            &&& o.kind == Kind::PodKind
+            &&& PodView::unmarshal(o) is Ok
+            &&& s_prime.resources().contains_key(o.object_ref())
+            &&& s_prime.resources()[o.object_ref()] == o
+            &&& o.metadata.namespace is Some
+            &&& o.metadata.name is Some
+        } by {
+            assert(s.resources().values().filter(list_req_filter).contains(o)) by {
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+            }
+        }
+        assert(objects_to_pods(resp_objs) is Some) by {
+            seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Err
+            );
+        }
+        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
+            if exists |i, j: int| 0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j && #[trigger] resp_objs[i].object_ref() == #[trigger] resp_objs[j].object_ref() {
+                let (i, j): (int, int) = choose |i, j: int| 0 <= i < resp_objs.len() && 0 <= j < resp_objs.len()
+                    && i != j && #[trigger] resp_objs[i].object_ref() == #[trigger] resp_objs[j].object_ref();
+                assert(resp_objs.contains(resp_objs[i]));
+                assert(resp_objs.contains(resp_objs[j])); // trigger
+                assert(resp_objs[i] == s_prime.resources()[resp_objs[i].object_ref()]);
+                assert(resp_objs[j] == s_prime.resources()[resp_objs[j].object_ref()]);
+                assert(false); // by resp_objs.no_duplicates
+            }
+        }
         assert(owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
             == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())) by {
             assume(false);
