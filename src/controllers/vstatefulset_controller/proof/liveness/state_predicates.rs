@@ -443,15 +443,19 @@ pub open spec fn resp_msg_is_pending_get_pvc_resp_in_flight(
 pub open spec fn req_msg_is_create_pvc_req(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, i: nat
 ) -> bool {
+    let obj = req_msg.content.get_create_request().obj;
     let key = ObjectRef {
         kind: Kind::PersistentVolumeClaimKind,
         namespace: vsts.metadata.namespace->0,
         name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord)
     };
+    &&& 0 <= i < vsts.spec.volume_claim_templates->0.len() // sanity check
     &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_create_request_msg(key)(req_msg)
+    &&& PersistentVolumeClaimView::unmarshal(obj) is Ok
+    &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
 }
 
 pub open spec fn pending_create_pvc_req_in_flight(
