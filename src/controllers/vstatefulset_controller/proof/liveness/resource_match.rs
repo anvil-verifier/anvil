@@ -4206,7 +4206,7 @@ ensures
                             let filtered_pods = pods.filter(pod_filter(vsts));
                             let (needed, condemned) = partition_pods(vsts_name, replicas(vsts), filtered_pods);
                             // &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
-                            &&& resp_msg_is_ok_list_resp_of_pods_no_coherence(vsts, msg, s)
+                            &&& resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, msg)
                             // no condemned pods
                             &&& condemned.len() == 0
                             // all needed pods exist
@@ -4233,16 +4233,7 @@ ensures
                             &&& #[trigger] s_prime.in_flight().contains(msg)
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } implies {
-                            let objs = msg.content.get_list_response().res.unwrap();
-                            let pods = objects_to_pods(objs)->0;
-                            let filtered_pods = pods.filter(pod_filter(vsts));
-                            let (needed, condemned) = partition_pods(vsts_name, replicas(vsts), filtered_pods);
-                            &&& resp_msg_is_ok_list_resp_of_pods_no_coherence(vsts, msg, s)
-                            &&& condemned.len() == 0
-                            &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
-                            &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
-                        } by {
+                        } implies resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, msg) by {
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
                             } else {
@@ -4341,15 +4332,35 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
                     s, s_prime, vsts, cluster, controller_id, input->0
                 );
-                // lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                //     s, s_prime, vsts, cluster, controller_id, input->0, nat0!()
-                // );
             }
             assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         },
         Step::ControllerStep(input) => {
             if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
-                assume(false);
+                let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+                let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+                VStatefulSetReconcileState::marshal_preserves_integrity();
+                if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                    let resp_msg = input.1;
+                    if at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s) {
+                        assert(resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, resp_msg->0));
+                        assert forall |ord: nat| #![trigger next_local_state.needed[ord as int]->0] ord < replicas(vsts) implies {
+                            let needed_pod = next_local_state.needed[ord as int]->0;
+                            &&& local_state.needed[ord as int] is Some
+                            &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
+                            &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+                            &&& pod_spec_matches(vsts, needed_pod)
+                            &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+                        } by {
+                            assume(false);
+                        }
+                        assert(next_local_state.needed.len() == replicas(vsts));
+                    } else {
+                        assume(false);
+                    }
+                } else {
+                    assume(false);
+                }
             } else {
                 if s_prime.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) { // RunScheduledReconcile
                     assert(s_prime.resources() == s.resources());

@@ -249,6 +249,8 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
 // message predicates for each exceptional states carry the necessary information to repair the coherence
 // because of the complexity, don't forget to hide this spec when needed by
 // hide(local_state_is_coherent_with_etcd);
+// TODO: simplify this by removing unnecessary coherence predicates
+// because controller tolerates NotFound/AlreadyExists errors
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
@@ -901,13 +903,9 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
             // so at UpdateNeeded step the request will not break current_state_matches
             &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < local_state.needed.len() ==> {
                 let needed_pod = local_state.needed[ord as int]->0;
-                let key = ObjectRef {
-                    kind: Kind::PodKind,
-                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-                    namespace: vsts.metadata.namespace->0
-                };
                 &&& local_state.needed[ord as int] is Some
-                &&& needed_pod.object_ref() == key
+                &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
+                &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
                 &&& pod_spec_matches(vsts, needed_pod)
                 &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
             }
@@ -923,20 +921,7 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                    } ==> {
-                        let objs = msg.content.get_list_response().res.unwrap();
-                        let pods = objects_to_pods(objs)->0;
-                        let filtered_pods = pods.filter(pod_filter(vsts));
-                        let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
-                        // &&& resp_msg_is_ok_list_resp_of_pods(vsts, msg, s)
-                        &&& resp_msg_is_ok_list_resp_of_pods_no_coherence(vsts, msg, s)
-                        // no condemned pods
-                        &&& condemned.len() == 0
-                        // all needed pods exist
-                        &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
-                        // no outdated pods
-                        &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
-                    }
+                    } ==> resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, msg)
                 },
                 AfterUpdateNeeded => {
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
@@ -960,10 +945,14 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
 }
 
 // weakened version of resp_msg_is_ok_list_resp_of_pods
-pub open spec fn resp_msg_is_ok_list_resp_of_pods_no_coherence(
-    vsts: VStatefulSetView, resp_msg: Message, s: ClusterState
+// TODO: strengthen
+pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
+    vsts: VStatefulSetView, resp_msg: Message
 ) -> bool {
-    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    let resp_objs = resp_msg.content.get_list_response().res->Ok_0;
+    let pods = objects_to_pods(resp_objs)->0;
+    let filtered_pods = pods.filter(pod_filter(vsts));
+    let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
     // these objects can be guarded by rely conditions
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
@@ -976,6 +965,10 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods_no_coherence(
         &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
     }
     &&& objects_to_pods(resp_objs) is Some
+    // no outdated or condemned pods exist in etcd
+    &&& condemned.len() == 0
+    &&& needed.filter(outdated_pod_filter(vsts)).len() == 0
+    &&& needed.all(|pod_opt: Option<PodView>| pod_opt is Some)
 }
 
 }
