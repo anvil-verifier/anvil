@@ -42,9 +42,11 @@ ensures
     }; 
     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
     assert(s_prime.in_flight().contains(resp_msg));
+    assert(s.resources() == s_prime.resources());
     assert(resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s_prime)) by {
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-        let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        let owner_ref_filter = |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref());
+        let owned_objs = resp_objs.filter(owner_ref_filter);
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
         lemma_values_finite(s.resources());
         assert(resp_objs.no_duplicates()) by {
@@ -56,6 +58,7 @@ ensures
             &&& s_prime.resources().contains_key(o.object_ref())
             &&& s_prime.resources()[o.object_ref()] == o
             &&& o.metadata.namespace is Some
+            &&& o.metadata.namespace->0 == vsts.metadata.namespace->0
             &&& o.metadata.name is Some
         } by {
             assert(s.resources().values().filter(list_req_filter).contains(o)) by {
@@ -78,24 +81,28 @@ ensures
                 assert(false); // by resp_objs.no_duplicates
             }
         }
+        // s.res.v.f(list_req_filter).to_seq.f(owner_ref_filter).to_set.map(key) == s.res.v.f(valid_owned_object_filter).map(key)
         assert(owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
-            == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())) by {
-            assume(false);
+            == s_prime.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())) by {
+            // move to_set ahead and cancel to_seq
+            assert(owned_objs.to_set() == s_prime.resources().values().filter(list_req_filter).filter(owner_ref_filter)) by {
+                lemma_filter_to_set_eq_to_set_filter(resp_objs, owner_ref_filter);
+                lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
+            }
+            // s.res.v.f(list_req_filter).f(owner_ref_filter).map(key) == s.res.v.f(valid_owned_object_filter).map(key)
+            assert forall |obj| #[trigger] s_prime.resources().values().contains(obj) implies {
+                list_req_filter(obj) && owner_ref_filter(obj) == valid_owned_object_filter(vsts)(obj)
+            } by {
+                assume(false);
+            }
+            assert(s_prime.resources().values().filter(list_req_filter).filter(owner_ref_filter)
+                == s_prime.resources().values().filter(valid_owned_object_filter(vsts)));
         }
         assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies {
             let key = obj.object_ref();
-            let etcd_obj = s.resources()[key];
-            &&& s.resources().contains_key(key)
+            let etcd_obj = s_prime.resources()[key];
+            &&& s_prime.resources().contains_key(key)
             &&& weakly_eq(obj, etcd_obj)
-        } by {
-            assume(false);
-        }
-        assert forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) implies {
-            &&& obj.kind == Kind::PodKind
-            &&& PodView::unmarshal(obj) is Ok
-            &&& obj.metadata.name is Some
-            &&& obj.metadata.namespace is Some
-            &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
         } by {
             assume(false);
         }
