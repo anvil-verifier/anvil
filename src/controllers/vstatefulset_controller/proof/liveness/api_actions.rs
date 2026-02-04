@@ -19,7 +19,6 @@ use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::int_to_st
 verus! {
 
 // TODO: if req does not need to be exposed, remove it from input and output
-#[verifier(external_body)]
 pub proof fn lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -32,7 +31,46 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
     pending_list_pod_resp_in_flight(vsts, controller_id)(s_prime),
-{}
+{
+    broadcast use group_seq_properties;
+    PodView::marshal_preserves_integrity();
+    let req = req_msg.content.get_list_request();
+    let list_req_filter = |o: DynamicObjectView| {
+        // changing the order of fields makes a difference
+        &&& o.object_ref().namespace == vsts.metadata.namespace->0
+        &&& o.object_ref().kind == Kind::PodKind
+    }; 
+    let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
+    assert(s_prime.in_flight().contains(resp_msg));
+    assert(resp_msg_is_ok_list_resp_of_pods(vsts, resp_msg, s_prime)) by {
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
+        assume(objects_to_pods(resp_objs) is Some);
+        assume(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates());
+        assert(owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
+            == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())) by {
+            assume(false);
+        }
+        assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies {
+            let key = obj.object_ref();
+            let etcd_obj = s.resources()[key];
+            &&& s.resources().contains_key(key)
+            &&& weakly_eq(obj, etcd_obj)
+        } by {
+            assume(false);
+        }
+        assert forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) implies {
+            &&& obj.kind == Kind::PodKind
+            &&& PodView::unmarshal(obj) is Ok
+            &&& obj.metadata.name is Some
+            &&& obj.metadata.namespace is Some
+            &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
+        } by {
+            assume(false);
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub proof fn lemma_get_pvc_request_returns_ok_or_err_response(
