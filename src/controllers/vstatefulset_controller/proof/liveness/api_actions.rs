@@ -71,14 +71,12 @@ ensures
             );
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
-            if exists |i, j: int| 0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j && #[trigger] resp_objs[i].object_ref() == #[trigger] resp_objs[j].object_ref() {
-                let (i, j): (int, int) = choose |i, j: int| 0 <= i < resp_objs.len() && 0 <= j < resp_objs.len()
-                    && i != j && #[trigger] resp_objs[i].object_ref() == #[trigger] resp_objs[j].object_ref();
-                assert(resp_objs.contains(resp_objs[i]));
-                assert(resp_objs.contains(resp_objs[j])); // trigger
-                assert(resp_objs[i] == s_prime.resources()[resp_objs[i].object_ref()]);
-                assert(resp_objs[j] == s_prime.resources()[resp_objs[j].object_ref()]);
-                assert(false); // by resp_objs.no_duplicates
+            assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
+                if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
+                    assert(resp_objs.contains(resp_objs[i]));
+                    assert(resp_objs.contains(resp_objs[j])); // trigger of s.resources()[o.object_ref()] == o
+                    assert(resp_objs[i] == resp_objs[j]);
+                }
             }
         }
         // s.res.v.f(list_req_filter).to_seq.f(owner_ref_filter).to_set.map(key) == s.res.v.f(valid_owned_object_filter).map(key)
