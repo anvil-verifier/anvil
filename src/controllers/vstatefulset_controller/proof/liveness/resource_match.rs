@@ -4183,7 +4183,6 @@ ensures
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     match step {
         Step::APIServerStep(input) => {
-            assume(false);
             let msg = input->0;
             if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
                 VStatefulSetReconcileState::marshal_preserves_integrity();
@@ -4396,7 +4395,19 @@ ensures
             assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         },
         _ => {
-            assume(false);
+            if at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s) {
+                let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                assert forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } implies resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(vsts, msg) by {
+                    if !new_msgs.contains(msg) {
+                        assert(s.in_flight().contains(msg));
+                    }
+                }
+            }
+            assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         }
     }
 }
