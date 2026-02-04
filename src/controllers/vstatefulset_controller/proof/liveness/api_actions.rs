@@ -18,7 +18,6 @@ use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::int_to_st
 
 verus! {
 
-// TODO: if req does not need to be exposed, remove it from input and output
 pub proof fn lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
