@@ -14,7 +14,7 @@ use crate::vstatefulset_controller::{
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
-use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::int_to_string_view};
+use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
 
@@ -314,6 +314,7 @@ ensures
     return resp_msg;
 }
 
+// *** shield lemma is heavily abused below this line *** //
 #[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
@@ -370,7 +371,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -383,6 +383,91 @@ requires
     current_state_matches(vsts)(s),
 ensures
     current_state_matches(vsts)(s_prime),
-{}
+{
+    assert forall |ord: nat| ord < replicas(vsts) implies {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& s_prime.resources().contains_key(key)
+        &&& weakly_eq(s.resources()[key], s_prime.resources()[key])
+    } by {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        assert({
+            &&& s.resources().contains_key(key)
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(key.name, vsts.metadata.name->0)
+        });
+        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+    }
+    assert forall |ord: nat| ord >= replicas(vsts) implies {
+        let key = ObjectRef {
+            kind: PodView::kind(),
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& !s_prime.resources().contains_key(key)
+    } by {
+        let key = ObjectRef {
+            kind: PodView::kind(),
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        if s_prime.resources().contains_key(key) {
+            assert({
+                &&& s_prime.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(key.name, vsts.metadata.name->0)
+            });
+            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+            assert(false);
+        }
+    }
+    assert forall |ord: nat, i: nat| ord < replicas(vsts) && i < pvc_cnt(vsts) implies {
+        let pvc_key = ObjectRef {
+            kind: PersistentVolumeClaimView::kind(),
+            name: #[trigger] pvc_name(
+                vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
+                vsts.metadata.name->0,
+                ord
+            ),
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& s_prime.resources().contains_key(pvc_key)
+    } by {
+        let pvc_key = ObjectRef {
+            kind: PersistentVolumeClaimView::kind(),
+            name: #[trigger] pvc_name(
+                vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
+                vsts.metadata.name->0,
+                ord
+            ),
+            namespace: vsts.metadata.namespace->0
+        };
+        assert({
+            &&& s.resources().contains_key(pvc_key)
+            &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
+            &&& pvc_key.namespace == vsts.metadata.namespace->0
+            &&& pvc_name_match(pvc_key.name, vsts.metadata.name->0)
+        }) by {
+            VStatefulSetView::marshal_preserves_integrity();
+            assert(s.resources().contains_key(vsts.object_ref()));
+            let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
+            assert(cr.spec == vsts.spec);
+            assert(vsts.state_validation());
+            let trigger = (vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, ord);
+            assert(dash_free(trigger.0));
+            assert(pvc_key.name == (|i: (StringView, nat)| pvc_name(i.0, vsts.metadata.name->0, i.1))(trigger));
+        }
+        shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, req_msg);
+    }
+}
 
 }
