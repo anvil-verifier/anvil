@@ -303,7 +303,6 @@ ensures
     let key = req.key();
     if s.resources().contains_key(key) {
         let obj = s.resources()[key];
-        assume(obj.metadata.finalizers is None);
         assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
         assert(resp_msg.content.get_get_then_delete_response().res is Ok);
         assert(!s_prime.resources().contains_key(key));
