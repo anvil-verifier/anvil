@@ -218,6 +218,7 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
             &&& state.pvcs[i as int].metadata.name is Some
             &&& state.pvcs[i as int].metadata.namespace == Some(vsts.metadata.namespace->0)
             &&& state.pvcs[i as int].metadata.owner_references is None
+            &&& state.pvcs[i as int].state_validation()
         }
     // pvcs have correct names
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) ==> {

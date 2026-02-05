@@ -3493,6 +3493,7 @@ ensures
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, (pvc_index + 1) as nat, needed_index, nat0!(), condemned_len, outdated_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    PersistentVolumeClaimView::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(
