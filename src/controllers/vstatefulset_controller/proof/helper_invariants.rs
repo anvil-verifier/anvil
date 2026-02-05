@@ -32,8 +32,6 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_an
             &&& #[trigger] s.resources().contains_key(pod_key)
             &&& pod_key.kind == Kind::PodKind
             &&& pod_key.namespace == vsts.metadata.namespace->0
-            &&& vsts.metadata.name is Some
-            &&& vsts.metadata.namespace is Some
             &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
             let obj = s.resources()[pod_key];

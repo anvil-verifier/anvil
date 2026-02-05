@@ -267,7 +267,7 @@ ensures
 
 pub proof fn lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message,
-)
+) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
@@ -276,20 +276,43 @@ requires
     req_msg.src == HostId::Controller(controller_id, vsts.object_ref()),
     req_msg.dst == HostId::APIServer,
     req_msg.content.is_get_then_delete_request(),
-ensures
-    resp_msg_or_none(s_prime, vsts.object_ref(), controller_id) is Some,
     ({
-        let resp_msg = resp_msg_or_none(s_prime, vsts.object_ref(), controller_id).unwrap();
-        &&& resp_msg.content.is_get_then_delete_response()
-        &&& resp_msg.content.get_get_then_delete_response().res is Err
-            ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound
+        let req = req_msg.content.get_get_then_delete_request();
+        let key = req.key();
+        &&& req.owner_ref == vsts.controller_owner_ref()
+        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
+        &&& key.kind == Kind::PodKind
+        &&& key.namespace == vsts.metadata.namespace->0
+        &&& pod_name_match(key.name, vsts.metadata.name->0)
     }),
+ensures
+    s_prime.in_flight().contains(resp_msg),
+    resp_msg_matches_req_msg(resp_msg, req_msg),
+    resp_msg.content.is_get_then_delete_response(),
+    resp_msg.content.get_get_then_delete_response().res is Err
+        ==> resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound,
     ({ // no side effect
         let req = req_msg.content.get_get_then_delete_request();
         &&& forall |key: ObjectRef| key != req.key() ==> (s_prime.resources().contains_key(key) == s.resources().contains_key(key))
         &&& !s_prime.resources().contains_key(req.key())
     }),
-{}
+{
+    let resp_msg = handle_get_then_delete_request_msg(req_msg, s.api_server).1;
+    assert(s_prime.in_flight().contains(resp_msg));
+    let req = req_msg.content.get_get_then_delete_request();
+    let key = req.key();
+    if s.resources().contains_key(key) {
+        let obj = s.resources()[key];
+        assume(obj.metadata.finalizers is None);
+        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(resp_msg.content.get_get_then_delete_response().res is Ok);
+        assert(!s_prime.resources().contains_key(key));
+    } else {
+        assert(resp_msg.content.get_get_then_delete_response().res is Err);
+        assert(resp_msg.content.get_get_then_delete_response().res->Err_0 == ObjectNotFound);
+    }
+    return resp_msg;
+}
 
 #[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
