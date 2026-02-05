@@ -956,7 +956,7 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                     let old_pod = local_state.needed[local_state.needed_index - 1]->0;
                     &&& local_state.needed_index > 0
                     &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg is Some
-                    &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
+                    &&& req_msg_is_get_then_update_needed_pod_req_after_current_state_matches(vsts, controller_id, req_msg, ord, old_pod)
                 },
                 AfterGetPVC => {
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
@@ -1009,6 +1009,28 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
         &&& pod_spec_matches(vsts, needed_pod)
         &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
     }
+}
+
+pub open spec fn req_msg_is_get_then_update_needed_pod_req_after_current_state_matches(
+    vsts: VStatefulSetView, controller_id: int, req_msg: Message, ord: nat, old_pod: PodView
+) -> bool {
+    let req = req_msg.content.get_get_then_update_request();
+    let key = ObjectRef {
+        kind: Kind::PodKind,
+        name: pod_name(vsts.metadata.name->0, ord),
+        namespace: vsts.metadata.namespace->0
+    };
+    let pod = PodView::unmarshal(req.obj)->Ok_0;
+    &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content is APIRequest
+    &&& resource_get_then_update_request_msg(key)(req_msg)
+    &&& req.owner_ref == vsts.controller_owner_ref()
+    &&& PodView::unmarshal(req.obj) is Ok
+    // the request does not change the uptodate status of the pod
+    &&& pod_weakly_eq(pod, old_pod)
+    // pod has matching labels
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
 }
 
 }
