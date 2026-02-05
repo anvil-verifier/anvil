@@ -3189,6 +3189,8 @@ ensures
         &&& pod.metadata.name is Some
         &&& pod.metadata.namespace is Some
         &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
+        &&& pod.metadata.owner_references is Some
+        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(pod.object_ref())
         &&& pod_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
         &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
@@ -3199,6 +3201,10 @@ ensures
         assert(objs.contains(objs[i]));
         assert(objs[i].metadata.owner_references_contains(vsts.controller_owner_ref()));
         assert(owned_objs.contains(objs[i]));
+        let obj = s.resources()[pod.object_ref()];
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
+        }
     }
     assert(partition_pods(vsts_name, replicas, filtered_pods) == partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
     // assert(next_local_state.needed == needed);
@@ -3233,6 +3239,8 @@ ensures
         let obj = s.resources()[key];
         &&& needed_pod.object_ref() == key
         &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& needed_pod.metadata.owner_references is Some
+        &&& needed_pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(key)
         &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
@@ -3378,6 +3386,19 @@ ensures
     }
     outdated_pod_keys.unique_seq_to_set();
     assert(outdated_pod_keys.len() == outdated_len);
+    // optional hardeners
+    let pvcs = make_pvcs(triggering_cr, 0);
+    assert(pvc_cnt(vsts) == pvcs.len());
+    assert(next_local_state.pvcs == pvcs);
+    assert forall |i: int| #![trigger pvcs[i]] 0 <= i < pvc_cnt(vsts) implies {
+        let template_name = vsts.spec.volume_claim_templates->0[i].metadata.name->0;
+        &&& pvcs[i].metadata.name == Some(pvc_name(template_name, vsts.metadata.name->0, 0))
+        &&& pvcs[i].metadata.namespace == Some(vsts.metadata.namespace->0)
+        &&& pvcs[i].metadata.owner_references is None
+        &&& pvcs[i].state_validation()
+    } by {
+        assert(pvcs[i] == make_pvc(triggering_cr, 0, i));
+    }
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */

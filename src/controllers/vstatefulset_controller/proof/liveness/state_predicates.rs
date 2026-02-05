@@ -201,7 +201,8 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
         ==> {
             &&& state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& state.needed[ord as int]->0.metadata.namespace == Some(vsts.metadata.namespace->0)
-            &&& state.needed[ord as int]->0.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+            &&& state.needed[ord as int]->0.metadata.owner_references is Some
+            &&& state.needed[ord as int]->0.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
             &&& vsts.spec.selector.matches(state.needed[ord as int]->0.metadata.labels.unwrap_or(Map::empty()))
         }
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
@@ -623,7 +624,8 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& req.obj.metadata.namespace is Some
     &&& req.obj.metadata.namespace->0 == vsts.metadata.namespace->0
     &&& req.obj.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-    &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+    &&& req.obj.metadata.owner_references is Some
+    &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
 }
 
 pub open spec fn pending_get_then_update_needed_pod_req_in_flight(

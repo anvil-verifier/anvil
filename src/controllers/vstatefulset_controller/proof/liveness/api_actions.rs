@@ -258,7 +258,7 @@ ensures
             assert(updated_object_validity_check(updated_obj, current_obj, cluster.installed_types) is None) by {
                 assert(metadata_validity_check(updated_obj) is None) by {
                     assert(updated_obj.metadata.owner_references is Some);
-                    assert(updated_obj.metadata.owner_references->0.len() == 1);
+                    assert(updated_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1);
                 }
             }
         }
