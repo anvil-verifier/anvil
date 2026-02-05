@@ -265,7 +265,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message,
 )

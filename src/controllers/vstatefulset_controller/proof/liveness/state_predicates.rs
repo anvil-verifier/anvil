@@ -684,10 +684,12 @@ pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
 pub open spec fn req_msg_is_get_then_delete_condemned_pod_req_carrying_condemned_pod_key(
     vsts: VStatefulSetView, controller_id: int, req_msg: Message, condemned_pod_key: ObjectRef
 ) -> bool {
+    let req = req_msg.content.get_get_then_delete_request();
     &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_get_then_delete_request_msg(condemned_pod_key)(req_msg)
+    &&& req.owner_ref == vsts.controller_owner_ref()
 }
 
 pub open spec fn pending_get_then_delete_condemned_pod_req_in_flight(
