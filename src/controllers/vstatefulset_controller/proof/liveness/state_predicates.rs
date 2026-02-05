@@ -536,6 +536,9 @@ pub open spec fn req_msg_is_create_needed_pod_req(
     &&& resource_create_request_msg(key)(req_msg)
     &&& PodView::unmarshal(req.obj) is Ok
     &&& pod_spec_matches(vsts, pod)
+    // pass creation validation checks
+    &&& req.obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    &&& pod.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
 pub open spec fn pending_create_needed_pod_req_in_flight(

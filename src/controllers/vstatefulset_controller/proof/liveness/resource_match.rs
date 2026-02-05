@@ -1839,7 +1839,7 @@ ensures
             let input = Some(msg);
             assert forall |s, s_prime| req_msg_is_pending_msg_at_after_create_needed_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
                 implies after_create_needed_state_with_response(s_prime) by {
-                lemma_create_needed_pod_request_returns_ok_response(s, s_prime, vsts, cluster, controller_id, msg);
+                lemma_create_needed_pod_request_returns_ok_or_already_exists_err_response(s, s_prime, vsts, cluster, controller_id, msg);
             }
             cluster.lemma_pre_leads_to_post_by_api_server(
                 spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_create_needed_state(msg), after_create_needed_state_with_response
@@ -3604,7 +3604,7 @@ ensures
     pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)(s_prime),
 {
-    lemma_create_needed_pod_request_returns_ok_response(
+    lemma_create_needed_pod_request_returns_ok_or_already_exists_err_response(
         s, s_prime, vsts, cluster, controller_id, req_msg
     );
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;

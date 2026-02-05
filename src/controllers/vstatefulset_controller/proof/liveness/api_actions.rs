@@ -162,8 +162,7 @@ ensures
     }
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_create_needed_pod_request_returns_ok_response(
+pub proof fn lemma_create_needed_pod_request_returns_ok_or_already_exists_err_response(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
 requires
@@ -174,7 +173,45 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
     pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
-{}
+{
+    let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
+    let req = req_msg.content.get_create_request();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    let ord = (local_state.needed_index - 1) as nat;
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    assert(s_prime.in_flight().contains(resp_msg));
+    let admission_chk_res = create_request_admission_check(cluster.installed_types, req, s.api_server);
+    if !s.resources().contains_key(req.key()) {
+        assert(admission_chk_res is None);
+        let created_obj = DynamicObjectView {
+            kind: Kind::PodKind,
+            metadata: ObjectMetaView {
+                name: Some(pod_name(vsts.metadata.name->0, ord)),
+                namespace: Some(req.namespace),
+                resource_version: Some(s.api_server.resource_version_counter),
+                uid: Some(s.api_server.uid_counter),
+                deletion_timestamp: None,
+                ..req.obj.metadata
+            },
+            spec: req.obj.spec,
+            status: marshalled_default_status(Kind::PodKind, cluster.installed_types), // Overwrite the status with the default one
+        };
+        assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
+            PodView::marshal_status_preserves_integrity();
+            assert(metadata_validity_check(created_obj) is None) by {
+                assert(created_obj.metadata.owner_references is Some);
+                assert(created_obj.metadata.owner_references->0.len() == 1);
+            }
+            assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
+                assert(PodView::unmarshal_status(created_obj.status) is Ok);
+                assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
+            }
+        }
+        assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
+    } else {
+        assert(admission_chk_res->0 == ObjectAlreadyExists);
+    }
+}
 
 #[verifier(external_body)]
 pub proof fn lemma_get_then_update_needed_pod_request_returns_ok_response(
