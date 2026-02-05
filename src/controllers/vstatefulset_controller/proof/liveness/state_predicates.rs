@@ -538,7 +538,7 @@ pub open spec fn req_msg_is_create_needed_pod_req(
     &&& PodView::unmarshal(req.obj) is Ok
     &&& pod_spec_matches(vsts, pod)
     // pass creation validation checks
-    &&& req.obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    &&& req.obj.metadata.namespace is None
     &&& pod.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
