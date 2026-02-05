@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::vstatefulset_controller::{
     trusted::{spec_types::*, step::*, liveness_theorem::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::state_predicates::*},
+    proof::{predicate::*, liveness::state_predicates::*, shield_lemma},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -329,7 +329,6 @@ ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
 {}
 
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message, outdated_len: nat
 )
@@ -342,7 +341,34 @@ requires
     n_outdated_pods_in_etcd(vsts, outdated_len)(s),
 ensures
     n_outdated_pods_in_etcd(vsts, outdated_len)(s_prime),
-{}
+{
+    // indeed, prove a stronger version:
+    assert(s.resources().dom().filter(outdated_obj_key_filter(s, vsts))
+        == s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts))) by {
+        assert forall |key: ObjectRef| #[trigger] s.resources().dom().filter(outdated_obj_key_filter(s, vsts)).contains(key)
+            implies s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts)).contains(key) by {
+            assert(outdated_obj_key_filter(s, vsts)(key));
+            assert({
+                &&& s.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(key.name, vsts.metadata.name->0)
+            });
+            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+        }
+        assert forall |key: ObjectRef| #[trigger] s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts)).contains(key)
+            implies s.resources().dom().filter(outdated_obj_key_filter(s, vsts)).contains(key) by {
+            assert(outdated_obj_key_filter(s_prime, vsts)(key));
+            assert({
+                &&& s_prime.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(key.name, vsts.metadata.name->0)
+            });
+            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
