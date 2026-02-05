@@ -897,7 +897,6 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: usize) -> (pod: Pod)
             let mut metadata = ObjectMeta::default();
             let template_meta = vsts.spec().template().metadata().unwrap();
             metadata.set_name(pod_name(vsts.metadata().name().unwrap(), ordinal));
-            metadata.set_namespace(vsts.metadata().namespace().unwrap());
             if template_meta.labels().is_some() {
                 metadata.set_labels(template_meta.labels().unwrap());
             }

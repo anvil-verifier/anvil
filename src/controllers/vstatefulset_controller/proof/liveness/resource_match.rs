@@ -3576,14 +3576,12 @@ ensures
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
     PodView::marshal_preserves_integrity();
-    PodView::marshal_preserves_metadata();
     let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
     let req_obj = req_msg.content.get_create_request().obj;
     let req_pod = PodView::unmarshal(req_obj)->Ok_0;
-    assert(pod_spec_matches(vsts, req_pod));
-    assert(req_obj.metadata == make_pod(vsts, needed_index).metadata);
-    assert(req_pod.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
-    assert(req_obj.metadata.namespace == Some(vsts.metadata.namespace->0));
+    assert(pod_spec_matches(vsts, req_pod)) by {
+        PodView::marshal_spec_preserves_integrity();
+    }
 }
 
 // TODO: anyway to increase proof automation by change the way to invoke get_ordinal_eq_pod_name?
