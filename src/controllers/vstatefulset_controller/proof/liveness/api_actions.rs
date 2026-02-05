@@ -434,17 +434,17 @@ ensures
         let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
         assert(cr.spec == vsts.spec);
     }
-    assert forall |index: (nat, nat)| index.0 < needed_index_for_pvc && index.1 < pvc_cnt implies {
+    assert forall |ord: nat, i: nat| ord < needed_index_for_pvc && i < pvc_cnt implies {
         let key = ObjectRef {
             kind: PersistentVolumeClaimView::kind(),
-            name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
+            name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0
         };
         &&& s_prime.resources().contains_key(key)
     } by {
         let key = ObjectRef {
             kind: PersistentVolumeClaimView::kind(),
-            name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
+            name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0
         };
         assert({
@@ -455,7 +455,7 @@ ensures
         }) by {
             VStatefulSetView::marshal_preserves_integrity();
             assert(s.resources().contains_key(vsts.object_ref()));
-            let trigger = (vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, index.0);
+            let trigger = (vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, ord);
             assert(dash_free(trigger.0));
             assert(key.name == (|i: (StringView, nat)| pvc_name(i.0, vsts.metadata.name->0, i.1))(trigger));
         }
