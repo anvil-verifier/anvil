@@ -214,7 +214,11 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
             &&& condemned_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         }
     &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < state.pvcs.len()
-        ==> state.pvcs[i as int].metadata.name is Some
+        ==> {
+            &&& state.pvcs[i as int].metadata.name is Some
+            &&& state.pvcs[i as int].metadata.namespace == Some(vsts.metadata.namespace->0)
+            &&& state.pvcs[i as int].metadata.owner_references is None
+        }
     // pvcs have correct names
     &&& locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) ==> {
         &&& forall |i: nat| #![trigger state.pvcs[i as int]] i < pvc_cnt ==> {
@@ -449,13 +453,17 @@ pub open spec fn req_msg_is_create_pvc_req(
         namespace: vsts.metadata.namespace->0,
         name: pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord)
     };
+    let pvc = PersistentVolumeClaimView::unmarshal(obj)->Ok_0;
     &&& 0 <= i < vsts.spec.volume_claim_templates->0.len() // sanity check
     &&& req_msg.src == HostId::Controller(controller_id, vsts.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content is APIRequest
     &&& resource_create_request_msg(key)(req_msg)
+    // to pass creation validation checks
     &&& PersistentVolumeClaimView::unmarshal(obj) is Ok
     &&& obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    &&& obj.metadata.owner_references is None
+    &&& pvc.state_validation()
 }
 
 pub open spec fn pending_create_pvc_req_in_flight(

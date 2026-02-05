@@ -137,22 +137,28 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert(s_prime.in_flight().contains(resp_msg));
     let admission_chk_res = create_request_admission_check(cluster.installed_types, req, s.api_server);
-    assert(admission_chk_res is None || admission_chk_res->0 == ObjectAlreadyExists);
-    let created_obj = DynamicObjectView {
-        kind: req.obj.kind,
-        metadata: ObjectMetaView {
-            name: Some(pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord)),
-            namespace: Some(req.namespace),
-            resource_version: Some(s.api_server.resource_version_counter),
-            uid: Some(s.api_server.uid_counter),
-            deletion_timestamp: None,
-            ..req.obj.metadata
-        },
-        spec: req.obj.spec,
-        status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
-    };
-    assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
-        assume(false);
+    if admission_chk_res is None {
+        let created_obj = DynamicObjectView {
+            kind: Kind::PersistentVolumeClaimKind,
+            metadata: ObjectMetaView {
+                name: Some(pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord)),
+                namespace: Some(req.namespace),
+                resource_version: Some(s.api_server.resource_version_counter),
+                uid: Some(s.api_server.uid_counter),
+                deletion_timestamp: None,
+                ..req.obj.metadata
+            },
+            spec: req.obj.spec,
+            status: marshalled_default_status(Kind::PersistentVolumeClaimKind, cluster.installed_types), // Overwrite the status with the default one
+        };
+        assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
+            assert(metadata_validity_check(created_obj) is None);
+            assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
+                PersistentVolumeClaimView::marshal_status_preserves_integrity();
+                assert(PersistentVolumeClaimView::unmarshal_status(created_obj.status) is Ok);
+                assert(PersistentVolumeClaimView::unmarshal_spec(created_obj.spec) is Ok);
+            }
+        }
     }
 }
 
