@@ -665,6 +665,7 @@ pub open spec fn make_pod(vsts: VStatefulSetView, ordinal: nat) -> PodView {
         metadata: {
             ObjectMetaView {
                 name: Some(pod_name(vsts.metadata.name->0, ordinal)),
+                namespace: Some(vsts.metadata.namespace->0),
                 labels: vsts.spec.template.metadata->0.labels,
                 annotations: vsts.spec.template.metadata->0.annotations,
                 finalizers: vsts.spec.template.metadata->0.finalizers,
