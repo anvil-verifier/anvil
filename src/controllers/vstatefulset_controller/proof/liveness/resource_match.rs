@@ -184,8 +184,8 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                    s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                    s, s_prime, vsts, cluster, controller_id, input->0
                 );
             },
             Step::ScheduleControllerReconcileStep(input) => {
@@ -255,8 +255,8 @@ ensures
                 }
             },
             Step::APIServerStep(input) => {
-                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                    s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                    s, s_prime, vsts, cluster, controller_id, input->0
                 );
                 assert(scheduled_state(s_prime));
             },
@@ -573,8 +573,8 @@ ensures
                     }
                 },
                 Step::APIServerStep(input) => {
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                        s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                        s, s_prime, vsts, cluster, controller_id, input->0
                     );
                 },
                 Step::BuiltinControllersStep(_) => {},
@@ -626,8 +626,8 @@ ensures
                                 s, s_prime, vsts, cluster, msg, controller_id, outdated_len
                             );
                         } else {
-                            lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                                s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                            lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                                s, s_prime, vsts, cluster, controller_id, input->0
                             );
                         }
                     },
@@ -773,7 +773,7 @@ ensures
                         });
                         shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0, outdated_len);
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0);
                     assert(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime));
                 },
                 Step::ControllerStep(input) => {
@@ -3086,7 +3086,7 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {}
                 },
                 Step::APIServerStep(input) => {
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0, outdated_len);
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0);
                 },
                 _ => {}
             }

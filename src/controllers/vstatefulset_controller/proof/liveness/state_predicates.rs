@@ -295,7 +295,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
         }
         // all outdated pods are captured
-        &&& outdated_pod_keys.no_duplicates() // optional?
+        &&& outdated_pod_keys.no_duplicates()
         &&& outdated_pod is None ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
         &&& outdated_pod is Some ==> match state.reconcile_step {
             AfterDeleteOutdated => if s.resources().contains_key(outdated_pod->0.object_ref()) { // not deleted yet

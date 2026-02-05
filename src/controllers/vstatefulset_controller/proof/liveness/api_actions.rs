@@ -315,7 +315,6 @@ ensures
 }
 
 // *** shield lemma is heavily abused below this line *** //
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -328,38 +327,76 @@ requires
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
-{}
-
-pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message, outdated_len: nat
-)
-requires
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
-    req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
-    req_msg.dst == HostId::APIServer,
-    n_outdated_pods_in_etcd(vsts, outdated_len)(s),
-ensures
-    n_outdated_pods_in_etcd(vsts, outdated_len)(s_prime),
 {
-    // indeed, prove a stronger version:
-    assert(s.resources().dom().filter(outdated_obj_key_filter(s, vsts))
-        == s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts))) by {
-        assert forall |key: ObjectRef| #[trigger] s.resources().dom().filter(outdated_obj_key_filter(s, vsts)).contains(key)
-            implies s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts)).contains(key) by {
-            assert(outdated_obj_key_filter(s, vsts)(key));
-            assert({
-                &&& s.resources().contains_key(key)
-                &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts.metadata.namespace->0
-                &&& pod_name_match(key.name, vsts.metadata.name->0)
-            });
-            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
-        }
-        assert forall |key: ObjectRef| #[trigger] s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts)).contains(key)
-            implies s.resources().dom().filter(outdated_obj_key_filter(s, vsts)).contains(key) by {
-            assert(outdated_obj_key_filter(s_prime, vsts)(key));
+    // basically copy-pasting coherence pred and invoke non-interference lemma
+    let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    let state_prime = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    assert(state == state_prime);
+    assert(local_state_is_valid(vsts, state_prime));
+    let vsts_key = vsts.object_ref();
+    let pvc_cnt = if vsts.spec.volume_claim_templates is Some {
+        vsts.spec.volume_claim_templates->0.len()
+    } else {0};
+    let needed_index_for_pvc = match state.reconcile_step {
+        CreateNeeded | UpdateNeeded => (state.needed_index + 1) as nat,
+        _ => state.needed_index,
+    };
+    let needed_index_considering_creation = match state.reconcile_step {
+        AfterCreateNeeded => (state.needed_index - 1) as nat,
+        _ => state.needed_index,
+    };
+    let condemned_index_considering_deletion = match state.reconcile_step {
+        AfterDeleteCondemned => (state.condemned_index - 1) as nat,
+        _ => state.condemned_index,
+    };
+    let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
+    let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    assert forall |ord: nat| {
+        &&& ord < state.needed.len()
+        &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
+        &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
+            || outdated_pod is None
+            || ord != get_ordinal(vsts.metadata.name->0, outdated_pod->0.metadata.name->0)->0
+    } implies {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        let obj = s_prime.resources()[key];
+        &&& s_prime.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+    } by {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        assert({
+            &&& s.resources().contains_key(key)
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(key.name, vsts.metadata.name->0)
+        });
+        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+    }
+    assert forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) implies {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        s_prime.resources().contains_key(key)
+            ==> exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
+    } by {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+            namespace: vsts.metadata.namespace->0
+        };
+        if s_prime.resources().contains_key(key) {
             assert({
                 &&& s_prime.resources().contains_key(key)
                 &&& key.kind == Kind::PodKind
@@ -368,6 +405,156 @@ ensures
             });
             shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
         }
+    }
+    assert forall |i: nat| #![trigger state.condemned[i as int]] i < condemned_index_considering_deletion implies {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: state.condemned[i as int].metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& !s_prime.resources().contains_key(key)
+    } by {
+        let key = ObjectRef {
+            kind: Kind::PodKind,
+            name: state.condemned[i as int].metadata.name->0,
+            namespace: vsts.metadata.namespace->0
+        };
+        if s_prime.resources().contains_key(key) {
+            assert({
+                &&& s_prime.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(key.name, vsts.metadata.name->0)
+            });
+            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+            assert(false);
+        }
+    }
+    assert(needed_index_for_pvc <= replicas(vsts));
+    assert(vsts.state_validation()) by {
+        let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
+        assert(cr.spec == vsts.spec);
+    }
+    assert forall |index: (nat, nat)| index.0 < needed_index_for_pvc && index.1 < pvc_cnt implies {
+        let key = ObjectRef {
+            kind: PersistentVolumeClaimView::kind(),
+            name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
+            namespace: vsts.metadata.namespace->0
+        };
+        &&& s_prime.resources().contains_key(key)
+    } by {
+        let key = ObjectRef {
+            kind: PersistentVolumeClaimView::kind(),
+            name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, vsts.metadata.name->0, index.0),
+            namespace: vsts.metadata.namespace->0
+        };
+        assert({
+            &&& s.resources().contains_key(key)
+            &&& key.kind == Kind::PersistentVolumeClaimKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& pvc_name_match(key.name, vsts.metadata.name->0)
+        }) by {
+            VStatefulSetView::marshal_preserves_integrity();
+            assert(s.resources().contains_key(vsts.object_ref()));
+            let trigger = (vsts.spec.volume_claim_templates->0[index.1 as int].metadata.name->0, index.0);
+            assert(dash_free(trigger.0));
+            assert(key.name == (|i: (StringView, nat)| pvc_name(i.0, vsts.metadata.name->0, i.1))(trigger));
+        }
+        shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, req_msg);
+    }
+    if locally_at_step_or!(state, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC) {
+        let pvc_index_tmp = match state.reconcile_step {
+            AfterCreatePVC => (state.pvc_index - 1) as nat,
+            SkipPVC => (state.pvc_index + 1) as nat,
+            _ => state.pvc_index,
+        };
+        assert(pvc_index_tmp <= pvc_cnt);
+        assert forall |i: nat| i < pvc_index_tmp implies {
+            let key = ObjectRef {
+                kind: PersistentVolumeClaimView::kind(),
+                name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& s_prime.resources().contains_key(key)
+        } by {
+            let key = ObjectRef {
+                kind: PersistentVolumeClaimView::kind(),
+                name: #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, state.needed_index),
+                namespace: vsts.metadata.namespace->0
+            };
+            assert({
+                &&& s.resources().contains_key(key)
+                &&& key.kind == Kind::PersistentVolumeClaimKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& pvc_name_match(key.name, vsts.metadata.name->0)
+            }) by {
+                VStatefulSetView::marshal_preserves_integrity();
+                assert(s.resources().contains_key(vsts.object_ref()));
+                let trigger = (vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, state.needed_index);
+                assert(dash_free(trigger.0));
+                assert(key.name == (|i: (StringView, nat)| pvc_name(i.0, vsts.metadata.name->0, i.1))(trigger));
+            }
+            shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, req_msg);
+        }
+    }
+    assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
+        lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, req_msg);
+    }
+    if outdated_pod is Some && state.reconcile_step == AfterDeleteOutdated {
+        let outdated_key = outdated_pod->0.object_ref();
+        assert(s_prime.resources().contains_key(outdated_key) == s.resources().contains_key(outdated_key)) by {
+            assert({
+                &&& outdated_key.kind == Kind::PodKind
+                &&& outdated_key.namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(outdated_key.name, vsts.metadata.name->0)
+            }) by {
+                seq_filter_contains_implies_seq_contains(
+                    state.needed, outdated_pod_filter(vsts), outdated_pod,
+                );
+            }
+            if s.resources().contains_key(outdated_key) {
+                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+            }
+            if s_prime.resources().contains_key(outdated_key) {
+                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+            }
+        }
+    }
+}
+
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
+    req_msg.dst == HostId::APIServer,
+ensures
+    outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts),
+{
+    assert forall |key: ObjectRef| #[trigger] s.resources().dom().filter(outdated_obj_key_filter(s, vsts)).contains(key)
+        implies s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts)).contains(key) by {
+        assert(outdated_obj_key_filter(s, vsts)(key));
+        assert({
+            &&& s.resources().contains_key(key)
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(key.name, vsts.metadata.name->0)
+        });
+        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
+    }
+    assert forall |key: ObjectRef| #[trigger] s_prime.resources().dom().filter(outdated_obj_key_filter(s_prime, vsts)).contains(key)
+        implies s.resources().dom().filter(outdated_obj_key_filter(s, vsts)).contains(key) by {
+        assert(outdated_obj_key_filter(s_prime, vsts)(key));
+        assert({
+            &&& s_prime.resources().contains_key(key)
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(key.name, vsts.metadata.name->0)
+        });
+        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
     }
 }
 
