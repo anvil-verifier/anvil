@@ -4117,35 +4117,6 @@ ensures
     current_state_matches(vsts)(s),
 {
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)]
-        0 <= ord < replicas(vsts) implies forall |i: nat| i < pvc_cnt(vsts) ==> {
-        let pvc_key = ObjectRef {
-            kind: PersistentVolumeClaimView::kind(),
-            name: #[trigger] pvc_name(
-                vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
-                vsts.metadata.name->0,
-                ord
-            ),
-            namespace: vsts.metadata.namespace->0
-        };
-        &&& s.resources().contains_key(pvc_key)
-    } by {
-        assert forall |i: nat| i < pvc_cnt(vsts) implies {
-            let pvc_key = ObjectRef {
-                kind: PersistentVolumeClaimView::kind(),
-                name: #[trigger] pvc_name(
-                    vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
-                    vsts.metadata.name->0,
-                    ord
-                ),
-                namespace: vsts.metadata.namespace->0
-            };
-            &&& s.resources().contains_key(pvc_key)
-        } by {
-            let index = (ord, i); // trigger the pvc coherence part in local_state_is_coherent_with_etcd
-            assert(index.0 < replicas(vsts) && index.1 < pvc_cnt(vsts));
-        }
-    }
     assert(get_largest_unmatched_pods(vsts, local_state.needed) is None);
     assert forall |ord: nat| ord < replicas(vsts) implies {
         let pod_key = ObjectRef {
