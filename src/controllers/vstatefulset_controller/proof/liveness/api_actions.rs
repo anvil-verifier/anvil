@@ -213,7 +213,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_get_then_update_needed_pod_request_returns_ok_response(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -225,7 +224,46 @@ requires
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
 ensures
     pending_get_then_update_needed_pod_resp_in_flight(vsts, controller_id)(s_prime),
-{}
+{
+    let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
+    let req = req_msg.content.get_get_then_update_request();
+    let key = req.key();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    let ord = (local_state.needed_index - 1) as nat;
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    PodView::marshal_status_preserves_integrity();
+    assert(s_prime.in_flight().contains(resp_msg));
+    assert(s.resources().contains_key(key));
+    assert(resp_msg.content.get_get_then_update_response().res is Ok) by {
+        assert(req.well_formed());
+        let current_obj = s.resources()[key];
+        assert(current_obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        let new_obj = DynamicObjectView {
+            metadata: ObjectMetaView {
+                resource_version: current_obj.metadata.resource_version,
+                uid: current_obj.metadata.uid,
+                ..req.obj.metadata
+            },
+            ..req.obj
+        };
+        let update_req = UpdateRequest {
+            name: req.name,
+            namespace: req.namespace,
+            obj: new_obj,
+        };
+        assert(handle_update_request(cluster.installed_types, update_req, s.api_server).1.res is Ok) by {
+            assert(update_request_admission_check(cluster.installed_types, update_req, s.api_server) is None);
+            assert(current_obj.metadata.deletion_timestamp is None);
+            let updated_obj = updated_object(update_req, current_obj).with_resource_version(s.api_server.resource_version_counter);
+            assert(updated_object_validity_check(updated_obj, current_obj, cluster.installed_types) is None) by {
+                assert(metadata_validity_check(updated_obj) is None) by {
+                    assert(updated_obj.metadata.owner_references is Some);
+                    assert(updated_obj.metadata.owner_references->0.len() == 1);
+                }
+            }
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub proof fn lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(

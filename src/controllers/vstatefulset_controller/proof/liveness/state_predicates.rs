@@ -617,6 +617,11 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& pod_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
+    // can pass update admission checks
+    &&& req.obj.metadata.namespace is Some
+    &&& req.obj.metadata.namespace->0 == vsts.metadata.namespace->0
+    &&& req.obj.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+    &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
 pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
@@ -627,9 +632,12 @@ pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
         let old_pod = local_state.needed[local_state.needed_index - 1]->0;
+        let key = req_msg.content.get_get_then_update_request().key();
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& s.resources().contains_key(key)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
+        &&& 0 < local_state.needed_index <= local_state.needed.len()
     }
 }
 
