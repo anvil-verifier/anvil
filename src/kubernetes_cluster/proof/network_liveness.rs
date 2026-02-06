@@ -15,6 +15,8 @@ pub open spec fn no_req_before_rpc_id_is_in_flight(rpc_id: RPCId) -> StatePred<C
     }
 }
 
+// similar to no_pending_request_to_api_server_from_api_server_or_external,
+// but forbids messages from PodMonkey
 pub open spec fn no_pending_request_to_api_server_from_non_controllers() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| !{
