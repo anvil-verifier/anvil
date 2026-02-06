@@ -87,6 +87,7 @@ ensures
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
+        &&& every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s)
     };
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
@@ -94,6 +95,7 @@ ensures
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
+    lemma_always_every_msg_from_vsts_controller_carries_vsts_key(spec, cluster, controller_id);
 
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
@@ -187,12 +189,6 @@ ensures
                                     APIRequest::CreateRequest(req) => {
                                         assume(false);
                                     },
-                                    APIRequest::GetThenUpdateRequest(req) => {
-                                        assume(false);
-                                    },
-                                    APIRequest::GetThenDeleteRequest(req) => {
-                                        assume(false);
-                                    },
                                     _ => {}
                                 }
                                 assert(inv(s_prime));
@@ -217,7 +213,8 @@ ensures
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
+        lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id))
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
