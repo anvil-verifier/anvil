@@ -535,6 +535,38 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(self, spec: TempPred
     always_weaken::<ClusterState>(spec, lift_state(Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()), lift_state(Self::every_in_flight_msg_has_unique_id()));
 }
 
+// similar to no_pending_request_to_api_server_from_non_controllers,
+// but allows messages from PodMonkey
+pub open spec fn no_pending_request_to_api_server_from_api_server_or_external() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| !{
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& (msg.src is APIServer || msg.src is External)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+        }
+    }
+}
+
+pub proof fn lemma_always_no_pending_request_to_api_server_from_api_server_or_external(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::no_pending_request_to_api_server_from_api_server_or_external()))),
+{
+    let inv = Self::no_pending_request_to_api_server_from_api_server_or_external();
+    assert forall |s, s_prime| inv(s) && #[trigger] self.next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg| !{
+            &&&#[trigger] s_prime.in_flight().contains(msg)
+            &&& (msg.src is APIServer || msg.src is External)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest} by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    };
+    init_invariant(spec, self.init(), self.next(), inv);
+}
+
 }
 
 }
