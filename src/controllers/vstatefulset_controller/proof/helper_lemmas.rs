@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{
     controller::types::*,
     cluster::*, 
     message::*,
-    api_server::types::*,
+    api_server::{types::*, state_machine::*},
     network::state_machine::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -70,4 +70,73 @@ requires
 ensures
     pvc_name_match(name, vsts.metadata.name->0),
 {}
+
+// helper lemmas about pvc_name_match
+// NOTE: dash_char_view_eq_str_view may be helpful
+#[verifier(external_body)]
+pub proof fn vsts_name_non_eq_implies_no_pvc_name_match(
+    name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
+)
+requires
+    vsts_name_a != vsts_name_b,
+    pvc_name_match(name, vsts_name_a),
+ensures
+    !pvc_name_match(name, vsts_name_b),
+{}
+
+// helper lemmas about name prefixes
+#[verifier(external_body)]
+pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
+    name: StringView, generate_name_field: StringView, generated_suffix: StringView
+)
+requires
+    has_vsts_prefix(name),
+    name == generate_name_field + generated_suffix,
+    dash_free(generated_suffix),
+ensures
+    has_vsts_prefix(generate_name_field),
+{
+    let vsts_prefix = VStatefulSetView::kind()->CustomResourceKind_0 + "-"@;
+    dash_char_view_eq_str_view();
+    assert(!dash_free(name)) by {
+        assert(name[vsts_prefix.len() - 1] == '-'@);
+    }
+    assert(!dash_free(generate_name_field)) by {
+        if dash_free(generate_name_field) {
+            assert(dash_free(name));
+            assert(false);
+        }
+    }
+    // we know exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix from has_vsts_prefix(name)
+    // and name == generate_name_field + generated_suffix, dash_free(generated_suffix)
+    // so generate_name_field must also start with VStatefulSetView::kind()->CustomResourceKind_0 + "-"@
+    // yet the proof is hard
+}
+
+#[verifier(external_body)]
+pub proof fn no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s: APIServerState, generate_name_field: StringView)
+requires
+    !has_vsts_prefix(generate_name_field),
+ensures
+    !has_vsts_prefix(generated_name(s, generate_name_field))
+{}
+
+// helper lemma
+pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
+requires
+    !has_vsts_prefix(name),
+ensures
+    forall |vsts: VStatefulSetView| #![trigger vsts.metadata.name->0]
+        !pvc_name_match(name, vsts.metadata.name->0),
+{
+    // proof by contradiction
+    if exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(name, vsts.metadata.name->0) {
+        let witness_vsts = choose |vsts: VStatefulSetView| #[trigger] pvc_name_match(name, vsts.metadata.name->0);
+        let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, witness_vsts.metadata.name->0, i.1);
+        let suffix = i.0 + "-"@ + pod_name_without_vsts_prefix(witness_vsts.metadata.name->0, i.1);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        assert(has_vsts_prefix(name));
+    }
+}
+
 }

@@ -15,7 +15,8 @@ use crate::vstatefulset_controller::{
     },
     proof::{
         predicate::*,
-        guarantee::*
+        guarantee::*,
+        helper_lemmas::*,
     },
 };
 use crate::vstd_ext::string_view::*;
@@ -78,17 +79,19 @@ ensures
     let inv = all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        // &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& vsts_rely_conditions(cluster, controller_id)(s)
         &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
     };
-    // cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
 
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
@@ -99,14 +102,79 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
-                match msg.src {
-                    HostId::Controller(controller_id, cr_key) => {
-                        assume(false);
-                    },
-                    HostId::BuiltinController => {}, // must be delete requests
-                    HostId::PodMonkey => {}, // must be pod requests
-                    _ => {}
-                }
+                let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                assert(msg.content is APIRequest);
+                assert(resp_msg.content is APIResponse);
+                if is_ok_resp(resp_msg.content->APIResponse_0) { // otherwise, etcd is not changed
+                    match msg.src {
+                        HostId::Controller(other_id, cr_key) => {
+                            if other_id != controller_id {
+                                assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
+                                assert(vsts_rely(other_id, cluster.installed_types)(s));
+                                match (msg.content->APIRequest_0) {
+                                    APIRequest::CreateRequest(req) => {
+                                        if req.key().kind == Kind::PersistentVolumeClaimKind {
+                                            assert(rely_create_pvc_req(req));
+                                            let name = if req.obj.metadata.name is Some {
+                                                req.obj.metadata.name->0
+                                            } else {
+                                                generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                            };
+                                            assert(!has_vsts_prefix(name)) by {
+                                                if req.obj.metadata.name is Some {
+                                                    assert(!has_vsts_prefix(req.obj.metadata.name->0));
+                                                } else {
+                                                    assert(req.obj.metadata.generate_name is Some);
+                                                    assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                                    no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                }
+                                            }
+                                            let created_obj_key = ObjectRef {
+                                                kind: Kind::PersistentVolumeClaimKind,
+                                                namespace: req.namespace,
+                                                name: name,
+                                            };
+                                            assert(s_prime.resources().contains_key(created_obj_key));
+                                            no_vsts_prefix_implies_no_pvc_name_match(name);
+                                            assert forall |pvc_key: ObjectRef| {
+                                                &&& #[trigger] s_prime.resources().contains_key(pvc_key)
+                                                &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
+                                                &&& pvc_key.namespace == vsts.metadata.namespace->0
+                                                &&& pvc_name_match(pvc_key.name, vsts.metadata.name->0)
+                                            } implies {
+                                                let pvc_obj = s_prime.resources()[pvc_key];
+                                                &&& pvc_obj.metadata.owner_references is None
+                                            } by {
+                                                if pvc_key != created_obj_key {
+                                                    assert(s.resources().contains_key(pvc_key));
+                                                } else {
+                                                    assert(!pvc_name_match(name, vsts.metadata.name->0));
+                                                    assert(false);
+                                                }
+                                            }
+                                        }
+                                    },
+                                    APIRequest::UpdateRequest(req) => {
+                                        if req.key().kind == Kind::PersistentVolumeClaimKind {
+                                            assert(rely_update_pvc_req(req));
+                                        }
+                                    },
+                                    APIRequest::DeleteRequest(req) => {
+                                        if req.key.kind == Kind::PersistentVolumeClaimKind {
+                                            assert(rely_delete_pvc_req(req));
+                                        }
+                                    },
+                                    _ => {}
+                                }
+                            } else {
+                                assume(false);
+                            }
+                        },
+                        HostId::BuiltinController => {}, // must be delete requests
+                        HostId::PodMonkey => {}, // must be pod requests
+                        _ => {}
+                    }
+                } else {}
             },
             _ => {}
         }
@@ -114,12 +182,13 @@ ensures
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        // lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(vsts_rely_conditions(cluster, controller_id)),
         lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
-        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
