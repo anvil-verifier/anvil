@@ -46,6 +46,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_an
     }
 }
 
+#[verifier(rlimit(100))]
 pub proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -82,6 +83,105 @@ ensures
         implies inv(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                assert(msg.content is APIRequest);
+                assert(resp_msg.content is APIResponse);
+                if is_ok_resp(resp_msg.content->APIResponse_0) { // otherwise, etcd is not changed
+                    match msg.src {
+                        HostId::Controller(other_id, cr_key) => {
+                            if other_id != controller_id {
+                                assume(false);
+                                assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
+                                assert(vsts_rely(other_id, cluster.installed_types)(s));
+                                match (msg.content->APIRequest_0) {
+                                    APIRequest::CreateRequest(req) => {
+                                        if req.key().kind == Kind::PodKind {
+                                            assert(rely_create_pod_req(req));
+                                            let name = if req.obj.metadata.name is Some {
+                                                req.obj.metadata.name->0
+                                            } else {
+                                                generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                            };
+                                            assert(!has_vsts_prefix(name)) by {
+                                                if req.obj.metadata.name is Some {
+                                                    assert(!has_vsts_prefix(req.obj.metadata.name->0));
+                                                } else {
+                                                    assert(req.obj.metadata.generate_name is Some);
+                                                    assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                                    no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                }
+                                            }
+                                            let created_obj_key = ObjectRef {
+                                                kind: Kind::PodKind,
+                                                namespace: req.namespace,
+                                                name: name,
+                                            };
+                                            assert(s_prime.resources().contains_key(created_obj_key));
+                                            // no_vsts_prefix_implies_no_pod_name_match(name);
+                                            assert forall |pod_key: ObjectRef| {
+                                                &&& #[trigger] s_prime.resources().contains_key(pod_key)
+                                                &&& pod_key.kind == Kind::PodKind
+                                                &&& pod_key.namespace == vsts.metadata.namespace->0
+                                                &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+                                            } implies {
+                                                let obj = s_prime.resources()[pod_key];
+                                                let pod = PodView::unmarshal(obj)->Ok_0;
+                                                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                                                &&& obj.metadata.deletion_timestamp is None
+                                                &&& obj.metadata.finalizers is None
+                                                &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
+                                                &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                                            } by {
+                                                if pod_key != created_obj_key {
+                                                    assert(s.resources().contains_key(pod_key));
+                                                } else {
+                                                    assert(!pod_name_match(name, vsts.metadata.name->0));
+                                                    assert(false);
+                                                }
+                                            }
+                                        }
+                                    },
+                                    APIRequest::UpdateRequest(req) => {
+                                        if req.key().kind == Kind::PodKind {
+                                            assert(rely_update_pod_req(req)(s));
+                                        }
+                                    },
+                                    APIRequest::DeleteRequest(req) => {
+                                        if req.key.kind == Kind::PodKind {
+                                            assert(rely_delete_pod_req(req)(s));
+                                        }
+                                    },
+                                    _ => {}
+                                }
+                            } else if cr_key != vsts.object_ref() {
+                                assume(false);
+                                let havoc_vsts = make_vsts();
+                                let vsts_with_key = VStatefulSetView {
+                                    metadata: ObjectMetaView {
+                                        name: Some(cr_key.name),
+                                        namespace: Some(cr_key.namespace),
+                                        ..havoc_vsts.metadata
+                                    },
+                                    ..havoc_vsts
+                                };
+                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
+                                assert(s.in_flight().contains(msg)); // trigger
+                            } else {
+                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
+                            }
+                        },
+                        HostId::BuiltinController => {}, // must be delete requests
+                        HostId::PodMonkey => {
+                            assume(false);
+                        }, // must be pod requests
+                        _ => {}
+                    }
+                } else {
+                    assert(s_prime.resources() == s.resources());
+                }
+            },
             _ => {}
         }
     };
@@ -241,7 +341,9 @@ ensures
                         HostId::PodMonkey => {}, // must be pod requests
                         _ => {}
                     }
-                } else {}
+                } else {
+                    assert(s_prime.resources() == s.resources());
+                }
             },
             _ => {}
         }
