@@ -83,10 +83,12 @@ ensures
         &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
     };
     // cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
+    cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
 
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
@@ -101,9 +103,8 @@ ensures
                     HostId::Controller(controller_id, cr_key) => {
                         assume(false);
                     },
-                    HostId::BuiltinController => {
-                        assume(msg.content.is_delete_request());
-                    },
+                    HostId::BuiltinController => {}, // must be delete requests
+                    HostId::PodMonkey => {}, // must be pod requests
                     _ => {}
                 }
             },
@@ -117,7 +118,8 @@ ensures
         lift_state(vsts_rely_conditions(cluster, controller_id)),
         lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
-        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests())
+        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
