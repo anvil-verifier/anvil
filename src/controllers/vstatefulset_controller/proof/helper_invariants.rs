@@ -109,11 +109,59 @@ ensures
 }
 
 // we don't need to talk about ongoing_reconcile as it's covered by at_vsts_step
-pub open spec fn vsts_in_reconciles_has_no_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn vsts_in_schedule_does_not_have_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
         &&& s.scheduled_reconciles(controller_id)[vsts.object_ref()].metadata.deletion_timestamp is None
         &&& VStatefulSetView::unmarshal(s.scheduled_reconciles(controller_id)[vsts.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
+}
+
+// similar to lemma_eventually_always_vrs_in_schedule_does_not_have_deletion_timestamp
+pub proof fn lemma_eventually_always_vsts_in_schedule_does_not_have_deletion_timestamp(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(cluster.schedule_controller_reconcile().weak_fairness((controller_id, vsts.object_ref()))),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vsts_in_schedule_does_not_have_deletion_timestamp(vsts, controller_id))))),
+{
+    let p_prime = |s: ClusterState| Cluster::desired_state_is(vsts)(s);
+    let q = vsts_in_schedule_does_not_have_deletion_timestamp(vsts, controller_id);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::desired_state_is(vsts)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::desired_state_is(vsts)),
+        later(lift_state(Cluster::desired_state_is(vsts)))
+    );
+
+    cluster.schedule_controller_reconcile().wf1(
+        (controller_id, vsts.object_ref()), spec, stronger_next, p_prime, q
+    );
+    leads_to_stable(spec, lift_action(stronger_next), lift_state(p_prime), lift_state(q));
+
+    temp_pred_equality(
+        true_pred().and(lift_state(p_prime)),
+        lift_state(p_prime)
+    );
+    pack_conditions_to_spec(spec, lift_state(p_prime), true_pred(), always(lift_state(q)));
+    temp_pred_equality(
+        lift_state(p_prime),
+        lift_state(Cluster::desired_state_is(vsts))
+    );
+    simplify_predicate(spec, always(lift_state(p_prime)));
 }
 
 }
