@@ -46,6 +46,60 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_an
     }
 }
 
+pub proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)))),
+{
+    let inv = all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& vsts_rely_conditions(cluster, controller_id)(s)
+        &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
+        &&& every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
+    lemma_always_every_msg_from_vsts_controller_carries_vsts_key(spec, cluster, controller_id);
+
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
+        implies inv(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            _ => {}
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(vsts_rely_conditions(cluster, controller_id)),
+        lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
+        lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id))
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
 // similar to above, but for PVCs
 // rely conditions already prevent other controllers from creating or updating PVCs
 // and VSTS controller's internal guarantee says all pvcs it creates have no owner refs
@@ -96,9 +150,6 @@ ensures
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
     lemma_always_every_msg_from_vsts_controller_carries_vsts_key(spec, cluster, controller_id);
-
-    VStatefulSetReconcileState::marshal_preserves_integrity();
-    VStatefulSetView::marshal_preserves_integrity();
 
     assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
         implies inv(s_prime) by {
