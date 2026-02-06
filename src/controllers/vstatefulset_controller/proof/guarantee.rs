@@ -117,7 +117,10 @@ pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VS
         }
         &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
     }
-    &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
+    &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> {
+        &&& req.obj.metadata.owner_references is None
+        &&& pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
+    }
 }
 
 // VSTS controller only deletes Pods bound to the specific vsts instance
@@ -179,6 +182,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
         &&& pvc.metadata.name is Some
         &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
+        &&& pvc.metadata.owner_references is None
     }
 }
 
