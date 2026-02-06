@@ -184,8 +184,8 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                    s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                    s, s_prime, vsts, cluster, controller_id, input->0
                 );
             },
             Step::ScheduleControllerReconcileStep(input) => {
@@ -255,8 +255,8 @@ ensures
                 }
             },
             Step::APIServerStep(input) => {
-                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                    s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                    s, s_prime, vsts, cluster, controller_id, input->0
                 );
                 assert(scheduled_state(s_prime));
             },
@@ -573,8 +573,8 @@ ensures
                     }
                 },
                 Step::APIServerStep(input) => {
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                        s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                        s, s_prime, vsts, cluster, controller_id, input->0
                     );
                 },
                 Step::BuiltinControllersStep(_) => {},
@@ -626,8 +626,8 @@ ensures
                                 s, s_prime, vsts, cluster, msg, controller_id, outdated_len
                             );
                         } else {
-                            lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(
-                                s, s_prime, vsts, cluster, controller_id, input->0, outdated_len
+                            lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(
+                                s, s_prime, vsts, cluster, controller_id, input->0
                             );
                         }
                     },
@@ -773,7 +773,7 @@ ensures
                         });
                         shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0, outdated_len);
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0);
                     assert(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime));
                 },
                 Step::ControllerStep(input) => {
@@ -1839,7 +1839,7 @@ ensures
             let input = Some(msg);
             assert forall |s, s_prime| req_msg_is_pending_msg_at_after_create_needed_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
                 implies after_create_needed_state_with_response(s_prime) by {
-                lemma_create_needed_pod_request_returns_ok_response(s, s_prime, vsts, cluster, controller_id, msg);
+                lemma_create_needed_pod_request_returns_ok_or_already_exists_err_response(s, s_prime, vsts, cluster, controller_id, msg);
             }
             cluster.lemma_pre_leads_to_post_by_api_server(
                 spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_create_needed_state(msg), after_create_needed_state_with_response
@@ -2760,7 +2760,7 @@ ensures
                     match step {
                         Step::APIServerStep(input) => {
                             if input == Some(msg) {
-                                lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(s, s_prime, vsts, cluster, controller_id, condemned_len, outdated_len);
+                                lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(s, s_prime, vsts, cluster, controller_id, msg, condemned_len, outdated_len);
                                 assert(after_delete_outdated_state_with_response(s_prime));
                             } else {
                                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
@@ -2776,7 +2776,7 @@ ensures
                 let input = Some(msg);
                 assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
                     implies after_delete_outdated_state_with_response(s_prime) by {
-                    lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(s, s_prime, vsts, cluster, controller_id, condemned_len, outdated_len);
+                    lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(s, s_prime, vsts, cluster, controller_id, msg, condemned_len, outdated_len);
                 }
                 cluster.lemma_pre_leads_to_post_by_api_server(
                     spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_delete_outdated_state(msg), after_delete_outdated_state_with_response
@@ -3086,7 +3086,7 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {}
                 },
                 Step::APIServerStep(input) => {
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_count_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0, outdated_len);
+                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0);
                 },
                 _ => {}
             }
@@ -3189,6 +3189,8 @@ ensures
         &&& pod.metadata.name is Some
         &&& pod.metadata.namespace is Some
         &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
+        &&& pod.metadata.owner_references is Some
+        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(pod.object_ref())
         &&& pod_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
         &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
@@ -3199,6 +3201,10 @@ ensures
         assert(objs.contains(objs[i]));
         assert(objs[i].metadata.owner_references_contains(vsts.controller_owner_ref()));
         assert(owned_objs.contains(objs[i]));
+        let obj = s.resources()[pod.object_ref()];
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
+        }
     }
     assert(partition_pods(vsts_name, replicas, filtered_pods) == partition_pods(triggering_cr.metadata.name->0, replicas, filtered_pods));
     // assert(next_local_state.needed == needed);
@@ -3233,6 +3239,8 @@ ensures
         let obj = s.resources()[key];
         &&& needed_pod.object_ref() == key
         &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& needed_pod.metadata.owner_references is Some
+        &&& needed_pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(key)
         &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
@@ -3378,6 +3386,19 @@ ensures
     }
     outdated_pod_keys.unique_seq_to_set();
     assert(outdated_pod_keys.len() == outdated_len);
+    // optional hardeners
+    let pvcs = make_pvcs(triggering_cr, 0);
+    assert(pvc_cnt(vsts) == pvcs.len());
+    assert(next_local_state.pvcs == pvcs);
+    assert forall |i: int| #![trigger pvcs[i]] 0 <= i < pvc_cnt(vsts) implies {
+        let template_name = vsts.spec.volume_claim_templates->0[i].metadata.name->0;
+        &&& pvcs[i].metadata.name == Some(pvc_name(template_name, vsts.metadata.name->0, 0))
+        &&& pvcs[i].metadata.namespace == Some(vsts.metadata.namespace->0)
+        &&& pvcs[i].metadata.owner_references is None
+        &&& pvcs[i].state_validation()
+    } by {
+        assert(pvcs[i] == make_pvc(triggering_cr, 0, i));
+    }
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */
@@ -3493,6 +3514,7 @@ ensures
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, (pvc_index + 1) as nat, needed_index, nat0!(), condemned_len, outdated_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    PersistentVolumeClaimView::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_from_after_send_create_pvc_req_to_receive_create_pvc_resp(
@@ -3578,9 +3600,7 @@ ensures
     let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
     let req_obj = req_msg.content.get_create_request().obj;
     let req_pod = PodView::unmarshal(req_obj)->Ok_0;
-    assert(pod_spec_matches(vsts, req_pod)) by {
-        PodView::marshal_spec_preserves_integrity();
-    }
+    assert(pod_spec_matches(vsts, req_pod));
 }
 
 // TODO: anyway to increase proof automation by change the way to invoke get_ordinal_eq_pod_name?
@@ -3604,7 +3624,7 @@ ensures
     pending_create_needed_pod_resp_in_flight_and_created_pod_exists(vsts, controller_id)(s_prime),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)(s_prime),
 {
-    lemma_create_needed_pod_request_returns_ok_response(
+    lemma_create_needed_pod_request_returns_ok_or_already_exists_err_response(
         s, s_prime, vsts, cluster, controller_id, req_msg
     );
     let replicas = vsts.spec.replicas.unwrap_or(1) as nat;
@@ -3955,16 +3975,17 @@ ensures
 }
 
 pub proof fn lemma_from_after_send_get_then_delete_outdated_pod_req_to_receive_get_then_delete_outdated_pod_resp(
-    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message, condemned_len: nat, outdated_len: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
     at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
     pending_get_then_delete_outdated_pod_req_in_flight(vsts, controller_id)(s),
+    req_msg_is(req_msg, vsts.object_ref(), controller_id)(s),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s),
     outdated_len > 0,
 ensures
@@ -3973,15 +3994,27 @@ ensures
     pending_get_then_delete_outdated_pod_resp_in_flight_and_outdated_pod_is_deleted(vsts, controller_id)(s_prime),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)(s_prime),
 {
-    lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
-        s, s_prime, vsts, cluster, controller_id, req_msg_or_none(s, vsts.object_ref(), controller_id)->0
-    );
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let outdated_pod = get_largest_unmatched_pods(vsts, next_local_state.needed)->0;
     let outdated_ord = get_ordinal(vsts.metadata.name->0, outdated_pod.metadata.name->0)->0;
-    let req = req_msg_or_none(s, vsts.object_ref(), controller_id)->0.content.get_get_then_delete_request();
+    let req = req_msg.content.get_get_then_delete_request();
+    let key = req.key();
+    assert({
+        &&& req.owner_ref == vsts.controller_owner_ref()
+        &&& key.kind == Kind::PodKind
+        &&& key.namespace == vsts.metadata.namespace->0
+        &&& pod_name_match(key.name, vsts.metadata.name->0)
+    }) by {
+        seq_filter_contains_implies_seq_contains(
+            next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
+        );
+    }
     get_ordinal_eq_pod_name(vsts.metadata.name->0, outdated_ord, outdated_pod.metadata.name->0);
+    lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
+        s, s_prime, vsts, cluster, controller_id, req_msg
+    );
     assert(get_largest_unmatched_pods(vsts, next_local_state.needed) is Some);
     // prove that deletion will not affect coherence of other needed pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
@@ -4105,35 +4138,6 @@ ensures
     current_state_matches(vsts)(s),
 {
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
-    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)]
-        0 <= ord < replicas(vsts) implies forall |i: nat| i < pvc_cnt(vsts) ==> {
-        let pvc_key = ObjectRef {
-            kind: PersistentVolumeClaimView::kind(),
-            name: #[trigger] pvc_name(
-                vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
-                vsts.metadata.name->0,
-                ord
-            ),
-            namespace: vsts.metadata.namespace->0
-        };
-        &&& s.resources().contains_key(pvc_key)
-    } by {
-        assert forall |i: nat| i < pvc_cnt(vsts) implies {
-            let pvc_key = ObjectRef {
-                kind: PersistentVolumeClaimView::kind(),
-                name: #[trigger] pvc_name(
-                    vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
-                    vsts.metadata.name->0,
-                    ord
-                ),
-                namespace: vsts.metadata.namespace->0
-            };
-            &&& s.resources().contains_key(pvc_key)
-        } by {
-            let index = (ord, i); // trigger the pvc coherence part in local_state_is_coherent_with_etcd
-            assert(index.0 < replicas(vsts) && index.1 < pvc_cnt(vsts));
-        }
-    }
     assert(get_largest_unmatched_pods(vsts, local_state.needed) is None);
     assert forall |ord: nat| ord < replicas(vsts) implies {
         let pod_key = ObjectRef {

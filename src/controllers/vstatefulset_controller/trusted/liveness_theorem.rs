@@ -27,19 +27,19 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             // labels are updated
             // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
             &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            // 2. Bound PVCs exist
-            &&& forall |i: nat| i < pvc_cnt(vsts) ==> {
-                let pvc_key = ObjectRef {
-                    kind: PersistentVolumeClaimView::kind(),
-                    name: #[trigger] pvc_name(
-                        vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
-                        vsts.metadata.name->0,
-                        ord
-                    ),
-                    namespace: vsts.metadata.namespace->0
-                };
-                &&& s.resources().contains_key(pvc_key)
-            }
+        }
+        // 2. Bound PVCs exist
+        &&& forall |ord: nat, i: nat| ord < replicas(vsts) && i < pvc_cnt(vsts) ==> {
+            let pvc_key = ObjectRef {
+                kind: PersistentVolumeClaimView::kind(),
+                name: #[trigger] pvc_name(
+                    vsts.spec.volume_claim_templates->0[i as int].metadata.name->0,
+                    vsts.metadata.name->0,
+                    ord
+                ),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& s.resources().contains_key(pvc_key)
         }
         // 3. No condemned pod in etcd
         &&& !exists |ord: nat| ord >= replicas(vsts) && {
