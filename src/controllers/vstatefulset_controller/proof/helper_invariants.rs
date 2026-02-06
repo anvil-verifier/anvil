@@ -170,9 +170,7 @@ ensures
                                     },
                                     _ => {}
                                 }
-                            } else if cr_key == vsts.object_ref() {
-                                assume(false);
-                            } else {
+                            } else if cr_key != vsts.object_ref() {
                                 let havoc_vsts = make_vsts();
                                 let vsts_with_key = VStatefulSetView {
                                     metadata: ObjectMetaView {
@@ -184,14 +182,8 @@ ensures
                                 };
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                 assert(s.in_flight().contains(msg)); // trigger
-                                assert(cr_key == vsts_with_key.object_ref());
-                                match msg.content->APIRequest_0 {
-                                    APIRequest::CreateRequest(req) => {
-                                        assume(false);
-                                    },
-                                    _ => {}
-                                }
-                                assert(inv(s_prime));
+                            } else {
+                                assume(false);
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests
