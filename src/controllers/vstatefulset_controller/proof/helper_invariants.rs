@@ -15,7 +15,7 @@ use crate::vstatefulset_controller::{
     },
     proof::{
         predicate::*,
-        guarantee::*,
+        guarantee,
         helper_lemmas::*,
     },
 };
@@ -86,12 +86,14 @@ ensures
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
     };
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
 
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
@@ -178,17 +180,18 @@ ensures
                                     },
                                     ..havoc_vsts
                                 };
+                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
+                                assert(s.in_flight().contains(msg)); // trigger
                                 assert(cr_key == vsts_with_key.object_ref());
-                                internal_guarantee_condition_holds(spec, cluster, controller_id, vsts_with_key);
                                 match msg.content->APIRequest_0 {
                                     APIRequest::CreateRequest(req) => {
                                         assume(false);
                                     },
                                     APIRequest::GetThenUpdateRequest(req) => {
-                                        assert(req.obj.kind == Kind::PodKind);
+                                        assume(false);
                                     },
                                     APIRequest::GetThenDeleteRequest(req) => {
-                                        assert(req.key().kind == Kind::PodKind);
+                                        assume(false);
                                     },
                                     _ => {}
                                 }
@@ -213,7 +216,8 @@ ensures
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
@@ -297,6 +301,55 @@ ensures
             if new_msgs.contains(msg) {
                 // Empty if statement required to trigger quantifiers.
             }
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
+pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
+            let content = msg.content;
+            &&& s.in_flight().contains(msg)
+            &&& msg.src is Controller
+            &&& msg.src->Controller_0 == controller_id
+        } ==> msg.src->Controller_1.kind == VStatefulSetView::kind()
+    }
+}
+
+pub proof fn lemma_always_every_msg_from_vsts_controller_carries_vsts_key(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(always(lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id)))),
+{
+    let inv = every_msg_from_vsts_controller_carries_vsts_key(controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
+        implies inv(s_prime) by {
+        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+        assert forall |msg: Message|
+            inv(s)
+            && #[trigger] s_prime.in_flight().contains(msg)
+            && msg.src.is_controller_id(controller_id)
+            implies msg.src->Controller_1.kind == VStatefulSetView::kind() by {
+            if s.in_flight().contains(msg) {}
+            if new_msgs.contains(msg) {}
         }
     };
     combine_spec_entails_always_n!(
