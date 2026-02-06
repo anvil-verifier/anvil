@@ -82,9 +82,11 @@ ensures
         &&& vsts_rely_conditions(cluster, controller_id)(s)
         &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
     };
     // cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
 
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
@@ -97,9 +99,6 @@ ensures
                 let msg = input->0;
                 match msg.src {
                     HostId::Controller(controller_id, cr_key) => {
-                        assume(false);
-                    },
-                    HostId::PodMonkey => {
                         assume(false);
                     },
                     HostId::BuiltinController => {
@@ -117,7 +116,8 @@ ensures
         // lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(vsts_rely_conditions(cluster, controller_id)),
         lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
-        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external())
+        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
+        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests())
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }

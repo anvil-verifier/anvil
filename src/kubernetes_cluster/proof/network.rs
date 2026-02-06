@@ -567,6 +567,51 @@ pub proof fn lemma_always_no_pending_request_to_api_server_from_api_server_or_ex
     init_invariant(spec, self.init(), self.next(), inv);
 }
 
+pub open spec fn all_requests_from_pod_monkey_are_api_pod_requests() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is PodMonkey
+        } ==> {
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+            &&& match (msg.content->APIRequest_0) {
+                APIRequest::CreateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::UpdateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::DeleteRequest(req) => req.key().kind == Kind::PodKind,
+                _ => true,
+            }
+        }
+    }
+}
+
+pub proof fn lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::all_requests_from_pod_monkey_are_api_pod_requests()))),
+{
+    let inv = Self::all_requests_from_pod_monkey_are_api_pod_requests();
+    assert forall |s, s_prime| inv(s) && #[trigger] self.next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| {
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.src is PodMonkey
+        } implies {
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+            &&& match (msg.content->APIRequest_0) {
+                APIRequest::CreateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::UpdateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::DeleteRequest(req) => req.key().kind == Kind::PodKind,
+                _ => true,
+            }
+        } by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    };
+    init_invariant(spec, self.init(), self.next(), inv);
+}
+
 }
 
 }
