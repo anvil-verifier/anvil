@@ -183,7 +183,7 @@ ensures
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                 assert(s.in_flight().contains(msg)); // trigger
                             } else {
-                                assume(false);
+                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests
