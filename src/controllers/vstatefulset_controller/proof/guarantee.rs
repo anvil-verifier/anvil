@@ -504,8 +504,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-// TODO
-// NOTE: lemma_always_vd_reconcile_request_only_interferes_with_itself may be helpful
 pub proof fn internal_guarantee_condition_holds(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
