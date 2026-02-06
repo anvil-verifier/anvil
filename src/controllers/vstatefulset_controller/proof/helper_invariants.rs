@@ -166,8 +166,33 @@ ensures
                                     },
                                     _ => {}
                                 }
-                            } else {
+                            } else if cr_key == vsts.object_ref() {
                                 assume(false);
+                            } else {
+                                let havoc_vsts = make_vsts();
+                                let vsts_with_key = VStatefulSetView {
+                                    metadata: ObjectMetaView {
+                                        name: Some(cr_key.name),
+                                        namespace: Some(cr_key.namespace),
+                                        ..havoc_vsts.metadata
+                                    },
+                                    ..havoc_vsts
+                                };
+                                assert(cr_key == vsts_with_key.object_ref());
+                                internal_guarantee_condition_holds(spec, cluster, controller_id, vsts_with_key);
+                                match msg.content->APIRequest_0 {
+                                    APIRequest::CreateRequest(req) => {
+                                        assume(false);
+                                    },
+                                    APIRequest::GetThenUpdateRequest(req) => {
+                                        assert(req.obj.kind == Kind::PodKind);
+                                    },
+                                    APIRequest::GetThenDeleteRequest(req) => {
+                                        assert(req.key().kind == Kind::PodKind);
+                                    },
+                                    _ => {}
+                                }
+                                assert(inv(s_prime));
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests

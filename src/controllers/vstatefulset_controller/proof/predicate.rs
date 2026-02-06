@@ -14,6 +14,8 @@ verus! {
 // just to make Verus happy
 pub uninterp spec fn dummy<T>(t: T) -> bool;
 
+pub uninterp spec fn make_vsts() -> VStatefulSetView;
+
 // allow status and rv updates
 pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView) -> bool {
     &&& obj.metadata.without_resource_version() == obj_prime.metadata.without_resource_version()

@@ -25,9 +25,6 @@ verus! {
 // 3.a rely conditions for builtin controllers (rely::garbage_collector_does_not_delete_vsts_pod_objects)
 // 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
 
-
-uninterp spec fn make_vsts() -> VStatefulSetView;
-
 // Shield lemma:
 // All Pods and PVCs owned by VSTS controller are not mutated by others
 // or by VSTS controller itself during reconciliation of other VSTS CRs
