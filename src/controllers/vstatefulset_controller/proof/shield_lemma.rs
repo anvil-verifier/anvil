@@ -58,13 +58,12 @@ requires
     guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s),
+    helper_invariants::garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> vsts_rely(other_id, cluster.installed_types)(s),
     // 2. VSTS internal rely-guarantee across different CRs
     forall |other_vsts| guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s),
-    // 3. rely conditions for builtin/external controllers
-    garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     // msg is sent by other controllers or VSTS controller for other CRs
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),

@@ -120,8 +120,8 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id),
         guarantee::vsts_internal_guarantee_conditions(controller_id),
         guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
-        rely::vsts_rely_conditions(cluster, controller_id),
-        rely::garbage_collector_does_not_delete_vsts_pod_objects(vsts)
+        rely::vsts_rely_conditions(cluster, controller_id)
+        // rely::garbage_collector_does_not_delete_vsts_pod_objects(vsts)
     )
 }
 

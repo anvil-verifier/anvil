@@ -171,30 +171,4 @@ pub open spec fn rely_get_then_delete_pod_req(req: GetThenDeleteRequest) -> bool
     &&& req.owner_ref.kind != VStatefulSetView::kind()
 }
 
-// rely conditions for builtin controllers (only GC is supported now)
-pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src is BuiltinController
-            &&& msg.dst is APIServer
-            &&& msg.content is APIRequest
-        } ==> {
-            let req = msg.content.get_delete_request(); 
-            &&& msg.content.is_delete_request()
-            &&& s.resources().contains_key(req.key) ==> {
-                let obj = s.resources()[req.key];
-                &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                    && obj.kind == Kind::PodKind
-                    && obj.metadata.namespace == vsts.metadata.namespace)
-                // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
-                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
-                    && obj.metadata.namespace == vsts.metadata.namespace
-                    && obj.metadata.owner_references is None)
-                    // && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
-            }
-        }
-    }
-}
-
 }
