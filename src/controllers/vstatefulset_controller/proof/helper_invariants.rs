@@ -62,6 +62,66 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefu
     }
 }
 
+pub proof fn lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(always(lift_state(all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)))),
+{
+    let inv = all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        // &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& vsts_rely_conditions(cluster, controller_id)(s)
+        &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+    };
+    // cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    VStatefulSetView::marshal_preserves_integrity();
+
+    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
+        implies inv(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                match msg.src {
+                    HostId::Controller(controller_id, cr_key) => {
+                        assume(false);
+                    },
+                    HostId::PodMonkey => {
+                        assume(false);
+                    },
+                    HostId::BuiltinController => {
+                        assume(false);
+                    },
+                    _ => {}
+                }
+            },
+            _ => {}
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        // lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(vsts_rely_conditions(cluster, controller_id)),
+        lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external())
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
