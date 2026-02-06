@@ -579,7 +579,8 @@ pub open spec fn all_requests_from_pod_monkey_are_api_pod_requests() -> StatePre
                 APIRequest::CreateRequest(req) => req.key().kind == Kind::PodKind,
                 APIRequest::UpdateRequest(req) => req.key().kind == Kind::PodKind,
                 APIRequest::DeleteRequest(req) => req.key().kind == Kind::PodKind,
-                _ => true,
+                APIRequest::UpdateStatusRequest(req) => req.key().kind == Kind::PodKind,
+                _ => false, // Pod Monkey should not send other types of API requests
             }
         }
     }
@@ -603,7 +604,8 @@ pub proof fn lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(self
                 APIRequest::CreateRequest(req) => req.key().kind == Kind::PodKind,
                 APIRequest::UpdateRequest(req) => req.key().kind == Kind::PodKind,
                 APIRequest::DeleteRequest(req) => req.key().kind == Kind::PodKind,
-                _ => true,
+                APIRequest::UpdateStatusRequest(req) => req.key().kind == Kind::PodKind,
+                _ => false,
             }
         } by {
             if s.in_flight().contains(msg) {} else {}
