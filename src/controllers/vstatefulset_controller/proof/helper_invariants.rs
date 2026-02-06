@@ -102,7 +102,7 @@ ensures
                         assume(false);
                     },
                     HostId::BuiltinController => {
-                        assume(false);
+                        assume(msg.content.is_delete_request());
                     },
                     _ => {}
                 }
@@ -120,6 +120,49 @@ ensures
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests())
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
+pub open spec fn garbage_collector_does_not_delete_vsts_pvc_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } ==> {
+            let req = msg.content.get_delete_request(); 
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+            &&& s.resources().contains_key(req.key) ==> {
+                let obj = s.resources()[req.key];
+                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
+                    && obj.metadata.namespace == vsts.metadata.namespace
+                    && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0))
+            }
+        }
+    }
+}
+
+pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } ==> {
+            let req = msg.content.get_delete_request(); 
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+            &&& s.resources().contains_key(req.key) ==> {
+                let obj = s.resources()[req.key];
+                &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                    && obj.kind == Kind::PodKind
+                    && obj.metadata.namespace == vsts.metadata.namespace)
+                // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
+                    && obj.metadata.namespace == vsts.metadata.namespace
+                    && obj.metadata.owner_references is None)
+                    // && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+            }
+        }
+    }
 }
 
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
