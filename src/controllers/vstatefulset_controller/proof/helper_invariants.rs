@@ -63,10 +63,11 @@ ensures
     let inv = all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& vsts_rely_conditions(cluster, controller_id)(s)
         &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
@@ -74,6 +75,7 @@ ensures
     };
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
@@ -168,12 +170,45 @@ ensures
                                 };
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                 assert(s.in_flight().contains(msg)); // trigger
+                                assert forall |pod_key: ObjectRef| {
+                                    &&& #[trigger] s_prime.resources().contains_key(pod_key)
+                                    &&& pod_key.kind == Kind::PodKind
+                                    &&& pod_key.namespace == vsts.metadata.namespace->0
+                                    &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+                                } implies {
+                                    let obj = s_prime.resources()[pod_key];
+                                    let pod = PodView::unmarshal(obj)->Ok_0;
+                                    &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                                    &&& obj.metadata.deletion_timestamp is None
+                                    &&& obj.metadata.finalizers is None
+                                    &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
+                                    &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                                } by {
+                                    let resp = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                                    if is_ok_resp(resp.content->APIResponse_0) {
+                                        if s.resources().contains_key(pod_key) {
+                                            if msg.content.is_get_then_update_request() {
+                                                let req = msg.content.get_get_then_update_request();
+                                                assert(req.owner_ref != vsts.controller_owner_ref()) by {
+                                                    assume(false);
+                                                }
+                                            } else {
+                                                // Deletion is allowed, Creation is not possible
+                                            }
+                                        } else {
+                                            assume(false);
+                                            if msg.content.is_create_request() {}
+                                        }
+                                    }
+                                }
                             } else {
+                                assume(false);
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests
                         HostId::PodMonkey => {
+                            assert(vsts_rely_conditions_pod_monkey(cluster.installed_types)(s));
                             assert forall |pod_key: ObjectRef| {
                                 &&& #[trigger] s_prime.resources().contains_key(pod_key)
                                 &&& pod_key.kind == Kind::PodKind
@@ -205,21 +240,19 @@ ensures
                                     } else {
                                         if msg.content.is_create_request() {
                                             let req = msg.content.get_create_request();
-                                            assert(pod_key != req.key()) by {
-                                                assert(rely_create_pod_req(req));
-                                                let name = if req.obj.metadata.name is Some {
-                                                    req.obj.metadata.name->0
+                                            assert(rely_create_pod_req(req));
+                                            let name = if req.obj.metadata.name is Some {
+                                                req.obj.metadata.name->0
+                                            } else {
+                                                generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                            };
+                                            assert(!pod_name_match(name, vsts.metadata.name->0)) by {
+                                                if req.obj.metadata.name is Some {
+                                                    no_vsts_prefix_implies_no_pod_name_match(req.obj.metadata.name->0);
                                                 } else {
-                                                    generated_name(s.api_server, req.obj.metadata.generate_name->0)
-                                                };
-                                                assert(!pod_name_match(name, vsts.metadata.name->0)) by {
-                                                    if req.obj.metadata.name is Some {
-                                                        no_vsts_prefix_implies_no_pod_name_match(req.obj.metadata.name->0);
-                                                    } else {
-                                                        no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
-                                                        let generate_name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
-                                                        no_vsts_prefix_implies_no_pod_name_match(generate_name);
-                                                    }
+                                                    no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                    let generate_name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                                                    no_vsts_prefix_implies_no_pod_name_match(generate_name);
                                                 }
                                             }
                                         } else {
@@ -241,10 +274,11 @@ ensures
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(vsts_rely_conditions(cluster, controller_id)),
         lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
+        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
