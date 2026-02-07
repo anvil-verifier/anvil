@@ -139,4 +139,13 @@ ensures
     }
 }
 
+#[verifier(external_body)]
+pub proof fn no_vsts_prefix_implies_no_pod_name_match(name: StringView)
+requires
+    !has_vsts_prefix(name),
+ensures
+    forall |vsts: VStatefulSetView| #![trigger vsts.metadata.name->0]
+        !pod_name_match(name, vsts.metadata.name->0),
+{}
+
 }

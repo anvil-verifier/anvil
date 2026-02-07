@@ -59,8 +59,7 @@ pub open spec fn vsts_rely_conditions_pod_monkey(installed_types: InstalledTypes
             }) ==> match (msg.content->APIRequest_0) { // or it does not mess up VSTS's objects
                 APIRequest::CreateRequest(req) => rely_create_pod_req(req),
                 APIRequest::UpdateRequest(req) => rely_update_pod_req(req)(s),
-                APIRequest::DeleteRequest(req) => rely_delete_pod_req(req)(s),
-                _ => true,
+                _ => true, // Deletion/UpdateStatus requests are allowed
             }
         }
     }
