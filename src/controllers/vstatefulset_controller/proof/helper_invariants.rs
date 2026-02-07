@@ -174,7 +174,60 @@ ensures
                         },
                         HostId::BuiltinController => {}, // must be delete requests
                         HostId::PodMonkey => {
-                            assume(false);
+                            assert forall |pod_key: ObjectRef| {
+                                &&& #[trigger] s_prime.resources().contains_key(pod_key)
+                                &&& pod_key.kind == Kind::PodKind
+                                &&& pod_key.namespace == vsts.metadata.namespace->0
+                                &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+                            } implies {
+                                let obj = s_prime.resources()[pod_key];
+                                let pod = PodView::unmarshal(obj)->Ok_0;
+                                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                                &&& obj.metadata.deletion_timestamp is None
+                                &&& obj.metadata.finalizers is None
+                                &&& PodView::unmarshal(s_prime.resources()[pod_key]) is Ok
+                                &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                            } by {
+                                let resp = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
+                                if is_ok_resp(resp.content->APIResponse_0) {
+                                    if s.resources().contains_key(pod_key) {
+                                        if msg.content.is_update_request() {
+                                            let req = msg.content.get_update_request();
+                                            assert(pod_key != req.key()) by {
+                                                let old_obj = s.resources()[pod_key];
+                                                assert(rely_update_pod_req(req)(s));
+                                                assert(old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                                            }
+                                        } else {
+                                            // Deletion/UpdateStatus requests are allowed
+                                            // Creation is not possible
+                                        }
+                                    } else {
+                                        if msg.content.is_create_request() {
+                                            let req = msg.content.get_create_request();
+                                            assert(pod_key != req.key()) by {
+                                                assert(rely_create_pod_req(req));
+                                                let name = if req.obj.metadata.name is Some {
+                                                    req.obj.metadata.name->0
+                                                } else {
+                                                    generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                                };
+                                                assert(!pod_name_match(name, vsts.metadata.name->0)) by {
+                                                    if req.obj.metadata.name is Some {
+                                                        no_vsts_prefix_implies_no_pod_name_match(req.obj.metadata.name->0);
+                                                    } else {
+                                                        no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                        let generate_name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                                                        no_vsts_prefix_implies_no_pod_name_match(generate_name);
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            // Deletion/Update/UpdateStatus are not possible
+                                        }
+                                    }
+                                }
+                            }
                         }, // must be pod requests
                         _ => {}
                     }
