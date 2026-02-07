@@ -201,9 +201,14 @@ ensures
                                         }
                                     }
                                 }
-                            } else {
-                                assume(false);
+                            } else { // this branch is not provable.
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
+                                if msg.content.is_get_then_update_request() {
+                                    assume(false);
+                                    let req = msg.content.get_get_then_update_request();
+                                } else if msg.content.is_create_request() {
+                                    assume(false);
+                                } else {}
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests
