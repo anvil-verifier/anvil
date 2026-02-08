@@ -559,7 +559,7 @@ pub fn handle_update_needed(
         }
 
         let ordinal = state.needed_index;
-        let new_pod = update_storage(vsts, update_identity(old_pod, ordinal), ordinal);
+        let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
 
         let req = KubeAPIRequest::GetThenUpdateRequest(
             KubeGetThenUpdateRequest {
@@ -980,7 +980,7 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
         result@ == model_reconciler::init_identity(vsts@, pod@, ordinal as nat),
 {
     
-    let mut updated_pod = update_identity(pod, ordinal);
+    let mut updated_pod = update_identity(vsts, pod, ordinal);
     let mut pod_spec = updated_pod.spec().unwrap();
 
     pod_spec.set_hostname(updated_pod.metadata().name().unwrap());
@@ -992,16 +992,17 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
 }
 
 // TODO: implement this
-pub fn update_identity(pod: Pod, ordinal: usize) -> (result: Pod)
+pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         pod@.metadata.name is Some,
+        vsts@.well_formed(),
     ensures
-        result@ == model_reconciler::update_identity(pod@, ordinal as nat),
+        result@ == model_reconciler::update_identity(vsts@, pod@, ordinal as nat),
 {
 
     let mut result = pod.clone();
     let mut meta = pod.metadata();
-    let mut labels = meta.labels().unwrap_or(StringMap::empty());
+    let mut labels = vsts.spec().template().metadata().unwrap().labels().unwrap_or(StringMap::empty());
     labels.insert("statefulset.kubernetes.io/pod-name".to_string(), meta.name().unwrap());
     labels.insert("apps.kubernetes.io/pod-index".to_string(), usize_to_string(ordinal));
     meta.set_labels(labels);
@@ -1412,7 +1413,6 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
     {
         let pod = &pods[idx];
         if pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
-            && vsts.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::empty()))
             && vsts.metadata().name().is_some()
             && pod.metadata().name().is_some()
             && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap()).is_some() {
@@ -1423,9 +1423,6 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
         proof {
             let spec_filter = |pod: PodView|
                 pod.metadata.owner_references_contains(vsts@.controller_owner_ref())
-                && vsts@.spec.selector.matches(
-                    pod.metadata.labels.unwrap_or(Map::<Seq<char>, Seq<char>>::empty()),
-                )
                 && vsts@.metadata.name is Some
                 && pod.metadata.name is Some
                 && model_reconciler::get_ordinal(

@@ -3256,11 +3256,11 @@ ensures
         let etcd_pod = PodView::unmarshal(obj)->Ok_0;
         assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
         seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
-        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
+        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
         get_ordinal_eq_pod_name(vsts_name, ord, key.name);
         assert(pod_name_match(key.name, vsts_name));
         assert(s.resources().contains_key(key));
-        assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s));
+        assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
     }
     // no negative sample of uncaptured condemned pods or needed pods, prove by contradiction
     assert forall |ord: nat| ord >= replicas implies {
@@ -3283,11 +3283,11 @@ ensures
             let filtered_resp_objs = objs.filter(owner_ref_filter);
             get_ordinal_eq_pod_name(vsts_name, ord, key.name);
             // prove that object can pass through all filters
-            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s));
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
             assert({
                 &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                 &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
+            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
@@ -3723,9 +3723,12 @@ ensures
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
     let old_pod = local_state.needed[needed_index as int]->0;
-    let new_pod = update_storage(vsts, update_identity(old_pod, needed_index), needed_index);
-    assert(update_storage(vsts, update_identity(old_pod, needed_index), needed_index)
-        == update_storage(triggering_cr, update_identity(old_pod, needed_index), needed_index)) by {
+    let new_pod = update_storage(vsts, update_identity(vsts, old_pod, needed_index), needed_index);
+    assert(update_identity(vsts, old_pod, needed_index) == update_identity(triggering_cr, old_pod, needed_index)) by {
+        assert(triggering_cr.spec == vsts.spec);
+    }
+    assert(update_storage(vsts, update_identity(vsts, old_pod, needed_index), needed_index)
+        == update_storage(triggering_cr, update_identity(vsts, old_pod, needed_index), needed_index)) by {
         assert(triggering_cr.spec == vsts.spec);
         assert(make_pvcs(triggering_cr, needed_index) == make_pvcs(vsts, needed_index));
     }
@@ -3738,7 +3741,7 @@ ensures
     assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))) by {
         assert(req.obj.metadata == new_pod.metadata);
         assert(vsts.spec.selector.matches(old_pod.metadata.labels.unwrap_or(Map::empty())));
-        assert(vsts.spec.selector.matches(update_identity(old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
+        assert(vsts.spec.selector.matches(update_identity(vsts, old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
     }
 }
 

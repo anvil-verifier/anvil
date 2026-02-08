@@ -407,7 +407,7 @@ pub open spec fn handle_update_needed(vsts: VStatefulSetView, resp_o: DefaultRes
         // addede this to be defensive, but it should actually be unreachable
         if old_pod.metadata.name is Some {
             let ordinal = state.needed_index;
-            let new_pod = update_storage(vsts, update_identity(old_pod, ordinal), ordinal);
+            let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
             let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
                 name: new_pod.metadata.name->0,
                 namespace: vsts.metadata.namespace->0,
@@ -680,7 +680,7 @@ pub open spec fn make_pod(vsts: VStatefulSetView, ordinal: nat) -> PodView {
 }
 
 pub open spec fn init_identity(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
-    let updated_pod = update_identity(pod, ordinal);
+    let updated_pod = update_identity(vsts, pod, ordinal);
     PodView {
         spec: Some(PodSpecView {
             hostname: updated_pod.metadata.name,
@@ -691,15 +691,13 @@ pub open spec fn init_identity(vsts: VStatefulSetView, pod: PodView, ordinal: na
     }
 }
 
-pub open spec fn update_identity(pod: PodView, ordinal: nat) -> PodView {
+pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
     PodView {
         metadata: ObjectMetaView {
-            labels: Some(if vsts.spec.template.metadata->0.labels is None {
-                    Map::<StringView, StringView>::empty()
-                } else {
-                    vsts.spec.template.metadata->0.labels
-                }.insert(StatefulSetPodNameLabel, pod.metadata.name->0)
-                .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
+            labels: Some(vsts.spec.template.metadata->0.labels
+                    .unwrap_or(Map::<StringView, StringView>::empty())
+                    .insert(StatefulSetPodNameLabel, pod.metadata.name->0)
+                    .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
             ..pod.metadata
         },
         ..pod

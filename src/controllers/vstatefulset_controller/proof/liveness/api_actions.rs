@@ -280,7 +280,7 @@ requires
         let req = req_msg.content.get_get_then_delete_request();
         let key = req.key();
         &&& req.owner_ref == vsts.controller_owner_ref()
-        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
+        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
         &&& key.kind == Kind::PodKind
         &&& key.namespace == vsts.metadata.namespace->0
         &&& pod_name_match(key.name, vsts.metadata.name->0)
