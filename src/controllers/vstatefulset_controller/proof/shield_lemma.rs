@@ -31,8 +31,6 @@ verus! {
 // in other words, let =~= denotes weakly_eq,
 // forall Pod p owned by vsts: p =~= p'
 // forall PVC v owned by vsts: v =~= v'
-// TODO: maybe it works better as an invariant?
-#[verifier(external_body)] // FIXME
 pub proof fn lemma_no_interference_on_pods(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -60,7 +58,7 @@ requires
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> vsts_rely(other_id, cluster.installed_types)(s),
     // 2. VSTS internal rely-guarantee across different CRs
-    forall |other_vsts| guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s),
+    forall |vsts| #[trigger] guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s),
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     // msg is sent by other controllers or VSTS controller for other CRs
     msg.src != HostId::Controller(controller_id, vsts.object_ref()),
@@ -94,7 +92,8 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
+            s.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
     } implies {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -104,6 +103,9 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s.resources()[k];
+        if pod_name_match(k.name, vsts.metadata.name->0) {
+            assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        }
         PodView::marshal_preserves_integrity();
         assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
             // broadcast use group_seq_properties; // this increase proof time from 3 to 20s
@@ -191,7 +193,8 @@ ensures
         &&& k.kind == Kind::PodKind
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
+            s_prime.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
     } implies {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -201,6 +204,9 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s_prime.resources()[k];
+        if pod_name_match(k.name, vsts.metadata.name->0) {
+            assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        }
         PodView::marshal_preserves_integrity();
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
@@ -298,7 +304,6 @@ ensures
     }
 }
 
-#[verifier(external_body)] // FIXME
 pub proof fn lemma_no_interference_on_pvcs(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -320,7 +325,7 @@ requires
     Cluster::req_drop_disabled()(s),
     guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)(s),
-    helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s),
+    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)(s_prime),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> vsts_rely(other_id, cluster.installed_types)(s),
@@ -357,12 +362,10 @@ ensures
     assert(s.in_flight().contains(msg));
     // PVC
     assert forall |k: ObjectRef| { // ==>
-        let obj = s.resources()[k];
-        &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& #[trigger] s.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is None
-        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& k.namespace == vsts.metadata.namespace->0
+        &&& pvc_name_match(k.name, vsts.metadata.name->0)
     } implies {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -399,7 +402,7 @@ ensures
                             };
                             assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                         } else { // from other controllers
-                            assert(cluster.controller_models.contains_key(id));
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             if resource_delete_request_msg(k)(msg) || resource_update_request_msg(k)(msg) {
                                 assert(pvc_name_match(k.name, vsts.metadata.name->0));
@@ -413,12 +416,10 @@ ensures
         }
     }
     assert forall |k: ObjectRef| { // <==
-        let obj = s_prime.resources()[k];
-        &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& #[trigger] s_prime.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
-        &&& obj.metadata.owner_references is None
-        &&& pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+        &&& k.kind == Kind::PersistentVolumeClaimKind
+        &&& k.namespace == vsts.metadata.namespace->0
+        &&& pvc_name_match(k.name, vsts.metadata.name->0)
     } implies {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -463,8 +464,9 @@ ensures
                                     assert(req.obj.kind == Kind::PodKind);
                                 }
                             } // or else, namespace is different, so should not be touched at all
+                            assert(post);
                         } else {
-                            assert(cluster.controller_models.contains_key(id));
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             if resource_update_request_msg(k)(msg) {
                                 assert(pvc_name_match(k.name, vsts.metadata.name->0));
@@ -491,6 +493,7 @@ ensures
                                     }
                                 }
                             } else if resource_get_then_update_request_msg(k)(msg) {}
+                            assert(post);
                         }
                     },
                     _ => {},

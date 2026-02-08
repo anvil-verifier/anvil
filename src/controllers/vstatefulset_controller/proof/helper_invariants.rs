@@ -38,9 +38,25 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_an
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
             &&& obj.metadata.finalizers is None
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        }
+    }
+}
+
+pub open spec fn all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_labels_matching_some_vsts(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pod_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pod_key)
+            &&& pod_key.kind == Kind::PodKind
+            &&& pod_key.namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+        } ==> {
+            let obj = s.resources()[pod_key];
+            &&& obj.metadata.deletion_timestamp is None
+            &&& obj.metadata.finalizers is None
             &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                 &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
                 &&& old_vsts.metadata.namespace == vsts.metadata.namespace
                 &&& old_vsts.metadata.name == vsts.metadata.name
             }
@@ -49,7 +65,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_an
 }
 
 #[verifier(rlimit(100))]
-pub proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(
+pub proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_labels_matching_some_vsts(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
 requires
@@ -60,9 +76,9 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)))),
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_labels_matching_some_vsts(vsts)))),
 {
-    let inv = all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts);
+    let inv = all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_labels_matching_some_vsts(vsts);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& vsts_rely_conditions(cluster, controller_id)(s)
