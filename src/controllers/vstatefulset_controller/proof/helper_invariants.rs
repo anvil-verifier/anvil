@@ -224,21 +224,19 @@ ensures
                                 } by {
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                     if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
-                                        assume(false);
                                         let obj = s.resources()[pod_key];
-                                        let old_vsts = choose |old_vsts: VStatefulSetView| {
-                                            &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                            &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-                                            &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                            &&& old_vsts.metadata.name == vsts.metadata.name
+                                        let req = msg.content.get_get_then_update_request();
+                                        let new_vsts = VStatefulSetView {
+                                            metadata: ObjectMetaView {
+                                                name: Some(cr_key.name),
+                                                namespace: Some(cr_key.namespace),
+                                                uid: Some(req.owner_ref.uid),
+                                                ..vsts.metadata
+                                            },
+                                            ..vsts
                                         };
-                                        assert(guarantee::no_interfering_request_between_vsts(controller_id, old_vsts)(s));
-                                        if vsts.metadata.uid == old_vsts.metadata.uid {
-                                            assert(vsts.controller_owner_ref() == old_vsts.controller_owner_ref());
-                                        } else {
-                                            // the new vsts has different uid, so the pod must be created by other vsts, which is not possible due to rely conditions
-                                            assume(false);
-                                        }
+                                        let obj_prime = s_prime.resources()[pod_key];
+                                        assert(obj_prime.metadata.owner_references_contains(new_vsts.controller_owner_ref()));
                                     } else if !s.resources().contains_key(pod_key) && msg.content.is_create_request() {
                                         assume(false);
                                     } // GetThenDeleteRequest is trivial to proof
