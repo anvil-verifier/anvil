@@ -95,8 +95,8 @@ ensures
                 if is_ok_resp(resp_msg.content->APIResponse_0) { // otherwise, etcd is not changed
                     match msg.src {
                         HostId::Controller(other_id, cr_key) => {
-                            assume(false);
                             if other_id != controller_id {
+                                assume(false);
                                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                                 assert(vsts_rely(other_id, cluster.installed_types)(s));
                                 match (msg.content->APIRequest_0) {
@@ -179,12 +179,14 @@ ensures
                                     &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
                                 } implies {
                                     let obj = s_prime.resources()[pod_key];
-                                    let pod = PodView::unmarshal(obj)->Ok_0;
-                                    &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                                     &&& obj.metadata.deletion_timestamp is None
                                     &&& obj.metadata.finalizers is None
-                                    &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
-                                    &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                                    &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
+                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                        &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                        &&& old_vsts.metadata.name == vsts.metadata.name
+                                    }
                                 } by {
                                     let resp = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
                                     if is_ok_resp(resp.content->APIResponse_0) {
@@ -203,14 +205,44 @@ ensures
                                         }
                                     }
                                 }
-                            } else { // this branch is not provable.
-                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
-                                if msg.content.is_get_then_update_request() {
-                                    assume(false);
-                                    let req = msg.content.get_get_then_update_request();
-                                } else if msg.content.is_create_request() {
-                                    assume(false);
-                                } else {}
+                            } else {
+                                assert forall |pod_key: ObjectRef| {
+                                    &&& #[trigger] s_prime.resources().contains_key(pod_key)
+                                    &&& pod_key.kind == Kind::PodKind
+                                    &&& pod_key.namespace == vsts.metadata.namespace->0
+                                    &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+                                } implies {
+                                    let obj = s_prime.resources()[pod_key];
+                                    &&& obj.metadata.deletion_timestamp is None
+                                    &&& obj.metadata.finalizers is None
+                                    &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
+                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                        &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                        &&& old_vsts.metadata.name == vsts.metadata.name
+                                    }
+                                } by {
+                                    assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
+                                    if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
+                                        assume(false);
+                                        let obj = s.resources()[pod_key];
+                                        let old_vsts = choose |old_vsts: VStatefulSetView| {
+                                            &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                            &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                                            &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                            &&& old_vsts.metadata.name == vsts.metadata.name
+                                        };
+                                        assert(guarantee::no_interfering_request_between_vsts(controller_id, old_vsts)(s));
+                                        if vsts.metadata.uid == old_vsts.metadata.uid {
+                                            assert(vsts.controller_owner_ref() == old_vsts.controller_owner_ref());
+                                        } else {
+                                            // the new vsts has different uid, so the pod must be created by other vsts, which is not possible due to rely conditions
+                                            assume(false);
+                                        }
+                                    } else if !s.resources().contains_key(pod_key) && msg.content.is_create_request() {
+                                        assume(false);
+                                    } // GetThenDeleteRequest is trivial to proof
+                                }
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests
