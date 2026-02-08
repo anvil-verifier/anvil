@@ -139,6 +139,8 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
     &&& req.obj.metadata.owner_references is Some
     &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(req.owner_ref)
     &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
+    &&& req.obj.metadata.deletion_timestamp is None
+    &&& req.obj.metadata.finalizers is None
 }
 // similar to local_pods_and_pvcs_are_bound_to_vsts
 // helper invariant to prove both (external) guarantee conditions and internal guarantee conditions
@@ -165,6 +167,8 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pod.metadata.owner_references is Some
         &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& pod.metadata.deletion_timestamp is None
+        &&& pod.metadata.finalizers is None
     }
     &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
         let pod = condemned_pods[i];
