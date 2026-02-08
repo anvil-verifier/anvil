@@ -136,12 +136,9 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
     &&& req.namespace == vsts.object_ref().namespace
     &&& req.obj.kind == Kind::PodKind
     &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
-    &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
     &&& req.obj.metadata.owner_references is Some
-    &&& exists |owner_reference: OwnerReferenceView| {
-        &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(owner_reference)
-        &&& #[trigger] owner_reference_controller_kind_name_equal(owner_reference, vsts.controller_owner_ref())
-    }
+    &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(req.owner_ref)
+    &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
 }
 // similar to local_pods_and_pvcs_are_bound_to_vsts
 // helper invariant to prove both (external) guarantee conditions and internal guarantee conditions
