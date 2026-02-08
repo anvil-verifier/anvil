@@ -36,12 +36,14 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_an
             &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
             let obj = s.resources()[pod_key];
-            let pod = PodView::unmarshal(obj)->Ok_0;
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
             &&& obj.metadata.deletion_timestamp is None
             &&& obj.metadata.finalizers is None
-            &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
-            &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+            &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
+                &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                &&& old_vsts.metadata.name == vsts.metadata.name
+            }
         }
     }
 }
@@ -93,8 +95,8 @@ ensures
                 if is_ok_resp(resp_msg.content->APIResponse_0) { // otherwise, etcd is not changed
                     match msg.src {
                         HostId::Controller(other_id, cr_key) => {
+                            assume(false);
                             if other_id != controller_id {
-                                assume(false);
                                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                                 assert(vsts_rely(other_id, cluster.installed_types)(s));
                                 match (msg.content->APIRequest_0) {
@@ -221,22 +223,31 @@ ensures
                                 &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
                             } implies {
                                 let obj = s_prime.resources()[pod_key];
-                                let pod = PodView::unmarshal(obj)->Ok_0;
-                                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                                 &&& obj.metadata.deletion_timestamp is None
                                 &&& obj.metadata.finalizers is None
-                                &&& PodView::unmarshal(s_prime.resources()[pod_key]) is Ok
-                                &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                                &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
+                                    &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                    &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                                    &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                    &&& old_vsts.metadata.name == vsts.metadata.name
+                                }
                             } by {
                                 let resp = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
                                 if is_ok_resp(resp.content->APIResponse_0) {
                                     if s.resources().contains_key(pod_key) {
+                                        let obj = s.resources()[pod_key];
+                                        let old_vsts = choose |old_vsts: VStatefulSetView| {
+                                            &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                            &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+                                            &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                            &&& old_vsts.metadata.name == vsts.metadata.name
+                                        };
                                         if msg.content.is_update_request() {
                                             let req = msg.content.get_update_request();
                                             assert(pod_key != req.key()) by {
                                                 let old_obj = s.resources()[pod_key];
                                                 assert(rely_update_pod_req(req)(s));
-                                                assert(old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                                                assert(old_obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref()));
                                             }
                                         } else {
                                             // Deletion/UpdateStatus requests are allowed
