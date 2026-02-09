@@ -110,6 +110,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
 pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VStatefulSetView) -> bool {
     &&& req.namespace == vsts.object_ref().namespace
     &&& req.obj.metadata.name is Some
+    &&& req.obj.metadata.finalizers is None
     &&& req.obj.kind == Kind::PodKind ==> {
         &&& exists |owner_reference: OwnerReferenceView| {
             &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
@@ -140,6 +141,7 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
     &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(req.owner_ref)
     &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
     &&& req.obj.metadata.deletion_timestamp is None
+    &&& req.obj.metadata.finalizers is None
 }
 // similar to local_pods_and_pvcs_are_bound_to_vsts
 // helper invariant to prove both (external) guarantee conditions and internal guarantee conditions
@@ -167,6 +169,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
         &&& pod.metadata.owner_references is Some
         &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& pod.metadata.deletion_timestamp is None
+        &&& pod.metadata.finalizers is None
     }
     &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
         let pod = condemned_pods[i];
@@ -182,6 +185,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
         &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
         &&& pvc.metadata.owner_references is None
+        &&& pvc.metadata.finalizers is None
     }
 }
 

@@ -903,9 +903,6 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: usize) -> (pod: Pod)
             if template_meta.annotations().is_some() {
                 metadata.set_annotations(template_meta.annotations().unwrap());
             }
-            if template_meta.finalizers().is_some() {
-                metadata.set_finalizers(template_meta.finalizers().unwrap());
-            }
             metadata.set_owner_references(make_owner_references(vsts));
             metadata
         },

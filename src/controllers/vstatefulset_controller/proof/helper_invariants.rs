@@ -37,6 +37,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
         } ==> {
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
+            &&& obj.metadata.finalizers is None
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }
     }
@@ -51,6 +52,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_o
             &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
         } ==> {
             let obj = s.resources()[pod_key];
+            &&& obj.metadata.finalizers is None
             &&& obj.metadata.deletion_timestamp is None
             &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                 &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
@@ -150,7 +152,6 @@ ensures
                                                 &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                                                 &&& obj.metadata.deletion_timestamp is None
                                                 &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
-                                                &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                                             } by {
                                                 if pod_key != created_obj_key {
                                                     assert(s.resources().contains_key(pod_key));
@@ -194,9 +195,9 @@ ensures
                                 } implies {
                                     let obj = s_prime.resources()[pod_key];
                                     &&& obj.metadata.deletion_timestamp is None
+                                    &&& obj.metadata.finalizers is None
                                     &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                                         &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                        &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
                                         &&& old_vsts.metadata.namespace == vsts.metadata.namespace
                                         &&& old_vsts.metadata.name == vsts.metadata.name
                                     }
@@ -227,6 +228,7 @@ ensures
                                 } implies {
                                     let obj = s_prime.resources()[pod_key];
                                     &&& obj.metadata.deletion_timestamp is None
+                                    &&& obj.metadata.finalizers is None
                                     &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                                         &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
                                         &&& old_vsts.metadata.namespace == vsts.metadata.namespace
@@ -286,6 +288,12 @@ ensures
                                             assert(req.obj.metadata.owner_references_contains(new_vsts.controller_owner_ref())) by {
                                                 assert(req.obj.metadata.owner_references->0[0] == new_vsts.controller_owner_ref());
                                             }
+                                            let obj_prime = s_prime.resources()[pod_key];
+                                            assert(obj_prime.metadata.owner_references == req.obj.metadata.owner_references) by {
+                                                assert(obj_prime.metadata.owner_references is Some);
+                                                assert(obj_prime.metadata.owner_references->0.len() == 1);
+                                                assert(obj_prime.metadata.owner_references->0[0] == new_vsts.controller_owner_ref());
+                                            }
                                         }
                                     } // GetThenDeleteRequest is trivial to proof
                                 }
@@ -302,6 +310,7 @@ ensures
                             } implies {
                                 let obj = s_prime.resources()[pod_key];
                                 &&& obj.metadata.deletion_timestamp is None
+                                &&& obj.metadata.finalizers is None
                                 &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                                     &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
                                     &&& old_vsts.metadata.namespace == vsts.metadata.namespace
