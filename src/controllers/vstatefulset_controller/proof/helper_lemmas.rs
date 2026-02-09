@@ -84,6 +84,17 @@ ensures
     !pvc_name_match(name, vsts_name_b),
 {}
 
+#[verifier(external_body)]
+pub proof fn vsts_name_non_eq_implies_no_pod_name_match(
+    name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
+)
+requires
+    vsts_name_a != vsts_name_b,
+    pod_name_match(name, vsts_name_a),
+ensures
+    !pod_name_match(name, vsts_name_b),
+{}
+
 // helper lemmas about name prefixes
 #[verifier(external_body)]
 pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(

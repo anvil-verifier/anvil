@@ -416,4 +416,16 @@ pub proof fn lemma_sort_by_does_not_add_or_delete_elements<A>(s: Seq<A>, leq: sp
     ensures s.sort_by(leq).to_set() == s.to_set(),
     decreases s.len()
 {}
+
+// Verus can directly prove it, but without this lemma a lot of flakiness is introduced
+pub proof fn lemma_singleton_contains_at_most_one_element<A>(s: Seq<A>, e1: A, e2: A)
+requires
+    s.len() <= 1,
+    s.contains(e1),
+    s.contains(e2),
+    e1 != e2,
+ensures
+    false,
+{}
+
 }

@@ -32,8 +32,8 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
         forall |pod_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pod_key)
             &&& pod_key.kind == Kind::PodKind
-            &&& pod_key.namespace == vsts.metadata.namespace->0
-            &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
         } ==> {
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
@@ -48,8 +48,8 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_o
         forall |pod_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pod_key)
             &&& pod_key.kind == Kind::PodKind
-            &&& pod_key.namespace == vsts.metadata.namespace->0
-            &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
         } ==> {
             let obj = s.resources()[pod_key];
             &&& obj.metadata.finalizers is None
@@ -64,6 +64,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_o
 }
 
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_matching_some_vsts(
     spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
 )
@@ -110,131 +111,147 @@ ensures
                 assert(msg.content is APIRequest);
                 assert(resp_msg.content is APIResponse);
                 if is_ok_resp(resp_msg.content->APIResponse_0) { // otherwise, etcd is not changed
-                    match msg.src {
-                        HostId::Controller(other_id, cr_key) => {
-                            if other_id != controller_id {
-                                assume(false);
-                                assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
-                                assert(vsts_rely(other_id, cluster.installed_types)(s));
-                                match (msg.content->APIRequest_0) {
-                                    APIRequest::CreateRequest(req) => {
-                                        if req.key().kind == Kind::PodKind {
-                                            assert(rely_create_pod_req(req));
-                                            let name = if req.obj.metadata.name is Some {
-                                                req.obj.metadata.name->0
-                                            } else {
-                                                generated_name(s.api_server, req.obj.metadata.generate_name->0)
-                                            };
-                                            assert(!has_vsts_prefix(name)) by {
-                                                if req.obj.metadata.name is Some {
-                                                    assert(!has_vsts_prefix(req.obj.metadata.name->0));
+                    assert forall |pod_key: ObjectRef| {
+                        &&& #[trigger] s_prime.resources().contains_key(pod_key)
+                        &&& pod_key.kind == Kind::PodKind
+                        &&& pod_key.namespace == vsts.object_ref().namespace
+                        &&& pod_name_match(pod_key.name, vsts.object_ref().name)
+                    } implies {
+                        let obj = s_prime.resources()[pod_key];
+                        &&& obj.metadata.deletion_timestamp is None
+                        &&& obj.metadata.finalizers is None
+                        &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
+                            &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                            &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                            &&& old_vsts.metadata.name == vsts.metadata.name
+                        }
+                    } by {
+                        let obj_prime = s_prime.resources()[pod_key];
+                        let post = ({
+                            &&& obj_prime.metadata.deletion_timestamp is None
+                            &&& obj_prime.metadata.finalizers is None
+                            &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
+                                &&& obj_prime.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                &&& old_vsts.metadata.name == vsts.metadata.name
+                            }
+                        });
+                        match msg.src {
+                            HostId::Controller(other_id, cr_key) => {
+                                if other_id != controller_id {
+                                    assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
+                                    assert(vsts_rely(other_id, cluster.installed_types)(s));
+                                    match (msg.content->APIRequest_0) {
+                                        APIRequest::CreateRequest(req) => {
+                                            assume(false);
+                                            if req.key().kind == Kind::PodKind {
+                                                assert(rely_create_pod_req(req));
+                                                let name = if req.obj.metadata.name is Some {
+                                                    req.obj.metadata.name->0
                                                 } else {
-                                                    assert(req.obj.metadata.generate_name is Some);
-                                                    assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
-                                                    no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                    generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                                };
+                                                assert(!has_vsts_prefix(name)) by {
+                                                    if req.obj.metadata.name is Some {
+                                                        assert(!has_vsts_prefix(req.obj.metadata.name->0));
+                                                    } else {
+                                                        assert(req.obj.metadata.generate_name is Some);
+                                                        assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                                        no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                    }
                                                 }
-                                            }
-                                            let created_obj_key = ObjectRef {
-                                                kind: Kind::PodKind,
-                                                namespace: req.namespace,
-                                                name: name,
-                                            };
-                                            assert(s_prime.resources().contains_key(created_obj_key));
-                                            // no_vsts_prefix_implies_no_pod_name_match(name);
-                                            assert forall |pod_key: ObjectRef| {
-                                                &&& #[trigger] s_prime.resources().contains_key(pod_key)
-                                                &&& pod_key.kind == Kind::PodKind
-                                                &&& pod_key.namespace == vsts.metadata.namespace->0
-                                                &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
-                                            } implies {
-                                                let obj = s_prime.resources()[pod_key];
-                                                let pod = PodView::unmarshal(obj)->Ok_0;
-                                                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                                                &&& obj.metadata.deletion_timestamp is None
-                                                &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
-                                            } by {
+                                                let created_obj_key = ObjectRef {
+                                                    kind: Kind::PodKind,
+                                                    namespace: req.namespace,
+                                                    name: name,
+                                                };
+                                                assert(s_prime.resources().contains_key(created_obj_key));
+                                                // no_vsts_prefix_implies_no_pod_name_match(name);
                                                 if pod_key != created_obj_key {
                                                     assert(s.resources().contains_key(pod_key));
                                                 } else {
-                                                    assert(!pod_name_match(name, vsts.metadata.name->0));
+                                                    assert(!pod_name_match(name, vsts.object_ref().name));
                                                     assert(false);
                                                 }
                                             }
-                                        }
-                                    },
-                                    APIRequest::UpdateRequest(req) => {
-                                        if req.key().kind == Kind::PodKind {
-                                            assert(rely_update_pod_req(req)(s));
-                                        }
-                                    },
-                                    APIRequest::DeleteRequest(req) => {
-                                        if req.key.kind == Kind::PodKind {
-                                            assert(rely_delete_pod_req(req)(s));
-                                        }
-                                    },
-                                    _ => {}
-                                }
-                            } else if cr_key != vsts.object_ref() {
-                                assume(false);
-                                let havoc_vsts = make_vsts();
-                                let vsts_with_key = VStatefulSetView {
-                                    metadata: ObjectMetaView {
-                                        name: Some(cr_key.name),
-                                        namespace: Some(cr_key.namespace),
-                                        ..havoc_vsts.metadata
-                                    },
-                                    ..havoc_vsts
-                                };
-                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
-                                assert(s.in_flight().contains(msg)); // trigger
-                                assert forall |pod_key: ObjectRef| {
-                                    &&& #[trigger] s_prime.resources().contains_key(pod_key)
-                                    &&& pod_key.kind == Kind::PodKind
-                                    &&& pod_key.namespace == vsts.metadata.namespace->0
-                                    &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
-                                } implies {
-                                    let obj = s_prime.resources()[pod_key];
-                                    &&& obj.metadata.deletion_timestamp is None
-                                    &&& obj.metadata.finalizers is None
-                                    &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
-                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                        &&& old_vsts.metadata.name == vsts.metadata.name
-                                    }
-                                } by {
-                                    let resp = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
-                                    if is_ok_resp(resp.content->APIResponse_0) {
-                                        if s.resources().contains_key(pod_key) {
-                                            if msg.content.is_get_then_update_request() {
-                                                let req = msg.content.get_get_then_update_request();
-                                                assert(req.owner_ref != vsts.controller_owner_ref()) by {
-                                                    assume(false);
-                                                }
-                                            } else {
-                                                // Deletion is allowed, Creation is not possible
+                                        },
+                                        APIRequest::UpdateRequest(req) => {
+                                            if req.key().kind == Kind::PodKind {
+                                                assert(rely_update_pod_req(req)(s));
                                             }
-                                        } else {
-                                            assume(false);
-                                            if msg.content.is_create_request() {}
+                                        },
+                                        APIRequest::DeleteRequest(req) => {
+                                            if req.key.kind == Kind::PodKind {
+                                                assert(rely_delete_pod_req(req)(s));
+                                            }
+                                        },
+                                        APIRequest::GetThenUpdateRequest(req) => {
+                                            if req.key().kind == Kind::PodKind {
+                                                assert(rely_get_then_update_pod_req(req));
+                                                assert(req.owner_ref.kind != VStatefulSetView::kind());
+                                                if req.key() == pod_key && s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref) && req.owner_ref.controller == Some(true) {
+                                                    let obj = s.resources()[pod_key];
+                                                    let old_vsts = choose |old_vsts: VStatefulSetView| {
+                                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                                        &&& old_vsts.metadata.name == vsts.metadata.name
+                                                    };
+                                                    lemma_singleton_contains_at_most_one_element(
+                                                        obj.metadata.owner_references->0.filter(controller_owner_filter()),
+                                                        req.owner_ref,
+                                                        old_vsts.controller_owner_ref()
+                                                    );
+                                                } else {
+                                                    assert(s_prime.resources()[pod_key] == s.resources()[pod_key]);
+                                                }
+                                            }
+                                        },
+                                        APIRequest::GetThenDeleteRequest(req) => {
+                                            if req.key().kind == Kind::PodKind {
+                                                assert(rely_get_then_delete_pod_req(req));
+                                            }
+                                        },
+                                        _ => {}
+                                    }
+                                } else if cr_key != vsts.object_ref() {
+                                    assume(false);
+                                    let havoc_vsts = make_vsts();
+                                    let vsts_with_key = VStatefulSetView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(cr_key.name),
+                                            namespace: Some(cr_key.namespace),
+                                            ..havoc_vsts.metadata
+                                        },
+                                        ..havoc_vsts
+                                    };
+                                    assert(vsts_with_key.object_ref() == cr_key);
+                                    assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
+                                    assert(s.in_flight().contains(msg)); // trigger
+                                    if msg.content.is_get_then_update_request() {
+                                        let req = msg.content.get_get_then_update_request();
+                                        assert(guarantee::vsts_internal_guarantee_get_then_update_req(req, vsts_with_key));
+                                        if req.key() == pod_key {
+                                            if cr_key.namespace == vsts.object_ref().namespace {
+                                                assert(cr_key.name != vsts.object_ref().name);
+                                                assert(pod_name_match(req.obj.metadata.name->0, cr_key.name));
+                                                vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, cr_key.name, vsts.object_ref().name);
+                                                assert(req.key() != pod_key);
+                                            }
+                                        }
+                                    } else if msg.content.is_create_request() {
+                                        let req = msg.content.get_create_request();
+                                        assert(guarantee::vsts_internal_guarantee_create_req(req, vsts_with_key));
+                                        if req.key() == pod_key {
+                                            if cr_key.namespace == vsts.object_ref().namespace {
+                                                assert(cr_key.name != vsts.object_ref().name);
+                                                assert(pod_name_match(req.obj.metadata.name->0, cr_key.name));
+                                                vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, cr_key.name, vsts.object_ref().name);
+                                                assert(req.key() != pod_key);
+                                            }
                                         }
                                     }
-                                }
-                            } else {
-                                assert forall |pod_key: ObjectRef| {
-                                    &&& #[trigger] s_prime.resources().contains_key(pod_key)
-                                    &&& pod_key.kind == Kind::PodKind
-                                    &&& pod_key.namespace == vsts.metadata.namespace->0
-                                    &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
-                                } implies {
-                                    let obj = s_prime.resources()[pod_key];
-                                    &&& obj.metadata.deletion_timestamp is None
-                                    &&& obj.metadata.finalizers is None
-                                    &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
-                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                        &&& old_vsts.metadata.name == vsts.metadata.name
-                                    }
-                                } by {
+                                } else {
+                                    assume(false);
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                     if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
                                         let obj = s.resources()[pod_key];
@@ -297,72 +314,53 @@ ensures
                                         }
                                     } // GetThenDeleteRequest is trivial to proof
                                 }
-                            }
-                        },
-                        HostId::BuiltinController => {}, // must be delete requests
-                        HostId::PodMonkey => {
-                            assert(vsts_rely_conditions_pod_monkey(cluster.installed_types)(s));
-                            assert forall |pod_key: ObjectRef| {
-                                &&& #[trigger] s_prime.resources().contains_key(pod_key)
-                                &&& pod_key.kind == Kind::PodKind
-                                &&& pod_key.namespace == vsts.metadata.namespace->0
-                                &&& pod_name_match(pod_key.name, vsts.metadata.name->0)
-                            } implies {
-                                let obj = s_prime.resources()[pod_key];
-                                &&& obj.metadata.deletion_timestamp is None
-                                &&& obj.metadata.finalizers is None
-                                &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
-                                    &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                    &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                    &&& old_vsts.metadata.name == vsts.metadata.name
-                                }
-                            } by {
-                                let resp = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
-                                if is_ok_resp(resp.content->APIResponse_0) {
-                                    if s.resources().contains_key(pod_key) {
-                                        let obj = s.resources()[pod_key];
-                                        let old_vsts = choose |old_vsts: VStatefulSetView| {
-                                            &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                            &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                            &&& old_vsts.metadata.name == vsts.metadata.name
-                                        };
-                                        if msg.content.is_update_request() {
-                                            let req = msg.content.get_update_request();
-                                            assert(pod_key != req.key()) by {
-                                                let old_obj = s.resources()[pod_key];
-                                                assert(rely_update_pod_req(req)(s));
-                                                assert(old_obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref()));
-                                            }
-                                        } else {
-                                            // Deletion/UpdateStatus requests are allowed
-                                            // Creation is not possible
+                            },
+                            HostId::BuiltinController => {}, // must be delete requests   
+                            HostId::PodMonkey => {
+                                assert(vsts_rely_conditions_pod_monkey(cluster.installed_types)(s));
+                                if s.resources().contains_key(pod_key) {
+                                    let obj = s.resources()[pod_key];
+                                    let old_vsts = choose |old_vsts: VStatefulSetView| {
+                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                        &&& old_vsts.metadata.name == vsts.metadata.name
+                                    };
+                                    if msg.content.is_update_request() {
+                                        let req = msg.content.get_update_request();
+                                        assert(pod_key != req.key()) by {
+                                            let old_obj = s.resources()[pod_key];
+                                            assert(rely_update_pod_req(req)(s));
+                                            assert(old_obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref()));
                                         }
                                     } else {
-                                        if msg.content.is_create_request() {
-                                            let req = msg.content.get_create_request();
-                                            assert(rely_create_pod_req(req));
-                                            let name = if req.obj.metadata.name is Some {
-                                                req.obj.metadata.name->0
-                                            } else {
-                                                generated_name(s.api_server, req.obj.metadata.generate_name->0)
-                                            };
-                                            assert(!pod_name_match(name, vsts.metadata.name->0)) by {
-                                                if req.obj.metadata.name is Some {
-                                                    no_vsts_prefix_implies_no_pod_name_match(req.obj.metadata.name->0);
-                                                } else {
-                                                    no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
-                                                    let generate_name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
-                                                    no_vsts_prefix_implies_no_pod_name_match(generate_name);
-                                                }
-                                            }
+                                        // Deletion/UpdateStatus requests are allowed
+                                        // Creation is not possible
+                                    }
+                                } else {
+                                    if msg.content.is_create_request() {
+                                        let req = msg.content.get_create_request();
+                                        assert(rely_create_pod_req(req));
+                                        let name = if req.obj.metadata.name is Some {
+                                            req.obj.metadata.name->0
                                         } else {
-                                            // Deletion/Update/UpdateStatus are not possible
+                                            generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                        };
+                                        assert(!pod_name_match(name, vsts.object_ref().name)) by {
+                                            if req.obj.metadata.name is Some {
+                                                no_vsts_prefix_implies_no_pod_name_match(req.obj.metadata.name->0);
+                                            } else {
+                                                no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                let generate_name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                                                no_vsts_prefix_implies_no_pod_name_match(generate_name);
+                                            }
                                         }
+                                    } else {
+                                        // Deletion/Update/UpdateStatus are not possible
                                     }
                                 }
-                            }
-                        }, // must be pod requests
-                        _ => {}
+                            }, // must be pod requests
+                            _ => {}
+                        }
                     }
                 } else {
                     assert(s_prime.resources() == s.resources());
@@ -396,8 +394,8 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefu
         forall |pvc_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pvc_key)
             &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
-            &&& pvc_key.namespace == vsts.metadata.namespace->0
-            &&& exists |vsts_name| pvc_name_match(pvc_key.name, vsts_name)
+            &&& pvc_key.namespace == vsts.object_ref().namespace
+            &&& pvc_name_match(pvc_key.name, vsts.object_ref().name)
         } ==> {
             let pvc_obj = s.resources()[pvc_key];
             &&& pvc_obj.metadata.owner_references is None
@@ -482,8 +480,8 @@ ensures
                                             assert forall |pvc_key: ObjectRef| {
                                                 &&& #[trigger] s_prime.resources().contains_key(pvc_key)
                                                 &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
-                                                &&& pvc_key.namespace == vsts.metadata.namespace->0
-                                                &&& pvc_name_match(pvc_key.name, vsts.metadata.name->0)
+                                                &&& pvc_key.namespace == vsts.object_ref().namespace
+                                                &&& pvc_name_match(pvc_key.name, vsts.object_ref().name)
                                             } implies {
                                                 let pvc_obj = s_prime.resources()[pvc_key];
                                                 &&& pvc_obj.metadata.owner_references is None
@@ -491,7 +489,7 @@ ensures
                                                 if pvc_key != created_obj_key {
                                                     assert(s.resources().contains_key(pvc_key));
                                                 } else {
-                                                    assert(!pvc_name_match(name, vsts.metadata.name->0));
+                                                    assert(!pvc_name_match(name, vsts.object_ref().name));
                                                     assert(false);
                                                 }
                                             }
@@ -565,7 +563,7 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pvc_objects(vsts: VState
                 let obj = s.resources()[req.key];
                 &&& !(obj.kind == Kind::PersistentVolumeClaimKind
                     && obj.metadata.namespace == vsts.metadata.namespace
-                    && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0))
+                    && pvc_name_match(obj.metadata.name->0, vsts.object_ref().name))
             }
         }
     }
@@ -589,7 +587,7 @@ pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VState
                 &&& !(obj.kind == Kind::PersistentVolumeClaimKind
                     && obj.metadata.namespace == vsts.metadata.namespace
                     && obj.metadata.owner_references is None)
-                    // && pvc_name_match(obj.metadata.name->0, vsts.metadata.name->0)
+                    // && pvc_name_match(obj.metadata.name->0, vsts.object_ref().name)
             }
         }
     }

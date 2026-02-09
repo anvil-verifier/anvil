@@ -116,7 +116,7 @@ pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VS
             &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
         }
-        &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
+        &&& pod_name_match(req.key().name, vsts.object_ref().name)
     }
     &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> {
         &&& req.obj.metadata.owner_references is None
@@ -128,15 +128,17 @@ pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VS
 pub open spec fn vsts_internal_guarantee_get_then_delete_req(req: GetThenDeleteRequest, vsts: VStatefulSetView) -> bool {
     &&& req.key().namespace == vsts.object_ref().namespace
     &&& req.key().kind == Kind::PodKind
-    &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
+    &&& pod_name_match(req.key().name, vsts.object_ref().name)
     &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
 }
 
 // VSTS controller only updates Pods bound to the specific vsts instance
 pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateRequest, vsts: VStatefulSetView) -> bool {
-    &&& req.namespace == vsts.object_ref().namespace
+    &&& req.obj.metadata.name == Some(req.name)
+    &&& req.obj.metadata.namespace == Some(req.namespace)
     &&& req.obj.kind == Kind::PodKind
-    &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
+    &&& req.namespace == vsts.object_ref().namespace
+    &&& pod_name_match(req.name, vsts.object_ref().name)
     &&& req.obj.metadata.owner_references is Some
     &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(req.owner_ref)
     &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
