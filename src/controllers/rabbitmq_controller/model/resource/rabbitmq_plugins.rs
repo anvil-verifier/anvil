@@ -68,7 +68,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsCon
     }
 }
 
-pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-plugins-conf"@ }
+pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-plugins-conf"@ }
 
 pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

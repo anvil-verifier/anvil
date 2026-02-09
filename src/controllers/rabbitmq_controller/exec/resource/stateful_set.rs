@@ -137,7 +137,8 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.namespace is Some,
     ensures name@ == model_resource::make_stateful_set_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-server")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-server")
 }
 
 pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: VStatefulSet)

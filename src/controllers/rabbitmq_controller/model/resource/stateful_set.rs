@@ -81,7 +81,7 @@ pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     }
 }
 
-pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-server"@ }
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server"@ }
 
 pub open spec fn sts_restart_annotation() -> StringView { "anvil.dev/lastRestartAt"@ }
 

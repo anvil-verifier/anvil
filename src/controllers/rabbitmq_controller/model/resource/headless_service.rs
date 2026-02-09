@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessSe
     }
 }
 
-pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-nodes"@ }
+pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-nodes"@ }
 
 pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

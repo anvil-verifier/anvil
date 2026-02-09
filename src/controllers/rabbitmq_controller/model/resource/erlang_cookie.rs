@@ -68,7 +68,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ErlangCook
     }
 }
 
-pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-erlang-cookie"@ }
+pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-erlang-cookie"@ }
 
 pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

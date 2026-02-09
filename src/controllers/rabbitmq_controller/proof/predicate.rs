@@ -395,4 +395,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
     }
 }
 
+pub open spec fn has_rabbitmq_prefix(name: StringView) -> bool {
+    exists |suffix| name == RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + suffix
+}
+
 }

@@ -68,7 +68,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
     }
 }
 
-pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-peer-discovery"@ }
+pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-peer-discovery"@ }
 
 pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

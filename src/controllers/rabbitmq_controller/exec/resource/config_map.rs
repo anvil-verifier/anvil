@@ -103,7 +103,8 @@ pub fn make_server_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_server_config_map_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-server-conf")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-server-conf")
 }
 
 pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)

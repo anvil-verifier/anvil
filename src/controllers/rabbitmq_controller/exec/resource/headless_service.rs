@@ -113,7 +113,8 @@ pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == model_resource::make_headless_service_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-nodes")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-nodes")
 }
 
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
