@@ -19,7 +19,7 @@ use crate::vstatefulset_controller::{
         helper_lemmas::*,
     },
 };
-use crate::vstd_ext::string_view::*;
+use crate::vstd_ext::{seq_lib::*, string_view::*};
 use vstd::prelude::*;
 
 verus! {
@@ -37,7 +37,6 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
         } ==> {
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
-            &&& obj.metadata.finalizers is None
             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         }
     }
@@ -53,7 +52,6 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_o
         } ==> {
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
-            &&& obj.metadata.finalizers is None
             &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                 &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
                 &&& old_vsts.metadata.namespace == vsts.metadata.namespace
@@ -86,6 +84,7 @@ ensures
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
         &&& every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s)
@@ -94,6 +93,7 @@ ensures
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
     lemma_always_every_msg_from_vsts_controller_carries_vsts_key(spec, cluster, controller_id);
@@ -149,7 +149,6 @@ ensures
                                                 let pod = PodView::unmarshal(obj)->Ok_0;
                                                 &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                                                 &&& obj.metadata.deletion_timestamp is None
-                                                &&& obj.metadata.finalizers is None
                                                 &&& PodView::unmarshal(s.resources()[pod_key]) is Ok
                                                 &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                                             } by {
@@ -195,7 +194,6 @@ ensures
                                 } implies {
                                     let obj = s_prime.resources()[pod_key];
                                     &&& obj.metadata.deletion_timestamp is None
-                                    &&& obj.metadata.finalizers is None
                                     &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                                         &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
                                         &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
@@ -229,10 +227,8 @@ ensures
                                 } implies {
                                     let obj = s_prime.resources()[pod_key];
                                     &&& obj.metadata.deletion_timestamp is None
-                                    &&& obj.metadata.finalizers is None
                                     &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                                         &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                        &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
                                         &&& old_vsts.metadata.namespace == vsts.metadata.namespace
                                         &&& old_vsts.metadata.name == vsts.metadata.name
                                     }
@@ -241,19 +237,56 @@ ensures
                                     if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
                                         let obj = s.resources()[pod_key];
                                         let req = msg.content.get_get_then_update_request();
-                                        let new_vsts = VStatefulSetView {
-                                            metadata: ObjectMetaView {
-                                                name: Some(cr_key.name),
-                                                namespace: Some(cr_key.namespace),
-                                                uid: Some(req.owner_ref.uid),
-                                                ..vsts.metadata
-                                            },
-                                            ..vsts
-                                        };
-                                        let obj_prime = s_prime.resources()[pod_key];
-                                        assert(obj_prime.metadata.owner_references_contains(new_vsts.controller_owner_ref()));
+                                        if req.key() == pod_key {
+                                            if !obj.metadata.owner_references_contains(req.owner_ref) {
+                                                assert(!is_ok_resp(resp_msg.content->APIResponse_0));
+                                                assert(false);
+                                            }
+                                            let old_vsts = choose |old_vsts: VStatefulSetView| {
+                                                &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
+                                                &&& old_vsts.metadata.namespace == vsts.metadata.namespace
+                                                &&& old_vsts.metadata.name == vsts.metadata.name
+                                            };
+                                            if req.owner_ref != old_vsts.controller_owner_ref() {
+                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(old_vsts.controller_owner_ref()));
+                                                assert(false);
+                                            }
+                                            let obj_prime = s_prime.resources()[pod_key];
+                                            assert(guarantee::vsts_internal_guarantee_get_then_update_req(req, vsts));
+                                            assert(obj_prime.metadata.owner_references_contains(req.owner_ref)) by {
+                                                let singleton = Seq::empty().push(req.owner_ref);
+                                                assert(singleton.contains(req.owner_ref)) by {
+                                                    assert(singleton[0] == req.owner_ref);
+                                                }
+                                                seq_filter_contains_implies_seq_contains(
+                                                    req.obj.metadata.owner_references->0, controller_owner_filter(), req.owner_ref
+                                                );
+                                            }
+                                        } else {}
                                     } else if !s.resources().contains_key(pod_key) && msg.content.is_create_request() {
-                                        assume(false);
+                                        let req = msg.content.get_create_request();
+                                        if req.key() == pod_key {
+                                            assert(guarantee::vsts_internal_guarantee_create_req(req, vsts));
+                                            let owner_reference = choose |owner_reference: OwnerReferenceView| {
+                                                &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
+                                                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
+                                            } ;
+                                            let new_vsts = VStatefulSetView {
+                                                metadata: ObjectMetaView {
+                                                    name: vsts.metadata.name,
+                                                    namespace: vsts.metadata.namespace,
+                                                    uid: Some(owner_reference.uid),
+                                                    ..vsts.metadata
+                                                },
+                                                ..vsts
+                                            };
+                                            assert(new_vsts.controller_owner_ref() == owner_reference);
+                                            assert(req.obj.metadata.owner_references_contains(new_vsts.controller_owner_ref())) by {
+                                                assert(req.obj.metadata.owner_references->0[0] == new_vsts.controller_owner_ref());
+                                            }
+                                        }
                                     } // GetThenDeleteRequest is trivial to proof
                                 }
                             }
@@ -269,10 +302,8 @@ ensures
                             } implies {
                                 let obj = s_prime.resources()[pod_key];
                                 &&& obj.metadata.deletion_timestamp is None
-                                &&& obj.metadata.finalizers is None
                                 &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
                                     &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                    &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
                                     &&& old_vsts.metadata.namespace == vsts.metadata.namespace
                                     &&& old_vsts.metadata.name == vsts.metadata.name
                                 }
@@ -283,7 +314,6 @@ ensures
                                         let obj = s.resources()[pod_key];
                                         let old_vsts = choose |old_vsts: VStatefulSetView| {
                                             &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                            &&& old_vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
                                             &&& old_vsts.metadata.namespace == vsts.metadata.namespace
                                             &&& old_vsts.metadata.name == vsts.metadata.name
                                         };
@@ -341,6 +371,7 @@ ensures
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
         lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id))

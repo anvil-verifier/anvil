@@ -34,8 +34,9 @@ pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> boo
     |o: OwnerReferenceView| o.controller is Some && o.controller->0
 }
 
-pub open spec fn owner_reference_controller_kind_name_equal(r1: OwnerReferenceView, r2: OwnerReferenceView) -> bool {
+pub open spec fn owner_reference_eq_without_uid(r1: OwnerReferenceView, r2: OwnerReferenceView) -> bool {
     &&& r1.controller == r2.controller
+    &&& r1.block_owner_deletion == r2.block_owner_deletion
     &&& r1.kind == r2.kind
     &&& r1.name == r2.name
 }
