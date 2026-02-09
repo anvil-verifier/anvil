@@ -127,15 +127,6 @@ ensures
                         }
                     } by {
                         let obj_prime = s_prime.resources()[pod_key];
-                        let post = ({
-                            &&& obj_prime.metadata.deletion_timestamp is None
-                            &&& obj_prime.metadata.finalizers is None
-                            &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
-                                &&& obj_prime.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                &&& old_vsts.metadata.name == vsts.metadata.name
-                            }
-                        });
                         match msg.src {
                             HostId::Controller(other_id, cr_key) => {
                                 if other_id != controller_id {
@@ -143,7 +134,6 @@ ensures
                                     assert(vsts_rely(other_id, cluster.installed_types)(s));
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
-                                            assume(false);
                                             if req.key().kind == Kind::PodKind {
                                                 assert(rely_create_pod_req(req));
                                                 let name = if req.obj.metadata.name is Some {
@@ -214,7 +204,6 @@ ensures
                                         _ => {}
                                     }
                                 } else if cr_key != vsts.object_ref() {
-                                    assume(false);
                                     let havoc_vsts = make_vsts();
                                     let vsts_with_key = VStatefulSetView {
                                         metadata: ObjectMetaView {
@@ -251,7 +240,6 @@ ensures
                                         }
                                     }
                                 } else {
-                                    assume(false);
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                     if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
                                         let obj = s.resources()[pod_key];
@@ -267,10 +255,11 @@ ensures
                                                 &&& old_vsts.metadata.name == vsts.metadata.name
                                             };
                                             if req.owner_ref != old_vsts.controller_owner_ref() {
-                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
-                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(old_vsts.controller_owner_ref()));
-                                                assert(false);
+                                                lemma_singleton_contains_at_most_one_element(
+                                                    obj.metadata.owner_references->0.filter(controller_owner_filter()),
+                                                    req.owner_ref,
+                                                    old_vsts.controller_owner_ref()
+                                                );
                                             }
                                             let obj_prime = s_prime.resources()[pod_key];
                                             assert(guarantee::vsts_internal_guarantee_get_then_update_req(req, vsts));
