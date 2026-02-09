@@ -24,25 +24,6 @@ use vstd::prelude::*;
 
 verus! {
 
-// name collision prevention invariant, eventually holds
-// In the corner case when one vsts was created and then deleted, just before
-// another vsts with the same name comes, GC will delete pods owned by the previous vsts
-pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |pod_key: ObjectRef| {
-            &&& #[trigger] s.resources().contains_key(pod_key)
-            &&& pod_key.kind == Kind::PodKind
-            &&& pod_key.namespace == vsts.object_ref().namespace
-            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
-        } ==> {
-            let obj = s.resources()[pod_key];
-            &&& obj.metadata.deletion_timestamp is None
-            &&& obj.metadata.finalizers is None
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-        }
-    }
-}
-
 pub open spec fn all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_matching_some_vsts(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pod_key: ObjectRef| {
@@ -373,6 +354,96 @@ ensures
         lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id))
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
+// name collision prevention invariant, eventually holds
+// In the corner case when one vsts was created and then deleted, just before
+// another vsts with the same name comes, GC will delete pods owned by the previous vsts
+pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pod_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pod_key)
+            &&& pod_key.kind == Kind::PodKind
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
+        } ==> {
+            let obj = s.resources()[pod_key];
+            &&& obj.metadata.deletion_timestamp is None
+            &&& obj.metadata.finalizers is None
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        }
+    }
+}
+
+pub open spec fn mismatching_pods(s: ClusterState, vsts: VStatefulSetView) -> spec_fn(ObjectRef) -> bool {
+    |pod_key: ObjectRef| {
+        let obj = s.resources()[pod_key];
+        &&& #[trigger] s.resources().contains_key(pod_key)
+        &&& pod_key.kind == Kind::PodKind
+        &&& pod_key.namespace == vsts.object_ref().namespace
+        &&& pod_name_match(pod_key.name, vsts.object_ref().name)
+        &&& !&&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+    }
+}
+
+pub open spec fn mismatching_pods_of_n(vsts: VStatefulSetView, n: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        s.resources().dom().filter(mismatching_pods(s, vsts)).len() == n
+    }
+}
+
+pub proof fn lemma_spec_entails_mismatching_pods_of_n_leads_to_mismatching_pods_of_n_minus_one(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, n: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+    spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id)))),
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_matching_some_vsts(vsts)))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    spec.entails(tla_forall(|input| cluster.api_server_next().weak_fairness(input))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    n > 0,
+ensures
+    spec.entails(lift_state(mismatching_pods_of_n_minus_one(vsts, n)).leads_to(lift_state(mismatching_pods_of_n(vsts, n - 1)))),
+{
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::desired_state_is(vsts)(s_prime)
+        &&& vsts_rely_conditions(cluster, controller_id)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
+        &&& every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s)
+        &&& all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_matching_some_vsts(vsts)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(vsts_rely_conditions(cluster, controller_id)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
+        lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id)),
+        lift_state(all_pods_in_etcd_matching_vsts_have_no_deletion_timestamp_and_owner_ref_matching_some_vsts(vsts))
+    );
+    let mismatching_pods_of_n_with_pending_delete_request_from_gc = |s: ClusterState| {
+        &&& mismatching_pods_of_n(vsts, n)(s)
+        // &&& 
+    };
 }
 
 // similar to above, but for PVCs
