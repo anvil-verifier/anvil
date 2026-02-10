@@ -97,7 +97,8 @@ pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_role_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-peer-discovery")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-peer-discovery")
 }
 
 pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)

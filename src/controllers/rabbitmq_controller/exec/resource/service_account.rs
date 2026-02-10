@@ -96,7 +96,8 @@ pub fn make_service_account_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_service_account_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-server")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-server")
 }
 
 pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: ServiceAccount)

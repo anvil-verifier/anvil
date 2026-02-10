@@ -70,7 +70,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 }
 
 pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView {
-    rabbitmq.metadata.name->0 + "-client"@
+    RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-client"@
 }
 
 pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {

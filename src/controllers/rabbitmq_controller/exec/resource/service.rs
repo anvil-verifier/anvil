@@ -112,7 +112,8 @@ pub fn make_main_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_main_service_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-client")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-client")
 }
 
 pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)

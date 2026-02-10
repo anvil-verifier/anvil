@@ -98,7 +98,8 @@ pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: Strin
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_default_user_secret_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-default-user")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-default-user")
 }
 
 pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: StringMap)

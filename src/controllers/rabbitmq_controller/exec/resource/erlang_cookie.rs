@@ -104,7 +104,8 @@ pub fn make_erlang_secret_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_erlang_secret_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat("-erlang-cookie")
+    let name = rabbitmq.metadata().name().unwrap();
+    "rabbitmq".to_string().concat("-").concat(name.as_str()).concat("-erlang-cookie")
 }
 
 pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)

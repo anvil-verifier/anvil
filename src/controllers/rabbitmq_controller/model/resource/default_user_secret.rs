@@ -68,7 +68,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
     }
 }
 
-pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-default-user"@ }
+pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-default-user"@ }
 
 pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

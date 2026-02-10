@@ -84,7 +84,7 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     }
 }
 
-pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-server-conf"@ }
+pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server-conf"@ }
 
 pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
