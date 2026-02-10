@@ -68,45 +68,25 @@ pub open spec fn rely_create_req(req: CreateRequest) -> bool {
 // Other controllers don't update objects with rabbitmq prefix
 pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        is_rmq_managed_kind(req.obj.kind) ==> {
-            !{
-                let etcd_obj = s.resources()[req.key()];
-                has_rabbitmq_prefix(etcd_obj.metadata.name->0)
-            }
-        }
+        is_rmq_managed_kind(req.obj.kind) ==> !has_rabbitmq_prefix(req.key().name)
     }
 }
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        is_rmq_managed_kind(req.obj.kind) ==> {
-            !{
-                let etcd_obj = s.resources()[req.key()];
-                has_rabbitmq_prefix(etcd_obj.metadata.name->0)
-            }
-        }
+        is_rmq_managed_kind(req.obj.kind) ==> !has_rabbitmq_prefix(req.key().name)
     }
 }
 
 pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        is_rmq_managed_kind(req.key.kind) ==> {
-            !{
-                let etcd_obj = s.resources()[req.key];
-                has_rabbitmq_prefix(etcd_obj.metadata.name->0)
-            }
-        }
+        is_rmq_managed_kind(req.key.kind) ==> !has_rabbitmq_prefix(req.key().name)
     }
 }
 
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        is_rmq_managed_kind(req.key.kind) ==> {
-            !{
-                let etcd_obj = s.resources()[req.key];
-                has_rabbitmq_prefix(etcd_obj.metadata.name->0)
-            }
-        }
+        is_rmq_managed_kind(req.key.kind) ==> !has_rabbitmq_prefix(req.key().name)
     }
 }
 
