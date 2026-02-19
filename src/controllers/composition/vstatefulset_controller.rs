@@ -16,7 +16,7 @@ use vstd::prelude::*;
 verus !{
 
 
-impl Composition for VStatefulSetController {
+impl Composition for VStatefulSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: vsts_eventually_stable_reconciliation(),
@@ -37,19 +37,19 @@ impl Composition for VStatefulSetController {
         Map::empty().insert(Self::id(), Self::c())
     }
 
-    // proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-    // ensures
-    //     spec.entails(Self::c().safety_guarantee),
-    // {
-    //     guarantee_condition_holds(spec, cluster, Self::id());
-    // }
+    proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+    ensures
+        spec.entails(Self::c().safety_guarantee),
+    {
+        guarantee_condition_holds(spec, cluster, Self::id());
+    }
 
-    // proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-    // ensures
-    //     forall |i| #[trigger] Self::composed().contains_key(i) ==>
-    //         spec.entails((Self::c().safety_partial_rely)(i))
-    //         && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
-    // {}
+    proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+    ensures
+        forall |i| #[trigger] Self::composed().contains_key(i) ==>
+            spec.entails((Self::c().safety_partial_rely)(i))
+            && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
+    {}
 }
 
 

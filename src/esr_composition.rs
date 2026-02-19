@@ -18,3 +18,5 @@ pub mod vreplicaset_controller;
 pub mod vstatefulset_controller;
 #[path = "controllers/composition/mod.rs"]
 pub mod composition;
+
+fn main() {}

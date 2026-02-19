@@ -181,12 +181,11 @@ pub open spec fn lift_local(controller_id: int, vsts: VStatefulSetView, step_pre
     Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), step_pred)
 }
 
-pub use locally_at_step_or;
-pub use at_step_or;
-pub use at_step;
+pub(crate) use locally_at_step_or;
+pub(crate) use at_step_or;
+pub(crate) use at_step;
 
 // usage: and!(pred1, pred2, ...)
-#[macro_export]
 macro_rules! and {
     ($($tokens:tt)+) => {
         closure_to_fn_spec(|s| {
@@ -195,7 +194,6 @@ macro_rules! and {
     };
 }
 
-#[macro_export]
 macro_rules! and_internal {
     ($s:expr, $head:expr) => {
         $head($s)
@@ -207,7 +205,6 @@ macro_rules! and_internal {
 }
 
 // usage: or!(pred1, pred2, ...)
-#[macro_export]
 macro_rules! or {
     ($($tokens:tt)+) => {
         closure_to_fn_spec(|s| {
@@ -216,7 +213,6 @@ macro_rules! or {
     };
 }
 
-#[macro_export]
 macro_rules! or_internal {
     ($s:expr, $head:expr) => {
         $head($s)
@@ -227,7 +223,6 @@ macro_rules! or_internal {
     };
 }
 
-#[macro_export]
 macro_rules! not {
     ( $pred:expr ) => {
         closure_to_fn_spec(|s| {
@@ -236,44 +231,40 @@ macro_rules! not {
     };
 }
 
-pub use or;
-pub use or_internal;
-pub use and;
-pub use and_internal;
-pub use not;
+pub(crate) use or;
+pub(crate) use or_internal;
+pub(crate) use and;
+pub(crate) use and_internal;
+pub(crate) use not;
 
 // hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
-#[macro_export]
 macro_rules! nat0 {
     () => {
         spec_literal_nat("0")
     };
 }
 
-#[macro_export]
 macro_rules! nat1 {
     () => {
         spec_literal_nat("1")
     };
 }
 
-#[macro_export]
 macro_rules! int0 {
     () => {
         spec_literal_int("0")
     };
 }
 
-#[macro_export]
 macro_rules! int1 {
     () => {
         spec_literal_int("1")
     };
 }
 
-pub use nat0;
-pub use nat1;
-pub use int0;
-pub use int1;
+pub(crate) use nat0;
+pub(crate) use nat1;
+pub(crate) use int0;
+pub(crate) use int1;
 
 }
