@@ -1,5 +1,4 @@
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, prelude::*};
-use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::{
     model::reconciler::*, proof::predicate::*, trusted::spec_types::*,
@@ -13,11 +12,11 @@ verus! {
 pub open spec fn rmq_rely_conditions(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> #[trigger] rmq_rely(other_id, cluster.installed_types)(s)
+            ==> #[trigger] rmq_rely(other_id)(s)
     }
 }
 
-pub open spec fn rmq_rely(other_id: int, installed_types: InstalledTypes) -> StatePred<ClusterState> {
+pub open spec fn rmq_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -89,7 +88,6 @@ pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePre
         is_rmq_managed_kind(req.key.kind) ==> !has_rabbitmq_prefix(req.key().name)
     }
 }
-
 
 // RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name,
 // owned by exactly one RabbitmqCluster.
