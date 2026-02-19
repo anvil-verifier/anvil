@@ -142,7 +142,6 @@ pub open spec fn pod_name_match(compared_pod_name: StringView, parent_name: Stri
 
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
-#[macro_export]
 macro_rules! at_step {
     [ $($tokens:tt)? ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -154,7 +153,6 @@ macro_rules! at_step {
 
 // usage: at_step_or![step_or_pred,*]
 // step_or_pred = step | (step, pred)
-#[macro_export]
 macro_rules! at_step_or {
     [ $($tokens:tt)+ ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -164,7 +162,6 @@ macro_rules! at_step_or {
     };
 }
 
-#[macro_export]
 macro_rules! locally_at_step_or {
     ($vsts_state:expr, ($step:expr, $pred:expr)) => {
         $vsts_state.reconcile_step.eq_step($step) && $pred($vsts_state)

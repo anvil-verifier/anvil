@@ -9,6 +9,14 @@ use vstd::prelude::*;
 
 verus !{
 
+pub open spec fn vsts_eventually_stable_reconciliation() -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation(|vrs| current_state_matches(vsts))
+}
+
+pub open spec fn vsts_eventually_stable_reconciliation_per_cr(vrs: VStatefulSetView) -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vsts))
+}
+
 pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // 1. All needed pods exist and are up-to-date
