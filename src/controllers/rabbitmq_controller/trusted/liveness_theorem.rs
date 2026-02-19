@@ -14,6 +14,10 @@ use vstd::prelude::*;
 
 verus! {
 
+pub open spec fn rmq_composed_eventually_stable_reconciliation() -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation(|vrs| composed_current_state_matches::<RabbitmqMaker>(vrs))
+}
+
 pub open spec fn rmq_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     Cluster::eventually_stable_reconciliation(|vrs| current_state_matches::<RabbitmqMaker>(vrs))
 }

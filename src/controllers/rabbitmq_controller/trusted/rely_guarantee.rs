@@ -91,17 +91,25 @@ pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePre
 }
 
 
-// RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name
+// RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name,
+// owned by exactly one RabbitmqCluster.
 pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
     &&& req.obj.metadata.name is Some
     &&& has_rabbitmq_prefix(req.obj.metadata.name->0)
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |rabbitmq: RabbitmqClusterView|
+        req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
 }
 
-// RMQ only updates objects of rmq-managed kind with rabbitmq prefix in the name
+// RMQ only updates objects of rmq-managed kind with rabbitmq prefix in the name,
+// owned by exactly one RabbitmqCluster.
 pub open spec fn rmq_guarantee_update_req(req: UpdateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
     &&& has_rabbitmq_prefix(req.key().name)
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |rabbitmq: RabbitmqClusterView|
+        req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
 }
 
 pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
