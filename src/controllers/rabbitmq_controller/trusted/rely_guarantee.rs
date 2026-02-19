@@ -91,5 +91,32 @@ pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePre
 }
 
 
+// RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name
+pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
+    &&& is_rmq_managed_kind(req.obj.kind)
+    &&& req.obj.metadata.name is Some
+    &&& has_rabbitmq_prefix(req.obj.metadata.name->0)
+}
+
+// RMQ only updates objects of rmq-managed kind with rabbitmq prefix in the name
+pub open spec fn rmq_guarantee_update_req(req: UpdateRequest) -> bool {
+    &&& is_rmq_managed_kind(req.obj.kind)
+    &&& has_rabbitmq_prefix(req.key().name)
+}
+
+pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+        } ==> match msg.content->APIRequest_0 {
+            APIRequest::GetRequest(_) => true,
+            APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
+            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            _ => false, // rmq doesn't send other requests
+        }
+    }
+}
 
 }
