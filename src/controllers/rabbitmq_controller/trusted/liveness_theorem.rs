@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
+use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::rabbitmq_controller::trusted::{maker::*, spec_types::*, step::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::int_to_string_view;
@@ -12,7 +13,30 @@ use crate::vstatefulset_controller::trusted::liveness_theorem as vsts_liveness_t
 
 use vstd::prelude::*;
 
+use super::rely_guarantee::rmq_rely;
+use super::spec_types::RabbitmqClusterView;
+
 verus! {
+
+pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
+        spec.entails(next_with_wf(cluster, controller_id)),
+        // The vd type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        // The vrs type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        // The vd controller runs in the cluster.
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        // No other controllers interfere with the vd controller.
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))),
+    ensures
+        spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)),
+{
+    assume(false);
+}
 
 pub open spec fn rmq_composed_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     Cluster::eventually_stable_reconciliation(|vrs| composed_current_state_matches::<RabbitmqMaker>(vrs))
@@ -22,24 +46,25 @@ pub open spec fn rmq_eventually_stable_reconciliation() -> TempPred<ClusterState
     Cluster::eventually_stable_reconciliation(|vrs| current_state_matches::<RabbitmqMaker>(vrs))
 }
 
-pub open spec fn rmq_eventually_stable_reconciliation_per_cr(vrs: RabbitmqClusterView) -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches::<RabbitmqMaker>(vrs))
+pub open spec fn rmq_eventually_stable_reconciliation_per_cr(rmq: RabbitmqClusterView) -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation_per_cr(rmq, |rmq| current_state_matches::<RabbitmqMaker>(rmq))
 }
 
 pub open spec fn current_state_matches<M: Maker>(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s.resources())
+        forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s)
     }
 }
 
 pub open spec fn composed_current_state_matches<M: Maker>(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s.resources())
+        &&& forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s)
         &&& composed_vsts_match::<RabbitmqMaker>(rabbitmq)(s)
     }
 }
 
-pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: ClusterState) -> bool {
+    let resources = state.resources();
     match sub_resource {
         SubResource::HeadlessService => {
             let key = M::make_headless_service_key(rabbitmq);
@@ -146,9 +171,9 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             &&& resources.contains_key(cm_key)
             &&& cm_obj.metadata.resource_version is Some
             &&& VStatefulSetView::unmarshal(obj) is Ok
-            &&& VStatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec
             &&& obj.metadata.labels == made_sts.metadata.labels
             &&& obj.metadata.annotations == made_sts.metadata.annotations
+            &&& Cluster::desired_state_is(made_sts)(state)
         },
     }
 }
@@ -159,10 +184,21 @@ pub open spec fn composed_vsts_match<M: Maker>(rabbitmq: RabbitmqClusterView) ->
         let cm_key = M::make_server_config_map_key(rabbitmq);
         let cm_obj = resources[cm_key];
         let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));   
-        &&& resources.contains_key(cm_key)
-        &&& cm_obj.metadata.resource_version is Some
-        &&& vsts_liveness_theorem::current_state_matches(made_sts)(s)
+        vsts_liveness_theorem::current_state_matches(made_sts)(s)
     }
+}
+
+pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    always(lift_action(cluster.next()))
+    .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
+    .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
+    .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
+    .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
+    .and(cluster.disable_crash().weak_fairness(controller_id))
+    .and(cluster.disable_req_drop().weak_fairness(()))
+    .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
 
 }

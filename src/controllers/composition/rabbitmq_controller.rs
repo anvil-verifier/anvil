@@ -1,5 +1,7 @@
 use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::spec::cluster::*;
+use crate::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::temporal_logic::defs::*;
 use crate::rabbitmq_controller::trusted::{
     spec_types::*, rely_guarantee::*, liveness_theorem::*
@@ -16,6 +18,7 @@ use crate::vstatefulset_controller::model::{
 };
 use crate::vstatefulset_controller::proof::liveness::spec as vsts_spec;
 use crate::composition::vstatefulset_controller;
+use crate::temporal_logic::rules::*;
 
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -30,7 +33,7 @@ impl Composition for RabbitmqReconciler {
             liveness_rely: vsts_liveness_theorem::vsts_eventually_stable_reconciliation(),
             safety_guarantee: always(lift_state(rmq_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(rmq_rely(other_id))),
-            fairness: |cluster: Cluster| vsts_spec::next_with_wf(cluster, Self::id()),
+            fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
             membership: |cluster: Cluster, id: int| {
                 &&& cluster.controller_models.contains_pair(VStatefulSetReconciler::id(), vsts_controller_model())
                 &&& cluster.controller_models.contains_pair(Self::id(), rabbitmq_controller_model())
@@ -63,5 +66,32 @@ impl Composition for RabbitmqReconciler {
     }
 }
 
+impl VerticalComposition for RabbitmqReconciler {
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_guarantee),
+    {
+        assert(spec.entails(vsts_spec::next_with_wf(cluster, Self::id()))) by {
+            entails_trans(spec, next_with_wf(cluster, Self::id()), vsts_spec::next_with_wf(cluster, Self::id()));
+        }
+
+        // let current_state_matches_vsts = |vrs: VStatefulSetView| vsts_liveness_theorem::current_state_matches(vrs);
+        // assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vsts)));
+        // assert(spec.entails(tla_forall(|vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches_vsts(vsts)))))));
+        assert forall |rmq: RabbitmqClusterView| spec.entails(always(lift_state(#[trigger] Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq))))) by {
+            assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq))) by {
+                rmq_esr_holds_per_cr(spec, rmq, cluster, Self::id());
+            }
+            
+        }
+        assume(false);
+
+    }
+
+    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_rely),
+    {
+        assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
+    }
+}
 
 }
