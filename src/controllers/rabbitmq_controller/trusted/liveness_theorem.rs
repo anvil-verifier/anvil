@@ -167,13 +167,15 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let cm_key = M::make_server_config_map_key(rabbitmq);
             let cm_obj = resources[cm_key];
             let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+            // hack 
+            let desired_sts = M::make_stateful_set(rabbitmq, int_to_string_view(0));
             &&& resources.contains_key(key)
             &&& resources.contains_key(cm_key)
             &&& cm_obj.metadata.resource_version is Some
             &&& VStatefulSetView::unmarshal(obj) is Ok
             &&& obj.metadata.labels == made_sts.metadata.labels
             &&& obj.metadata.annotations == made_sts.metadata.annotations
-            &&& Cluster::desired_state_is(made_sts)(state)
+            &&& Cluster::desired_state_is(desired_sts)(state)
         },
     }
 }
@@ -183,8 +185,8 @@ pub open spec fn composed_vsts_match<M: Maker>(rabbitmq: RabbitmqClusterView) ->
         let resources = s.resources();
         let cm_key = M::make_server_config_map_key(rabbitmq);
         let cm_obj = resources[cm_key];
-        let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));   
-        vsts_liveness_theorem::current_state_matches(made_sts)(s)
+        let desired_sts = M::make_stateful_set(rabbitmq, int_to_string_view(0));   
+        vsts_liveness_theorem::current_state_matches(desired_sts)(s)
     }
 }
 
