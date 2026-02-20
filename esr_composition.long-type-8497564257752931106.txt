@@ -1,1 +1,0 @@
-fn(kubernetes_cluster::spec::cluster::Cluster, vstd::prelude::int) -> temporal_logic::defs::TempPred<kubernetes_cluster::spec::cluster::ClusterState> {composition::rabbitmq_controller::next_with_wf}

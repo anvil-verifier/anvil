@@ -123,7 +123,7 @@ impl VerticalComposition for RabbitmqReconciler {
             assert(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))).entails(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)))) by {
                 assert forall |ex: Execution<ClusterState>|
                     lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))).satisfied_by(ex)
-                    implies lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)).satisfied_by(ex) by {
+                    implies #[trigger] lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)).satisfied_by(ex) by {
                 };
             };
             entails_preserved_by_always(
