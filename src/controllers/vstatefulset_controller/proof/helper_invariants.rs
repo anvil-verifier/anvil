@@ -29,9 +29,10 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts_key: 
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.src is BuiltinController
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
         } ==> {
             let key = msg.content.get_delete_request().key;
-            &&& msg.dst is APIServer
             &&& msg.content.is_delete_request()
             &&& !{
                 &&& key.kind == Kind::PodKind
@@ -42,18 +43,63 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts_key: 
     }
 }
 
-// Note: the post does not include "T~>"
 pub proof fn lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
     spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
     spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(always(lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())))),
-{}
+    spec.entails(true_pred().leads_to(always(lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref()))))),
+{
+    let requirements = |msg: Message, s: ClusterState| {
+        &&& s.in_flight().contains(msg)
+        &&& msg.src is BuiltinController
+        &&& msg.dst is APIServer
+        &&& msg.content is APIRequest
+    } ==> {
+        let key = msg.content.get_delete_request().key;
+        &&& msg.content.is_delete_request()
+        &&& !{
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(key.name, vsts.object_ref().name)
+        }
+    };
+    let requirements_antecedent = |msg: Message, s: ClusterState| {
+        &&& s.in_flight().contains(msg)
+        &&& msg.src is BuiltinController
+    };
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s)
+        &&& Cluster::desired_state_is(vsts)(s)
+    };
+    assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies requirements(msg, s_prime) by {
+            assume(false);
+            if s.in_flight().contains(msg) {}
+        }
+    };
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))
+    );
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+}
 
 // name collision prevention invariant, eventually holds
 // In the corner case when one vsts was created and then deleted, just before
