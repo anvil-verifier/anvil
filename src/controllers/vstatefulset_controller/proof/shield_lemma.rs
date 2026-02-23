@@ -53,6 +53,7 @@ requires
     guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s),
+    helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s_prime),
     helper_invariants::garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -89,9 +90,9 @@ ensures
     assert(s.in_flight().contains(msg));
     assert forall |k: ObjectRef| { // ==>
         let obj = s.resources()[k];
-        &&& k.kind == Kind::PodKind
         &&& #[trigger] s.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& k.kind == Kind::PodKind
+        &&& k.namespace == vsts.metadata.namespace->0
         &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
             s.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
     } implies {
@@ -155,7 +156,7 @@ ensures
                             assert(post);
                         } else { // from other controllers
                             // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vsts_rely
-                            assert(cluster.controller_models.contains_key(id));
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             match msg.content->APIRequest_0 {
                                 APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {},
@@ -190,9 +191,9 @@ ensures
     }
     assert forall |k: ObjectRef| { // <==
         let obj = s_prime.resources()[k];
-        &&& k.kind == Kind::PodKind
         &&& #[trigger] s_prime.resources().contains_key(k)
-        &&& obj.metadata.namespace == vsts.metadata.namespace
+        &&& k.kind == Kind::PodKind
+        &&& k.namespace == vsts.metadata.namespace->0
         &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
             s_prime.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
     } implies {
@@ -247,7 +248,7 @@ ensures
                                 }
                             } // or else, namespace is different, so should not be touched at all
                         } else {
-                            assert(cluster.controller_models.contains_key(id));
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
