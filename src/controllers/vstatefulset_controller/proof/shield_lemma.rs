@@ -22,7 +22,7 @@ verus! {
 // So in total we have
 // 1. rely conditions for other controllers (rely::vsts_rely)
 // 2. VSTS internal rely-guarantee (guarantee::guarantee::no_interfering_request_between_vsts)
-// 3.a rely conditions for builtin controllers (rely::garbage_collector_does_not_delete_vsts_pod_objects)
+// 3.a rely conditions for builtin controllers (buildin_controllers_do_not_delete_{pods|pvcs}_owned_by_vsts)
 // 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
 
 // Shield lemma:
@@ -54,7 +54,7 @@ requires
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s_prime),
-    helper_invariants::garbage_collector_does_not_delete_vsts_pod_objects(vsts)(s),
+    helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts()(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> vsts_rely(other_id, cluster.installed_types)(s),

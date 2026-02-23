@@ -24,6 +24,25 @@ use vstd::prelude::*;
 
 verus! {
 
+pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } ==> {
+            let key = msg.content.get_delete_request().key;
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+            &&& !(key.kind == Kind::PodKind
+                && exists |vsts_name: StringView| #[trigger] pod_name_match(key.name, vsts_name))
+        }
+    }
+}
+
+// pub proof fn lemma_always_buildin_controllers_do_not_delete_ppods_owned_by_vsts(
+//     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts_name: StringView
+// )
+
 // name collision prevention invariant, eventually holds
 // In the corner case when one vsts was created and then deleted, just before
 // another vsts with the same name comes, GC will delete pods owned by the previous vsts
@@ -63,7 +82,9 @@ pub open spec fn buildin_controllers_do_not_delete_pvcs_owned_by_vsts() -> State
     }
 }
 
-pub proof fn lemma_always_buildin_controllers_do_not_delete_pvcs_owned_by_vsts(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts_name: StringView)
+pub proof fn lemma_always_buildin_controllers_do_not_delete_pvcs_owned_by_vsts(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
 requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
@@ -260,49 +281,6 @@ ensures
         lift_state(every_msg_from_vsts_controller_carries_vsts_key(controller_id))
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
-}
-
-pub open spec fn garbage_collector_does_not_delete_vsts_pvc_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src is BuiltinController
-        } ==> {
-            let req = msg.content.get_delete_request(); 
-            &&& msg.dst is APIServer
-            &&& msg.content.is_delete_request()
-            &&& s.resources().contains_key(req.key) ==> {
-                let obj = s.resources()[req.key];
-                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
-                    && obj.metadata.namespace == vsts.metadata.namespace
-                    && pvc_name_match(obj.metadata.name->0, vsts.object_ref().name))
-            }
-        }
-    }
-}
-
-pub open spec fn garbage_collector_does_not_delete_vsts_pod_objects(vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src is BuiltinController
-        } ==> {
-            let req = msg.content.get_delete_request(); 
-            &&& msg.dst is APIServer
-            &&& msg.content.is_delete_request()
-            &&& s.resources().contains_key(req.key) ==> {
-                let obj = s.resources()[req.key];
-                &&& !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                    && obj.kind == Kind::PodKind
-                    && obj.metadata.namespace == vsts.metadata.namespace)
-                // ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
-                &&& !(obj.kind == Kind::PersistentVolumeClaimKind
-                    && obj.metadata.namespace == vsts.metadata.namespace
-                    && obj.metadata.owner_references is None)
-                    // && pvc_name_match(obj.metadata.name->0, vsts.object_ref().name)
-            }
-        }
-    }
 }
 
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
