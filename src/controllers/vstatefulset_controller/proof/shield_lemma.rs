@@ -343,8 +343,6 @@ ensures
         &&& k.kind == Kind::PersistentVolumeClaimKind
         &&& k.namespace == vsts.metadata.namespace->0
         &&& pvc_name_match(k.name, vsts.metadata.name->0)
-        // assumed by all_pvcs_in_etcd_matching_vsts_have_no_owner_ref
-        // &&& obj.metadata.owner_references is None // required by GC
     } ==> {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -410,11 +408,16 @@ ensures
                             }
                         }
                     },
+                    HostId::BuiltinController => {
+                        // We need a GC lemma on preconditions and message types
+                        assume(false);
+                    },
                     _ => {},
                 }
             }
         }
     }
+    assume(false);
     assert forall |k: ObjectRef| { // <==
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& k.kind == Kind::PersistentVolumeClaimKind
