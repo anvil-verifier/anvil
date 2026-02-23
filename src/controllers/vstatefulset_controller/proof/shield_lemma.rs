@@ -70,8 +70,7 @@ ensures
         &&& #[trigger] s.resources().contains_key(k)
         &&& k.kind == Kind::PodKind
         &&& k.namespace == vsts.metadata.namespace->0
-        &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
-            s.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
+        &&& pod_name_match(k.name, vsts.metadata.name->0)
     } ==> {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -80,8 +79,7 @@ ensures
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& k.kind == Kind::PodKind
         &&& k.namespace == vsts.metadata.namespace->0
-        &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
-            s_prime.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
+        &&& pod_name_match(k.name, vsts.metadata.name->0)
     } ==> {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -93,8 +91,7 @@ ensures
         &&& #[trigger] s.resources().contains_key(k)
         &&& k.kind == Kind::PodKind
         &&& k.namespace == vsts.metadata.namespace->0
-        &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
-            s.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
+        &&& pod_name_match(k.name, vsts.metadata.name->0)
     } implies {
         &&& s_prime.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -104,9 +101,7 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s.resources()[k];
-        if pod_name_match(k.name, vsts.metadata.name->0) {
-            assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
-        }
+        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
         PodView::marshal_preserves_integrity();
         assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
             // broadcast use group_seq_properties; // this increase proof time from 3 to 20s
@@ -194,8 +189,7 @@ ensures
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& k.kind == Kind::PodKind
         &&& k.namespace == vsts.metadata.namespace->0
-        &&& (pod_name_match(k.name, vsts.metadata.name->0) ||
-            s_prime.resources()[k].metadata.owner_references_contains(vsts.controller_owner_ref()))
+        &&& pod_name_match(k.name, vsts.metadata.name->0)
     } implies {
         &&& s.resources().contains_key(k)
         &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
@@ -241,8 +235,8 @@ ensures
                                 if msg.content.is_get_then_update_request() && s.resources().contains_key(k) {
                                     let req = msg.content.get_get_then_update_request();
                                     let old_obj = s.resources()[req.key()];
-                                    if !old_obj.metadata.owner_references_contains(other_vsts.controller_owner_ref()) && req.key() == k {
-                                        assert(req.obj.metadata.owner_references == obj.metadata.owner_references);
+                                    if req.key() == k {
+                                        vsts_name_non_eq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
                                         assert(false);
                                     }
                                 }
