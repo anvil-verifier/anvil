@@ -125,7 +125,7 @@ pub open spec fn rely_update_pod_req(req: UpdateRequest) -> StatePred<ClusterSta
 
 // Other controllers don't try to update PVC matching VSTS's PVC template.
 pub open spec fn rely_update_pvc_req(req: UpdateRequest) -> bool {
-    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.name, vsts.metadata.name->0)
+    !exists |vsts_name: StringView| #[trigger] pvc_name_match(req.name, vsts_name)
 }
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
@@ -175,7 +175,7 @@ pub open spec fn rely_delete_pod_req(req: DeleteRequest) -> StatePred<ClusterSta
 // Other controllers don't try to delete a pod matching a VSTS
 pub open spec fn rely_delete_pvc_req(req: DeleteRequest) -> bool {
     // that object does not match any VSTS PVC template
-    !exists |vsts: VStatefulSetView| #[trigger] pvc_name_match(req.key().name, vsts.metadata.name->0)
+    !exists |vsts_name: StringView| #[trigger] pvc_name_match(req.key().name, vsts_name)
 }
 
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {

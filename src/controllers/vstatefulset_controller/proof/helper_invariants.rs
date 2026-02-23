@@ -45,16 +45,61 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
 
+// stronger version of all_requests_from_builtin_controllers_are_api_delete_requests
+// as guaranteed by rely condition, PVC's owner_references remains None
+pub open spec fn buildin_controllers_do_not_delete_pvcs_owned_by_vsts() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } ==> {
+            let key = msg.content.get_delete_request().key;
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+            &&& !(key.kind == Kind::PersistentVolumeClaimKind && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
+        }
+    }
+}
+
+pub proof fn lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts_name: StringView)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+ensures
+    spec.entails(always(lift_state(buildin_controllers_do_not_delete_pvcs_owned_by_vsts()))),
+{
+    let inv = buildin_controllers_do_not_delete_pvcs_owned_by_vsts();
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s)
+    };
+    assert forall |s, s_prime| inv(s) && #[trigger] cluster.next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| {
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } implies {
+            let key = msg.content.get_delete_request().key;
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+            &&& !(key.kind == Kind::PersistentVolumeClaimKind && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
+        } by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    };
+    init_invariant(spec, cluster.init(), cluster.next(), inv);
+}
+
 // similar to above, but for PVCs
 // rely conditions already prevent other controllers from creating or updating PVCs
 // and VSTS controller's internal guarantee says all pvcs it creates have no owner refs
-pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pvc_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pvc_key)
             &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
-            &&& pvc_key.namespace == vsts.object_ref().namespace
-            &&& pvc_name_match(pvc_key.name, vsts.object_ref().name)
+            &&& exists |vsts_name: StringView| #[trigger] pvc_name_match(pvc_key.name, vsts_name)
         } ==> {
             let pvc_obj = s.resources()[pvc_key];
             &&& pvc_obj.metadata.owner_references is None
@@ -63,7 +108,7 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts: VStatefu
 }
 
 pub proof fn lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(
-    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
     spec.entails(lift_state(cluster.init())),
@@ -73,9 +118,9 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(always(lift_state(all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts)))),
+    spec.entails(always(lift_state(all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()))),
 {
-    let inv = all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts);
+    let inv = all_pvcs_in_etcd_matching_vsts_have_no_owner_ref();
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
@@ -139,8 +184,7 @@ ensures
                                             assert forall |pvc_key: ObjectRef| {
                                                 &&& #[trigger] s_prime.resources().contains_key(pvc_key)
                                                 &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
-                                                &&& pvc_key.namespace == vsts.object_ref().namespace
-                                                &&& pvc_name_match(pvc_key.name, vsts.object_ref().name)
+                                                &&& exists |vsts_name: StringView| #[trigger] pvc_name_match(pvc_key.name, vsts_name)
                                             } implies {
                                                 let pvc_obj = s_prime.resources()[pvc_key];
                                                 &&& pvc_obj.metadata.owner_references is None
@@ -148,7 +192,7 @@ ensures
                                                 if pvc_key != created_obj_key {
                                                     assert(s.resources().contains_key(pvc_key));
                                                 } else {
-                                                    assert(!pvc_name_match(name, vsts.object_ref().name));
+                                                    assert(!exists |vsts_name: StringView| #[trigger] pvc_name_match(name, vsts_name));
                                                     assert(false);
                                                 }
                                             }
@@ -166,20 +210,18 @@ ensures
                                     },
                                     _ => {}
                                 }
-                            } else if cr_key != vsts.object_ref() {
-                                let havoc_vsts = make_vsts();
+                            } else {
+                                let any_vsts = make_vsts();
                                 let vsts_with_key = VStatefulSetView {
                                     metadata: ObjectMetaView {
                                         name: Some(cr_key.name),
                                         namespace: Some(cr_key.namespace),
-                                        ..havoc_vsts.metadata
+                                        ..any_vsts.metadata
                                     },
-                                    ..havoc_vsts
+                                    ..any_vsts
                                 };
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                 assert(s.in_flight().contains(msg)); // trigger
-                            } else {
-                                assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                             }
                         },
                         HostId::BuiltinController => {}, // must be delete requests
