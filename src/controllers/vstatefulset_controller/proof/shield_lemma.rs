@@ -326,6 +326,7 @@ requires
     guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s),
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s_prime),
+    helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> vsts_rely(other_id, cluster.installed_types)(s),
@@ -407,10 +408,6 @@ ensures
                                 assert(false);
                             }
                         }
-                    },
-                    HostId::BuiltinController => {
-                        // We need a GC lemma on preconditions and message types
-                        assume(false);
                     },
                     _ => {},
                 }
