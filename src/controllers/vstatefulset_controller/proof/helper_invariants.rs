@@ -44,6 +44,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
 }
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
+// I want to use Basilisk but they don't support Verus/liveness verification yet
 
 // stronger version of all_requests_from_builtin_controllers_are_api_delete_requests
 // as guaranteed by rely condition, PVC's owner_references remains None
@@ -56,17 +57,20 @@ pub open spec fn buildin_controllers_do_not_delete_pvcs_owned_by_vsts() -> State
             let key = msg.content.get_delete_request().key;
             &&& msg.dst is APIServer
             &&& msg.content.is_delete_request()
-            &&& !(key.kind == Kind::PersistentVolumeClaimKind && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
+            &&& !(key.kind == Kind::PersistentVolumeClaimKind
+                && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
         }
     }
 }
 
-pub proof fn lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts_name: StringView)
+pub proof fn lemma_always_buildin_controllers_do_not_delete_pvcs_owned_by_vsts(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts_name: StringView)
 requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
     spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
     spec.entails(always(lift_state(buildin_controllers_do_not_delete_pvcs_owned_by_vsts()))),
 {
@@ -75,7 +79,13 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s)
     };
-    assert forall |s, s_prime| inv(s) && #[trigger] cluster.next()(s, s_prime) implies inv(s_prime) by {
+    lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(spec, cluster, controller_id);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(all_pvcs_in_etcd_matching_vsts_have_no_owner_ref())
+    );
+    assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg: Message| {
             &&& #[trigger] s_prime.in_flight().contains(msg)
             &&& msg.src is BuiltinController
@@ -83,12 +93,13 @@ ensures
             let key = msg.content.get_delete_request().key;
             &&& msg.dst is APIServer
             &&& msg.content.is_delete_request()
-            &&& !(key.kind == Kind::PersistentVolumeClaimKind && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
+            &&& !(key.kind == Kind::PersistentVolumeClaimKind
+                && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
         } by {
             if s.in_flight().contains(msg) {} else {}
         }
     };
-    init_invariant(spec, cluster.init(), cluster.next(), inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 // similar to above, but for PVCs
