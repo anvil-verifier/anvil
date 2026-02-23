@@ -414,7 +414,6 @@ ensures
             }
         }
     }
-    assume(false);
     assert forall |k: ObjectRef| { // <==
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& k.kind == Kind::PersistentVolumeClaimKind
