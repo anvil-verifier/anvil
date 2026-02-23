@@ -43,7 +43,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
     }
 }
 
-// resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
+// TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
 
 // similar to above, but for PVCs
 // rely conditions already prevent other controllers from creating or updating PVCs
