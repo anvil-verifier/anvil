@@ -24,7 +24,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts() -> StatePred<ClusterState> {
+pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -33,15 +33,27 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts() -> State
             let key = msg.content.get_delete_request().key;
             &&& msg.dst is APIServer
             &&& msg.content.is_delete_request()
-            &&& !(key.kind == Kind::PodKind
-                && exists |vsts_name: StringView| #[trigger] pod_name_match(key.name, vsts_name))
+            &&& !{
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts_key.namespace
+                &&& pod_name_match(key.name, vsts_key.name)
+            }
         }
     }
 }
 
-// pub proof fn lemma_always_buildin_controllers_do_not_delete_ppods_owned_by_vsts(
-//     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts_name: StringView
-// )
+// Note: the post does not include "T~>"
+pub proof fn lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(always(lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())))),
+{}
 
 // name collision prevention invariant, eventually holds
 // In the corner case when one vsts was created and then deleted, just before
