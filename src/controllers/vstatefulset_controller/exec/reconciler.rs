@@ -1003,6 +1003,7 @@ pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result
     labels.insert("statefulset.kubernetes.io/pod-name".to_string(), meta.name().unwrap());
     labels.insert("apps.kubernetes.io/pod-index".to_string(), usize_to_string(ordinal));
     meta.set_labels(labels);
+    meta.set_owner_references(make_owner_references(vsts));
     result.set_metadata(meta);
     result
 }
