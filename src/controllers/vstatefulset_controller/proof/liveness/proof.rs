@@ -26,14 +26,11 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         // The vsts controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
         // No other controllers interfere with the vsts controller.
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))),
+        spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
     ensures
         spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))))),
 {
     spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
-    
-    vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(spec, cluster, controller_id);
     
     assert(spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
 
@@ -109,7 +106,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))),
+            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))),
     ensures
         spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
 {
@@ -322,7 +319,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
         spec.entails(lift_state(cluster.init())),
         spec.entails(next_with_wf(cluster, controller_id)),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id, cluster.installed_types)))),
+            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))),
     ensures
         spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id))
             .entails(stable_spec(cluster, controller_id).and(invariants(vsts, cluster, controller_id))),

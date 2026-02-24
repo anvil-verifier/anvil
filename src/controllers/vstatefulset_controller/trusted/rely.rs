@@ -17,50 +17,38 @@ verus! {
 pub open spec fn vsts_rely_conditions(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> #[trigger] vsts_rely(other_id, cluster.installed_types)(s)
+            ==> #[trigger] vsts_rely(other_id)(s)
     }
 }
 
-pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> StatePred<ClusterState> {
+pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(other_id)
-        } ==> {
-            let resp_msg = transition_by_etcd(installed_types, msg, s.api_server).1;
-            ({ // either the request fails and etcd is not changed
-                &&& resp_msg.content is APIResponse
-                &&& is_ok_resp(resp_msg.content->APIResponse_0)
-            }) ==> match (msg.content->APIRequest_0) { // or it does not mess up VSTS's objects
-                APIRequest::CreateRequest(req) => rely_create_req(req),
-                APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
-                APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
-                APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
-                APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
-                // Get/List/UpdateStatus requests are unconstrained
-                _ => true,
-            }
+        } ==> match (msg.content->APIRequest_0) {
+            APIRequest::CreateRequest(req) => rely_create_req(req),
+            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
+            APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
+            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
+            APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
+            // Get/List/UpdateStatus requests are unconstrained
+            _ => true,
         }
     }
 }
 
-pub open spec fn vsts_rely_conditions_pod_monkey(installed_types: InstalledTypes) -> StatePred<ClusterState> {
+pub open spec fn vsts_rely_conditions_pod_monkey() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.src is PodMonkey
             &&& msg.content is APIRequest
-        } ==> {
-            let resp_msg = transition_by_etcd(installed_types, msg, s.api_server).1;
-            ({ // either the request fails and etcd is not changed
-                &&& resp_msg.content is APIResponse
-                &&& is_ok_resp(resp_msg.content->APIResponse_0)
-            }) ==> match (msg.content->APIRequest_0) { // or it does not mess up VSTS's objects
-                APIRequest::CreateRequest(req) => rely_create_pod_req(req),
-                APIRequest::UpdateRequest(req) => rely_update_pod_req(req)(s),
-                _ => true, // Deletion/UpdateStatus requests are allowed
-            }
+        } ==> match (msg.content->APIRequest_0) {
+            APIRequest::CreateRequest(req) => rely_create_pod_req(req),
+            APIRequest::UpdateRequest(req) => rely_update_pod_req(req)(s),
+            _ => true, // Deletion/UpdateStatus requests are allowed
         }
     }
 }

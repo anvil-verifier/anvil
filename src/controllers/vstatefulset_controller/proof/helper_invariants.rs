@@ -92,7 +92,7 @@ ensures
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s_prime)
-        &&& vsts_rely_conditions(cluster, controller_id)(s)
+        &&& vsts_rely_conditions(cluster, controller_id)(s_prime)
     };
     assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
@@ -100,7 +100,18 @@ ensures
             if !s.in_flight().contains(msg) && resource_create_request_msg(key)(msg) {
                 match msg.src {
                     HostId::Controller(id, cr_key) => {
-                        assume(false);
+                        if id == controller_id {
+                            assume(false);
+                        } else {
+                            let req = msg.content.get_create_request();
+                            if msg.content is APIRequest && req.key() == key && req.obj.metadata.name is Some {
+                                assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                assert(vsts_rely(id)(s_prime));
+                                assert(has_vsts_prefix(req.obj.metadata.name->0));
+                                assert(rely_create_req(req));
+                                assert(false);
+                            }
+                        }
                     },
                     _ => {}
                 }
@@ -109,6 +120,7 @@ ensures
     };
     always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
     always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
+    always_to_always_later(spec, lift_state(vsts_rely_conditions(cluster, controller_id)));
     invariant_n!(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -117,7 +129,7 @@ ensures
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
         later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
         later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
-        lift_state(vsts_rely_conditions(cluster, controller_id))
+        later(lift_state(vsts_rely_conditions(cluster, controller_id)))
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
     temp_pred_equality(
@@ -266,7 +278,7 @@ requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
-    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
@@ -323,7 +335,7 @@ requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
-    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
@@ -334,7 +346,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& vsts_rely_conditions(cluster, controller_id)(s)
-        &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
+        &&& vsts_rely_conditions_pod_monkey()(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
@@ -364,7 +376,7 @@ ensures
                         HostId::Controller(other_id, cr_key) => {
                             if other_id != controller_id {
                                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
-                                assert(vsts_rely(other_id, cluster.installed_types)(s));
+                                assert(vsts_rely(other_id)(s));
                                 match (msg.content->APIRequest_0) {
                                     APIRequest::CreateRequest(req) => {
                                         if req.key().kind == Kind::PersistentVolumeClaimKind {
@@ -449,7 +461,7 @@ ensures
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(vsts_rely_conditions(cluster, controller_id)),
-        lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
+        lift_state(vsts_rely_conditions_pod_monkey()),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),

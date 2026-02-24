@@ -57,7 +57,7 @@ requires
     helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
-        ==> vsts_rely(other_id, cluster.installed_types)(s),
+        ==> vsts_rely(other_id)(s),
     // 2. VSTS internal rely-guarantee across different CRs
     forall |vsts| #[trigger] guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s),
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
@@ -152,7 +152,7 @@ ensures
                         } else { // from other controllers
                             // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vsts_rely
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
                             match msg.content->APIRequest_0 {
                                 APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {},
                                 APIRequest::GetThenDeleteRequest(req) => {
@@ -243,7 +243,7 @@ ensures
                             } // or else, namespace is different, so should not be touched at all
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
                                     if req.obj.kind == Kind::PodKind && !s.resources().contains_key(k) {
@@ -264,7 +264,7 @@ ensures
                                 APIRequest::GetThenUpdateRequest(req) => {
                                     if s.resources().contains_key(k) && req.key() == k {
                                         assert(cluster.controller_models.contains_key(id));
-                                        assert(vsts_rely(id, cluster.installed_types)(s));
+                                        assert(vsts_rely(id)(s));
                                         let old_obj = s.resources()[k];
                                         if req.key() == k && !old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
                                             assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
@@ -324,7 +324,7 @@ requires
     helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
-        ==> vsts_rely(other_id, cluster.installed_types)(s),
+        ==> vsts_rely(other_id)(s),
     // 2. VSTS internal rely-guarantee across different CRs
     forall |other_vsts| guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s),
     // 3. rely conditions for builtin/external controllers
@@ -397,7 +397,7 @@ ensures
                             assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                         } else { // from other controllers
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
                             if resource_delete_request_msg(k)(msg) || resource_update_request_msg(k)(msg) {
                                 assert(pvc_name_match(k.name, vsts.metadata.name->0));
                                 assert(false);
@@ -461,7 +461,7 @@ ensures
                             assert(post);
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                            assert(vsts_rely(id, cluster.installed_types)(s)); // trigger vsts_rely_condition
+                            assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
                             if resource_update_request_msg(k)(msg) {
                                 assert(pvc_name_match(k.name, vsts.metadata.name->0));
                                 assert(false);
