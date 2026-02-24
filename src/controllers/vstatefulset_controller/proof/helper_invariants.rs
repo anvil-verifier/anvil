@@ -136,12 +136,23 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
     }
 }
 
+open spec fn vsts_pods_only_has_owner_reference_pointing_to_current_cr() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pod_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pod_key)
+            &&& pod_key.kind == Kind::PodKind
+            &&& has_vsts_prefix(pod_key.name)
+        } ==> exists |vsts: VStatefulSetView| {
+            let obj = s.resources()[pod_key];
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+        }
+    }
+}
+
 // same as owner_references_contains
 open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
-    |owner_references: Option<Seq<OwnerReferenceView>>| {
-        &&& owner_reference is Some
-        &&& owner_references->0.contains(vsts.controller_owner_ref())
-    }
+    |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
@@ -154,6 +165,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
     spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
@@ -161,7 +174,7 @@ requires
     key.namespace == vsts.object_ref().namespace,
     pod_name_match(key.name, vsts.object_ref().name),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(Clkuster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))))),
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))))),
 {}
 
 // stronger version of all_requests_from_builtin_controllers_are_api_delete_requests
