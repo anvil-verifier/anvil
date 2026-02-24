@@ -136,7 +136,8 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
     }
 }
 
-open spec fn vsts_pods_only_has_owner_reference_pointing_to_current_cr() -> StatePred<ClusterState> {
+// only contains one owner_ref, so GC can delete it when the vsts is deleted
+pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pod_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pod_key)
@@ -151,7 +152,7 @@ open spec fn vsts_pods_only_has_owner_reference_pointing_to_current_cr() -> Stat
 }
 
 // same as owner_references_contains
-open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
+pub open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
     |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
