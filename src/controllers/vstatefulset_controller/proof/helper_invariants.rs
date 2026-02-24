@@ -24,6 +24,84 @@ use vstd::prelude::*;
 
 verus! {
 
+// name collision prevention invariant, eventually holds
+// In the corner case when one vsts was created and then deleted, just before
+// another vsts with the same name comes, GC will delete pods owned by the previous vsts
+pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pod_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pod_key)
+            &&& pod_key.kind == Kind::PodKind
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
+        } ==> {
+            let obj = s.resources()[pod_key];
+            &&& obj.metadata.deletion_timestamp is None
+            &&& obj.metadata.finalizers is None
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        }
+    }
+}
+
+// only contains one owner_ref, so GC can delete it when the vsts is deleted
+pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pod_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pod_key)
+            &&& pod_key.kind == Kind::PodKind
+            &&& has_vsts_prefix(pod_key.name)
+        } ==> exists |vsts: VStatefulSetView| {
+            let obj = s.resources()[pod_key];
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+        }
+    }
+}
+
+// same as owner_references_contains
+pub open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
+    |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
+}
+
+// TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
+// I want to use Basilisk but they don't support Verus/liveness verification yet
+#[verifier(external_body)]
+proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    key.kind == Kind::PodKind,
+    key.namespace == vsts.object_ref().namespace,
+    pod_name_match(key.name, vsts.object_ref().name),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))))),
+{}
+
+// stronger version of all_requests_from_builtin_controllers_are_api_delete_requests
+// as guaranteed by rely condition, PVC's owner_references remains None
+pub open spec fn buildin_controllers_do_not_delete_pvcs_owned_by_vsts() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } ==> {
+            let key = msg.content.get_delete_request().key;
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+            &&& !(key.kind == Kind::PersistentVolumeClaimKind
+                && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
+        }
+    }
+}
+
 pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
@@ -115,84 +193,6 @@ ensures
         lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
-}
-
-// name collision prevention invariant, eventually holds
-// In the corner case when one vsts was created and then deleted, just before
-// another vsts with the same name comes, GC will delete pods owned by the previous vsts
-pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |pod_key: ObjectRef| {
-            &&& #[trigger] s.resources().contains_key(pod_key)
-            &&& pod_key.kind == Kind::PodKind
-            &&& pod_key.namespace == vsts.object_ref().namespace
-            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
-        } ==> {
-            let obj = s.resources()[pod_key];
-            &&& obj.metadata.deletion_timestamp is None
-            &&& obj.metadata.finalizers is None
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-        }
-    }
-}
-
-// only contains one owner_ref, so GC can delete it when the vsts is deleted
-pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |pod_key: ObjectRef| {
-            &&& #[trigger] s.resources().contains_key(pod_key)
-            &&& pod_key.kind == Kind::PodKind
-            &&& has_vsts_prefix(pod_key.name)
-        } ==> exists |vsts: VStatefulSetView| {
-            let obj = s.resources()[pod_key];
-            &&& pod_key.namespace == vsts.object_ref().namespace
-            &&& obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
-        }
-    }
-}
-
-// same as owner_references_contains
-pub open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
-    |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
-}
-
-// TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
-// I want to use Basilisk but they don't support Verus/liveness verification yet
-#[verifier(external_body)]
-proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
-    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
-)
-requires
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    key.kind == Kind::PodKind,
-    key.namespace == vsts.object_ref().namespace,
-    pod_name_match(key.name, vsts.object_ref().name),
-ensures
-    spec.entails(true_pred().leads_to(always(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))))),
-{}
-
-// stronger version of all_requests_from_builtin_controllers_are_api_delete_requests
-// as guaranteed by rely condition, PVC's owner_references remains None
-pub open spec fn buildin_controllers_do_not_delete_pvcs_owned_by_vsts() -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src is BuiltinController
-        } ==> {
-            let key = msg.content.get_delete_request().key;
-            &&& msg.dst is APIServer
-            &&& msg.content.is_delete_request()
-            &&& !(key.kind == Kind::PersistentVolumeClaimKind
-                && exists |vsts_name: StringView| pvc_name_match(key.name, vsts_name))
-        }
-    }
 }
 
 pub proof fn lemma_always_buildin_controllers_do_not_delete_pvcs_owned_by_vsts(
