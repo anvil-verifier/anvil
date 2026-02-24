@@ -53,7 +53,7 @@ pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterSt
         } ==> exists |vsts: VStatefulSetView| {
             let obj = s.resources()[pod_key];
             &&& pod_key.namespace == vsts.object_ref().namespace
-            &&& obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
+            &&& obj.metadata.owner_references == Some(seq![#[trigger] vsts.controller_owner_ref()])
         }
     }
 }
@@ -62,6 +62,54 @@ pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterSt
 pub open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
     |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
 }
+
+pub proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    key.kind == Kind::PodKind,
+    key.namespace == vsts.object_ref().namespace,
+    pod_name_match(key.name, vsts.object_ref().name),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts)))))),
+{
+    let requirements = |msg: Message, s: ClusterState|
+        resource_create_request_msg(key)(msg) ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& vsts_rely_conditions(cluster, controller_id)(s)
+    };
+    assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies requirements(msg, s_prime) by {
+            if !s.in_flight().contains(msg) && resource_create_request_msg(key)(msg) {
+                assume(false);
+            }
+        }
+    };
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(vsts_rely_conditions(cluster, controller_id))
+    );
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+}
+
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
 // I want to use Basilisk but they don't support Verus/liveness verification yet
