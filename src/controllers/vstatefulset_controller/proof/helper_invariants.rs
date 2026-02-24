@@ -63,12 +63,15 @@ pub open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(
     |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
-pub proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as(
+proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
 )
 requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
     spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
     spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
@@ -86,21 +89,34 @@ ensures
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s_prime)
         &&& vsts_rely_conditions(cluster, controller_id)(s)
     };
     assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
-        implies requirements(msg, s_prime) by {
+            implies requirements(msg, s_prime) by {
             if !s.in_flight().contains(msg) && resource_create_request_msg(key)(msg) {
-                assume(false);
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        assume(false);
+                    },
+                    _ => {}
+                }
             }
         }
     };
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
+    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
     invariant_n!(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(cluster.next()),
         lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
+        later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
         lift_state(vsts_rely_conditions(cluster, controller_id))
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
