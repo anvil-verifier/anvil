@@ -107,8 +107,6 @@ ensures
                             if msg.content is APIRequest && req.key() == key && req.obj.metadata.name is Some {
                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
                                 assert(vsts_rely(id)(s_prime));
-                                assert(has_vsts_prefix(req.obj.metadata.name->0));
-                                assert(rely_create_req(req));
                                 assert(false);
                             }
                         }

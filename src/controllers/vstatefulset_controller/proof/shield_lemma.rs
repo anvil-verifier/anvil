@@ -247,7 +247,7 @@ ensures
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
                                     if req.obj.kind == Kind::PodKind && !s.resources().contains_key(k) {
-                                        assert(vsts_rely(msg.src->Controller_0, cluster.installed_types)(s));
+                                        assert(vsts_rely(msg.src->Controller_0)(s));
                                         // req succeed
                                         let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
                                         if resp.res is Ok {
