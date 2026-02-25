@@ -4,10 +4,10 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
+use crate::rabbitmq_controller::model::reconciler::RabbitmqMaker;
 use crate::rabbitmq_controller::trusted::{maker::*, spec_types::*, step::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::int_to_string_view;
-use crate::rabbitmq_controller::model::reconciler::RabbitmqMaker;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::vstatefulset_controller::trusted::liveness_theorem as vsts_liveness_theorem;
 
@@ -34,6 +34,7 @@ pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClu
             ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))),
     ensures
         spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)),
+        exists |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv)
 {
     assume(false);
 }
@@ -52,7 +53,7 @@ pub open spec fn rmq_eventually_stable_reconciliation_per_cr(rmq: RabbitmqCluste
 
 pub open spec fn current_state_matches<M: Maker>(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s)
+        &&& forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s)
     }
 }
 
@@ -168,15 +169,30 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let cm_obj = resources[cm_key];
             let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
             // hack 
-            let desired_sts = M::make_stateful_set(rabbitmq, int_to_string_view(0));
             &&& resources.contains_key(key)
             &&& resources.contains_key(cm_key)
             &&& cm_obj.metadata.resource_version is Some
             &&& VStatefulSetView::unmarshal(obj) is Ok
             &&& obj.metadata.labels == made_sts.metadata.labels
             &&& obj.metadata.annotations == made_sts.metadata.annotations
-            &&& Cluster::desired_state_is(desired_sts)(state)
+            &&& Cluster::desired_state_is(made_sts)(state)
         },
+    }
+}
+
+pub open spec fn rmq_eventually_stable_cm_rv(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rv: ResourceVersion) -> bool {
+    spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(
+        always(lift_state(config_map_rv_match::<RabbitmqMaker>(rabbitmq, rv)))
+    ))
+}
+
+pub open spec fn config_map_rv_match<M: Maker>(rabbitmq: RabbitmqClusterView, rv: ResourceVersion) -> StatePred<ClusterState> {
+    |state: ClusterState| {
+        let key = M::make_server_config_map_key(rabbitmq);
+        let resources = state.resources();
+        let obj = resources[key];
+        &&& obj.metadata.resource_version is Some
+        &&& obj.metadata.resource_version->0 == rv
     }
 }
 
@@ -185,7 +201,7 @@ pub open spec fn composed_vsts_match<M: Maker>(rabbitmq: RabbitmqClusterView) ->
         let resources = s.resources();
         let cm_key = M::make_server_config_map_key(rabbitmq);
         let cm_obj = resources[cm_key];
-        let desired_sts = M::make_stateful_set(rabbitmq, int_to_string_view(0));   
+        let desired_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));   
         vsts_liveness_theorem::current_state_matches(desired_sts)(s)
     }
 }

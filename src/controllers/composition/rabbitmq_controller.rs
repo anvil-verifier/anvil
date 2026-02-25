@@ -75,11 +75,15 @@ impl VerticalComposition for RabbitmqReconciler {
         }
 
         assert forall |rmq: RabbitmqClusterView| spec.entails(always(lift_state(#[trigger] Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq))))) by {
-            assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq))) by {
-                rmq_esr_holds_per_cr(spec, rmq, cluster, Self::id());
-            }
+            rmq_esr_holds_per_cr(spec, rmq, cluster, Self::id());
+            assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)));
 
-            let desired_sts = make_stateful_set(rmq, int_to_string_view(0));
+            let rv = choose |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv);
+            assert(rmq_eventually_stable_cm_rv(spec, rmq, rv));
+            
+            
+
+            let desired_sts = make_stateful_set(rmq, int_to_string_view(rv));
             assert(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).entails(lift_state(Cluster::desired_state_is(desired_sts)))) by {
                 assert forall |ex: Execution<ClusterState>| lift_state(current_state_matches::<RabbitmqMaker>(rmq)).satisfied_by(ex) implies lift_state(Cluster::desired_state_is(desired_sts)).satisfied_by(ex) by {
                     let s = ex.head();
