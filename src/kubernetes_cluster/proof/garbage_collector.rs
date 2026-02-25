@@ -61,7 +61,7 @@ pub open spec fn every_create_msg_with_generate_name_matching_key_set_owner_refe
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message|
-            s.in_flight().contains(msg)
+            s.in_flight().contains(msg) && msg.dst is APIServer && msg.content is APIRequest
                 ==> #[trigger] resource_create_request_msg_without_name(key.kind, key.namespace)(msg)
                     ==> generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name
                         ==> requirements(msg.content.get_create_request().obj.metadata.owner_references)

@@ -112,6 +112,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
 pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VStatefulSetView) -> bool {
     &&& req.namespace == vsts.object_ref().namespace
     &&& req.obj.metadata.name is Some
+    &&& req.obj.metadata.generate_name is None
     &&& req.obj.metadata.finalizers is None
     &&& req.obj.kind == Kind::PodKind ==> {
         &&& exists |owner_reference: OwnerReferenceView| {
