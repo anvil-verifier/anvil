@@ -29,6 +29,7 @@ pub open spec fn rmq_rely(other_id: int) -> StatePred<ClusterState> {
                 APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req)(s),
                 APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
                 APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req)(s),
+                APIRequest::UpdateStatusRequest(req) => rely_update_status_req(req)(s),
                 // Get/List requests do not interfere
                 _ => true,
             }
@@ -86,6 +87,12 @@ pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> 
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         is_rmq_managed_kind(req.key.kind) ==> !has_rabbitmq_prefix(req.key().name)
+    }
+}
+
+pub open spec fn rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        is_rmq_managed_kind(req.obj.kind) ==> !has_rabbitmq_prefix(req.key().name)
     }
 }
 

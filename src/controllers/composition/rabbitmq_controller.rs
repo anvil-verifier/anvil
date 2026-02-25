@@ -80,27 +80,39 @@ impl VerticalComposition for RabbitmqReconciler {
 
             let rv = choose |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv);
             assert(rmq_eventually_stable_cm_rv(spec, rmq, rv));
-            
-            
 
             let desired_sts = make_stateful_set(rmq, int_to_string_view(rv));
-            assert(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).entails(lift_state(Cluster::desired_state_is(desired_sts)))) by {
-                assert forall |ex: Execution<ClusterState>| lift_state(current_state_matches::<RabbitmqMaker>(rmq)).satisfied_by(ex) implies lift_state(Cluster::desired_state_is(desired_sts)).satisfied_by(ex) by {
+
+            leads_to_always_combine(
+                spec,
+                always(lift_state(Cluster::desired_state_is(rmq))),
+                lift_state(current_state_matches::<RabbitmqMaker>(rmq)),
+                lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))
+            );
+
+            assert(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).entails(lift_state(Cluster::desired_state_is(desired_sts)))) by {
+                assert forall |ex: Execution<ClusterState>|
+                    lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).satisfied_by(ex)
+                    implies #[trigger] lift_state(Cluster::desired_state_is(desired_sts)).satisfied_by(ex) by {
                     let s = ex.head();
                     assert(resource_state_matches::<RabbitmqMaker>(SubResource::StatefulSet, rmq, s));
+                    assert(config_map_rv_match::<RabbitmqMaker>(rmq, rv)(s));
                 };
             };
 
             entails_preserved_by_always(
-                lift_state(current_state_matches::<RabbitmqMaker>(rmq)),
+                lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))),
                 lift_state(Cluster::desired_state_is(desired_sts))
             );
-            entails_implies_leads_to(spec, always(lift_state(current_state_matches::<RabbitmqMaker>(rmq))), always(lift_state(Cluster::desired_state_is(desired_sts))));
-
+            entails_implies_leads_to(
+                spec,
+                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv)))),
+                always(lift_state(Cluster::desired_state_is(desired_sts)))
+            );
             leads_to_trans(
                 spec,
                 always(lift_state(Cluster::desired_state_is(rmq))),
-                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq))),
+                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv)))),
                 always(lift_state(Cluster::desired_state_is(desired_sts)))
             );
 
@@ -108,7 +120,6 @@ impl VerticalComposition for RabbitmqReconciler {
             assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vsts)));
             assert(spec.entails(tla_forall(|vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches_vsts(vsts)))))));
             use_tla_forall(spec, |vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches_vsts(vsts)))), desired_sts);
-            assert(spec.entails(always(lift_state(Cluster::desired_state_is(desired_sts))).leads_to(always(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))))));
 
             leads_to_trans(
                 spec,
@@ -120,34 +131,41 @@ impl VerticalComposition for RabbitmqReconciler {
             leads_to_always_combine(
                 spec,
                 always(lift_state(Cluster::desired_state_is(rmq))),
-                lift_state(current_state_matches::<RabbitmqMaker>(rmq)),
+                lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))),
                 lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))
             );
 
-            assert(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))).entails(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)))) by {
+            assert(
+                lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))
+                .entails(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)))
+            ) by {
                 assert forall |ex: Execution<ClusterState>|
-                    lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))).satisfied_by(ex)
+                    lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))).satisfied_by(ex)
                     implies #[trigger] lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)).satisfied_by(ex) by {
+                    let s = ex.head();
+                    assert(config_map_rv_match::<RabbitmqMaker>(rmq, rv)(s));
+                    assert(composed_vsts_match::<RabbitmqMaker>(rmq)(s));
                 };
             };
+
             entails_preserved_by_always(
-                lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))),
+                lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))),
                 lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq))
             );
             entails_implies_leads_to(
                 spec,
-                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))),
+                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))),
                 always(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)))
             );
             leads_to_trans(
                 spec,
                 always(lift_state(Cluster::desired_state_is(rmq))),
-                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))),
+                always(lift_state(current_state_matches::<RabbitmqMaker>(rmq)).and(lift_state(config_map_rv_match::<RabbitmqMaker>(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))),
                 always(lift_state(composed_current_state_matches::<RabbitmqMaker>(rmq)))
             );
         }
-        let composed_csm = |rmq: RabbitmqClusterView| composed_current_state_matches::<RabbitmqMaker>(rmq);
-        spec_entails_tla_forall(spec, |rmq: RabbitmqClusterView| always(lift_state(Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_csm(rmq)))));
+        let composed_current_state_matches = |rmq: RabbitmqClusterView| composed_current_state_matches::<RabbitmqMaker>(rmq);
+        spec_entails_tla_forall(spec, |rmq: RabbitmqClusterView| always(lift_state(Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_current_state_matches(rmq)))));
         assert(spec.entails(rmq_composed_eventually_stable_reconciliation()));
     }
 
