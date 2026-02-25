@@ -292,18 +292,6 @@ ensures
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id)(s_prime));
-                            if resource_get_then_update_request_msg(key)(msg) {
-                                let req = msg.content.get_get_then_update_request();
-                                assert(has_vsts_prefix(req.key().name));
-                                assert(rely_get_then_update_req(req));
-                                assert(false);
-                            }
-                            if resource_update_request_msg(key)(msg) {
-                                let req = msg.content.get_update_request();
-                                assert(has_vsts_prefix(req.key().name));
-                                assert(rely_update_req(req));
-                                assert(false);
-                            }
                         }
                     },
                     _ => {}
