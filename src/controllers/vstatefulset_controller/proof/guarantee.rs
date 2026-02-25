@@ -25,11 +25,12 @@ pub open spec fn vsts_guarantee(controller_id: int) -> StatePred<ClusterState> {
             &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(controller_id)
         } ==> match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
             APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
             APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
             APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
             // No Update, UpdateStatus and Delete requests submitted
-            _ => true,
+            _ => false,
         }
     }
 }
@@ -394,6 +395,8 @@ pub proof fn lemma_guarantee_from_reconcile_state(
     }
 }
 
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -437,73 +440,33 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        VStatefulSetView::marshal_preserves_integrity();
-        VStatefulSetReconcileState::marshal_preserves_integrity();
-        PodView::marshal_preserves_integrity();
-        PersistentVolumeClaimView::marshal_preserves_integrity();
-
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(req_msg_opt) => {
-                let req_msg = req_msg_opt.unwrap();
-
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-                    _ => true,
-                } by {
+        assert forall |msg| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+        } implies match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
+            APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+            APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+            APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+            _ => false,
+        } by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            match step {
+                Step::ControllerStep((id, _, cr_key_opt)) => {
+                    let cr_key = cr_key_opt->0;
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-                }
-            }
-            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
-                let cr_key = cr_key_opt->0;
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-                    _ => true,
-                } by {
-                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-
-                    if id == controller_id {
-                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        if new_msgs.contains(msg) {
-                            let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                            let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                            assert(reconcile_core(vsts, None, state).1 is Some);
-                            assert(reconcile_core(vsts, None, state).1->0 is KRequest);
-                            assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
-                            lemma_guarantee_from_reconcile_state(msg, state, vsts);
-                        }
+                    if id == controller_id && new_msgs.contains(msg) {
+                        let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                        let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                        assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
+                        lemma_guarantee_from_reconcile_state(msg, state, vsts);
                     }
-                }
-            }
-            _ => {
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-                    _ => true,
-                } by {
+                },
+                _ => {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
                 }
             }
