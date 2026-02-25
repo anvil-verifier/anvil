@@ -2,7 +2,8 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::InstalledTypes}, 
     cluster::*, 
-    message::*
+    message::*,
+    controller::types::ControllerStep,
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
@@ -62,6 +63,87 @@ pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterSt
 pub open spec fn owner_reference_requirements(vsts: VStatefulSetView) ->spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
     |owner_references: Option<Seq<OwnerReferenceView>>| owner_references == Some(seq![vsts.controller_owner_ref()])
 }
+
+pub open spec fn all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts: VStatefulSetView, controller_id: int) -> spec_fn(Message, ClusterState) -> bool {
+    |msg: Message, s: ClusterState| {
+        msg.src == HostId::Controller(controller_id, vsts.object_ref()) ==> match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) =>
+                req.obj.kind == Kind::PodKind ==> req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]),
+            APIRequest::GetThenUpdateRequest(req) =>
+                req.obj.kind == Kind::PodKind && req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]),
+            APIRequest::GetThenDeleteRequest(_) => true,
+            _ => false,
+        }
+    }
+}
+
+#[verifier(rlimit(100))]
+proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))))),
+{
+    let requirements = all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s)
+    };
+    assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+            implies requirements(msg, s_prime) by {
+            if !s.in_flight().contains(msg) && msg.src == HostId::Controller(controller_id, vsts.object_ref()) {
+                let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
+                VStatefulSetView::marshal_preserves_integrity();
+                PodView::marshal_preserves_metadata();
+                assert(triggering_cr.controller_owner_ref() == vsts.controller_owner_ref());
+                match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => {
+                        if req.obj.kind == Kind::PodKind {
+                            assert(exists |ord: nat| req.obj == #[trigger] make_pod(triggering_cr, ord).marshal());
+                            let ord = choose |ord: nat| req.obj == #[trigger] make_pod(triggering_cr, ord).marshal();
+                            assert(make_pod(triggering_cr, ord).metadata.owner_references == Some(seq![triggering_cr.controller_owner_ref()]));
+                        }
+                    },
+                    APIRequest::GetThenUpdateRequest(req) => {
+                        assume(false);
+                        if req.obj.kind == Kind::PodKind {
+                            assert(req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+                        }
+                    },
+                    _ => {
+                        assume(false);
+                    }
+                }
+            }
+        }
+    };
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts))
+    );
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))
+    );
+}
+
 
 proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
@@ -570,6 +652,145 @@ pub open spec fn vsts_in_reconciles_has_no_deletion_timestamp(vsts: VStatefulSet
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
         &&& s.scheduled_reconciles(controller_id)[vsts.object_ref()].metadata.deletion_timestamp is None
         &&& VStatefulSetView::unmarshal(s.scheduled_reconciles(controller_id)[vsts.object_ref()]).unwrap().metadata().deletion_timestamp is None
+    }
+}
+
+pub open spec fn vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(
+    vsts: VStatefulSetView, controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+        let scheduled_cr = VStatefulSetView::unmarshal(s.scheduled_reconciles(controller_id)[vsts.object_ref()]).unwrap();
+        &&& vsts.metadata.name is Some
+        &&& vsts.metadata.namespace is Some
+        &&& scheduled_cr.metadata.name->0 == vsts.metadata.name->0
+        &&& scheduled_cr.metadata.namespace->0 == vsts.metadata.namespace->0
+    }
+}
+
+pub open spec fn vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(
+    vsts: VStatefulSetView, controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+        let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
+        &&& vsts.metadata.name is Some
+        &&& vsts.metadata.namespace is Some
+        &&& triggering_cr.metadata.name->0 == vsts.metadata.name->0
+        &&& triggering_cr.metadata.namespace->0 == vsts.metadata.namespace->0
+    }
+}
+
+pub proof fn lemma_eventually_always_vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))),
+{
+    let p = |s| Cluster::desired_state_is(vsts)(s);
+    let q = vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::desired_state_is(vsts)(s_prime)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+    };
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::desired_state_is(vsts)),
+        later(lift_state(Cluster::desired_state_is(vsts))),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
+    );
+    cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vsts.object_ref(), stronger_next, p, q);
+    temp_pred_equality(true_pred().and(lift_state(Cluster::desired_state_is(vsts))), lift_state(p));
+    leads_to_by_borrowing_inv(spec, true_pred(), lift_state(q), lift_state(Cluster::desired_state_is(vsts)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
+}
+
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_eventually_always_vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)))),
+    spec.entails(true_pred().leads_to(lift_state(Cluster::reconcile_idle(controller_id, vsts.object_ref())))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))),
+{
+    let not_scheduled_or_reconcile = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+        &&& !s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
+    };
+    let scheduled_and_not_reconcile = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
+    };
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
+    assert(spec.entails(lift_state(not_scheduled_or_reconcile).leads_to(lift_state(scheduled_and_not_reconcile)))) by {
+        let (pre, post) = (not_scheduled_or_reconcile, scheduled_and_not_reconcile);
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime)
+            &&& Cluster::desired_state_is(vsts)(s)
+            &&& Cluster::desired_state_is(vsts)(s_prime)
+            &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        };
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(Cluster::desired_state_is(vsts)),
+            later(lift_state(Cluster::desired_state_is(vsts))),
+            lift_state(Cluster::there_is_the_controller_state(controller_id))
+        );
+        let stronger_pre = and!(pre, Cluster::desired_state_is(vsts));
+        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vsts.object_ref(), stronger_next, stronger_pre, post);
+        temp_pred_equality(lift_state(pre).and(lift_state(Cluster::desired_state_is(vsts))), lift_state(stronger_pre));
+        leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(Cluster::desired_state_is(vsts)));
+    }
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    assert(spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))) by {
+        let pre = scheduled_and_not_reconcile;
+        let post = vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id);
+        assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, None, Some(vsts.object_ref())))(s, s_prime) ==> post(s_prime));
+        cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (None, Some(vsts.object_ref())), stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
+    }
+    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)));
+    assert(spec.entails(true_pred().leads_to(always(lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)))))) by {
+        let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()); // Cluster::reconcile_idle
+        or_leads_to_combine_and_equality!(
+            spec, lift_state(reconcile_idle),
+            lift_state(scheduled_and_not_reconcile), lift_state(not_scheduled_or_reconcile);
+            lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
+        );
+        leads_to_trans(spec, true_pred(), lift_state(reconcile_idle), lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)));
+        leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)));
     }
 }
 
