@@ -139,8 +139,8 @@ pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool
 }
 
 // Helper spec to check if a pod name matches a vsts naming pattern
-pub open spec fn pod_name_match(compared_pod_name: StringView, parent_name: StringView) -> bool {
-    exists |ord: nat| compared_pod_name == pod_name(parent_name, ord)
+pub open spec fn pod_name_match(name: StringView, vsts_name: StringView) -> bool {
+    exists |ord: nat| name == pod_name(vsts_name, ord)
 }
 
 // usage: at_step![step_or_pred]

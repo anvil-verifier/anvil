@@ -248,6 +248,7 @@ requires
 ensures
     spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_update_msg_sets_owner_references_as(key, owner_reference_requirements(vsts)))))),
 {
+    assert(has_vsts_prefix(key.name));
     let requirements = |msg: Message, s: ClusterState| {
         &&& resource_update_request_msg(key)(msg) ==> false // no update request is sent
         &&& resource_get_then_update_request_msg(key)(msg) ==> owner_reference_requirements(vsts)(msg.content.get_get_then_update_request().obj.metadata.owner_references)
@@ -265,7 +266,7 @@ ensures
     assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
             implies requirements(msg, s_prime) by {
-            if !s.in_flight().contains(msg) && resource_get_then_update_request_msg(key)(msg) {
+            if !s.in_flight().contains(msg) {
                 match msg.src {
                     HostId::Controller(id, cr_key) => {
                         if id == controller_id {
@@ -291,7 +292,18 @@ ensures
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id)(s_prime));
-                            assert(false);
+                            if resource_get_then_update_request_msg(key)(msg) {
+                                let req = msg.content.get_get_then_update_request();
+                                assert(has_vsts_prefix(req.key().name));
+                                assert(rely_get_then_update_req(req));
+                                assert(false);
+                            }
+                            if resource_update_request_msg(key)(msg) {
+                                let req = msg.content.get_update_request();
+                                assert(has_vsts_prefix(req.key().name));
+                                assert(rely_update_req(req));
+                                assert(false);
+                            }
                         }
                     },
                     _ => {}
@@ -573,7 +585,7 @@ ensures
                                 match (msg.content->APIRequest_0) {
                                     APIRequest::CreateRequest(req) => {
                                         if req.key().kind == Kind::PersistentVolumeClaimKind {
-                                            assert(rely_create_pvc_req(req));
+                                            assert(rely_create_req(req));
                                             let name = if req.obj.metadata.name is Some {
                                                 req.obj.metadata.name->0
                                             } else {
@@ -614,12 +626,12 @@ ensures
                                     },
                                     APIRequest::UpdateRequest(req) => {
                                         if req.key().kind == Kind::PersistentVolumeClaimKind {
-                                            assert(rely_update_pvc_req(req));
+                                            assert(rely_update_req(req));
                                         }
                                     },
                                     APIRequest::DeleteRequest(req) => {
                                         if req.key.kind == Kind::PersistentVolumeClaimKind {
-                                            assert(rely_delete_pvc_req(req));
+                                            assert(rely_delete_req(req));
                                         }
                                     },
                                     _ => {}
