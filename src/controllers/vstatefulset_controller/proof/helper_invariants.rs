@@ -159,20 +159,6 @@ ensures
                                                         no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
                                                     }
                                                 }
-                                                let created_obj_key = ObjectRef {
-                                                    kind: Kind::PodKind,
-                                                    namespace: req.namespace,
-                                                    name: name,
-                                                };
-                                                assert(s_prime.resources().contains_key(created_obj_key));
-                                                // no_vsts_prefix_implies_no_pod_name_match(name);
-                                                if pod_key != created_obj_key {
-                                                    assert(s.resources().contains_key(pod_key));
-                                                    assert(s_prime.resources()[pod_key] == s.resources()[pod_key]);
-                                                } else {
-                                                    assert(!pod_name_match(name, vsts.object_ref().name));
-                                                    assert(false);
-                                                }
                                             }
                                         },
                                         _ => {}
@@ -189,18 +175,7 @@ ensures
                                     assert(vsts_with_key.object_ref() == cr_key);
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                     assert(s.in_flight().contains(msg)); // trigger
-                                    if msg.content.is_get_then_update_request() {
-                                        let req = msg.content.get_get_then_update_request();
-                                        assert(guarantee::vsts_internal_guarantee_get_then_update_req(req, vsts_with_key));
-                                        if req.key() == pod_key {
-                                            if cr_key.namespace == vsts.object_ref().namespace {
-                                                assert(cr_key.name != vsts.object_ref().name);
-                                                assert(pod_name_match(req.obj.metadata.name->0, cr_key.name));
-                                                vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, cr_key.name, vsts.object_ref().name);
-                                                assert(req.key() != pod_key);
-                                            }
-                                        }
-                                    } else if msg.content.is_create_request() {
+                                    if msg.content.is_create_request() {
                                         let req = msg.content.get_create_request();
                                         assert(guarantee::vsts_internal_guarantee_create_req(req, vsts_with_key));
                                         if req.key() == pod_key {
@@ -213,63 +188,7 @@ ensures
                                         }
                                     }
                                 } else {
-                                    assume(false);
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
-                                    if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
-                                        let obj = s.resources()[pod_key];
-                                        let req = msg.content.get_get_then_update_request();
-                                        if req.key() == pod_key {
-                                            if !obj.metadata.owner_references_contains(req.owner_ref) {
-                                                assert(false);
-                                            }
-                                            if req.owner_ref != obj.metadata.owner_references->0[0] {
-                                                lemma_singleton_contains_at_most_one_element(
-                                                    obj.metadata.owner_references->0.filter(controller_owner_filter()),
-                                                    req.owner_ref,
-                                                    obj.metadata.owner_references->0[0]
-                                                );
-                                            }
-                                            let obj_prime = s_prime.resources()[pod_key];
-                                            assert(guarantee::vsts_internal_guarantee_get_then_update_req(req, vsts));
-                                            assert(obj_prime.metadata.owner_references_contains(req.owner_ref)) by {
-                                                let singleton = Seq::empty().push(req.owner_ref);
-                                                assert(singleton.contains(req.owner_ref)) by {
-                                                    assert(singleton[0] == req.owner_ref);
-                                                }
-                                                seq_filter_contains_implies_seq_contains(
-                                                    req.obj.metadata.owner_references->0, controller_owner_filter(), req.owner_ref
-                                                );
-                                            }
-                                        } else {}
-                                    } else if !s.resources().contains_key(pod_key) && msg.content.is_create_request() {
-                                        let req = msg.content.get_create_request();
-                                        if req.key() == pod_key {
-                                            assert(guarantee::vsts_internal_guarantee_create_req(req, vsts));
-                                            let owner_reference = choose |owner_reference: OwnerReferenceView| {
-                                                &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
-                                                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
-                                            } ;
-                                            let new_vsts = VStatefulSetView {
-                                                metadata: ObjectMetaView {
-                                                    name: vsts.metadata.name,
-                                                    namespace: vsts.metadata.namespace,
-                                                    uid: Some(owner_reference.uid),
-                                                    ..vsts.metadata
-                                                },
-                                                ..vsts
-                                            };
-                                            assert(new_vsts.controller_owner_ref() == owner_reference);
-                                            assert(req.obj.metadata.owner_references_contains(new_vsts.controller_owner_ref())) by {
-                                                assert(req.obj.metadata.owner_references->0[0] == new_vsts.controller_owner_ref());
-                                            }
-                                            let obj_prime = s_prime.resources()[pod_key];
-                                            assert(obj_prime.metadata.owner_references == req.obj.metadata.owner_references) by {
-                                                assert(obj_prime.metadata.owner_references is Some);
-                                                assert(obj_prime.metadata.owner_references->0.len() == 1);
-                                                assert(obj_prime.metadata.owner_references->0[0] == new_vsts.controller_owner_ref());
-                                            }
-                                        }
-                                    } // GetThenDeleteRequest is trivial to proof
                                 }
                             },
                             HostId::BuiltinController => {}, // must be delete requests   
@@ -292,9 +211,7 @@ ensures
                                             no_vsts_prefix_implies_no_pod_name_match(generate_name);
                                         }
                                     }
-                                } else {
-                                    // Deletion/Update/UpdateStatus are not possible
-                                }
+                                } else {} // Deletion/Update/UpdateStatus are not possible
                             }, // must be pod requests
                             _ => {}
                         }
