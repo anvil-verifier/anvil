@@ -355,9 +355,11 @@ requires
 ensures
     spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts)))))),
 {
+    // this is weaker than the pre in every_create_msg_with_generate_name_matching_key_set_owner_references_as
+    // resulting in stronger post
     let requirements = |msg: Message, s: ClusterState| {
         resource_create_request_msg_without_name(key.kind, key.namespace)(msg)
-        ==> has_vsts_prefix(msg.content.get_create_request().obj.metadata.generate_name->0)
+        && has_vsts_prefix(msg.content.get_create_request().obj.metadata.generate_name->0)
             ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references)
     };
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -412,10 +414,35 @@ ensures
         later(lift_state(vsts_rely_conditions(cluster, controller_id)))
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    assume(false);
-    temp_pred_equality(
-        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))),
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex)
+        implies lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))).satisfied_by(ex) by {
+        let s = ex.head();
+        assert forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.dst is APIServer && msg.content is APIRequest
+            &&& requirements(msg, s)
+        } implies {
+            resource_create_request_msg_without_name(key.kind, key.namespace)(msg)
+            ==> generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name
+                ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references)
+        } by {
+            if generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name {
+                generated_name_reflects_prefix(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0, "vstatefulset"@);
+            }
+        }
+    };
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts)))
+    );
+    entails_implies_leads_to(spec,
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))))
+    );
+    leads_to_trans(spec,
+        true_pred(),
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))))
     );
 }
 
