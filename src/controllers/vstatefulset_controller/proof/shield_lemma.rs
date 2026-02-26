@@ -51,7 +51,7 @@ requires
     Cluster::pod_monkey_disabled()(s),
     Cluster::req_drop_disabled()(s),
     guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
-    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s),
+    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s_prime),
     helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())(s),
@@ -319,8 +319,8 @@ requires
     Cluster::pod_monkey_disabled()(s),
     Cluster::req_drop_disabled()(s),
     guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s),
-    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s),
-    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s_prime),
+    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()(s),
+    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()(s_prime),
     helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)

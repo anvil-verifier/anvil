@@ -819,13 +819,13 @@ ensures
     let inv = buildin_controllers_do_not_delete_pvcs_owned_by_vsts();
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()(s)
+        &&& all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()(s)
     };
-    lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(spec, cluster, controller_id);
+    lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref(spec, cluster, controller_id);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(all_pvcs_in_etcd_matching_vsts_have_no_owner_ref())
+        lift_state(all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg: Message| {
@@ -848,7 +848,7 @@ ensures
 // rely conditions already prevent other controllers from creating or updating PVCs
 // and VSTS controller's internal guarantee says all pvcs it creates have no owner refs
 // TODO: add deletion timestampe and finalizer conditions
-pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref() -> StatePred<ClusterState> {
+pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pvc_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pvc_key)
@@ -857,11 +857,15 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_owner_ref() -> StatePred
         } ==> {
             let pvc_obj = s.resources()[pvc_key];
             &&& pvc_obj.metadata.owner_references is None
+            &&& pvc_obj.metadata.deletion_timestamp is None
+            &&& pvc_obj.metadata.finalizers is None
         }
     }
 }
 
-pub proof fn lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
@@ -872,9 +876,9 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(always(lift_state(all_pvcs_in_etcd_matching_vsts_have_no_owner_ref()))),
+    spec.entails(always(lift_state(all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()))),
 {
-    let inv = all_pvcs_in_etcd_matching_vsts_have_no_owner_ref();
+    let inv = all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref();
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
@@ -916,14 +920,10 @@ ensures
                                 } implies {
                                     let pvc_obj = s_prime.resources()[pvc_key];
                                     &&& pvc_obj.metadata.owner_references is None
+                                    &&& pvc_obj.metadata.deletion_timestamp is None
+                                    &&& pvc_obj.metadata.finalizers is None
                                 } by {
-                                    assert(has_vsts_prefix(pvc_key.name)) by {
-                                        let vsts_name = choose |vsts_name| #[trigger] pvc_name_match(pvc_key.name, vsts_name);
-                                        let i = choose |i: (StringView, nat)| pvc_key.name == #[trigger] pvc_name(i.0, vsts_name, i.1) && dash_free(i.0);
-                                        assert(pvc_key.name == pvc_name(i.0, vsts_name, i.1));
-                                        assert(pvc_key.name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + 
-                                            (i.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, i.1)));
-                                    }
+                                    pvc_name_match_implies_has_vsts_prefix(pvc_key.name);
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
                                             if req.key().kind == Kind::PersistentVolumeClaimKind {
@@ -949,9 +949,7 @@ ensures
                                                 };
                                                 assert(s_prime.resources().contains_key(created_obj_key));
                                                 no_vsts_prefix_implies_no_pvc_name_match(name);
-                                                if pvc_key != created_obj_key {
-                                                    assert(s.resources().contains_key(pvc_key));
-                                                } else {
+                                                if pvc_key == created_obj_key {
                                                     assert(!exists |vsts_name: StringView| #[trigger] pvc_name_match(name, vsts_name));
                                                     assert(false);
                                                 }

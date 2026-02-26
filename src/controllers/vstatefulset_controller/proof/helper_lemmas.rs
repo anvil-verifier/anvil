@@ -49,6 +49,19 @@ ensures
     }
 }
 
+// this is simple but introduced a lot of flakiness
+pub proof fn pvc_name_match_implies_has_vsts_prefix(name: StringView)
+requires
+    exists |vsts_name| #[trigger] pvc_name_match(name, vsts_name),
+ensures
+    has_vsts_prefix(name),
+{
+    let vsts_name = choose |vsts_name| #[trigger] pvc_name_match(name, vsts_name);
+    let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name, i.1) && dash_free(i.0);
+    assert(name == pvc_name(i.0, vsts_name, i.1));
+    assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + (i.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, i.1)));
+}
+
 #[verifier(external_body)]
 pub proof fn pvc_name_with_vsts_match_vsts(
     name: StringView, vsts: VStatefulSetView

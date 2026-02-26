@@ -372,12 +372,7 @@ pub proof fn lemma_guarantee_from_reconcile_state(
             assert(msg.content.is_create_request());
             let req = msg.content.get_create_request();
             let pvc = state.pvcs[state.pvc_index as int];
-            assert(has_vsts_prefix(pvc.metadata.name->0)) by {
-                let i = choose |i: (StringView, nat)| pvc.metadata.name->0 == #[trigger] pvc_name(i.0, vsts.metadata.name->0, i.1) && dash_free(i.0);
-                assert(pvc.metadata.name->0 == pvc_name(i.0, vsts.metadata.name->0, i.1));
-                assert(pvc.metadata.name->0 == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + 
-                    (i.0 + "-"@ + pod_name_without_vsts_prefix(vsts.metadata.name->0, i.1)));
-            }
+            pvc_name_match_implies_has_vsts_prefix(pvc.metadata.name->0);
             assert(pvc.metadata.owner_references is None);
             assert(req.obj == pvc.marshal());
             assert(has_vsts_prefix(req.obj.metadata.name->0));
