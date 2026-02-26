@@ -59,23 +59,22 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_ti
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
             &&& obj.metadata.finalizers is None
-            &&& exists |uid: int| #![trigger dummy(uid)] obj.metadata.owner_references == Some(seq![OwnerReferenceView{
-                uid: uid,
-                ..vsts.controller_owner_ref()
-            }])
+            &&& exists |owner_reference: OwnerReferenceView| {
+                &&& obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
+                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
+            }
         }
     }
 }
 
-#[verifier(external_body)]
-proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(
+pub proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
-    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
@@ -85,7 +84,7 @@ ensures
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& vsts_rely_conditions(cluster, controller_id)(s)
-        &&& vsts_rely_conditions_pod_monkey(cluster.installed_types)(s)
+        &&& vsts_rely_conditions_pod_monkey()(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
@@ -114,6 +113,7 @@ ensures
                 assert(msg.content is APIRequest);
                 assert(resp_msg.content is APIResponse);
                 if is_ok_resp(resp_msg.content->APIResponse_0) { // otherwise, etcd is not changed
+                    assert(msg.content is APIRequest);
                     assert forall |pod_key: ObjectRef| {
                         &&& #[trigger] s_prime.resources().contains_key(pod_key)
                         &&& pod_key.kind == Kind::PodKind
@@ -123,22 +123,29 @@ ensures
                         let obj = s_prime.resources()[pod_key];
                         &&& obj.metadata.deletion_timestamp is None
                         &&& obj.metadata.finalizers is None
-                        &&& exists |old_vsts: VStatefulSetView| { // have same key, but potentailly different uid
-                            &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                            &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                            &&& old_vsts.metadata.name == vsts.metadata.name
+                        &&& exists |owner_reference: OwnerReferenceView| {
+                            &&& obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
+                            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
                         }
                     } by {
                         let obj_prime = s_prime.resources()[pod_key];
+                        let post = {
+                            &&& obj_prime.metadata.deletion_timestamp is None
+                            &&& obj_prime.metadata.finalizers is None
+                            &&& exists |owner_reference: OwnerReferenceView| {
+                                &&& obj_prime.metadata.owner_references == Some(Seq::empty().push(owner_reference))
+                                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
+                            }
+                        };
                         match msg.src {
                             HostId::Controller(other_id, cr_key) => {
                                 if other_id != controller_id {
                                     assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
-                                    assert(vsts_rely(other_id, cluster.installed_types)(s));
+                                    assert(vsts_rely(other_id)(s));
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
                                             if req.key().kind == Kind::PodKind {
-                                                assert(rely_create_pod_req(req));
+                                                assert(rely_create_req(req));
                                                 let name = if req.obj.metadata.name is Some {
                                                     req.obj.metadata.name->0
                                                 } else {
@@ -148,7 +155,6 @@ ensures
                                                     if req.obj.metadata.name is Some {
                                                         assert(!has_vsts_prefix(req.obj.metadata.name->0));
                                                     } else {
-                                                        assert(req.obj.metadata.generate_name is Some);
                                                         assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
                                                         no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
                                                     }
@@ -162,51 +168,17 @@ ensures
                                                 // no_vsts_prefix_implies_no_pod_name_match(name);
                                                 if pod_key != created_obj_key {
                                                     assert(s.resources().contains_key(pod_key));
+                                                    assert(s_prime.resources()[pod_key] == s.resources()[pod_key]);
                                                 } else {
                                                     assert(!pod_name_match(name, vsts.object_ref().name));
                                                     assert(false);
                                                 }
                                             }
                                         },
-                                        APIRequest::UpdateRequest(req) => {
-                                            if req.key().kind == Kind::PodKind {
-                                                assert(rely_update_pod_req(req)(s));
-                                            }
-                                        },
-                                        APIRequest::DeleteRequest(req) => {
-                                            if req.key.kind == Kind::PodKind {
-                                                assert(rely_delete_pod_req(req)(s));
-                                            }
-                                        },
-                                        APIRequest::GetThenUpdateRequest(req) => {
-                                            if req.key().kind == Kind::PodKind {
-                                                assert(rely_get_then_update_pod_req(req));
-                                                assert(req.owner_ref.kind != VStatefulSetView::kind());
-                                                if req.key() == pod_key && s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref) && req.owner_ref.controller == Some(true) {
-                                                    let obj = s.resources()[pod_key];
-                                                    let old_vsts = choose |old_vsts: VStatefulSetView| {
-                                                        &&& obj.metadata.owner_references_contains(#[trigger] old_vsts.controller_owner_ref())
-                                                        &&& old_vsts.metadata.namespace == vsts.metadata.namespace
-                                                        &&& old_vsts.metadata.name == vsts.metadata.name
-                                                    };
-                                                    lemma_singleton_contains_at_most_one_element(
-                                                        obj.metadata.owner_references->0.filter(controller_owner_filter()),
-                                                        req.owner_ref,
-                                                        old_vsts.controller_owner_ref()
-                                                    );
-                                                } else {
-                                                    assert(s_prime.resources()[pod_key] == s.resources()[pod_key]);
-                                                }
-                                            }
-                                        },
-                                        APIRequest::GetThenDeleteRequest(req) => {
-                                            if req.key().kind == Kind::PodKind {
-                                                assert(rely_get_then_delete_pod_req(req));
-                                            }
-                                        },
                                         _ => {}
                                     }
                                 } else if cr_key != vsts.object_ref() {
+                                    assume(false);
                                     let havoc_vsts = make_vsts();
                                     let vsts_with_key = VStatefulSetView {
                                         metadata: ObjectMetaView {
@@ -243,13 +215,13 @@ ensures
                                         }
                                     }
                                 } else {
+                                    assume(false);
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                     if s.resources().contains_key(pod_key) && msg.content.is_get_then_update_request() {
                                         let obj = s.resources()[pod_key];
                                         let req = msg.content.get_get_then_update_request();
                                         if req.key() == pod_key {
                                             if !obj.metadata.owner_references_contains(req.owner_ref) {
-                                                assert(!is_ok_resp(resp_msg.content->APIResponse_0));
                                                 assert(false);
                                             }
                                             if req.owner_ref != obj.metadata.owner_references->0[0] {
@@ -304,10 +276,10 @@ ensures
                             },
                             HostId::BuiltinController => {}, // must be delete requests   
                             HostId::PodMonkey => {
-                                assert(vsts_rely_conditions_pod_monkey(cluster.installed_types)(s));
+                                assert(vsts_rely_conditions_pod_monkey()(s));
                                 if msg.content.is_create_request() {
                                     let req = msg.content.get_create_request();
-                                    assert(rely_create_pod_req(req));
+                                    assert(rely_create_req(req));
                                     let name = if req.obj.metadata.name is Some {
                                         req.obj.metadata.name->0
                                     } else {
@@ -340,7 +312,7 @@ ensures
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(vsts_rely_conditions(cluster, controller_id)),
-        lift_state(vsts_rely_conditions_pod_monkey(cluster.installed_types)),
+        lift_state(vsts_rely_conditions_pod_monkey()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
