@@ -203,11 +203,11 @@ ensures
                                     };
                                     assert(!pod_name_match(name, vsts.object_ref().name)) by {
                                         if req.obj.metadata.name is Some {
-                                            no_vsts_prefix_implies_no_pod_name_match(req.obj.metadata.name->0);
+                                            pod_name_match_implies_has_vsts_prefix(req.obj.metadata.name->0);
                                         } else {
                                             no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
                                             let generate_name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
-                                            no_vsts_prefix_implies_no_pod_name_match(generate_name);
+                                            pod_name_match_implies_has_vsts_prefix(generate_name);
                                         }
                                     }
                                 } else {} // Deletion/Update/UpdateStatus are not possible

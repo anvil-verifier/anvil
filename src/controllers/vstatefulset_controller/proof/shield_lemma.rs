@@ -5,6 +5,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     api_server::{state_machine::*, types::InstalledTypes},
 };
+use crate::kubernetes_cluster::proof::api_server::generated_name_reflects_prefix;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
@@ -153,30 +154,6 @@ ensures
                             // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vsts_rely
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
-                            match msg.content->APIRequest_0 {
-                                APIRequest::DeleteRequest(..) | APIRequest::UpdateRequest(..) | APIRequest::CreateRequest(..) => {},
-                                APIRequest::GetThenDeleteRequest(req) => {
-                                    if req.key.kind == Kind::PodKind {
-                                        if obj.metadata.owner_references_contains(req.owner_ref) {
-                                            // then the singleton does not match
-                                            assert(req.owner_ref != vsts.controller_owner_ref());
-                                            assert(!obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        }
-                                    }
-                                },
-                                APIRequest::GetThenUpdateRequest(req) => {
-                                    if req.obj.kind == Kind::PodKind {
-                                        // rely condition
-                                        assert(req.owner_ref.kind != VStatefulSetView::kind());
-                                        if obj.metadata.owner_references_contains(req.owner_ref) {
-                                            assert(req.owner_ref != vsts.controller_owner_ref());
-                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        }
-                                    }
-                                },
-                                APIRequest::UpdateStatusRequest(req) => {}, // only status and RV updated
-                                _ => {}, // Read-only requests
-                            }
                         }
                     },
                     _ => {},
@@ -199,9 +176,7 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s_prime.resources()[k];
-        if pod_name_match(k.name, vsts.metadata.name->0) {
-            assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
-        }
+        pod_name_match_implies_has_vsts_prefix(obj.metadata.name->0);
         PodView::marshal_preserves_integrity();
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
@@ -227,68 +202,33 @@ ensures
                             assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s));
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.controller_owner_ref() != vsts.controller_owner_ref());
-                                if msg.content.is_create_request() && !s.resources().contains_key(k) {
+                                if !s.resources().contains_key(k) && resource_create_request_msg(k)(msg) {
                                     let req = msg.content.get_create_request();
-                                    assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+                                    vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0);
                                     assert(false);
                                 }
-                                if msg.content.is_get_then_update_request() && s.resources().contains_key(k) {
+                                if s.resources().contains_key(k) && resource_get_then_update_request_msg(k)(msg) {
                                     let req = msg.content.get_get_then_update_request();
-                                    let old_obj = s.resources()[req.key()];
-                                    if req.key() == k {
-                                        vsts_name_non_eq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
-                                        assert(false);
-                                    }
+                                    vsts_name_non_eq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
+                                    assert(false);
                                 }
                             } // or else, namespace is different, so should not be touched at all
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
-                            match msg.content->APIRequest_0 {
-                                APIRequest::CreateRequest(req) => {
-                                    if req.obj.kind == Kind::PodKind && !s.resources().contains_key(k) {
-                                        assert(vsts_rely(msg.src->Controller_0)(s));
-                                        // req succeed
-                                        let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
-                                        if resp.res is Ok {
-                                            let created_obj = resp.res->Ok_0;
-                                            assert(s_prime.resources() == s.resources().insert(created_obj.object_ref(), created_obj));
-                                            assert((k, obj) == (created_obj.object_ref(), created_obj));
-                                            // trigger rely conditions
-                                            assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
-                                            assert(false);
-                                        }
-                                        assert(post);
+                            if !s.resources().contains_key(k) {
+                                if msg.content.is_create_request() {
+                                    let req = msg.content.get_create_request();
+                                    if resource_create_request_msg(k)(msg) {
+                                        assert(has_vsts_prefix(req.obj.metadata.name->0));
+                                        assert(false);
+                                    } else if req.obj.metadata.name is None && req.obj.metadata.generate_name is Some {
+                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, "vstatefulset"@);
+                                        assert(false);
                                     }
-                                },
-                                APIRequest::GetThenUpdateRequest(req) => {
-                                    if s.resources().contains_key(k) && req.key() == k {
-                                        assert(cluster.controller_models.contains_key(id));
-                                        assert(vsts_rely(id)(s));
-                                        let old_obj = s.resources()[k];
-                                        if req.key() == k && !old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
-                                            assert(req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
-                                            assert(false);
-                                        }
-                                    }
-                                    assert(post);
-                                },
-                                APIRequest::UpdateRequest(req) => {
-                                    if s.resources().contains_key(k) {
-                                        let resp = handle_update_request(cluster.installed_types, req, s.api_server).1;
-                                        let old_obj = s.resources()[k];
-                                        if req.key() == k && resp.res is Ok {
-                                            if old_obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
-                                                assert(false);
-                                            } else if req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()) {
-                                                assert(false);
-                                            }   
-                                        } else {
-                                            assert(s.resources()[k] == s_prime.resources()[k]);
-                                        }
-                                    }
-                                },
-                                _ => {}
+                                } else {
+                                    assert(s.resources().contains_key(k));
+                                }
                             }
                         }
                     },

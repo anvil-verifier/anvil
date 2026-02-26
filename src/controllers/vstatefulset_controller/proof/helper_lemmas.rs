@@ -62,6 +62,18 @@ ensures
     assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + (i.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, i.1)));
 }
 
+pub proof fn pod_name_match_implies_has_vsts_prefix(name: StringView)
+requires
+    exists |vsts_name| #[trigger] pod_name_match(name, vsts_name),
+ensures
+    has_vsts_prefix(name),
+{
+    let vsts_name = choose |vsts_name| #[trigger] pod_name_match(name, vsts_name);
+    let ord = choose |ord: nat| name == pod_name(vsts_name, ord);
+    assert(name == pod_name(vsts_name, ord));
+    assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord));
+}
+
 #[verifier(external_body)]
 pub proof fn pvc_name_with_vsts_match_vsts(
     name: StringView, vsts: VStatefulSetView
@@ -151,14 +163,5 @@ ensures
         assert(has_vsts_prefix(name));
     }
 }
-
-#[verifier(external_body)]
-pub proof fn no_vsts_prefix_implies_no_pod_name_match(name: StringView)
-requires
-    !has_vsts_prefix(name),
-ensures
-    forall |vsts: VStatefulSetView| #![trigger vsts.metadata.name->0]
-        !pod_name_match(name, vsts.metadata.name->0),
-{}
 
 }
