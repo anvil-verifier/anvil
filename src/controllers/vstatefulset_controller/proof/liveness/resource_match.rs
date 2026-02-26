@@ -676,6 +676,7 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -1509,11 +1510,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_create_pvc_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
@@ -2871,11 +2875,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let delete_outdated_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -4196,6 +4203,7 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, step: Step
 )
