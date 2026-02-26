@@ -321,6 +321,7 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
     req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     req_msg.dst == HostId::APIServer,
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
@@ -528,6 +529,7 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
     req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     req_msg.dst == HostId::APIServer,
 ensures
@@ -564,6 +566,7 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
     req_msg.src != HostId::Controller(controller_id, vsts.object_ref()),
     req_msg.dst == HostId::APIServer,
     current_state_matches(vsts)(s),
