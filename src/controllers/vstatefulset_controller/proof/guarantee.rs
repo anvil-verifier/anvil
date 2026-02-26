@@ -142,8 +142,7 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
     &&& req.obj.kind == Kind::PodKind
     &&& req.namespace == vsts.object_ref().namespace
     &&& pod_name_match(req.name, vsts.object_ref().name)
-    &&& req.obj.metadata.owner_references is Some
-    &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(req.owner_ref)
+    &&& req.obj.metadata.owner_references == Some(Seq::empty().push(req.owner_ref))
     &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
     &&& req.obj.metadata.deletion_timestamp is None
     &&& req.obj.metadata.finalizers is None
@@ -187,6 +186,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
     &&& forall |i| #![trigger pvcs[i]] 0 <= i < pvcs.len() ==> {
         let pvc = pvcs[i];
         &&& pvc.metadata.name is Some
+        &&& pvc.metadata.generate_name is None
         &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
         &&& pvc.metadata.owner_references is None
@@ -588,6 +588,7 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(msg.content.is_create_request());
                                     let req = msg.content.get_create_request();
                                     assert(req.key().name == pod_name(vsts.object_ref().name, state.needed_index));
+                                    assert(req.obj.metadata.generate_name is None); 
                                     let owner_ref = req.obj.metadata.owner_references->0[0];
                                     assert(owner_reference_eq_without_uid(owner_ref, vsts.controller_owner_ref()));
                                 },
@@ -616,7 +617,7 @@ pub proof fn internal_guarantee_condition_holds(
                                     if let Some(pod) = get_largest_unmatched_pods(triggering_vsts, state.needed) {
                                         seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(triggering_vsts), Some(pod));
                                         // trigger for local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
-                                        assert(exists |i: int| #[trigger] state.needed[i] == Some(pod));
+                                        assert(exists |i: int| 0 <= i < state.needed.len() && #[trigger] state.needed[i] == Some(pod));
                                         assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
                                         let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
                                         get_ordinal_eq_pod_name(vsts.object_ref().name, ord, pod.metadata.name->0);
