@@ -910,39 +910,46 @@ ensures
                             if other_id != controller_id {
                                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                                 assert(vsts_rely(other_id)(s));
-                                match (msg.content->APIRequest_0) {
-                                    APIRequest::CreateRequest(req) => {
-                                        if req.key().kind == Kind::PersistentVolumeClaimKind {
-                                            assert(rely_create_req(req));
-                                            let name = if req.obj.metadata.name is Some {
-                                                req.obj.metadata.name->0
-                                            } else {
-                                                generated_name(s.api_server, req.obj.metadata.generate_name->0)
-                                            };
-                                            assert(!has_vsts_prefix(name)) by {
-                                                if req.obj.metadata.name is Some {
-                                                    assert(!has_vsts_prefix(req.obj.metadata.name->0));
+                                assert forall |pvc_key: ObjectRef| {
+                                    &&& #[trigger] s_prime.resources().contains_key(pvc_key)
+                                    &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
+                                    &&& exists |vsts_name: StringView| #[trigger] pvc_name_match(pvc_key.name, vsts_name)
+                                } implies {
+                                    let pvc_obj = s_prime.resources()[pvc_key];
+                                    &&& pvc_obj.metadata.owner_references is None
+                                } by {
+                                    assert(has_vsts_prefix(pvc_key.name)) by {
+                                        let vsts_name = choose |vsts_name| #[trigger] pvc_name_match(pvc_key.name, vsts_name);
+                                        let i = choose |i: (StringView, nat)| pvc_key.name == #[trigger] pvc_name(i.0, vsts_name, i.1) && dash_free(i.0);
+                                        assert(pvc_key.name == pvc_name(i.0, vsts_name, i.1));
+                                        assert(pvc_key.name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + 
+                                            (i.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, i.1)));
+                                    }
+                                    match (msg.content->APIRequest_0) {
+                                        APIRequest::CreateRequest(req) => {
+                                            if req.key().kind == Kind::PersistentVolumeClaimKind {
+                                                assert(rely_create_req(req));
+                                                let name = if req.obj.metadata.name is Some {
+                                                    req.obj.metadata.name->0
                                                 } else {
-                                                    assert(req.obj.metadata.generate_name is Some);
-                                                    assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
-                                                    no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                    generated_name(s.api_server, req.obj.metadata.generate_name->0)
+                                                };
+                                                assert(!has_vsts_prefix(name)) by {
+                                                    if req.obj.metadata.name is Some {
+                                                        assert(!has_vsts_prefix(req.obj.metadata.name->0));
+                                                    } else {
+                                                        assert(req.obj.metadata.generate_name is Some);
+                                                        assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
+                                                        no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                    }
                                                 }
-                                            }
-                                            let created_obj_key = ObjectRef {
-                                                kind: Kind::PersistentVolumeClaimKind,
-                                                namespace: req.namespace,
-                                                name: name,
-                                            };
-                                            assert(s_prime.resources().contains_key(created_obj_key));
-                                            no_vsts_prefix_implies_no_pvc_name_match(name);
-                                            assert forall |pvc_key: ObjectRef| {
-                                                &&& #[trigger] s_prime.resources().contains_key(pvc_key)
-                                                &&& pvc_key.kind == Kind::PersistentVolumeClaimKind
-                                                &&& exists |vsts_name: StringView| #[trigger] pvc_name_match(pvc_key.name, vsts_name)
-                                            } implies {
-                                                let pvc_obj = s_prime.resources()[pvc_key];
-                                                &&& pvc_obj.metadata.owner_references is None
-                                            } by {
+                                                let created_obj_key = ObjectRef {
+                                                    kind: Kind::PersistentVolumeClaimKind,
+                                                    namespace: req.namespace,
+                                                    name: name,
+                                                };
+                                                assert(s_prime.resources().contains_key(created_obj_key));
+                                                no_vsts_prefix_implies_no_pvc_name_match(name);
                                                 if pvc_key != created_obj_key {
                                                     assert(s.resources().contains_key(pvc_key));
                                                 } else {
@@ -950,19 +957,9 @@ ensures
                                                     assert(false);
                                                 }
                                             }
-                                        }
-                                    },
-                                    APIRequest::UpdateRequest(req) => {
-                                        if req.key().kind == Kind::PersistentVolumeClaimKind {
-                                            assert(rely_update_req(req));
-                                        }
-                                    },
-                                    APIRequest::DeleteRequest(req) => {
-                                        if req.key.kind == Kind::PersistentVolumeClaimKind {
-                                            assert(rely_delete_req(req));
-                                        }
-                                    },
-                                    _ => {}
+                                        },
+                                        _ => {},
+                                    }
                                 }
                             } else {
                                 let any_vsts = make_vsts();
