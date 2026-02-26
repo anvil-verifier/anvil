@@ -223,7 +223,7 @@ ensures
                                         assert(has_vsts_prefix(req.obj.metadata.name->0));
                                         assert(false);
                                     } else if req.obj.metadata.name is None && req.obj.metadata.generate_name is Some {
-                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, "vstatefulset"@);
+                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
                                         assert(false);
                                     }
                                 } else {

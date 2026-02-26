@@ -619,7 +619,7 @@ ensures
                 ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references)
         } by {
             if generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name {
-                generated_name_reflects_prefix(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0, "vstatefulset"@);
+                generated_name_reflects_prefix(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
             }
         }
     };
