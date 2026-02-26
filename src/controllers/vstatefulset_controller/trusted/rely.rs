@@ -21,6 +21,26 @@ pub open spec fn vsts_rely_conditions(cluster: Cluster, controller_id: int) -> S
     }
 }
 
+pub open spec fn vsts_rely_composition(other_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(other_id)
+        } ==> {
+             match (msg.content->APIRequest_0) { // or it does not mess up VSTS's objects
+                APIRequest::CreateRequest(req) => rely_create_req(req),
+                APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
+                APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
+                APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
+                APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
+                // Get/List requests do not interfere
+                _ => true,
+            }
+        }
+    }
+}
+
 pub open spec fn vsts_rely(other_id: int, installed_types: InstalledTypes) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
