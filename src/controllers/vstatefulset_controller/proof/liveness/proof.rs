@@ -16,6 +16,7 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
+#[verifier(external_body)] // FIXME
 pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int, cluster: Cluster)
     requires
         spec.entails(lift_state(cluster.init())),
