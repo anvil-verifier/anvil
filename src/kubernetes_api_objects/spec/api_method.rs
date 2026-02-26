@@ -82,6 +82,7 @@ impl DeleteRequest {
 }
 
 // UpdateRequest replaces the existing obj with a new one.
+// TODO: remove name/namespace as they should always be consistent with the object in payload
 
 pub struct UpdateRequest {
     pub namespace: StringView,
@@ -144,6 +145,7 @@ impl GetThenDeleteRequest {
 // conflicts caused by version race.
 //
 // TODO: GetThenUpdateRequest should carry a spec_fn(DynamicObjectView) -> Option<DynamicObjectView>
+// TODO: remove name/namespace as they should always be consistent with the object in payload
 
 pub struct GetThenUpdateRequest {
     pub namespace: StringView,

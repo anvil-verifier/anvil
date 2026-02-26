@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::types::*, builtin_controllers::garbage_collector::run_garbage_collector,
+    api_server::{types::*, state_machine::generated_name}, builtin_controllers::garbage_collector::run_garbage_collector,
     builtin_controllers::types::*, cluster::*, message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -50,6 +50,21 @@ pub open spec fn no_create_msg_that_uses_generate_name(
             &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_create_request_msg_without_name(kind, namespace)(msg)
         }
+    }
+}
+
+// generated_name is opaque and constrained by generated_name_spec
+// so this can only be used in precondition to prove if there is any possibility regarding generated_name_spec the generated name matches the given name,
+// the requirements are satisfied
+pub open spec fn every_create_msg_with_generate_name_matching_key_set_owner_references_as(
+    key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message|
+            s.in_flight().contains(msg) && msg.dst is APIServer && msg.content is APIRequest
+                ==> #[trigger] resource_create_request_msg_without_name(key.kind, key.namespace)(msg)
+                    ==> generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name
+                        ==> requirements(msg.content.get_create_request().obj.metadata.owner_references)
     }
 }
 
@@ -139,7 +154,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
-        spec.entails(always(lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)))),
+        spec.entails(always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         // If the current owner_references does not satisfy the eventual requirement, the gc action is enabled.
         spec.entails(always(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))),
@@ -167,7 +182,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         &&& self.next()(s, s_prime)
         &&& Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
         &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
-        &&& Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)(s)
+        &&& Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::garbage_collector_deletion_enabled(key)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s_prime) ==> Self::garbage_collector_deletion_enabled(key)(s_prime)
     };
@@ -177,7 +192,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         lift_action(self.next()),
         lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
-        lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)),
+        lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))),
         later(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))
     );

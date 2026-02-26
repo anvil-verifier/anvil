@@ -22,7 +22,7 @@ impl Composition for VStatefulSetReconciler {
             liveness_guarantee: vsts_eventually_stable_reconciliation(),
             liveness_rely: true_pred(), // VSTS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vsts_guarantee(Self::id()))),
-            safety_partial_rely: |other_id: int| always(lift_state(vsts_rely_composition(other_id))),
+            safety_partial_rely: |other_id: int| always(lift_state(vsts_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
             membership: |cluster: Cluster, id: int| {
                 &&& cluster.controller_models.contains_pair(id, vsts_controller_model())

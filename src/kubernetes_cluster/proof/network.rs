@@ -535,6 +535,119 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(self, spec: TempPred
     always_weaken::<ClusterState>(spec, lift_state(Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()), lift_state(Self::every_in_flight_msg_has_unique_id()));
 }
 
+// similar to no_pending_request_to_api_server_from_non_controllers,
+// but allows messages from PodMonkey
+pub open spec fn no_pending_request_to_api_server_from_api_server_or_external() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| !{
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& (msg.src is APIServer || msg.src is External)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+        }
+    }
+}
+
+pub proof fn lemma_always_no_pending_request_to_api_server_from_api_server_or_external(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::no_pending_request_to_api_server_from_api_server_or_external()))),
+{
+    let inv = Self::no_pending_request_to_api_server_from_api_server_or_external();
+    assert forall |s, s_prime| inv(s) && #[trigger] self.next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg| !{
+            &&&#[trigger] s_prime.in_flight().contains(msg)
+            &&& (msg.src is APIServer || msg.src is External)
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest} by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    };
+    init_invariant(spec, self.init(), self.next(), inv);
+}
+
+pub open spec fn all_requests_from_pod_monkey_are_api_pod_requests() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is PodMonkey
+        } ==> {
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+            &&& match (msg.content->APIRequest_0) {
+                APIRequest::CreateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::UpdateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::DeleteRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::UpdateStatusRequest(req) => req.key().kind == Kind::PodKind,
+                _ => false, // Pod Monkey should not send other types of API requests
+            }
+        }
+    }
+}
+
+pub proof fn lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::all_requests_from_pod_monkey_are_api_pod_requests()))),
+{
+    let inv = Self::all_requests_from_pod_monkey_are_api_pod_requests();
+    assert forall |s, s_prime| inv(s) && #[trigger] self.next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| {
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.src is PodMonkey
+        } implies {
+            &&& msg.dst is APIServer
+            &&& msg.content is APIRequest
+            &&& match (msg.content->APIRequest_0) {
+                APIRequest::CreateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::UpdateRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::DeleteRequest(req) => req.key().kind == Kind::PodKind,
+                APIRequest::UpdateStatusRequest(req) => req.key().kind == Kind::PodKind,
+                _ => false,
+            }
+        } by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    };
+    init_invariant(spec, self.init(), self.next(), inv);
+}
+
+// this is obvious but Verus still needs it
+pub open spec fn all_requests_from_builtin_controllers_are_api_delete_requests() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } ==> {
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+        }
+    }
+}
+
+pub proof fn lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+{
+    let inv = Self::all_requests_from_builtin_controllers_are_api_delete_requests();
+    assert forall |s, s_prime| inv(s) && #[trigger] self.next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| {
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.src is BuiltinController
+        } implies {
+            &&& msg.dst is APIServer
+            &&& msg.content.is_delete_request()
+        } by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    };
+    init_invariant(spec, self.init(), self.next(), inv);
+}
+
 }
 
 }

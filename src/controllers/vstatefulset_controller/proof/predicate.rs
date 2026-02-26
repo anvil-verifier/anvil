@@ -14,6 +14,8 @@ verus! {
 // just to make Verus happy
 pub uninterp spec fn dummy<T>(t: T) -> bool;
 
+pub uninterp spec fn make_vsts() -> VStatefulSetView;
+
 // allow status and rv updates
 pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView) -> bool {
     &&& obj.metadata.without_resource_version() == obj_prime.metadata.without_resource_version()
@@ -115,13 +117,14 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         Cluster::no_pending_request_to_api_server_from_non_controllers(),
         Cluster::desired_state_is(vsts),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
-        helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts),
-        helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_owner_ref(vsts),
+        helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts),
+        helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref(),
         helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id),
+        helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts(),
+        helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref()),
         guarantee::vsts_internal_guarantee_conditions(controller_id),
         guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
-        rely::vsts_rely_conditions(cluster, controller_id),
-        rely::garbage_collector_does_not_delete_vsts_pod_objects(vsts)
+        rely::vsts_rely_conditions(cluster, controller_id)
     )
 }
 
@@ -136,8 +139,8 @@ pub open spec fn pvc_name_match(name: StringView, vsts_name: StringView) -> bool
 }
 
 // Helper spec to check if a pod name matches a vsts naming pattern
-pub open spec fn pod_name_match(compared_pod_name: StringView, parent_name: StringView) -> bool {
-    exists |ord: nat| compared_pod_name == pod_name(parent_name, ord)
+pub open spec fn pod_name_match(name: StringView, vsts_name: StringView) -> bool {
+    exists |ord: nat| name == pod_name(vsts_name, ord)
 }
 
 // usage: at_step![step_or_pred]

@@ -25,11 +25,12 @@ pub open spec fn vsts_guarantee(controller_id: int) -> StatePred<ClusterState> {
             &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(controller_id)
         } ==> match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
             APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
             APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
             APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
             // No Update, UpdateStatus and Delete requests submitted
-            _ => true,
+            _ => false,
         }
     }
 }
@@ -38,31 +39,30 @@ pub open spec fn vsts_guarantee(controller_id: int) -> StatePred<ClusterState> {
 // and only creates PVC matching its PVC templates
 pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
     let owner_references = req.obj.metadata.owner_references->0;
-    &&& req.obj.kind == PodView::kind() ==> {
-        &&& req.obj.metadata.name is Some
-        &&& has_vsts_prefix(req.obj.metadata.name->0)
-        &&& req.obj.metadata.owner_references is Some
-        &&& exists |vsts: VStatefulSetView| #[trigger]
-            owner_references.contains(vsts.controller_owner_ref())
-    }
-    &&& req.obj.kind == PersistentVolumeClaimView::kind() ==> exists |vsts: VStatefulSetView|
-        #[trigger] pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
+    &&& req.obj.metadata.name is Some
+    &&& has_vsts_prefix(req.obj.metadata.name->0)
+    &&& req.obj.kind == Kind::PodKind
+        ==> exists |vsts: VStatefulSetView| req.obj.metadata.owner_references == Some(Seq::empty().push(#[trigger] vsts.controller_owner_ref()))
+    &&& req.obj.kind == Kind::PersistentVolumeClaimKind
+        ==> req.obj.metadata.owner_references is None
 }
 
 // VSTS controller Only updates Pod owned by itself and does not update PVC
 pub open spec fn vsts_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
-    &&& req.obj.kind == PodView::kind()
-    &&& has_vsts_prefix(req.obj.metadata.name->0)
+    &&& req.obj.kind == Kind::PodKind
+    &&& req.obj.metadata.name is Some
+    &&& has_vsts_prefix(req.name)
     &&& exists |vsts: VStatefulSetView| {
         &&& req.owner_ref == #[trigger] vsts.controller_owner_ref()
         // do not change ownership
-        &&& req.obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        &&& req.obj.metadata.owner_references == Some(Seq::empty().push(req.owner_ref))
     }
 }
 
 // VSTS controller Only deletes Pod owned by itself
 pub open spec fn vsts_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
-    &&& req.key.kind == PodView::kind()
+    &&& req.key.kind == Kind::PodKind
+    &&& has_vsts_prefix(req.key.name)
     &&& exists |vsts: VStatefulSetView| req.owner_ref == #[trigger] vsts.controller_owner_ref()
 }
 
@@ -89,6 +89,7 @@ pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
 }
 
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
+// TODO: use vsts_key instead of vsts as we don't know the uid
 pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
@@ -110,35 +111,40 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
 pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VStatefulSetView) -> bool {
     &&& req.namespace == vsts.object_ref().namespace
     &&& req.obj.metadata.name is Some
+    &&& req.obj.metadata.generate_name is None
+    &&& req.obj.metadata.finalizers is None
     &&& req.obj.kind == Kind::PodKind ==> {
         &&& exists |owner_reference: OwnerReferenceView| {
             &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
-            &&& #[trigger] owner_reference_controller_kind_name_equal(owner_reference, vsts.controller_owner_ref())
+            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
         }
-        &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
+        &&& pod_name_match(req.key().name, vsts.object_ref().name)
     }
-    &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
+    &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> {
+        &&& req.obj.metadata.owner_references is None
+        &&& pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0)
+    }
 }
 
 // VSTS controller only deletes Pods bound to the specific vsts instance
 pub open spec fn vsts_internal_guarantee_get_then_delete_req(req: GetThenDeleteRequest, vsts: VStatefulSetView) -> bool {
     &&& req.key().namespace == vsts.object_ref().namespace
     &&& req.key().kind == Kind::PodKind
-    &&& exists |ord: nat| req.key().name == #[trigger] pod_name(vsts.object_ref().name, ord)
-    &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
+    &&& pod_name_match(req.key().name, vsts.object_ref().name)
+    &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
 }
 
 // VSTS controller only updates Pods bound to the specific vsts instance
 pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateRequest, vsts: VStatefulSetView) -> bool {
-    &&& req.namespace == vsts.object_ref().namespace
+    &&& req.obj.metadata.name == Some(req.name)
+    &&& req.obj.metadata.namespace == Some(req.namespace)
     &&& req.obj.kind == Kind::PodKind
-    &&& exists |ord: nat| req.name == #[trigger] pod_name(vsts.object_ref().name, ord)
-    &&& owner_reference_controller_kind_name_equal(req.owner_ref, vsts.controller_owner_ref())
-    &&& req.obj.metadata.owner_references is Some
-    &&& exists |owner_reference: OwnerReferenceView| {
-        &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == Seq::empty().push(owner_reference)
-        &&& #[trigger] owner_reference_controller_kind_name_equal(owner_reference, vsts.controller_owner_ref())
-    }
+    &&& req.namespace == vsts.object_ref().namespace
+    &&& pod_name_match(req.name, vsts.object_ref().name)
+    &&& req.obj.metadata.owner_references == Some(Seq::empty().push(req.owner_ref))
+    &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
+    &&& req.obj.metadata.deletion_timestamp is None
+    &&& req.obj.metadata.finalizers is None
 }
 // similar to local_pods_and_pvcs_are_bound_to_vsts
 // helper invariant to prove both (external) guarantee conditions and internal guarantee conditions
@@ -161,24 +167,25 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(v
     &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
         let pod = needed_pods[i]->0;
         &&& pod.metadata.name is Some
-        &&& get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some
+        &&& pod_name_match(pod.metadata.name->0, vsts.metadata.name->0)
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
-        &&& pod.metadata.owner_references is Some
-        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+        &&& pod.metadata.deletion_timestamp is None
+        &&& pod.metadata.finalizers is None
     }
     &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
         let pod = condemned_pods[i];
         &&& pod.metadata.name is Some
-        &&& get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some
+        &&& pod_name_match(pod.metadata.name->0, vsts.metadata.name->0)
         &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
-        &&& pod.metadata.owner_references is Some
-        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
     }
     &&& forall |i| #![trigger pvcs[i]] 0 <= i < pvcs.len() ==> {
         let pvc = pvcs[i];
         &&& pvc.metadata.name is Some
-        &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
         &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
+        &&& pvc.metadata.generate_name is None
+        &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pvc.metadata.owner_references is None
+        &&& pvc.metadata.finalizers is None
     }
 }
 
@@ -346,45 +353,69 @@ pub proof fn lemma_guarantee_from_reconcile_state(
         local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, state),
     ensures
         match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
             APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
             APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
             APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-            _ => true,
+            _ => false,
         }
 {
     match state.reconcile_step {
         VStatefulSetReconcileStepView::CreateNeeded => {
             assert(msg.content.is_create_request());
             let req = msg.content.get_create_request();
-            let pod = make_pod(vsts, state.needed_index);
             assert(has_vsts_prefix(req.obj.metadata.name->0));
-            let owner_references = req.obj.metadata.owner_references->0;
-            assert(owner_references.contains(vsts.controller_owner_ref())) by {
-                assert(owner_references == pod.metadata.owner_references->0);
-                assert(pod.metadata.owner_references->0 == seq![vsts.controller_owner_ref()]);
-                assert(owner_references[0] == vsts.controller_owner_ref());
-            }
+            assert(req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(has_vsts_prefix(req.obj.metadata.name->0));
+        },
+        VStatefulSetReconcileStepView::CreatePVC => {
+            assert(msg.content.is_create_request());
+            let req = msg.content.get_create_request();
+            let pvc = state.pvcs[state.pvc_index as int];
+            pvc_name_match_implies_has_vsts_prefix(pvc.metadata.name->0);
+            assert(pvc.metadata.owner_references is None);
+            assert(req.obj == pvc.marshal());
+            assert(has_vsts_prefix(req.obj.metadata.name->0));
         },
         VStatefulSetReconcileStepView::UpdateNeeded => {
             assert(msg.content.is_get_then_update_request());
             let req = msg.content.get_get_then_update_request();
             let pod = state.needed[state.needed_index as int]->0;
-            let owner_references = req.obj.metadata.owner_references->0;
-            assert(owner_references.contains(vsts.controller_owner_ref())) by  {
-                assert(owner_references == pod.metadata.owner_references->0);
-                assert(owner_references.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]);
-                assert(owner_references.filter(controller_owner_filter()).contains(vsts.controller_owner_ref())) by {
-                    assert(owner_references.filter(controller_owner_filter())[0] == vsts.controller_owner_ref());
-                }
-                seq_filter_contains_implies_seq_contains(owner_references, controller_owner_filter(), vsts.controller_owner_ref());
-            }
+            assert(req.name == pod.metadata.name->0);
+            assert(has_vsts_prefix(req.name));
+            assert(req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(has_vsts_prefix(req.obj.metadata.name->0));
         },
+        VStatefulSetReconcileStepView::DeleteCondemned => {
+            assert(msg.content.is_get_then_delete_request());
+            let req = msg.content.get_get_then_delete_request();
+            let pod = state.condemned[state.condemned_index as int];
+            assert(has_vsts_prefix(pod.metadata.name->0));
+            assert(req.key.name == pod.metadata.name->0);
+            assert(has_vsts_prefix(req.key.name));
+            assert(req.owner_ref == vsts.controller_owner_ref());
+        },
+        VStatefulSetReconcileStepView::DeleteOutdated => {
+            if let Some(pod) = get_largest_unmatched_pods(vsts, state.needed) {
+                assert(msg.content.is_get_then_delete_request());
+                let req = msg.content.get_get_then_delete_request();
+                seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(vsts), Some(pod));
+                assert(exists |i| 0 <= i < state.needed.len() && #[trigger] state.needed[i] == Some(pod));
+                assert(has_vsts_prefix(pod.metadata.name->0));
+                assert(req.key.name == pod.metadata.name->0);
+                assert(has_vsts_prefix(req.key.name));
+                assert(req.owner_ref == vsts.controller_owner_ref());
+            }
+        }
+        VStatefulSetReconcileStepView::Init | VStatefulSetReconcileStepView::GetPVC => {},
         _ => {
-            // other cases are handled by Verus automatically
+            assert(reconcile_core(vsts, None, state).1 is None); // there is no message sent
         }
     }
 }
 
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -428,73 +459,33 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        VStatefulSetView::marshal_preserves_integrity();
-        VStatefulSetReconcileState::marshal_preserves_integrity();
-        PodView::marshal_preserves_integrity();
-        PersistentVolumeClaimView::marshal_preserves_integrity();
-
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(req_msg_opt) => {
-                let req_msg = req_msg_opt.unwrap();
-
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-                    _ => true,
-                } by {
+        assert forall |msg| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+        } implies match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
+            APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
+            APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
+            APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
+            _ => false,
+        } by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            match step {
+                Step::ControllerStep((id, _, cr_key_opt)) => {
+                    let cr_key = cr_key_opt->0;
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-                }
-            }
-            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
-                let cr_key = cr_key_opt->0;
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-                    _ => true,
-                } by {
-                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-
-                    if id == controller_id {
-                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        if new_msgs.contains(msg) {
-                            let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                            let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                            assert(reconcile_core(vsts, None, state).1 is Some);
-                            assert(reconcile_core(vsts, None, state).1->0 is KRequest);
-                            assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
-                            lemma_guarantee_from_reconcile_state(msg, state, vsts);
-                        }
+                    if id == controller_id && new_msgs.contains(msg) {
+                        let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                        let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                        assert(msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0);
+                        lemma_guarantee_from_reconcile_state(msg, state, vsts);
                     }
-                }
-            }
-            _ => {
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-                    APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-                    APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-                    _ => true,
-                } by {
+                },
+                _ => {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
                 }
             }
@@ -504,8 +495,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-// TODO
-// NOTE: lemma_always_vd_reconcile_request_only_interferes_with_itself may be helpful
 pub proof fn internal_guarantee_condition_holds(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
@@ -605,12 +594,20 @@ pub proof fn internal_guarantee_condition_holds(
 
                             // Match on the reconcile step to handle each case
                             match state.reconcile_step {
+                                VStatefulSetReconcileStepView::CreatePVC => {
+                                    assert(msg.content.is_create_request());
+                                    let req = msg.content.get_create_request();
+                                    let pvc = state.pvcs[state.pvc_index as int];
+                                    assert(req.obj.metadata == pvc.metadata);
+                                    assert(pvc_name_match(req.obj.metadata.name->0, vsts.object_ref().name));
+                                },
                                 VStatefulSetReconcileStepView::CreateNeeded => {
                                     assert(msg.content.is_create_request());
                                     let req = msg.content.get_create_request();
                                     assert(req.key().name == pod_name(vsts.object_ref().name, state.needed_index));
+                                    assert(req.obj.metadata.generate_name is None); 
                                     let owner_ref = req.obj.metadata.owner_references->0[0];
-                                    assert(owner_reference_controller_kind_name_equal(owner_ref, vsts.controller_owner_ref()));
+                                    assert(owner_reference_eq_without_uid(owner_ref, vsts.controller_owner_ref()));
                                 },
                                 VStatefulSetReconcileStepView::UpdateNeeded => {
                                     assert(msg.content.is_get_then_update_request());
@@ -619,9 +616,9 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
                                     let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
                                     assert(req.name == pod_name(vsts.object_ref().name, ord));
-                                    let controller_owner_references = pod.metadata.owner_references->0.filter(controller_owner_filter());
+                                    let controller_owner_references = req.obj.metadata.owner_references->0;
                                     let owner_ref = controller_owner_references[0];
-                                    assert(owner_reference_controller_kind_name_equal(owner_ref, vsts.controller_owner_ref()));
+                                    assert(owner_reference_eq_without_uid(owner_ref, vsts.controller_owner_ref()));
                                 },
                                 VStatefulSetReconcileStepView::DeleteCondemned => {
                                     assert(msg.content.is_get_then_delete_request());
@@ -637,7 +634,7 @@ pub proof fn internal_guarantee_condition_holds(
                                     if let Some(pod) = get_largest_unmatched_pods(triggering_vsts, state.needed) {
                                         seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(triggering_vsts), Some(pod));
                                         // trigger for local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
-                                        assert(exists |i: int| #[trigger] state.needed[i] == Some(pod));
+                                        assert(exists |i: int| 0 <= i < state.needed.len() && #[trigger] state.needed[i] == Some(pod));
                                         assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
                                         let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
                                         get_ordinal_eq_pod_name(vsts.object_ref().name, ord, pod.metadata.name->0);

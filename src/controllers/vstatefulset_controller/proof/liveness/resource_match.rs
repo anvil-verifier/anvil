@@ -153,13 +153,16 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
         &&& Cluster::desired_state_is(vsts)(s_prime)
     };
     always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))),
         later(lift_state(Cluster::desired_state_is(vsts)))
     );
     let idle_state = and!(
@@ -228,11 +231,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let scheduled_state = and!(
         reconcile_scheduled(vsts, controller_id),
@@ -544,11 +550,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let init_state = and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
@@ -667,6 +676,7 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -689,11 +699,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let resp_msg_is_pending_at_after_list_pod_state_with_condemned_len = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
@@ -1014,11 +1027,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     assert(spec.entails(lift_state(get_pvc_state).leads_to(lift_state(after_get_pvc_state_with_req)))) by {
         assert forall |s, s_prime| get_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies get_pvc_state(s_prime) || after_get_pvc_state_with_req(s_prime) by {
@@ -1248,11 +1264,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let skip_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![SkipPVC]),
@@ -1346,11 +1365,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let create_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
@@ -1494,11 +1516,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_create_pvc_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC]),
@@ -1752,11 +1777,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let create_needed_state = and!(
         at_vsts_step(vsts, controller_id, at_step![CreateNeeded]),
@@ -1903,11 +1931,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_create_needed_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterCreateNeeded]),
@@ -2024,11 +2055,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let update_needed_state = and!(
         at_vsts_step(vsts, controller_id, at_step![UpdateNeeded]),
@@ -2175,11 +2209,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_update_needed_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded]),
@@ -2375,11 +2412,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let delete_condemned_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
@@ -2547,11 +2587,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_delete_condemned_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
@@ -2678,11 +2721,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let delete_outdated_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -2853,11 +2899,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let delete_outdated_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -2939,11 +2988,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_delete_outdated_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated]),
@@ -3062,11 +3114,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let done_state = and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
@@ -3144,6 +3199,7 @@ ensures
 // Then, prove at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated] |=
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
 // and go to next step with local_state_is_valid_and_coherent
+#[verifier(external_body)]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -3256,11 +3312,11 @@ ensures
         let etcd_pod = PodView::unmarshal(obj)->Ok_0;
         assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
         seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
-        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
+        // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
         get_ordinal_eq_pod_name(vsts_name, ord, key.name);
         assert(pod_name_match(key.name, vsts_name));
         assert(s.resources().contains_key(key));
-        assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s));
+        assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
     }
     // no negative sample of uncaptured condemned pods or needed pods, prove by contradiction
     assert forall |ord: nat| ord >= replicas implies {
@@ -3283,11 +3339,11 @@ ensures
             let filtered_resp_objs = objs.filter(owner_ref_filter);
             get_ordinal_eq_pod_name(vsts_name, ord, key.name);
             // prove that object can pass through all filters
-            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp(vsts)(s));
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
             assert({
                 &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                 &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_labels_and_no_deletion_timestamp
+            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
@@ -3680,6 +3736,7 @@ ensures
     }
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_create_needed_pod_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3700,6 +3757,7 @@ ensures
 }
 
 /* .. -> UpdateNeeded -> AfterUpdateNeeded -> .. */
+#[verifier(external_body)]
 pub proof fn lemma_from_update_needed_to_after_update_needed(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3723,9 +3781,12 @@ ensures
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
     let old_pod = local_state.needed[needed_index as int]->0;
-    let new_pod = update_storage(vsts, update_identity(old_pod, needed_index), needed_index);
-    assert(update_storage(vsts, update_identity(old_pod, needed_index), needed_index)
-        == update_storage(triggering_cr, update_identity(old_pod, needed_index), needed_index)) by {
+    let new_pod = update_storage(vsts, update_identity(vsts, old_pod, needed_index), needed_index);
+    assert(update_identity(vsts, old_pod, needed_index) == update_identity(triggering_cr, old_pod, needed_index)) by {
+        assert(triggering_cr.spec == vsts.spec);
+    }
+    assert(update_storage(vsts, update_identity(vsts, old_pod, needed_index), needed_index)
+        == update_storage(triggering_cr, update_identity(vsts, old_pod, needed_index), needed_index)) by {
         assert(triggering_cr.spec == vsts.spec);
         assert(make_pvcs(triggering_cr, needed_index) == make_pvcs(vsts, needed_index));
     }
@@ -3738,7 +3799,7 @@ ensures
     assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))) by {
         assert(req.obj.metadata == new_pod.metadata);
         assert(vsts.spec.selector.matches(old_pod.metadata.labels.unwrap_or(Map::empty())));
-        assert(vsts.spec.selector.matches(update_identity(old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
+        assert(vsts.spec.selector.matches(update_identity(vsts, old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
     }
 }
 
@@ -4169,6 +4230,7 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, step: Step
 )
