@@ -1027,11 +1027,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     assert(spec.entails(lift_state(get_pvc_state).leads_to(lift_state(after_get_pvc_state_with_req)))) by {
         assert forall |s, s_prime| get_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies get_pvc_state(s_prime) || after_get_pvc_state_with_req(s_prime) by {
@@ -1362,11 +1365,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let create_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![CreatePVC]),
@@ -1771,11 +1777,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let create_needed_state = and!(
         at_vsts_step(vsts, controller_id, at_step![CreateNeeded]),
@@ -2046,11 +2055,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let update_needed_state = and!(
         at_vsts_step(vsts, controller_id, at_step![UpdateNeeded]),
@@ -2197,11 +2209,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_update_needed_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterUpdateNeeded]),
@@ -2397,11 +2412,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let delete_condemned_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
@@ -2569,11 +2587,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_delete_condemned_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
@@ -2700,11 +2721,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let delete_outdated_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -2964,11 +2988,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
     );
     let after_delete_outdated_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteOutdated]),
