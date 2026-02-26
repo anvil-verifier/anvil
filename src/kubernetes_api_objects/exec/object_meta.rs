@@ -263,6 +263,13 @@ impl ObjectMeta {
     {
         self.inner.finalizers = None;
     }
+
+    #[verifier(external_body)]
+    pub fn unset_deletion_timestamp(&mut self)
+        ensures self@ == old(self)@.without_deletion_timestamp(),
+    {
+        self.inner.deletion_timestamp = None;
+    }
 }
 
 }

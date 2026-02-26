@@ -179,6 +179,13 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn without_deletion_timestamp(self) -> ObjectMetaView {
+        ObjectMetaView {
+            deletion_timestamp: None,
+            ..self
+        }
+    }
+
     pub open spec fn well_formed_for_namespaced(self) -> bool {
         &&& self.name is Some
         &&& self.namespace is Some

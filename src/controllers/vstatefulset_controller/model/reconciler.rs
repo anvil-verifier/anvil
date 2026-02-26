@@ -667,7 +667,6 @@ pub open spec fn make_pod(vsts: VStatefulSetView, ordinal: nat) -> PodView {
                 name: Some(pod_name(vsts.metadata.name->0, ordinal)),
                 labels: vsts.spec.template.metadata->0.labels,
                 annotations: vsts.spec.template.metadata->0.annotations,
-                finalizers: None, // disallow finalizer to avoid reasoning about extra passes
                 owner_references: Some(make_owner_references(vsts)),
                 ..ObjectMetaView::default()
             }
