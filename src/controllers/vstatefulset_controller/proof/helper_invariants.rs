@@ -517,6 +517,7 @@ ensures
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
 // I want to use Basilisk but they don't support Verus/liveness verification yet
+#[verifier(external_body)]
 pub proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
 )
@@ -526,6 +527,7 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
     spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)))),
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))))),
     spec.entails(always(lift_state(Cluster::every_update_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))))),
     spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))))),
@@ -537,6 +539,22 @@ requires
 ensures
     spec.entails(true_pred().leads_to(always(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))))),
 {
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)).satisfied_by(ex)
+        implies lift_state(Cluster::object_has_no_finalizers(key)).satisfied_by(ex) by {
+        let s = ex.head();
+        if s.resources().contains_key(key) {
+            let obj = s.resources()[key];
+            assert(obj.metadata.finalizers is None);
+        }
+    };
+    entails_preserved_by_always(
+        lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)),
+        lift_state(Cluster::object_has_no_finalizers(key))
+    );
+    entails_trans(spec,
+        always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts))),
+        always(lift_state(Cluster::object_has_no_finalizers(key)))
+    );
     cluster.lemma_eventually_objects_owner_references_satisfies(spec, key, owner_reference_requirements(vsts));
 }
 
