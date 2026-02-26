@@ -14,5 +14,9 @@ pub mod vstd_ext;
 pub mod vdeployment_controller;
 #[path = "controllers/vreplicaset_controller/mod.rs"]
 pub mod vreplicaset_controller;
+#[path = "controllers/vstatefulset_controller/mod.rs"]
+pub mod vstatefulset_controller;
+#[path = "controllers/rabbitmq_controller/mod.rs"]
+pub mod rabbitmq_controller;
 #[path = "controllers/composition/mod.rs"]
 pub mod composition;

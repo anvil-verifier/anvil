@@ -1,5 +1,4 @@
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, prelude::*};
-use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::{
     model::reconciler::*, proof::predicate::*, trusted::spec_types::*,
@@ -13,11 +12,11 @@ verus! {
 pub open spec fn rmq_rely_conditions(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> #[trigger] rmq_rely(other_id, cluster.installed_types)(s)
+            ==> #[trigger] rmq_rely(other_id)(s)
     }
 }
 
-pub open spec fn rmq_rely(other_id: int, installed_types: InstalledTypes) -> StatePred<ClusterState> {
+pub open spec fn rmq_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -30,6 +29,7 @@ pub open spec fn rmq_rely(other_id: int, installed_types: InstalledTypes) -> Sta
                 APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req)(s),
                 APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
                 APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req)(s),
+                APIRequest::UpdateStatusRequest(req) => rely_update_status_req(req)(s),
                 // Get/List requests do not interfere
                 _ => true,
             }
@@ -87,6 +87,48 @@ pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> 
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         is_rmq_managed_kind(req.key.kind) ==> !has_rabbitmq_prefix(req.key().name)
+    }
+}
+
+pub open spec fn rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        is_rmq_managed_kind(req.obj.kind) ==> !has_rabbitmq_prefix(req.key().name)
+    }
+}
+
+// RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name,
+// owned by exactly one RabbitmqCluster.
+pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
+    &&& is_rmq_managed_kind(req.obj.kind)
+    &&& req.obj.metadata.name is Some
+    &&& has_rabbitmq_prefix(req.obj.metadata.name->0)
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |rabbitmq: RabbitmqClusterView|
+        req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
+}
+
+// RMQ only updates objects of rmq-managed kind with rabbitmq prefix in the name,
+// owned by exactly one RabbitmqCluster.
+pub open spec fn rmq_guarantee_update_req(req: UpdateRequest) -> bool {
+    &&& is_rmq_managed_kind(req.obj.kind)
+    &&& has_rabbitmq_prefix(req.key().name)
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |rabbitmq: RabbitmqClusterView|
+        req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
+}
+
+pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+        } ==> match msg.content->APIRequest_0 {
+            APIRequest::GetRequest(_) => true,
+            APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
+            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            _ => false, // rmq doesn't send other requests
+        }
     }
 }
 
