@@ -48,7 +48,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
 }
 
 // TODO: strengthen to be resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
-pub open spec fn all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+pub open spec fn all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pod_key: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(pod_key)
@@ -59,11 +59,16 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_ti
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
             &&& obj.metadata.finalizers is None
+            &&& exists |uid: int| #![trigger dummy(uid)] obj.metadata.owner_references == Some(seq![OwnerReferenceView{
+                uid: uid,
+                ..vsts.controller_owner_ref()
+            }])
         }
     }
 }
 
-proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(
+#[verifier(external_body)]
+proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -74,9 +79,9 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)))),
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
 {
-    let inv = all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts);
+    let inv = all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
@@ -518,7 +523,6 @@ ensures
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
 // I want to use Basilisk but they don't support Verus/liveness verification yet
-#[verifier(external_body)]
 pub proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
 )
@@ -528,7 +532,8 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
     spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)))),
+    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))))),
     spec.entails(always(lift_state(Cluster::every_update_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))))),
     spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))))),
@@ -540,7 +545,7 @@ requires
 ensures
     spec.entails(true_pred().leads_to(always(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))))),
 {
-    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)).satisfied_by(ex)
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)).satisfied_by(ex)
         implies lift_state(Cluster::object_has_no_finalizers(key)).satisfied_by(ex) by {
         let s = ex.head();
         if s.resources().contains_key(key) {
@@ -549,12 +554,25 @@ ensures
         }
     };
     entails_preserved_by_always(
-        lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)),
+        lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)),
         lift_state(Cluster::object_has_no_finalizers(key))
     );
     entails_trans(spec,
-        always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts))),
+        always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts))),
         always(lift_state(Cluster::object_has_no_finalizers(key)))
+    );
+    let partial_spec = lift_state(and!(
+        Cluster::desired_state_is(vsts),
+        all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts),
+        Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts)),
+        Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))
+    ));
+    invariant_n!(spec, partial_spec,
+        lift_state(Cluster::objects_owner_references_violates(key, owner_reference_requirements(vsts))).implies(lift_state(Cluster::garbage_collector_deletion_enabled(key))),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)),
+        lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts)))
     );
     cluster.lemma_eventually_objects_owner_references_satisfies(spec, key, owner_reference_requirements(vsts));
 }
