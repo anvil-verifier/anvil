@@ -155,7 +155,7 @@ ensures
                                                         assert(!has_vsts_prefix(req.obj.metadata.name->0));
                                                     } else {
                                                         assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
-                                                        no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
                                                     }
                                                 }
                                             }
@@ -206,7 +206,7 @@ ensures
                                             assert(!has_vsts_prefix(req.obj.metadata.name->0));
                                         } else {
                                             assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
-                                            no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                            generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
                                         }
                                     }
                                 } else {} // Deletion/Update/UpdateStatus are not possible
@@ -938,7 +938,7 @@ ensures
                                                     } else {
                                                         assert(req.obj.metadata.generate_name is Some);
                                                         assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
-                                                        no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s.api_server, req.obj.metadata.generate_name->0);
+                                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
                                                     }
                                                 }
                                                 let created_obj_key = ObjectRef {

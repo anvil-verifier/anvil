@@ -115,14 +115,6 @@ ensures
     !pod_name_match(name, vsts_name_b),
 {}
 
-#[verifier(external_body)]
-pub proof fn no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s: APIServerState, generate_name_field: StringView)
-requires
-    !has_vsts_prefix(generate_name_field),
-ensures
-    !has_vsts_prefix(generated_name(s, generate_name_field))
-{}
-
 // helper lemma
 pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
 requires
