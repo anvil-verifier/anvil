@@ -47,6 +47,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
     }
 }
 
+// TODO: strengthen to be resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
 pub open spec fn all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pod_key: ObjectRef| {
