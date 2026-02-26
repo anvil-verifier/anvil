@@ -47,6 +47,75 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
     }
 }
 
+pub open spec fn all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts: VStatefulSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |pod_key: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(pod_key)
+            &&& pod_key.kind == Kind::PodKind
+            &&& pod_key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(pod_key.name, vsts.object_ref().name)
+        } ==> {
+            let obj = s.resources()[pod_key];
+            &&& obj.metadata.deletion_timestamp is None
+            &&& obj.metadata.finalizers is None
+        }
+    }
+}
+
+proof fn lemma_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts)))),
+{
+    let inv = all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp(vsts);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& vsts_rely_conditions(cluster, controller_id)(s)
+        &&& vsts_rely_conditions_pod_monkey()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s)
+        &&& every_msg_from_vsts_controller_carries_vsts_key(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
+    cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
+    lemma_always_every_msg_from_vsts_controller_carries_vsts_key(spec, cluster, controller_id);
+
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                assume(false);
+            },
+            _ => {},
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(vsts_rely_conditions(cluster, controller_id)),
+        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)),
+        lift_state(vsts_rely_conditions_pod_monkey()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
 // only contains one owner_ref, so GC can delete it when the vsts is deleted
 pub open spec fn vsts_pods_only_have_one_vsts_owner_ref() -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -448,7 +517,7 @@ ensures
 
 // TODO: resort to lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
 // I want to use Basilisk but they don't support Verus/liveness verification yet
-proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
+pub proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
 )
 requires
@@ -459,6 +528,7 @@ requires
     spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))))),
     spec.entails(always(lift_state(Cluster::every_update_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))))),
+    spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     key.kind == Kind::PodKind,
@@ -671,8 +741,7 @@ ensures
     guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
     lemma_always_every_msg_from_vsts_controller_carries_vsts_key(spec, cluster, controller_id);
 
-    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
-        implies inv(s_prime) by {
+    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
