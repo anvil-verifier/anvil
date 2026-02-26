@@ -115,35 +115,6 @@ ensures
     !pod_name_match(name, vsts_name_b),
 {}
 
-// helper lemmas about name prefixes
-#[verifier(external_body)]
-pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
-    name: StringView, generate_name_field: StringView, generated_suffix: StringView
-)
-requires
-    has_vsts_prefix(name),
-    name == generate_name_field + generated_suffix,
-    dash_free(generated_suffix),
-ensures
-    has_vsts_prefix(generate_name_field),
-{
-    let vsts_prefix = VStatefulSetView::kind()->CustomResourceKind_0 + "-"@;
-    dash_char_view_eq_str_view();
-    assert(!dash_free(name)) by {
-        assert(name[vsts_prefix.len() - 1] == '-'@);
-    }
-    assert(!dash_free(generate_name_field)) by {
-        if dash_free(generate_name_field) {
-            assert(dash_free(name));
-            assert(false);
-        }
-    }
-    // we know exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix from has_vsts_prefix(name)
-    // and name == generate_name_field + generated_suffix, dash_free(generated_suffix)
-    // so generate_name_field must also start with VStatefulSetView::kind()->CustomResourceKind_0 + "-"@
-    // yet the proof is hard
-}
-
 #[verifier(external_body)]
 pub proof fn no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s: APIServerState, generate_name_field: StringView)
 requires

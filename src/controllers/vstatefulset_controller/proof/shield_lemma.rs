@@ -417,9 +417,7 @@ ensures
                                         generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
                                         let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
                                             name == req.obj.metadata.generate_name->0 + suffix;
-                                        generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
-                                            name, req.obj.metadata.generate_name->0, generated_suffix
-                                        );
+                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
                                         assert(false);
                                     }
                                     assert(!pvc_name_match(name, vsts.metadata.name->0)) by {
