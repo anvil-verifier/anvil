@@ -1174,7 +1174,7 @@ ensures
                                     let i = (local_state.pvc_index, local_state.needed_index);
                                     // trigger
                                     assert(key.name == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1));
-                                    pvc_name_with_vsts_match_vsts(key.name, vsts);
+                                    pvc_name_with_vsts_implies_pvc_name_match_vsts(key.name, vsts);
                                     assert(s.resources().contains_key(key)); // trigger
                                     assert(({
                                         &&& key.kind == Kind::PersistentVolumeClaimKind
@@ -1576,7 +1576,7 @@ ensures
                         let i = ((local_state.pvc_index - 1) as nat, local_state.needed_index);
                         // trigger
                         assert(key.name == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1));
-                        pvc_name_with_vsts_match_vsts(key.name, vsts);
+                        pvc_name_with_vsts_implies_pvc_name_match_vsts(key.name, vsts);
                         assert(s.resources().contains_key(key)); // trigger
                         assert(({
                             &&& key.kind == Kind::PersistentVolumeClaimKind

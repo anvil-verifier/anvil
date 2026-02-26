@@ -74,17 +74,22 @@ ensures
     assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord));
 }
 
-#[verifier(external_body)]
-pub proof fn pvc_name_with_vsts_match_vsts(
+pub proof fn pvc_name_with_vsts_implies_pvc_name_match_vsts(
     name: StringView, vsts: VStatefulSetView
 )
 requires
     // index, ord
-    exists |i: (nat, nat)| name == #[trigger]
-        pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1),
+    exists |i: (nat, nat)| name == #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1)
+        && dash_free(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0),
 ensures
     pvc_name_match(name, vsts.metadata.name->0),
-{}
+{
+    let i = choose |i: (nat, nat)| name == #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1)
+        && dash_free(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0);
+    let j = (vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, i.1);
+    assert((|j: (StringView, nat)| name == pvc_name(j.0, vsts.metadata.name->0, j.1))(j));
+    assert(pvc_name_match(name, vsts.metadata.name->0));
+}
 
 // helper lemmas about pvc_name_match
 // NOTE: dash_char_view_eq_str_view may be helpful
