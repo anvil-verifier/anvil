@@ -181,7 +181,7 @@ ensures
                                             if cr_key.namespace == vsts.object_ref().namespace {
                                                 assert(cr_key.name != vsts.object_ref().name);
                                                 assert(pod_name_match(req.obj.metadata.name->0, cr_key.name));
-                                                vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, cr_key.name, vsts.object_ref().name);
+                                                vsts_name_neq_implies_no_pod_name_match(req.obj.metadata.name->0, cr_key.name, vsts.object_ref().name);
                                                 assert(req.key() != pod_key);
                                             }
                                         }
@@ -378,7 +378,7 @@ ensures
                                     ..VStatefulSetView::default()
                                 };
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s_prime));
-                                vsts_name_non_eq_implies_no_pod_name_match(key.name, other_vsts.object_ref().name, vsts.object_ref().name);
+                                vsts_name_neq_implies_no_pod_name_match(key.name, other_vsts.object_ref().name, vsts.object_ref().name);
                                 assert(false);
                             }
                         } else {
@@ -477,7 +477,7 @@ ensures
                                 };
                                 assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s_prime));
                                 if resource_get_then_update_request_msg(key)(msg) {
-                                    vsts_name_non_eq_implies_no_pod_name_match(key.name, other_vsts.object_ref().name, vsts.object_ref().name);
+                                    vsts_name_neq_implies_no_pod_name_match(key.name, other_vsts.object_ref().name, vsts.object_ref().name);
                                     assert(false);
                                 } else if resource_get_then_update_request_msg(key)(msg) {
                                     assert(false);

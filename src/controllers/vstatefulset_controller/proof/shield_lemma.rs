@@ -204,12 +204,12 @@ ensures
                                 assert(other_vsts.controller_owner_ref() != vsts.controller_owner_ref());
                                 if !s.resources().contains_key(k) && resource_create_request_msg(k)(msg) {
                                     let req = msg.content.get_create_request();
-                                    vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0);
+                                    vsts_name_neq_implies_no_pod_name_match(req.obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0);
                                     assert(false);
                                 }
                                 if s.resources().contains_key(k) && resource_get_then_update_request_msg(k)(msg) {
                                     let req = msg.content.get_get_then_update_request();
-                                    vsts_name_non_eq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
+                                    vsts_name_neq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
                                     assert(false);
                                 }
                             } // or else, namespace is different, so should not be touched at all
@@ -390,7 +390,7 @@ ensures
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.metadata.name != vsts.metadata.name);
                                 if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
-                                    vsts_name_non_eq_implies_no_pvc_name_match(
+                                    vsts_name_neq_implies_no_pvc_name_match(
                                         obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0
                                     );
                                 } else if resource_get_then_update_request_msg(k)(msg) && s.resources().contains_key(k) {

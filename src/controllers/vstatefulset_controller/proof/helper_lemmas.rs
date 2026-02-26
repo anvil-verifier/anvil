@@ -90,7 +90,7 @@ ensures
     assert(pvc_name_match(name, vsts.metadata.name->0));
 }
 
-pub proof fn vsts_name_non_eq_implies_no_pvc_name_match(
+pub proof fn vsts_name_neq_implies_no_pvc_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
 requires
@@ -134,7 +134,7 @@ ensures
     }
 }
 
-pub proof fn vsts_name_non_eq_implies_no_pod_name_match(
+pub proof fn vsts_name_neq_implies_no_pod_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
 requires
