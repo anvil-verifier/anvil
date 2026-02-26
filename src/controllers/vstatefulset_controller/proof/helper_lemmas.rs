@@ -134,7 +134,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn vsts_name_non_eq_implies_no_pod_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
@@ -143,7 +142,29 @@ requires
     pod_name_match(name, vsts_name_a),
 ensures
     !pod_name_match(name, vsts_name_b),
-{}
+{
+    if pod_name_match(name, vsts_name_b) {
+        let ord_a = choose |ord_a: nat| name == pod_name(vsts_name_a, ord_a);
+        let ord_b = choose |ord_b: nat| name == pod_name(vsts_name_b, ord_b);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_a, ord_a));
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_b, ord_b));
+        assert(pod_name_without_vsts_prefix(vsts_name_a, ord_a) != pod_name_without_vsts_prefix(vsts_name_b, ord_b)) by {
+            int_to_string_view_dash_free();
+            lemma_dash_free_suffix_preserves_prefix_inequality(
+                vsts_name_a,
+                vsts_name_b,
+                int_to_string_view(ord_a as int),
+                int_to_string_view(ord_b as int)
+            );
+        }
+        seq_equal_preserved_by_add_prefix(
+            VStatefulSetView::kind()->CustomResourceKind_0 + "-"@,
+            pod_name_without_vsts_prefix(vsts_name_a, ord_a),
+            pod_name_without_vsts_prefix(vsts_name_b, ord_b)
+        );
+        assert(false);
+    }
+}
 
 // helper lemma
 pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
