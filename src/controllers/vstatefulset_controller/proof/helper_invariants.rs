@@ -178,15 +178,13 @@ ensures
                                         _ => {}
                                     }
                                 } else if cr_key != vsts.object_ref() {
-                                    assume(false);
-                                    let havoc_vsts = make_vsts();
                                     let vsts_with_key = VStatefulSetView {
                                         metadata: ObjectMetaView {
                                             name: Some(cr_key.name),
                                             namespace: Some(cr_key.namespace),
-                                            ..havoc_vsts.metadata
+                                            ..ObjectMetaView::default()
                                         },
-                                        ..havoc_vsts
+                                        ..VStatefulSetView::default()
                                     };
                                     assert(vsts_with_key.object_ref() == cr_key);
                                     assert(guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
