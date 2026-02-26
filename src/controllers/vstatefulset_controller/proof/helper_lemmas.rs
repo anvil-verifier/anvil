@@ -18,7 +18,6 @@ use vstd::prelude::*;
 
 verus! {
 
-
 pub proof fn get_ordinal_eq_pod_name(vsts_name: StringView, ord: nat, compared_pod_name: StringView)
 ensures
     (get_ordinal(vsts_name, compared_pod_name) == Some(ord))
@@ -91,9 +90,6 @@ ensures
     assert(pvc_name_match(name, vsts.metadata.name->0));
 }
 
-// helper lemmas about pvc_name_match
-// NOTE: dash_char_view_eq_str_view may be helpful
-#[verifier(external_body)]
 pub proof fn vsts_name_non_eq_implies_no_pvc_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
@@ -102,7 +98,41 @@ requires
     pvc_name_match(name, vsts_name_a),
 ensures
     !pvc_name_match(name, vsts_name_b),
-{}
+{
+    if pvc_name_match(name, vsts_name_b) {
+        let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name_a, i.1) && dash_free(i.0);
+        let suffix = i.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_a, i.1);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        let j = choose |j: (StringView, nat)| name == #[trigger] pvc_name(j.0, vsts_name_b, j.1) && dash_free(j.0);
+        let suffix2 = j.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_b, j.1);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix2);
+        assert(suffix == suffix2) by {
+            assert("-"@ + suffix == name.subrange(VStatefulSetView::kind()->CustomResourceKind_0.len() as int, name.len() as int));
+            assert("-"@ + suffix2 == name.subrange(VStatefulSetView::kind()->CustomResourceKind_0.len() as int, name.len() as int));
+            if suffix != suffix2 {
+                seq_unequal_preserved_by_add_prefix(
+                    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@,
+                    suffix,
+                    suffix2
+                );
+                assert(false);
+            }
+        }
+        assert(pod_name_without_vsts_prefix(vsts_name_a, i.1) != pod_name_without_vsts_prefix(vsts_name_b, j.1)) by {
+            int_to_string_view_dash_free();
+            lemma_dash_free_suffix_preserves_prefix_inequality(
+                vsts_name_a,
+                vsts_name_b,
+                int_to_string_view(i.1 as int),
+                int_to_string_view(j.1 as int)
+            );
+        }
+        lemma_dash_free_prefix_preserves_suffix_inequality(
+            i.0, j.0, pod_name_without_vsts_prefix(vsts_name_a, i.1), pod_name_without_vsts_prefix(vsts_name_b, j.1)
+        );
+        assert(false);
+    }
+}
 
 #[verifier(external_body)]
 pub proof fn vsts_name_non_eq_implies_no_pod_name_match(
