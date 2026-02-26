@@ -310,6 +310,7 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s.resources()[k];
+        pvc_name_match_implies_has_vsts_prefix(k.name);
         PersistentVolumeClaimView::marshal_preserves_integrity();
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
@@ -339,7 +340,6 @@ ensures
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
                             if resource_delete_request_msg(k)(msg) || resource_update_request_msg(k)(msg) {
-                                assert(pvc_name_match(k.name, vsts.metadata.name->0));
                                 assert(false);
                             }
                         }
@@ -364,6 +364,7 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s_prime.resources()[k];
+        pvc_name_match_implies_has_vsts_prefix(k.name);
         PersistentVolumeClaimView::marshal_preserves_integrity();
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
@@ -403,7 +404,6 @@ ensures
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vsts_rely(id)(s)); // trigger vsts_rely_condition
                             if resource_update_request_msg(k)(msg) {
-                                assert(pvc_name_match(k.name, vsts.metadata.name->0));
                                 assert(false);
                             } else if msg.content.is_create_request() && !s.resources().contains_key(k) {
                                 let req = msg.content.get_create_request();
