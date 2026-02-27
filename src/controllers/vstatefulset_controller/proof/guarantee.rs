@@ -159,48 +159,44 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts(controller_id: int) -> St
     }
 }
 
-pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts: VStatefulSetView, local_state: VStatefulSetReconcileState) -> bool {
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key: ObjectRef, local_state: VStatefulSetReconcileState) -> bool {
     let pvcs = local_state.pvcs;
     let needed_pods = local_state.needed;
     let condemned_pods = local_state.condemned;
-    &&& vsts.metadata.well_formed_for_namespaced()
     &&& forall |i| #![trigger needed_pods[i]] 0 <= i < needed_pods.len() && needed_pods[i] is Some ==> {
         let pod = needed_pods[i]->0;
         &&& pod.metadata.name is Some
-        &&& pod_name_match(pod.metadata.name->0, vsts.metadata.name->0)
-        &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pod_name_match(pod.metadata.name->0, cr_key.name)
+        &&& pod.metadata.namespace == Some(cr_key.namespace)
     }
     &&& forall |i| #![trigger condemned_pods[i]] 0 <= i < condemned_pods.len() ==> {
         let pod = condemned_pods[i];
         &&& pod.metadata.name is Some
-        &&& pod_name_match(pod.metadata.name->0, vsts.metadata.name->0)
-        &&& pod.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pod_name_match(pod.metadata.name->0, cr_key.name)
+        &&& pod.metadata.namespace == Some(cr_key.namespace)
     }
     &&& forall |i| #![trigger pvcs[i]] 0 <= i < pvcs.len() ==> {
         let pvc = pvcs[i];
         &&& pvc.metadata.name is Some
-        &&& pvc_name_match(pvc.metadata.name->0, vsts.metadata.name->0)
+        &&& pvc_name_match(pvc.metadata.name->0, cr_key.name)
         &&& pvc.metadata.generate_name is None
-        &&& pvc.metadata.namespace == Some(vsts.object_ref().namespace)
+        &&& pvc.metadata.namespace == Some(cr_key.namespace)
         &&& pvc.metadata.owner_references is None
         &&& pvc.metadata.finalizers is None
     }
 }
 
-pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, key: ObjectRef, s: ClusterState) -> bool {
-    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
-    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
-    
-    &&& vsts.object_ref() == key
-    &&& local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, local_state)
+pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: int, cr_key: ObjectRef, s: ClusterState) -> bool {
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    &&& local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, local_state)
     &&& local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod ==> {
-        let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-        &&& s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+        let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+        &&& s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some
         &&& req_msg.dst is APIServer
         &&& req_msg.content.is_list_request()
         &&& req_msg.content.get_list_request() == ListRequest {
             kind: Kind::PodKind,
-            namespace: vsts.metadata.namespace.unwrap(),
+            namespace: cr_key.namespace,
         }
         &&& forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -211,10 +207,9 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
             let resp_objs = msg.content.get_list_response().res.unwrap();
             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
             &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
                 &&& resp_objs[i].metadata.namespace is Some
                 // list response should match the ns in request
-                &&& resp_objs[i].metadata.namespace->0 == vsts.metadata.namespace->0
+                &&& resp_objs[i].metadata.namespace->0 == cr_key.namespace
                 // can pass objects_to_pods
                 &&& resp_objs[i].kind == Kind::PodKind
             }
@@ -224,7 +219,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
 
 // similar to lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
 pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
-    cluster: Cluster, controller_id: int, key: ObjectRef, s: ClusterState, s_prime: ClusterState
+    cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
 requires
     cluster.next()(s, s_prime),
@@ -244,26 +239,24 @@ requires
     Cluster::etcd_is_finite()(s),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, key, s),
-    s.ongoing_reconciles(controller_id).contains_key(key),
-    s_prime.ongoing_reconciles(controller_id).contains_key(key),
+    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s),
+    s.ongoing_reconciles(controller_id).contains_key(cr_key),
+    s_prime.ongoing_reconciles(controller_id).contains_key(cr_key),
 ensures
-    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, key, s_prime),
+    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime),
 {
     let step = choose |step| cluster.next_step(s, s_prime, step);
-    let vsts = VStatefulSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
-    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
-    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state)->Ok_0;
-    assert(vsts.object_ref() == key);
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
     match step {
         Step::APIServerStep(req_msg_opt) => {
             assert(next_local_state == local_state);
-            assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg ==
-                s.ongoing_reconciles(controller_id)[key].pending_req_msg);
-            if req_msg_opt == s.ongoing_reconciles(controller_id)[key].pending_req_msg {
+            assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg ==
+                s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg);
+            if req_msg_opt == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg {
                 assume(false);
             }
-            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, local_state));
+            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, local_state));
         },
         Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
             assume(false);
@@ -271,13 +264,13 @@ ensures
         _ => {}
     }
     if next_local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
-        let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-        assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+        let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+        assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some);
         assert(req_msg.dst is APIServer);
         assert(req_msg.content.is_list_request());
         assert(req_msg.content.get_list_request() == ListRequest {
             kind: Kind::PodKind,
-            namespace: vsts.metadata.namespace.unwrap(),
+            namespace: cr_key.namespace,
         });
         assert forall |msg| {
             &&& #[trigger] s_prime.in_flight().contains(msg)
@@ -291,7 +284,7 @@ ensures
                 let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
                 &&& resp_objs[i].metadata.namespace is Some
                 // list response should match the ns in request
-                &&& resp_objs[i].metadata.namespace->0 == vsts.metadata.namespace->0
+                &&& resp_objs[i].metadata.namespace->0 == cr_key.namespace
                 // can pass objects_to_pods
                 &&& resp_objs[i].kind == Kind::PodKind
             }
@@ -393,7 +386,7 @@ pub proof fn lemma_guarantee_from_reconcile_state(
         reconcile_core(vsts, None, state).1 is Some,
         reconcile_core(vsts, None, state).1->0 is KRequest,
         msg.content->APIRequest_0 == reconcile_core(vsts, None, state).1->0->KRequest_0,
-        local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts, state),
+        local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(vsts.object_ref(), state),
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
