@@ -10,9 +10,8 @@ use crate::vstatefulset_controller::{
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::vstd_ext::string_view::*;
-use vstd::prelude::*;
-use crate::vstd_ext::seq_lib::*;
+use vstd::{prelude::*, map_lib::*};
+use crate::vstd_ext::{string_view::*, seq_lib::*, set_lib::*, map_lib::*};
 
 verus! {
 
@@ -207,17 +206,14 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
             let resp_objs = msg.content.get_list_response().res.unwrap();
             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
             &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                &&& resp_objs[i].metadata.namespace is Some
-                // list response should match the ns in request
-                &&& resp_objs[i].metadata.namespace->0 == cr_key.namespace
-                // can pass objects_to_pods
+                &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
                 &&& resp_objs[i].kind == Kind::PodKind
             }
         }
     }
 }
 
-// similar to lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
+// similar to lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime
 pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
@@ -242,53 +238,101 @@ requires
     local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s),
     s.ongoing_reconciles(controller_id).contains_key(cr_key),
     s_prime.ongoing_reconciles(controller_id).contains_key(cr_key),
+    cr_key.kind == VStatefulSetView::kind(),
 ensures
     local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime),
 {
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
     match step {
         Step::APIServerStep(req_msg_opt) => {
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
             assert(next_local_state == local_state);
-            assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg ==
-                s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg);
-            if req_msg_opt == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg {
+            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, next_local_state));
+            if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
+                assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg == Some(req_msg));
+                assert forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                    &&& is_ok_resp(msg.content->APIResponse_0)
+                } implies {
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                    &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                        &&& resp_objs[i].metadata.namespace is Some
+                        &&& resp_objs[i].metadata.namespace->0 == cr_key.namespace
+                        &&& resp_objs[i].kind == Kind::PodKind
+                    }
+                } by {
+                    if new_msgs.contains(msg) {
+                        if req_msg_opt == Some(req_msg) {
+                            let resp_objs = msg.content.get_list_response().res.unwrap();
+                            assert forall |o: DynamicObjectView| #[trigger] resp_objs.contains(o)
+                            implies !PodView::unmarshal(o).is_err() by {
+                                // Tricky reasoning about .to_seq
+                                let selector = |o: DynamicObjectView| {
+                                    &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                    &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                };
+                                let selected_elements = s.resources().values().filter(selector);
+                                lemma_values_finite(s.resources());
+                                finite_set_to_seq_contains_all_set_elements(selected_elements);
+                                assert(resp_objs =~= selected_elements.to_seq());
+                                assert(selected_elements.contains(o));
+                            }
+                            seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                                resp_objs,
+                                |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                            );
+                            assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() implies {
+                                &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
+                                &&& resp_objs[i].kind == Kind::PodKind
+                            } by {
+                                let selector = |o: DynamicObjectView| {
+                                    &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                    &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                };
+                                let selected_elements = s.resources().values().filter(selector);
+                                lemma_values_finite(s.resources());
+                                element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
+                                lemma_filter_set(s.resources().values(), selector);
+                            }
+                        } else {
+                            assert(s.in_flight().contains(req_msg_opt->0)); // trigger
+                        }
+                    } else {
+                        assert(s.in_flight().contains(msg)); // trigger
+                    }
+                }
+            }
+            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime));
+        },
+        Step::ControllerStep((id, _, cr_key_opt)) => {
+            if cr_key_opt == Some(cr_key) {
                 assume(false);
+            } else {
+                if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
+                    assert(forall |msg| {
+                        &&& #[trigger] s_prime.in_flight().contains(msg)
+                        &&& msg.src is APIServer
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                    } ==> s.in_flight().contains(msg));
+                }
             }
-            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, local_state));
         },
-        Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
-            assume(false);
-        },
-        _ => {}
-    }
-    if next_local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
-        let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-        assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some);
-        assert(req_msg.dst is APIServer);
-        assert(req_msg.content.is_list_request());
-        assert(req_msg.content.get_list_request() == ListRequest {
-            kind: Kind::PodKind,
-            namespace: cr_key.namespace,
-        });
-        assert forall |msg| {
-            &&& #[trigger] s_prime.in_flight().contains(msg)
-            &&& msg.src is APIServer
-            &&& resp_msg_matches_req_msg(msg, req_msg)
-            &&& is_ok_resp(msg.content->APIResponse_0)
-        } implies {
-            let resp_objs = msg.content.get_list_response().res.unwrap();
-            &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
-            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                let controller_owners = resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter());
-                &&& resp_objs[i].metadata.namespace is Some
-                // list response should match the ns in request
-                &&& resp_objs[i].metadata.namespace->0 == cr_key.namespace
-                // can pass objects_to_pods
-                &&& resp_objs[i].kind == Kind::PodKind
+        _ => {
+            if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
+                assert(forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                    &&& is_ok_resp(msg.content->APIResponse_0)
+                } ==> s.in_flight().contains(msg));
             }
-        } by {}
+        }
     }
 }
 
