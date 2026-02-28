@@ -166,14 +166,12 @@ ensures
     }
 }
 
-// helper lemma
 pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
 requires
     !has_vsts_prefix(name),
 ensures
     forall |vsts_name: StringView| ! #[trigger] pvc_name_match(name, vsts_name),
 {
-    // proof by contradiction
     if exists |vsts_name: StringView| #[trigger] pvc_name_match(name, vsts_name) {
         let witness_vsts = choose |vsts_name: StringView| #[trigger] pvc_name_match(name, vsts_name);
         let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, witness_vsts, i.1);
