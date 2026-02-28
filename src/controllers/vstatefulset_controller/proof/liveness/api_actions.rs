@@ -257,8 +257,8 @@ ensures
             let updated_obj = updated_object(update_req, current_obj).with_resource_version(s.api_server.resource_version_counter);
             assert(updated_object_validity_check(updated_obj, current_obj, cluster.installed_types) is None) by {
                 assert(metadata_validity_check(updated_obj) is None) by {
-                    assert(updated_obj.metadata.owner_references is Some);
-                    assert(updated_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1);
+                    assert(updated_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+                    assert(controller_owner_filter()(vsts.controller_owner_ref()));
                 }
             }
         }
