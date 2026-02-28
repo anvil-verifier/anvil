@@ -48,6 +48,34 @@ ensures
     }
 }
 
+pub proof fn pod_name_eq_implies_ord_eq(vsts_name: StringView, ord_a: nat, ord_b: nat)
+ensures
+    pod_name(vsts_name, ord_a) == pod_name(vsts_name, ord_b) <==> ord_a == ord_b
+{
+    if pod_name(vsts_name, ord_a) == pod_name(vsts_name, ord_b) {
+        assert(VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord_a)
+            == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord_b));
+        if pod_name_without_vsts_prefix(vsts_name, ord_a) != pod_name_without_vsts_prefix(vsts_name, ord_b) {
+            seq_equal_preserved_by_add_prefix(
+                VStatefulSetView::kind()->CustomResourceKind_0 + "-"@,
+                pod_name_without_vsts_prefix(vsts_name, ord_a),
+                pod_name_without_vsts_prefix(vsts_name, ord_b)
+            );
+            assert(false);
+        }
+        assert(vsts_name + "-"@ + int_to_string_view(ord_a as int) == vsts_name + "-"@ + int_to_string_view(ord_b as int));
+        if ord_a != ord_b {
+            int_to_string_view_injectivity();
+            seq_unequal_preserved_by_add_prefix(
+                vsts_name + "-"@,
+                int_to_string_view(ord_a as int),
+                int_to_string_view(ord_b as int)
+            );
+            assert(false);
+        }
+    }
+}
+
 // this is simple but introduced a lot of flakiness
 pub proof fn pvc_name_match_implies_has_vsts_prefix(name: StringView)
 requires
