@@ -297,6 +297,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 &&& s.resources().contains_key(key)
                 &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
             }
+            &&& ord > state.needed_index && state.needed[ord as int] is None ==>
+                !s.resources().contains_key(key)
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates()
