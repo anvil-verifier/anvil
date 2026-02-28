@@ -3896,12 +3896,6 @@ ensures
         PodView::marshal_spec_preserves_integrity();
         let pod = PodView::unmarshal(s.resources()[req.key()])->Ok_0;
         let pod_prime = PodView::unmarshal(s_prime.resources()[req.key()])->Ok_0;
-        // assert(pod_spec_weakly_eq(updated_pod, pod)) by {
-        //     let local_pod = local_state.needed[needed_index - 1]->0;
-        //     assert(local_state.needed[needed_index - 1] is Some);
-        //     assert(pod_spec_weakly_eq(local_pod, pod));
-        //     assert(pod_spec_weakly_eq(updated_pod, local_pod));
-        // }
         assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             assert forall |key: ObjectRef| #[trigger] s.resources().contains_key(key) implies
                 outdated_obj_key_filter(s, vsts)(key) == outdated_obj_key_filter(s_prime, vsts)(key) by {
