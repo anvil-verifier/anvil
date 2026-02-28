@@ -1854,6 +1854,17 @@ ensures
                             assert(after_create_needed_state_with_response(s_prime));
                         } else {
                             lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                            let req = msg.content.get_create_request();
+                            let key = req.key();
+                            assert(!s_prime.resources().contains_key(key)) by {
+                                assert(!s.resources().contains_key(key)); // trigger
+                                assert(({
+                                    &&& key.kind == Kind::PodKind
+                                    &&& key.namespace == vsts.metadata.namespace->0
+                                    &&& pod_name_match(key.name, vsts.metadata.name->0)
+                                })); // pre of lemma_no_interference
+                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                            }
                         }
                     },
                     Step::BuiltinControllersStep(_) => {},
