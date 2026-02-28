@@ -253,8 +253,6 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
 // message predicates for each exceptional states carry the necessary information to repair the coherence
 // because of the complexity, don't forget to hide this spec when needed by
 // hide(local_state_is_coherent_with_etcd);
-// TODO: simplify this by removing unnecessary coherence predicates
-// because controller tolerates NotFound/AlreadyExists errors
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();

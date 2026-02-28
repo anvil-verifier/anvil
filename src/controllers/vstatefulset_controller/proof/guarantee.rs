@@ -88,7 +88,6 @@ pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
 }
 
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
-// TODO: use vsts_key instead of vsts as we don't know the uid
 pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {

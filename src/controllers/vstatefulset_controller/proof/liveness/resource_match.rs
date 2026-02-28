@@ -3671,7 +3671,6 @@ ensures
     assert(pod_spec_matches(vsts, req_pod));
 }
 
-// TODO: anyway to increase proof automation by change the way to invoke get_ordinal_eq_pod_name?
 pub proof fn lemma_from_after_send_create_needed_pod_req_to_receive_create_needed_pod_resp(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3736,8 +3735,7 @@ ensures
             };
             // created obj shouldn't be considered as condemned
             if !s.resources().contains_key(key) && key == req.key() {
-                get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, key.name);
-                get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, key.name);
+                pod_name_eq_implies_ord_eq(vsts.metadata.name->0, ord, (needed_index - 1) as nat);
                 assert(false);
             }
         }
@@ -3748,10 +3746,7 @@ ensures
         } by {
             let condemned_pod = next_local_state.condemned[i as int];
             if req.key() == condemned_pod.object_ref() {
-                let ord = get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0)->0;
-                assert(ord >= replicas);
-                get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, req.key().name);
-                get_ordinal_eq_pod_name(vsts.metadata.name->0, (next_local_state.needed_index - 1) as nat, req.key().name);
+                pod_name_eq_implies_ord_eq(vsts.metadata.name->0, i, (needed_index - 1) as nat);
                 assert(false);
             }
         }
@@ -4035,7 +4030,6 @@ ensures
                 namespace: vsts.metadata.namespace->0
             };
             &&& s_prime.resources().contains_key(key)
-            // TODO: cover pod updates
         } by {
             let key = ObjectRef {
                 kind: Kind::PodKind,

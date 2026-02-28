@@ -858,7 +858,6 @@ ensures
 // similar to above, but for PVCs
 // rely conditions already prevent other controllers from creating or updating PVCs
 // and VSTS controller's internal guarantee says all pvcs it creates have no owner refs
-// TODO: add deletion timestampe and finalizer conditions
 pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |pvc_key: ObjectRef| {
