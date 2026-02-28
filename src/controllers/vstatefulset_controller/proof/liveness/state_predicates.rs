@@ -656,8 +656,10 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
         let ord = (local_state.needed_index - 1) as nat;
         let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
+        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -677,8 +679,10 @@ pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
         let ord = (local_state.needed_index - 1) as nat;
         let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
+        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
