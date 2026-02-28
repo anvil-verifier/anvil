@@ -235,7 +235,11 @@ ensures
     assert(resp_msg.content.get_get_then_update_response().res is Ok) by {
         assert(req.well_formed());
         let current_obj = s.resources()[key];
-        assert(current_obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(current_obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
+            assert(current_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(current_obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+        }
         let new_obj = DynamicObjectView {
             metadata: ObjectMetaView {
                 resource_version: current_obj.metadata.resource_version,
