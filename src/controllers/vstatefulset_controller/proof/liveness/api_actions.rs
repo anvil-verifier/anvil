@@ -350,76 +350,35 @@ ensures
     let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
     let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    assert forall |ord: nat| ord < state.needed.len() implies {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        &&& s.resources().contains_key(key) <==> s_prime.resources().contains_key(key)
-        &&& weakly_eq(s.resources()[key], s_prime.resources()[key])
-    } by {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
+    let pod_key_with_ord = |ord: nat| ObjectRef {
+        kind: Kind::PodKind,
+        name: pod_name(vsts.metadata.name->0, ord),
+        namespace: vsts.metadata.namespace->0
+    };
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] s.resources().contains_key(pod_key_with_ord(ord))
+        implies s_prime.resources().contains_key(pod_key_with_ord(ord))
+            && weakly_eq(s.resources()[pod_key_with_ord(ord)], s_prime.resources()[pod_key_with_ord(ord)]) by {
         assert({
-            &&& key.kind == Kind::PodKind
-            &&& key.namespace == vsts.metadata.namespace->0
-            &&& pod_name_match(key.name, vsts.metadata.name->0)
+            &&& s.resources().contains_key(pod_key_with_ord(ord))
+            &&& pod_key_with_ord(ord).kind == Kind::PodKind
+            &&& pod_key_with_ord(ord).namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(pod_key_with_ord(ord).name, vsts.metadata.name->0)
         });
         shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
     }
-    assert forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) implies {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        s_prime.resources().contains_key(key)
-            ==> exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
-    } by {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        if s_prime.resources().contains_key(key) {
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] !s.resources().contains_key(pod_key_with_ord(ord))
+        implies !s_prime.resources().contains_key(pod_key_with_ord(ord)) by {
+        if s_prime.resources().contains_key(pod_key_with_ord(ord)) {
             assert({
-                &&& s_prime.resources().contains_key(key)
-                &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts.metadata.namespace->0
-                &&& pod_name_match(key.name, vsts.metadata.name->0)
-            });
-            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
-        }
-    }
-    assert forall |i: nat| #![trigger state.condemned[i as int]] i < condemned_index_considering_deletion implies {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: state.condemned[i as int].metadata.name->0,
-            namespace: vsts.metadata.namespace->0
-        };
-        &&& !s_prime.resources().contains_key(key)
-    } by {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: state.condemned[i as int].metadata.name->0,
-            namespace: vsts.metadata.namespace->0
-        };
-        if s_prime.resources().contains_key(key) {
-            assert({
-                &&& s_prime.resources().contains_key(key)
-                &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts.metadata.namespace->0
-                &&& pod_name_match(key.name, vsts.metadata.name->0)
+                &&& s_prime.resources().contains_key(pod_key_with_ord(ord))
+                &&& pod_key_with_ord(ord).kind == Kind::PodKind
+                &&& pod_key_with_ord(ord).namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(pod_key_with_ord(ord).name, vsts.metadata.name->0)
             });
             shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
             assert(false);
         }
     }
-    assert(needed_index_for_pvc <= replicas(vsts));
     assert(vsts.state_validation()) by {
         let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
         assert(cr.spec == vsts.spec);
