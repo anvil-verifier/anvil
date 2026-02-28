@@ -3680,6 +3680,25 @@ ensures
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     // prove that creation will not affect coherence of condemned pods
     assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime)) by {
+        // 1. needed pod remains uncreated after the current index
+        assert forall |ord: nat| needed_index <= ord < next_local_state.needed.len() && next_local_state.needed[ord as int] is None implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& !s_prime.resources().contains_key(key)
+        } by {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            if key == req.key() {
+                pod_name_eq_implies_ord_eq(vsts.metadata.name->0, ord, (needed_index - 1) as nat);
+                assert(false);
+            }
+        }
         // 2.a. all pods to be condemned in etcd are captured in next_local_state.condemned
         assert forall |ord: nat| ord >= replicas implies {
             let key = ObjectRef {
