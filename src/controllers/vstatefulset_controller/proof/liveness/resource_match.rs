@@ -3896,6 +3896,45 @@ ensures
     after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)(s_prime),
 {
     VStatefulSetReconcileState::marshal_preserves_integrity();
+    let state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+    let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
+    let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
+    let req = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0.content.get_get_then_update_request();
+    assert(local_state_is_valid_and_coherent(vsts, controller_id)(s_prime)) by {
+        assert(get_largest_unmatched_pods(triggering_cr, state.needed) ==
+            get_largest_unmatched_pods(vsts, state.needed)) by {
+            same_filter_implies_same_result(state.needed, outdated_pod_filter(triggering_cr), outdated_pod_filter(vsts));
+        }
+        assert forall |ord: nat| {
+            &&& ord < state.needed.len()
+            &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
+                || outdated_pod is None
+                || ord != get_ordinal(vsts.metadata.name->0, outdated_pod->0.metadata.name->0)->0
+        } implies {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                namespace: vsts.metadata.namespace->0
+            };
+            &&& state.needed[ord as int] is Some ==> {
+                &&& s_prime.resources().contains_key(key)
+                &&& pod_spec_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(s_prime.resources()[key])->Ok_0)
+            }
+            &&& ord < state.needed_index ==> {
+                &&& s_prime.resources().contains_key(key)
+                &&& vsts.spec.selector.matches(s_prime.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+            }
+        } by {
+            if ord == state.needed_index - 1 {
+                let key = ObjectRef {
+                    kind: Kind::PodKind,
+                    name: #[trigger] pod_name(vsts.metadata.name->0, ord),
+                    namespace: vsts.metadata.namespace->0
+                };
+                assert(req.key() == key);
+            }
+        }
+    }
 }
 
 pub proof fn lemma_from_delete_condemned_to_after_delete_condemned(
