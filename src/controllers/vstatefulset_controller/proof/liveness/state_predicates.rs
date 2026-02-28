@@ -201,9 +201,6 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
         ==> {
             &&& state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& state.needed[ord as int]->0.metadata.namespace == Some(vsts.metadata.namespace->0)
-            &&& state.needed[ord as int]->0.metadata.owner_references is Some
-            &&& state.needed[ord as int]->0.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
-            &&& vsts.spec.selector.matches(state.needed[ord as int]->0.metadata.labels.unwrap_or(Map::empty()))
         }
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
         ==> {
@@ -597,6 +594,7 @@ pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_create
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
         &&& s.in_flight().contains(resp_msg)
+        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_create_response()
         &&& resp_msg.content.get_create_response().res is Err
