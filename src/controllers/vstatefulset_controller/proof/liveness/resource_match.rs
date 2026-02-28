@@ -3242,8 +3242,7 @@ ensures
     assert(replicas >= 0);
     assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
         &&& pod.metadata.name is Some
-        &&& pod.metadata.namespace is Some
-        &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
+        &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         &&& s.resources().contains_key(pod.object_ref())
         &&& pod_spec_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
     } by {
@@ -3291,6 +3290,7 @@ ensures
         let obj = s.resources()[key];
         &&& needed_pod.object_ref() == key
         &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
+        &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         &&& s.resources().contains_key(key)
         &&& pod_spec_weakly_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
     } by {
@@ -3332,10 +3332,7 @@ ensures
             get_ordinal_eq_pod_name(vsts_name, ord, key.name);
             // prove that object can pass through all filters
             assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
-            assert({
-                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            }); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
+            assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())); // by all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
@@ -3447,6 +3444,9 @@ ensures
     } by {
         assert(pvcs[i] == make_pvc(triggering_cr, 0, i));
     }
+    assert(local_state_is_coherent_with_etcd(vsts, next_local_state)(s_prime));
+    assert(local_state_is_valid(vsts, next_local_state));
+    assert(local_state_is_valid_and_coherent(vsts, controller_id)(s_prime));
 }
 
 /* .. -> GetPVC -> AfterGetPVC -> .. */
