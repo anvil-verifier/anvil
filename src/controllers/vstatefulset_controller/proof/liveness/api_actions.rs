@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::vstatefulset_controller::{
     trusted::{spec_types::*, step::*, liveness_theorem::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::state_predicates::*, shield_lemma},
+    proof::{predicate::*, liveness::state_predicates::*, shield_lemma, helper_invariants},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -199,17 +199,19 @@ ensures
         assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
             PodView::marshal_status_preserves_integrity();
             assert(metadata_validity_check(created_obj) is None) by {
-                assert(created_obj.metadata.owner_references is Some);
-                assert(created_obj.metadata.owner_references->0.len() == 1);
+                assert(created_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+                assert(controller_owner_filter()(vsts.controller_owner_ref()));
             }
             assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
                 assert(PodView::unmarshal_status(created_obj.status) is Ok);
                 assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
             }
         }
+        assert(vsts.spec.selector.matches(created_obj.metadata.labels.unwrap_or(Map::empty())));
         assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
     } else {
         assert(admission_chk_res->0 == ObjectAlreadyExists);
+        assume(false); // TODO: prove it's impossible
     }
 }
 

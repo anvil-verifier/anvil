@@ -542,6 +542,7 @@ pub open spec fn req_msg_is_create_needed_pod_req(
     &&& pod_spec_matches(vsts, pod)
     // pass creation validation checks
     &&& req.obj.metadata.namespace is None
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
     &&& pod.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
