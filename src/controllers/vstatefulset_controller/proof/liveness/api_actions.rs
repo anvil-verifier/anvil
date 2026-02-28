@@ -301,7 +301,11 @@ ensures
     let key = req.key();
     if s.resources().contains_key(key) {
         let obj = s.resources()[key];
-        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
+            assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+        }
         assert(resp_msg.content.get_get_then_delete_response().res is Ok);
         assert(!s_prime.resources().contains_key(key));
     } else {
