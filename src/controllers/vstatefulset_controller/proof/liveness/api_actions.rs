@@ -181,38 +181,34 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert(s_prime.in_flight().contains(resp_msg));
     let admission_chk_res = create_request_admission_check(cluster.installed_types, req, s.api_server);
-    if !s.resources().contains_key(req.key()) {
-        assert(admission_chk_res is None);
-        let created_obj = DynamicObjectView {
-            kind: Kind::PodKind,
-            metadata: ObjectMetaView {
-                name: Some(pod_name(vsts.metadata.name->0, ord)),
-                namespace: Some(req.namespace),
-                resource_version: Some(s.api_server.resource_version_counter),
-                uid: Some(s.api_server.uid_counter),
-                deletion_timestamp: None,
-                ..req.obj.metadata
-            },
-            spec: req.obj.spec,
-            status: marshalled_default_status(Kind::PodKind, cluster.installed_types), // Overwrite the status with the default one
-        };
-        assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
-            PodView::marshal_status_preserves_integrity();
-            assert(metadata_validity_check(created_obj) is None) by {
-                assert(created_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
-                assert(controller_owner_filter()(vsts.controller_owner_ref()));
-            }
-            assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
-                assert(PodView::unmarshal_status(created_obj.status) is Ok);
-                assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
-            }
+    assert(!s.resources().contains_key(req.key()));
+    assert(admission_chk_res is None);
+    let created_obj = DynamicObjectView {
+        kind: Kind::PodKind,
+        metadata: ObjectMetaView {
+            name: Some(pod_name(vsts.metadata.name->0, ord)),
+            namespace: Some(req.namespace),
+            resource_version: Some(s.api_server.resource_version_counter),
+            uid: Some(s.api_server.uid_counter),
+            deletion_timestamp: None,
+            ..req.obj.metadata
+        },
+        spec: req.obj.spec,
+        status: marshalled_default_status(Kind::PodKind, cluster.installed_types), // Overwrite the status with the default one
+    };
+    assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
+        PodView::marshal_status_preserves_integrity();
+        assert(metadata_validity_check(created_obj) is None) by {
+            assert(created_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(controller_owner_filter()(vsts.controller_owner_ref()));
         }
-        assert(vsts.spec.selector.matches(created_obj.metadata.labels.unwrap_or(Map::empty())));
-        assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
-    } else {
-        assert(admission_chk_res->0 == ObjectAlreadyExists);
-        assume(false); // TODO: prove it's impossible
+        assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
+            assert(PodView::unmarshal_status(created_obj.status) is Ok);
+            assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
+        }
     }
+    assert(vsts.spec.selector.matches(created_obj.metadata.labels.unwrap_or(Map::empty())));
+    assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
 }
 
 pub proof fn lemma_get_then_update_needed_pod_request_returns_ok_response(

@@ -555,7 +555,9 @@ pub open spec fn pending_create_needed_pod_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
+        let key = req_msg.content.get_create_request().key();
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& !s.resources().contains_key(key)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
     }
