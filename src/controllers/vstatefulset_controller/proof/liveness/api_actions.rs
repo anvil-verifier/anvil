@@ -352,22 +352,14 @@ ensures
     let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
     let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    assert forall |ord: nat| {
-        &&& ord < state.needed.len()
-        &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
-        &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
-            || outdated_pod is None
-            || ord != get_ordinal(vsts.metadata.name->0, outdated_pod->0.metadata.name->0)->0
-    } implies {
+    assert forall |ord: nat| ord < state.needed.len() implies {
         let key = ObjectRef {
             kind: Kind::PodKind,
             name: #[trigger] pod_name(vsts.metadata.name->0, ord),
             namespace: vsts.metadata.namespace->0
         };
-        let obj = s_prime.resources()[key];
-        &&& s_prime.resources().contains_key(key)
-        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-        &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+        &&& s.resources().contains_key(key) <==> s_prime.resources().contains_key(key)
+        &&& weakly_eq(s.resources()[key], s_prime.resources()[key])
     } by {
         let key = ObjectRef {
             kind: Kind::PodKind,
@@ -375,7 +367,6 @@ ensures
             namespace: vsts.metadata.namespace->0
         };
         assert({
-            &&& s.resources().contains_key(key)
             &&& key.kind == Kind::PodKind
             &&& key.namespace == vsts.metadata.namespace->0
             &&& pod_name_match(key.name, vsts.metadata.name->0)

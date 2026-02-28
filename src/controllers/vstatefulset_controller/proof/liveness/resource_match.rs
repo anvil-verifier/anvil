@@ -3199,7 +3199,6 @@ ensures
 // Then, prove at_step_or![GetPVC, CreateNeeded, UpdateNeeded, DeleteCondemned, DeleteOutdated] |=
 // || at_step![GetPVC] || at_step![CreateNeeded] || at_step![UpdateNeeded] || at_step![DeleteCondemned] || at_step![DeleteOutdated]
 // and go to next step with local_state_is_valid_and_coherent
-#[verifier(external_body)]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -3245,11 +3244,8 @@ ensures
         &&& pod.metadata.name is Some
         &&& pod.metadata.namespace is Some
         &&& pod.metadata.namespace->0 == vsts.metadata.namespace->0
-        &&& pod.metadata.owner_references is Some
-        &&& pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(pod.object_ref())
-        &&& pod_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
-        &&& vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+        &&& pod_spec_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
     } by {
         PodView::marshal_preserves_integrity();
         seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
@@ -3295,12 +3291,8 @@ ensures
         let obj = s.resources()[key];
         &&& needed_pod.object_ref() == key
         &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-        &&& needed_pod.metadata.owner_references is Some
-        &&& needed_pod.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
         &&& s.resources().contains_key(key)
-        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-        &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
-        &&& pod_weakly_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
+        &&& pod_spec_weakly_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
     } by {
         PodView::marshal_preserves_integrity();
         let key = ObjectRef {
@@ -3379,7 +3371,7 @@ ensures
             assert(pod_opt is Some && pod_opt->0.object_ref() == key);
             seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt);
             assert(s.resources().contains_key(key));
-            assert(pod_weakly_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
+            assert(pod_spec_weakly_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
             assert(outdated_obj_key_filter(s, vsts)(key));
         }
         assert forall |key: ObjectRef| #[trigger] outdated_obj_keys_in_etcd(s, vsts).contains(key) implies outdated_pod_keys.to_set().contains(key) by {
@@ -3736,7 +3728,6 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_create_needed_pod_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, resp_msg: Message, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3757,7 +3748,6 @@ ensures
 }
 
 /* .. -> UpdateNeeded -> AfterUpdateNeeded -> .. */
-#[verifier(external_body)]
 pub proof fn lemma_from_update_needed_to_after_update_needed(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3792,10 +3782,8 @@ ensures
     }
     let req = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0.content.get_get_then_update_request();
     assert(req.obj == new_pod.marshal());
-    assert(pod_weakly_eq(new_pod, old_pod)) by {
-        assert(new_pod.spec->0.without_volumes().without_hostname().without_subdomain()
-            == old_pod.spec->0.without_volumes().without_hostname().without_subdomain());
-    }
+    assert(new_pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == old_pod.spec->0.without_volumes().without_hostname().without_subdomain());
     assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))) by {
         assert(req.obj.metadata == new_pod.metadata);
         assert(vsts.spec.selector.matches(old_pod.metadata.labels.unwrap_or(Map::empty())));
@@ -3833,18 +3821,18 @@ ensures
         PodView::marshal_spec_preserves_integrity();
         let pod = PodView::unmarshal(s.resources()[req.key()])->Ok_0;
         let pod_prime = PodView::unmarshal(s_prime.resources()[req.key()])->Ok_0;
-        assert(pod_weakly_eq(updated_pod, pod)) by {
-            let local_pod = local_state.needed[needed_index - 1]->0;
-            assert(local_state.needed[needed_index - 1] is Some);
-            assert(pod_weakly_eq(local_pod, pod));
-            assert(pod_weakly_eq(updated_pod, local_pod));
-        }
+        // assert(pod_spec_weakly_eq(updated_pod, pod)) by {
+        //     let local_pod = local_state.needed[needed_index - 1]->0;
+        //     assert(local_state.needed[needed_index - 1] is Some);
+        //     assert(pod_spec_weakly_eq(local_pod, pod));
+        //     assert(pod_spec_weakly_eq(updated_pod, local_pod));
+        // }
         assert(outdated_obj_keys_in_etcd(s, vsts) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             assert forall |key: ObjectRef| #[trigger] s.resources().contains_key(key) implies
                 outdated_obj_key_filter(s, vsts)(key) == outdated_obj_key_filter(s_prime, vsts)(key) by {
                 if key == req.key() {
                     PodView::marshal_spec_preserves_integrity();
-                    assert(pod_weakly_eq(pod_prime, pod));
+                    assert(pod_spec_weakly_eq(pod_prime, pod));
                 }
             }
         }
@@ -4088,10 +4076,8 @@ ensures
                 name: pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s_prime.resources()[key];
             &&& s_prime.resources().contains_key(key)
-            &&& vsts.spec.selector.matches(PodView::unmarshal(obj)->Ok_0.metadata.labels.unwrap_or(Map::empty()))
-            &&& next_local_state.needed[ord as int] is Some ==> pod_weakly_eq(next_local_state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+            &&& s.resources()[key] == s_prime.resources()[key]
         } by {
             let key = ObjectRef {
                 kind: Kind::PodKind,

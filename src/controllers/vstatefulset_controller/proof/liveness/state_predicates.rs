@@ -268,8 +268,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             CreateNeeded | UpdateNeeded => (state.needed_index + 1) as nat,
             _ => state.needed_index,
         };
-        let needed_index_considering_creation = match state.reconcile_step {
-            AfterCreateNeeded => (state.needed_index - 1) as nat,
+        let needed_index_considering_update = match state.reconcile_step {
+            AfterCreateNeeded | AfterUpdateNeeded => (state.needed_index - 1) as nat,
             _ => state.needed_index,
         };
         let condemned_index_considering_deletion = match state.reconcile_step {
@@ -281,7 +281,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // 1. coherence of needed pods
         &&& forall |ord: nat| {
             &&& ord < state.needed.len()
-            &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
             // at last step, one outdated pod will be deleted
             &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
                 || outdated_pod is None
@@ -292,10 +291,15 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s.resources()[key];
-            &&& s.resources().contains_key(key)
-            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+            &&& state.needed[ord as int] is Some ==> {
+                &&& s.resources().contains_key(key)
+                // so outdated pod selection is correct
+                &&& pod_spec_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(s.resources()[key])->Ok_0)
+            }
+            &&& ord < needed_index_considering_update ==> {
+                &&& s.resources().contains_key(key)
+                &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+            }
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates()
@@ -617,7 +621,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
     // the request does not change the uptodate status of the pod
-    &&& pod_weakly_eq(pod, old_pod)
+    &&& pod_spec_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
     // can pass update admission checks
@@ -1033,7 +1037,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req_after_current_state_m
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
     // the request does not change the uptodate status of the pod
-    &&& pod_weakly_eq(pod, old_pod)
+    &&& pod_spec_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
 }
