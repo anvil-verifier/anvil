@@ -3825,8 +3825,10 @@ ensures
         == old_pod.spec->0.without_volumes().without_hostname().without_subdomain());
     assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))) by {
         assert(req.obj.metadata == new_pod.metadata);
-        assert(vsts.spec.selector.matches(old_pod.metadata.labels.unwrap_or(Map::empty())));
         assert(vsts.spec.selector.matches(update_identity(vsts, old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
+    }
+    assert(req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])) by {
+        assert(update_identity(vsts, old_pod, needed_index).metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
     }
 }
 
