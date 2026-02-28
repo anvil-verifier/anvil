@@ -42,7 +42,7 @@ pub open spec fn all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_de
             let obj = s.resources()[pod_key];
             &&& obj.metadata.deletion_timestamp is None
             &&& obj.metadata.finalizers is None
-            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            &&& obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref()))
         }
     }
 }
@@ -638,6 +638,7 @@ ensures
 }
 
 // I want to use Basilisk but they don't support Verus/liveness verification yet
+// TODO: connect all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
 pub proof fn lemma_eventually_pod_in_etcd_matching_vsts_has_correct_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView, key: ObjectRef
 )
@@ -689,7 +690,18 @@ ensures
         lift_state(Cluster::every_create_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))),
         lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts)))
     );
-    cluster.lemma_eventually_objects_owner_references_satisfies(spec, key, owner_reference_requirements(vsts));
+    assert(spec.entails(true_pred().leads_to(always(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts))))))) by {
+        cluster.lemma_eventually_objects_owner_references_satisfies(spec, key, owner_reference_requirements(vsts));
+    }
+    // assert(lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)))
+    //     .and(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
+    //     .entails(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))));
+    // leads_to_always_enhance(spec,
+    //     lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)),
+    //     true_pred(),
+    //     lift_state(Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts))),
+    //     lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))
+    // );
 }
 
 // stronger version of all_requests_from_builtin_controllers_are_api_delete_requests
