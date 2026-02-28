@@ -571,6 +571,7 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
