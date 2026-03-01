@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
-    trusted::spec_types::*,
+    trusted::{spec_types::*, liveness_theorem::pvc_cnt},
     model::{reconciler::*, install::*},
     proof::predicate::*,
     proof::helper_lemmas::*
@@ -214,7 +214,7 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
 
 // similar to lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
 pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
@@ -246,9 +246,11 @@ ensures
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr)->Ok_0;
     let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
     match step {
         Step::APIServerStep(req_msg_opt) => {
+            assume(false);
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
             assert(next_local_state == local_state);
             assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, next_local_state));
@@ -314,23 +316,37 @@ ensures
         Step::ControllerStep((id, _, cr_key_opt)) => {
             if cr_key_opt == Some(cr_key) {
                 VStatefulSetReconcileState::marshal_preserves_integrity();
+                let needed_index = if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
+                    0
+                } else {
+                    local_state.needed_index
+                };
+                let new_pvcs = make_pvcs(vsts, needed_index);
+                assert(new_pvcs.len() == pvc_cnt(vsts));
+                if next_local_state.pvcs != local_state.pvcs && next_local_state.pvcs.len() > 0 {
+                    assert(next_local_state.pvcs == new_pvcs);
+                    assert(vsts.state_validation());
+                    assert forall |i| #![trigger new_pvcs[i]] 0 <= i < new_pvcs.len() implies {
+                        &&& new_pvcs[i].metadata.name is Some
+                        &&& pvc_name_match(new_pvcs[i].metadata.name->0, cr_key.name)
+                        &&& new_pvcs[i].metadata.generate_name is None
+                        &&& new_pvcs[i].metadata.namespace == Some(cr_key.namespace)
+                        &&& new_pvcs[i].metadata.owner_references is None
+                        &&& new_pvcs[i].metadata.finalizers is None
+                    } by {
+                        let pvc = new_pvcs[i];
+                        assert(pvc == make_pvc(vsts, needed_index, i));
+                        // pre of pvc_name_with_vsts_implies_pvc_name_match_vsts
+                        assert((|i: (nat, nat)| pvc.metadata.name->0 == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1)
+                            && dash_free(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0))((i as nat, needed_index as nat)));
+                        pvc_name_with_vsts_implies_pvc_name_match_vsts(pvc.metadata.name->0, vsts);
+                        assert(pvc_name_match(pvc.metadata.name->0, cr_key.name));
+                    }
+                }
                 if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
                     assume(false);
                 } else if local_state.reconcile_step == VStatefulSetReconcileStepView::Init {
                     assume(false);
-                } else {
-                    let pvcs = next_local_state.pvcs;
-                    assert forall |i| #![trigger pvcs[i]] 0 <= i < pvcs.len() implies {
-                        let pvc = pvcs[i];
-                        &&& pvc.metadata.name is Some
-                        &&& pvc_name_match(pvc.metadata.name->0, cr_key.name)
-                        &&& pvc.metadata.generate_name is None
-                        &&& pvc.metadata.namespace == Some(cr_key.namespace)
-                        &&& pvc.metadata.owner_references is None
-                        &&& pvc.metadata.finalizers is None
-                    } by {
-                        assume(false);
-                    }
                 }
             } else {
                 if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
