@@ -88,6 +88,7 @@ pub open spec fn every_msg_from_vsts_controller_carries_vsts_key(
 }
 
 // all requests sent from one reconciliation do not interfere with other reconciliations on different CRs.
+// TODO: we only use cr_key here, can be simplified
 pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
@@ -107,7 +108,7 @@ pub open spec fn no_interfering_request_between_vsts(controller_id: int, vsts: V
 
 // VSTS controller only creates Pods and PVCs bound to the specific vsts instance
 pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VStatefulSetView) -> bool {
-    &&& req.namespace == vsts.object_ref().namespace
+    &&& req.namespace == vsts.metadata.namespace->0
     &&& req.obj.metadata.name is Some
     &&& req.obj.metadata.generate_name is None
     &&& req.obj.metadata.finalizers is None
@@ -116,7 +117,7 @@ pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VS
             &&& req.obj.metadata.owner_references == Some(Seq::empty().push(owner_reference))
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, vsts.controller_owner_ref())
         }
-        &&& pod_name_match(req.key().name, vsts.object_ref().name)
+        &&& pod_name_match(req.key().name, vsts.metadata.name->0)
     }
     &&& req.obj.kind == Kind::PersistentVolumeClaimKind ==> {
         &&& req.obj.metadata.owner_references is None
@@ -126,9 +127,9 @@ pub open spec fn vsts_internal_guarantee_create_req(req: CreateRequest, vsts: VS
 
 // VSTS controller only deletes Pods bound to the specific vsts instance
 pub open spec fn vsts_internal_guarantee_get_then_delete_req(req: GetThenDeleteRequest, vsts: VStatefulSetView) -> bool {
-    &&& req.key().namespace == vsts.object_ref().namespace
+    &&& req.key().namespace == vsts.metadata.namespace->0
     &&& req.key().kind == Kind::PodKind
-    &&& pod_name_match(req.key().name, vsts.object_ref().name)
+    &&& pod_name_match(req.key().name, vsts.metadata.name->0)
     &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
 }
 
@@ -137,8 +138,8 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
     &&& req.obj.metadata.name == Some(req.name)
     &&& req.obj.metadata.namespace == Some(req.namespace)
     &&& req.obj.kind == Kind::PodKind
-    &&& req.namespace == vsts.object_ref().namespace
-    &&& pod_name_match(req.name, vsts.object_ref().name)
+    &&& req.namespace == vsts.metadata.namespace->0
+    &&& pod_name_match(req.name, vsts.metadata.name->0)
     &&& req.obj.metadata.owner_references == Some(Seq::empty().push(req.owner_ref))
     &&& owner_reference_eq_without_uid(req.owner_ref, vsts.controller_owner_ref())
     &&& req.obj.metadata.deletion_timestamp is None
@@ -688,6 +689,8 @@ pub proof fn internal_guarantee_condition_holds(
     lemma_always_local_pods_and_pvcs_are_bound_to_vsts(spec, cluster, controller_id);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(spec, controller_id);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(spec);
 
     let stronger_next = |s, s_prime| {
@@ -698,6 +701,8 @@ pub proof fn internal_guarantee_condition_holds(
         &&& Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)(s)
         &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s)
     };
 
@@ -711,6 +716,8 @@ pub proof fn internal_guarantee_condition_holds(
         lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())
     );
 
@@ -774,34 +781,41 @@ pub proof fn internal_guarantee_condition_holds(
                                     let req = msg.content.get_create_request();
                                     let pvc = state.pvcs[state.pvc_index as int];
                                     assert(req.obj.metadata == pvc.metadata);
-                                    assert(pvc_name_match(req.obj.metadata.name->0, vsts.object_ref().name));
+                                    assert(pvc_name_match(req.obj.metadata.name->0, vsts.metadata.name->0));
+                                    assert(req.obj.metadata.owner_references is None);
+                                    assert(req.obj.metadata.finalizers is None);
+                                    assert(req.obj.metadata.generate_name is None);
+                                    assert(vsts_internal_guarantee_create_req(req, vsts));
                                 },
                                 VStatefulSetReconcileStepView::CreateNeeded => {
                                     assert(msg.content.is_create_request());
                                     let req = msg.content.get_create_request();
-                                    assert(req.key().name == pod_name(vsts.object_ref().name, state.needed_index));
+                                    assert(req.key().name == pod_name(vsts.metadata.name->0, state.needed_index));
                                     assert(req.obj.metadata.generate_name is None); 
                                     let owner_ref = req.obj.metadata.owner_references->0[0];
                                     assert(owner_reference_eq_without_uid(owner_ref, vsts.controller_owner_ref()));
+                                    assert(vsts_internal_guarantee_create_req(req, vsts));
                                 },
                                 VStatefulSetReconcileStepView::UpdateNeeded => {
                                     assert(msg.content.is_get_then_update_request());
                                     let req = msg.content.get_get_then_update_request();
                                     let pod = state.needed[state.needed_index as int]->0;
-                                    assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
-                                    let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
-                                    assert(req.name == pod_name(vsts.object_ref().name, ord));
+                                    assert(get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some);
+                                    let ord = get_ordinal(vsts.metadata.name->0, pod.metadata.name->0)->0;
+                                    assert(req.name == pod_name(vsts.metadata.name->0, ord));
                                     let controller_owner_references = req.obj.metadata.owner_references->0;
                                     let owner_ref = controller_owner_references[0];
                                     assert(owner_reference_eq_without_uid(owner_ref, vsts.controller_owner_ref()));
+                                    assert(vsts_internal_guarantee_get_then_update_req(req, vsts));
                                 },
                                 VStatefulSetReconcileStepView::DeleteCondemned => {
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
                                     let condemned_pod = state.condemned[state.condemned_index as int];
-                                    assert(get_ordinal(vsts.object_ref().name, condemned_pod.metadata.name->0) is Some);
-                                    let ord = get_ordinal(vsts.object_ref().name, condemned_pod.metadata.name->0)->0;
-                                    assert(req.key().name == pod_name(vsts.object_ref().name, ord));
+                                    assert(get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0) is Some);
+                                    let ord = get_ordinal(vsts.metadata.name->0, condemned_pod.metadata.name->0)->0;
+                                    assert(req.key().name == pod_name(vsts.metadata.name->0, ord));
+                                    assert(vsts_internal_guarantee_get_then_delete_req(req, vsts));
                                 },
                                 VStatefulSetReconcileStepView::DeleteOutdated => {
                                     assert(msg.content.is_get_then_delete_request());
@@ -810,13 +824,14 @@ pub proof fn internal_guarantee_condition_holds(
                                         seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(triggering_vsts), Some(pod));
                                         // trigger for local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
                                         assert(exists |i: int| 0 <= i < state.needed.len() && #[trigger] state.needed[i] == Some(pod));
-                                        assert(get_ordinal(vsts.object_ref().name, pod.metadata.name->0) is Some);
-                                        let ord = get_ordinal(vsts.object_ref().name, pod.metadata.name->0)->0;
-                                        get_ordinal_eq_pod_name(vsts.object_ref().name, ord, pod.metadata.name->0);
+                                        assert(get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some);
+                                        let ord = get_ordinal(vsts.metadata.name->0, pod.metadata.name->0)->0;
+                                        get_ordinal_eq_pod_name(vsts.metadata.name->0, ord, pod.metadata.name->0);
                                         assert(req.key().name == pod.metadata.name->0);
                                     } else {
-                                        assert(false); // should not has any new message
+                                        assert(false); // should not have any new message
                                     }
+                                    assert(vsts_internal_guarantee_get_then_delete_req(req, vsts));
                                 },
                                 _ => {
                                     // other cases are trivial
