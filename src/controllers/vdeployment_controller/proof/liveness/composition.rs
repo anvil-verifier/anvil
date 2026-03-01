@@ -503,4 +503,53 @@ ensures
     }
 }
 
+pub open spec fn vrs_is_the_only_non_zero_vrs_with_updated_spec(vd: VDeploymentView, vrs_key: ObjectRef, s: ClusterState) -> bool {
+    s.resources().dom().filter(|k: ObjectRef| {
+        let obj = s.resources()[k];
+        let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+        &&& valid_owned_obj_key(vd, s)(k)
+        &&& vrs.spec.replicas.unwrap_or(1) > 0
+        &&& match_template_without_hash(vd.spec.template)(vrs)
+    }) == set![vrs_key]
+}
+
+// replicas > 0
+pub open spec fn desired_state_is_with_replicas(replicas: int, vrs: VReplicaSetView, vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(replicas));
+        // 1. desired_state_is
+        &&& Cluster::desired_state_is(vrs_with_replicas)(s)
+        // 2. vd controller will not select other VRS to scale up
+        &&& vrs_is_the_only_non_zero_vrs_with_updated_spec(vrs.object_ref())
+    }
+}
+
+pub open spec fn current_state_matches_with_replicas(replicas: int, vrs: VReplicaSetView, vd: VDeploymentView) -> StatePred<ClusterState> {
+    let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0
+    // 1. current_state_matches
+    &&& current_state_matches_vrs(vrs.with_spec(vrs.spec.with_replicas(replicas)))
+    // 2. vd controller will not select other VRS to scale up
+    &&& vrs_is_the_only_non_zero_vrs_with_updated_spec(vrs.object_ref())
+    // 3. number of running pods is written to status
+    &&& etcd_vrs.status is Some
+    &&& etcd_vrs.status->0.replicas == replicas
+}
+
+pub proof fn desired_state_is_with_replicas_of_n_leads_to_desired_state_is_with_replicas_of_zero_by_rolling_update(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, vd: VDeploymentView
+)
+ensures
+    true,
+{
+    let p = |replicas_left: n| desired_state_is_with_replicas(vd.spec.replicas.unwrap_or(1) - replicas, vrs, vd);
+    let q = |replicas_left: n| current_state_matches_with_replicas(vd.spec.replicas.unwrap_or(1) - replicas, vrs, vd);
+    // VRS ESR, current proofs can be reused
+    assume(forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))));
+    // VD guarantee: never scale down updated VRS (new proof)
+    assume(forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))));
+    // VD ESR after rolling update (new proof, some can be reused)
+    assume(forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))));
+    leads_to_by_monotonicity3(spec, p, q);
+}
+
 }
