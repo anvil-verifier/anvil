@@ -793,7 +793,10 @@ ensures
                     &&& s.resources().contains_key(key)
                 } {
                     let obj = s.resources()[key];
-                    seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vsts.controller_owner_ref());
+                    assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
+                        assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+                        assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+                    }
                     assert(false);
                 }
             }
