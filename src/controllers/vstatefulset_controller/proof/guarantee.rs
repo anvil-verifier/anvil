@@ -260,37 +260,14 @@ ensures
                     &&& is_ok_resp(msg.content->APIResponse_0)
                 } implies {
                     let resp_objs = msg.content.get_list_response().res.unwrap();
-                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
-                    &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                        &&& resp_objs[i].metadata.namespace is Some
-                        &&& resp_objs[i].metadata.namespace->0 == cr_key.namespace
-                        &&& resp_objs[i].kind == Kind::PodKind
-                    }
+                    &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
+                        ==> resp_objs[i].metadata.namespace == Some(cr_key.namespace)
                 } by {
                     if new_msgs.contains(msg) {
                         if req_msg_opt == Some(req_msg) {
                             let resp_objs = msg.content.get_list_response().res.unwrap();
-                            assert forall |o: DynamicObjectView| #[trigger] resp_objs.contains(o)
-                            implies !PodView::unmarshal(o).is_err() by {
-                                // Tricky reasoning about .to_seq
-                                let selector = |o: DynamicObjectView| {
-                                    &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
-                                    &&& o.object_ref().kind == req_msg.content.get_list_request().kind
-                                };
-                                let selected_elements = s.resources().values().filter(selector);
-                                lemma_values_finite(s.resources());
-                                finite_set_to_seq_contains_all_set_elements(selected_elements);
-                                assert(resp_objs =~= selected_elements.to_seq());
-                                assert(selected_elements.contains(o));
-                            }
-                            seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
-                                resp_objs,
-                                |o: DynamicObjectView| PodView::unmarshal(o).is_err()
-                            );
-                            assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() implies {
-                                &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
-                                &&& resp_objs[i].kind == Kind::PodKind
-                            } by {
+                            assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
+                                implies resp_objs[i].metadata.namespace == Some(cr_key.namespace) by {
                                 let selector = |o: DynamicObjectView| {
                                     &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
@@ -363,7 +340,7 @@ ensures
                     }
                 } else if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod
                     && resp_msg_opt is Some && is_ok_resp(resp_msg.content->APIResponse_0) {
-                    assume(resp_msg.src is APIServer);
+                    assume(resp_msg.src is APIServer); // FIXME
                     assume(resp_msg_matches_req_msg(resp_msg, req_msg));
                     // similar to lemma_from_list_resp_to_next_state but simplified
                     let objs = resp_msg.content.get_list_response().res.unwrap();
