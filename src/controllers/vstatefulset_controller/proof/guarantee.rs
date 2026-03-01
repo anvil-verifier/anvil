@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
-    trusted::{spec_types::*, liveness_theorem::pvc_cnt},
+    trusted::{spec_types::*, liveness_theorem::*},
     model::{reconciler::*, install::*},
     proof::predicate::*,
     proof::helper_lemmas::*
@@ -198,16 +198,14 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
         }
         &&& forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
+            &&& s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some
             &&& msg.src is APIServer
             &&& resp_msg_matches_req_msg(msg, req_msg)
             &&& is_ok_resp(msg.content->APIResponse_0)
         } ==> {
             let resp_objs = msg.content.get_list_response().res.unwrap();
-            &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
-            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
-                &&& resp_objs[i].kind == Kind::PodKind
-            }
+            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
+                ==> resp_objs[i].metadata.namespace == Some(cr_key.namespace)
         }
     }
 }
@@ -250,7 +248,6 @@ ensures
     let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
     match step {
         Step::APIServerStep(req_msg_opt) => {
-            assume(false);
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
             assert(next_local_state == local_state);
             assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, next_local_state));
@@ -313,7 +310,8 @@ ensures
             }
             assert(local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime));
         },
-        Step::ControllerStep((id, _, cr_key_opt)) => {
+        Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+            let resp_msg = resp_msg_opt->0;
             if cr_key_opt == Some(cr_key) {
                 VStatefulSetReconcileState::marshal_preserves_integrity();
                 let needed_index = if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
@@ -343,11 +341,92 @@ ensures
                         assert(pvc_name_match(pvc.metadata.name->0, cr_key.name));
                     }
                 }
-                if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
-                    assume(false);
-                } else if local_state.reconcile_step == VStatefulSetReconcileStepView::Init {
-                    assume(false);
+                if local_state.reconcile_step == VStatefulSetReconcileStepView::Init {
+                    assert(next_local_state.needed == local_state.needed);
+                    assert(next_local_state.condemned == local_state.condemned);
+                    assert(next_local_state.pvcs == local_state.pvcs);
+                    assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, next_local_state));
+                    if next_local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
+                        assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some);
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                        assert(req_msg.dst is APIServer);
+                        assert(req_msg.content.is_list_request());
+                        assert(req_msg.content.get_list_request() == ListRequest {
+                            kind: Kind::PodKind,
+                            namespace: cr_key.namespace,
+                        });
+                        assert(forall |msg| {
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } ==> s.in_flight().contains(msg));
+                    }
+                } else if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod
+                    && resp_msg_opt is Some && is_ok_resp(resp_msg.content->APIResponse_0) {
+                    assume(resp_msg.src is APIServer);
+                    assume(resp_msg_matches_req_msg(resp_msg, req_msg));
+                    // similar to lemma_from_list_resp_to_next_state but simplified
+                    let objs = resp_msg.content.get_list_response().res.unwrap();
+                    if let Some(pods) = objects_to_pods(objs) {
+                        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                            objs,
+                            |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                        );
+                        assert forall |i| 0 <= i < objs.len() implies PodView::unmarshal(#[trigger] objs[i]) is Ok by {
+                            assert(objs.contains(objs[i]));
+                        }
+                        let filtered_pods = pods.filter(pod_filter(vsts));
+                        assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
+                            &&& pod.metadata.name is Some
+                            &&& pod_name_match(pod.metadata.name->0, cr_key.name)
+                            &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+                        } by {
+                            PodView::marshal_preserves_metadata();
+                            seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
+                            let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
+                            assert(PodView::unmarshal(objs[i as int]) is Ok);
+                            assert(pod.metadata.namespace == objs[i as int].metadata.namespace);
+                            assert(objs[i as int].metadata.namespace == Some(cr_key.namespace));
+                            let ord = get_ordinal(cr_key.name, pod.metadata.name->0)->0;
+                            get_ordinal_eq_pod_name(cr_key.name, ord, pod.metadata.name->0);
+                            assert(pod_name_match(pod.metadata.name->0, cr_key.name));
+                        }
+                        let (needed, condemned) = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods);
+                        assert forall |ord: nat| #![trigger needed[ord as int]] ord < needed.len() && needed[ord as int] is Some implies {
+                            let pod = needed[ord as int]->0;
+                            &&& pod.metadata.name is Some
+                            &&& pod_name_match(pod.metadata.name->0, cr_key.name)
+                            &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+                        } by {
+                            seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(cr_key.name, ord), needed[ord as int]->0);
+                        }
+                        let condemned_ord_filter = |pod: PodView| get_ordinal(cr_key.name, pod.metadata.name->0) is Some && get_ordinal(cr_key.name, pod.metadata.name->0)->0 >= replicas(vsts);
+                        assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
+                            let leq = |p1: PodView, p2: PodView| get_ordinal(cr_key.name, p1.metadata.name->0)->0 >= get_ordinal(cr_key.name, p2.metadata.name->0)->0;
+                            assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
+                            lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
+                        }
+                        assert forall |i: nat| #![trigger condemned[i as int]] i < condemned.len() implies {
+                            let pod = condemned[i as int];
+                            &&& pod.metadata.name is Some
+                            &&& pod_name_match(pod.metadata.name->0, cr_key.name)
+                            &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+                        } by {
+                            let condemned_pod = condemned[i as int];
+                            assert(condemned.contains(condemned_pod));
+                            assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod)) by {
+                                assert(condemned.to_set().contains(condemned_pod));
+                                assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
+                            }
+                            seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
+                        }
+                    }
                 }
+                assert(forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> s.in_flight().contains(msg));
             } else {
                 if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
                     assert(forall |msg| {
