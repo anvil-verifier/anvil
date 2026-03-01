@@ -213,6 +213,8 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
 }
 
 // similar to lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
@@ -311,7 +313,25 @@ ensures
         },
         Step::ControllerStep((id, _, cr_key_opt)) => {
             if cr_key_opt == Some(cr_key) {
-                assume(false);
+                VStatefulSetReconcileState::marshal_preserves_integrity();
+                if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
+                    assume(false);
+                } else if local_state.reconcile_step == VStatefulSetReconcileStepView::Init {
+                    assume(false);
+                } else {
+                    let pvcs = next_local_state.pvcs;
+                    assert forall |i| #![trigger pvcs[i]] 0 <= i < pvcs.len() implies {
+                        let pvc = pvcs[i];
+                        &&& pvc.metadata.name is Some
+                        &&& pvc_name_match(pvc.metadata.name->0, cr_key.name)
+                        &&& pvc.metadata.generate_name is None
+                        &&& pvc.metadata.namespace == Some(cr_key.namespace)
+                        &&& pvc.metadata.owner_references is None
+                        &&& pvc.metadata.finalizers is None
+                    } by {
+                        assume(false);
+                    }
+                }
             } else {
                 if local_state.reconcile_step == VStatefulSetReconcileStepView::AfterListPod {
                     assert(forall |msg| {
