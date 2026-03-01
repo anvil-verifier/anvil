@@ -152,7 +152,7 @@ pub open spec fn vsts_internal_guarantee_get_then_update_req(req: GetThenUpdateR
 // during reconciliation, controller obtains vsts from s.ongoing_reconciles(controller_id)[k].triggering_cr
 pub open spec fn local_pods_and_pvcs_are_bound_to_vsts(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |k: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(k)
+        forall |k: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(k) && k.kind == VStatefulSetView::kind()
             ==> local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, k, s)
     }
 }
@@ -494,7 +494,7 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
         assert forall |key: ObjectRef| {
             &&& invariant(s)
             &&& stronger_next(s, s_prime)
-            &&& #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key)
+            &&& #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key) && key.kind == VStatefulSetView::kind()
         } implies local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, key, s_prime) by {
             if s.ongoing_reconciles(controller_id).contains_key(key) {
                 lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
@@ -585,8 +585,6 @@ pub proof fn lemma_guarantee_from_reconcile_state(
     }
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -606,6 +604,8 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     lemma_always_local_pods_and_pvcs_are_bound_to_vsts(spec, cluster, controller_id);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(spec, controller_id);
 
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
@@ -615,6 +615,8 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         &&& Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)(s)
         &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s)
     };
 
     always_to_always_later(spec, lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)));
@@ -626,7 +628,9 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         later(lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id))),
         lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
