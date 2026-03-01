@@ -102,13 +102,11 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s.resources()[k];
-        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+            assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+        }
         PodView::marshal_preserves_integrity();
-        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
-            // broadcast use group_seq_properties; // this increase proof time from 3 to 20s
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
-        };
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
                 let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
