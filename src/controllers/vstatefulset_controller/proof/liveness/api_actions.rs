@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::vstatefulset_controller::{
     trusted::{spec_types::*, step::*, liveness_theorem::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::state_predicates::*, shield_lemma},
+    proof::{predicate::*, liveness::state_predicates::*, shield_lemma, helper_invariants},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -181,36 +181,34 @@ ensures
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert(s_prime.in_flight().contains(resp_msg));
     let admission_chk_res = create_request_admission_check(cluster.installed_types, req, s.api_server);
-    if !s.resources().contains_key(req.key()) {
-        assert(admission_chk_res is None);
-        let created_obj = DynamicObjectView {
-            kind: Kind::PodKind,
-            metadata: ObjectMetaView {
-                name: Some(pod_name(vsts.metadata.name->0, ord)),
-                namespace: Some(req.namespace),
-                resource_version: Some(s.api_server.resource_version_counter),
-                uid: Some(s.api_server.uid_counter),
-                deletion_timestamp: None,
-                ..req.obj.metadata
-            },
-            spec: req.obj.spec,
-            status: marshalled_default_status(Kind::PodKind, cluster.installed_types), // Overwrite the status with the default one
-        };
-        assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
-            PodView::marshal_status_preserves_integrity();
-            assert(metadata_validity_check(created_obj) is None) by {
-                assert(created_obj.metadata.owner_references is Some);
-                assert(created_obj.metadata.owner_references->0.len() == 1);
-            }
-            assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
-                assert(PodView::unmarshal_status(created_obj.status) is Ok);
-                assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
-            }
+    assert(!s.resources().contains_key(req.key()));
+    assert(admission_chk_res is None);
+    let created_obj = DynamicObjectView {
+        kind: Kind::PodKind,
+        metadata: ObjectMetaView {
+            name: Some(pod_name(vsts.metadata.name->0, ord)),
+            namespace: Some(req.namespace),
+            resource_version: Some(s.api_server.resource_version_counter),
+            uid: Some(s.api_server.uid_counter),
+            deletion_timestamp: None,
+            ..req.obj.metadata
+        },
+        spec: req.obj.spec,
+        status: marshalled_default_status(Kind::PodKind, cluster.installed_types), // Overwrite the status with the default one
+    };
+    assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
+        PodView::marshal_status_preserves_integrity();
+        assert(metadata_validity_check(created_obj) is None) by {
+            assert(created_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(controller_owner_filter()(vsts.controller_owner_ref()));
         }
-        assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
-    } else {
-        assert(admission_chk_res->0 == ObjectAlreadyExists);
+        assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
+            assert(PodView::unmarshal_status(created_obj.status) is Ok);
+            assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
+        }
     }
+    assert(vsts.spec.selector.matches(created_obj.metadata.labels.unwrap_or(Map::empty())));
+    assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
 }
 
 pub proof fn lemma_get_then_update_needed_pod_request_returns_ok_response(
@@ -237,7 +235,11 @@ ensures
     assert(resp_msg.content.get_get_then_update_response().res is Ok) by {
         assert(req.well_formed());
         let current_obj = s.resources()[key];
-        assert(current_obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(current_obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
+            assert(current_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(current_obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+        }
         let new_obj = DynamicObjectView {
             metadata: ObjectMetaView {
                 resource_version: current_obj.metadata.resource_version,
@@ -257,8 +259,8 @@ ensures
             let updated_obj = updated_object(update_req, current_obj).with_resource_version(s.api_server.resource_version_counter);
             assert(updated_object_validity_check(updated_obj, current_obj, cluster.installed_types) is None) by {
                 assert(metadata_validity_check(updated_obj) is None) by {
-                    assert(updated_obj.metadata.owner_references is Some);
-                    assert(updated_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1);
+                    assert(updated_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+                    assert(controller_owner_filter()(vsts.controller_owner_ref()));
                 }
             }
         }
@@ -303,7 +305,11 @@ ensures
     let key = req.key();
     if s.resources().contains_key(key) {
         let obj = s.resources()[key];
-        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+            assert(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s));
+            assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+        }
         assert(resp_msg.content.get_get_then_delete_response().res is Ok);
         assert(!s_prime.resources().contains_key(key));
     } else {
@@ -352,85 +358,35 @@ ensures
     let outdated_pod = get_largest_unmatched_pods(vsts, state.needed);
     let outdated_pod_keys = state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    assert forall |ord: nat| {
-        &&& ord < state.needed.len()
-        &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
-        &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
-            || outdated_pod is None
-            || ord != get_ordinal(vsts.metadata.name->0, outdated_pod->0.metadata.name->0)->0
-    } implies {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        let obj = s_prime.resources()[key];
-        &&& s_prime.resources().contains_key(key)
-        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-        &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
-    } by {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
+    let pod_key_with_ord = |ord: nat| ObjectRef {
+        kind: Kind::PodKind,
+        name: pod_name(vsts.metadata.name->0, ord),
+        namespace: vsts.metadata.namespace->0
+    };
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] s.resources().contains_key(pod_key_with_ord(ord))
+        implies s_prime.resources().contains_key(pod_key_with_ord(ord))
+            && weakly_eq(s.resources()[pod_key_with_ord(ord)], s_prime.resources()[pod_key_with_ord(ord)]) by {
         assert({
-            &&& s.resources().contains_key(key)
-            &&& key.kind == Kind::PodKind
-            &&& key.namespace == vsts.metadata.namespace->0
-            &&& pod_name_match(key.name, vsts.metadata.name->0)
+            &&& s.resources().contains_key(pod_key_with_ord(ord))
+            &&& pod_key_with_ord(ord).kind == Kind::PodKind
+            &&& pod_key_with_ord(ord).namespace == vsts.metadata.namespace->0
+            &&& pod_name_match(pod_key_with_ord(ord).name, vsts.metadata.name->0)
         });
         shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
     }
-    assert forall |ord: nat| ord >= vsts.spec.replicas.unwrap_or(1) implies {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        s_prime.resources().contains_key(key)
-            ==> exists |pod: PodView| #[trigger] state.condemned.contains(pod) && pod.object_ref() == key
-    } by {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: #[trigger] pod_name(vsts.metadata.name->0, ord),
-            namespace: vsts.metadata.namespace->0
-        };
-        if s_prime.resources().contains_key(key) {
+    assert forall |ord: nat| #![trigger pod_name(vsts.metadata.name->0, ord)] !s.resources().contains_key(pod_key_with_ord(ord))
+        implies !s_prime.resources().contains_key(pod_key_with_ord(ord)) by {
+        if s_prime.resources().contains_key(pod_key_with_ord(ord)) {
             assert({
-                &&& s_prime.resources().contains_key(key)
-                &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts.metadata.namespace->0
-                &&& pod_name_match(key.name, vsts.metadata.name->0)
-            });
-            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
-        }
-    }
-    assert forall |i: nat| #![trigger state.condemned[i as int]] i < condemned_index_considering_deletion implies {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: state.condemned[i as int].metadata.name->0,
-            namespace: vsts.metadata.namespace->0
-        };
-        &&& !s_prime.resources().contains_key(key)
-    } by {
-        let key = ObjectRef {
-            kind: Kind::PodKind,
-            name: state.condemned[i as int].metadata.name->0,
-            namespace: vsts.metadata.namespace->0
-        };
-        if s_prime.resources().contains_key(key) {
-            assert({
-                &&& s_prime.resources().contains_key(key)
-                &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts.metadata.namespace->0
-                &&& pod_name_match(key.name, vsts.metadata.name->0)
+                &&& s_prime.resources().contains_key(pod_key_with_ord(ord))
+                &&& pod_key_with_ord(ord).kind == Kind::PodKind
+                &&& pod_key_with_ord(ord).namespace == vsts.metadata.namespace->0
+                &&& pod_name_match(pod_key_with_ord(ord).name, vsts.metadata.name->0)
             });
             shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);
             assert(false);
         }
     }
-    assert(needed_index_for_pvc <= replicas(vsts));
     assert(vsts.state_validation()) by {
         let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
         assert(cr.spec == vsts.spec);

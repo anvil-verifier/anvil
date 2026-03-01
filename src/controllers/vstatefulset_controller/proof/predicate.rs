@@ -23,8 +23,8 @@ pub open spec fn weakly_eq(obj: DynamicObjectView, obj_prime: DynamicObjectView)
     &&& obj.spec == obj_prime.spec
 }
 
-pub open spec fn pod_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
-    &&& pod.metadata.without_resource_version().without_labels() == pod_prime.metadata.without_resource_version().without_labels()
+// help to prove that update requests will not change the up-to-date status based on pod spec
+pub open spec fn pod_spec_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
     &&& pod.spec is Some
     &&& pod_prime.spec is Some
     &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()

@@ -201,9 +201,6 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
         ==> {
             &&& state.needed[ord as int]->0.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
             &&& state.needed[ord as int]->0.metadata.namespace == Some(vsts.metadata.namespace->0)
-            &&& state.needed[ord as int]->0.metadata.owner_references is Some
-            &&& state.needed[ord as int]->0.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
-            &&& vsts.spec.selector.matches(state.needed[ord as int]->0.metadata.labels.unwrap_or(Map::empty()))
         }
     &&& forall |i: nat| #![trigger state.condemned[i as int]] i < state.condemned.len()
         ==> {
@@ -256,8 +253,6 @@ pub open spec fn local_state_is_valid(vsts: VStatefulSetView, state: VStatefulSe
 // message predicates for each exceptional states carry the necessary information to repair the coherence
 // because of the complexity, don't forget to hide this spec when needed by
 // hide(local_state_is_coherent_with_etcd);
-// TODO: simplify this by removing unnecessary coherence predicates
-// because controller tolerates NotFound/AlreadyExists errors
 pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vsts_key = vsts.object_ref();
@@ -268,8 +263,8 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             CreateNeeded | UpdateNeeded => (state.needed_index + 1) as nat,
             _ => state.needed_index,
         };
-        let needed_index_considering_creation = match state.reconcile_step {
-            AfterCreateNeeded => (state.needed_index - 1) as nat,
+        let needed_index_considering_update = match state.reconcile_step {
+            AfterCreateNeeded | AfterUpdateNeeded => (state.needed_index - 1) as nat,
             _ => state.needed_index,
         };
         let condemned_index_considering_deletion = match state.reconcile_step {
@@ -281,7 +276,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
         // 1. coherence of needed pods
         &&& forall |ord: nat| {
             &&& ord < state.needed.len()
-            &&& state.needed[ord as int] is Some || ord < needed_index_considering_creation
             // at last step, one outdated pod will be deleted
             &&& !locally_at_step_or!(state, AfterDeleteOutdated, Done)
                 || outdated_pod is None
@@ -292,10 +286,17 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 name: #[trigger] pod_name(vsts.metadata.name->0, ord),
                 namespace: vsts.metadata.namespace->0
             };
-            let obj = s.resources()[key];
-            &&& s.resources().contains_key(key)
-            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-            &&& state.needed[ord as int] is Some ==> pod_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(obj)->Ok_0)
+            &&& state.needed[ord as int] is Some ==> {
+                &&& s.resources().contains_key(key)
+                // so outdated pod selection is correct
+                &&& pod_spec_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(s.resources()[key])->Ok_0)
+            }
+            &&& ord < needed_index_considering_update ==> {
+                &&& s.resources().contains_key(key)
+                &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+            }
+            &&& ord >= state.needed_index && state.needed[ord as int] is None ==>
+                !s.resources().contains_key(key)
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates()
@@ -541,6 +542,7 @@ pub open spec fn req_msg_is_create_needed_pod_req(
     &&& pod_spec_matches(vsts, pod)
     // pass creation validation checks
     &&& req.obj.metadata.namespace is None
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
     &&& pod.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
@@ -551,7 +553,9 @@ pub open spec fn pending_create_needed_pod_req_in_flight(
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let ord = (local_state.needed_index - 1) as nat;
+        let key = req_msg.content.get_create_request().key();
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
+        &&& !s.resources().contains_key(key)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
     }
@@ -570,6 +574,7 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -593,6 +598,7 @@ pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_create
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
         &&& s.in_flight().contains(resp_msg)
+        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_create_response()
         &&& resp_msg.content.get_create_response().res is Err
@@ -617,15 +623,14 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
     // the request does not change the uptodate status of the pod
-    &&& pod_weakly_eq(pod, old_pod)
+    &&& pod_spec_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
     // can pass update admission checks
     &&& req.obj.metadata.namespace is Some
     &&& req.obj.metadata.namespace->0 == vsts.metadata.namespace->0
     &&& req.obj.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
-    &&& req.obj.metadata.owner_references is Some
-    &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]
+    &&& req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
 pub open spec fn pending_get_then_update_needed_pod_req_in_flight(
@@ -654,8 +659,10 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
         let ord = (local_state.needed_index - 1) as nat;
         let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
+        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -675,8 +682,10 @@ pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
         let ord = (local_state.needed_index - 1) as nat;
         let old_pod = local_state.needed[local_state.needed_index - 1]->0;
         let key = req_msg.content.get_get_then_update_request().key();
+        let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1033,7 +1042,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req_after_current_state_m
     &&& req.owner_ref == vsts.controller_owner_ref()
     &&& PodView::unmarshal(req.obj) is Ok
     // the request does not change the uptodate status of the pod
-    &&& pod_weakly_eq(pod, old_pod)
+    &&& pod_spec_weakly_eq(pod, old_pod)
     // pod has matching labels
     &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
 }

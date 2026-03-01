@@ -102,13 +102,11 @@ ensures
             &&& weakly_eq(s.resources()[k], s_prime.resources()[k])
         };
         let obj = s.resources()[k];
-        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+        assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+            assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+            assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+        }
         PodView::marshal_preserves_integrity();
-        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vsts.controller_owner_ref()]) by {
-            // broadcast use group_seq_properties; // this increase proof time from 3 to 20s
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
-        };
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
                 let resp_msg = transition_by_etcd(cluster.installed_types, msg, s.api_server).1;
@@ -204,12 +202,12 @@ ensures
                                 assert(other_vsts.controller_owner_ref() != vsts.controller_owner_ref());
                                 if !s.resources().contains_key(k) && resource_create_request_msg(k)(msg) {
                                     let req = msg.content.get_create_request();
-                                    vsts_name_non_eq_implies_no_pod_name_match(req.obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0);
+                                    vsts_name_neq_implies_no_pod_name_match(req.obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0);
                                     assert(false);
                                 }
                                 if s.resources().contains_key(k) && resource_get_then_update_request_msg(k)(msg) {
                                     let req = msg.content.get_get_then_update_request();
-                                    vsts_name_non_eq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
+                                    vsts_name_neq_implies_no_pod_name_match(req.name, other_vsts.object_ref().name, vsts.metadata.name->0);
                                     assert(false);
                                 }
                             } // or else, namespace is different, so should not be touched at all
@@ -390,7 +388,7 @@ ensures
                             if other_vsts.metadata.namespace == vsts.metadata.namespace {
                                 assert(other_vsts.metadata.name != vsts.metadata.name);
                                 if resource_create_request_msg(k)(msg) && !s.resources().contains_key(k) {
-                                    vsts_name_non_eq_implies_no_pvc_name_match(
+                                    vsts_name_neq_implies_no_pvc_name_match(
                                         obj.metadata.name->0, other_vsts.metadata.name->0, vsts.metadata.name->0
                                     );
                                 } else if resource_get_then_update_request_msg(k)(msg) && s.resources().contains_key(k) {
@@ -417,9 +415,7 @@ ensures
                                         generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
                                         let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
                                             name == req.obj.metadata.generate_name->0 + suffix;
-                                        generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
-                                            name, req.obj.metadata.generate_name->0, generated_suffix
-                                        );
+                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
                                         assert(false);
                                     }
                                     assert(!pvc_name_match(name, vsts.metadata.name->0)) by {

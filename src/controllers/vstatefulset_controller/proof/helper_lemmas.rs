@@ -18,7 +18,6 @@ use vstd::prelude::*;
 
 verus! {
 
-
 pub proof fn get_ordinal_eq_pod_name(vsts_name: StringView, ord: nat, compared_pod_name: StringView)
 ensures
     (get_ordinal(vsts_name, compared_pod_name) == Some(ord))
@@ -49,6 +48,34 @@ ensures
     }
 }
 
+pub proof fn pod_name_eq_implies_ord_eq(vsts_name: StringView, ord_a: nat, ord_b: nat)
+ensures
+    pod_name(vsts_name, ord_a) == pod_name(vsts_name, ord_b) <==> ord_a == ord_b
+{
+    if pod_name(vsts_name, ord_a) == pod_name(vsts_name, ord_b) {
+        assert(VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord_a)
+            == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord_b));
+        if pod_name_without_vsts_prefix(vsts_name, ord_a) != pod_name_without_vsts_prefix(vsts_name, ord_b) {
+            seq_equal_preserved_by_add_prefix(
+                VStatefulSetView::kind()->CustomResourceKind_0 + "-"@,
+                pod_name_without_vsts_prefix(vsts_name, ord_a),
+                pod_name_without_vsts_prefix(vsts_name, ord_b)
+            );
+            assert(false);
+        }
+        assert(vsts_name + "-"@ + int_to_string_view(ord_a as int) == vsts_name + "-"@ + int_to_string_view(ord_b as int));
+        if ord_a != ord_b {
+            int_to_string_view_injectivity();
+            seq_unequal_preserved_by_add_prefix(
+                vsts_name + "-"@,
+                int_to_string_view(ord_a as int),
+                int_to_string_view(ord_b as int)
+            );
+            assert(false);
+        }
+    }
+}
+
 // this is simple but introduced a lot of flakiness
 pub proof fn pvc_name_match_implies_has_vsts_prefix(name: StringView)
 requires
@@ -74,22 +101,24 @@ ensures
     assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name, ord));
 }
 
-#[verifier(external_body)]
-pub proof fn pvc_name_with_vsts_match_vsts(
+pub proof fn pvc_name_with_vsts_implies_pvc_name_match_vsts(
     name: StringView, vsts: VStatefulSetView
 )
 requires
     // index, ord
-    exists |i: (nat, nat)| name == #[trigger]
-        pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1),
+    exists |i: (nat, nat)| name == #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1)
+        && dash_free(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0),
 ensures
     pvc_name_match(name, vsts.metadata.name->0),
-{}
+{
+    let i = choose |i: (nat, nat)| name == #[trigger] pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1)
+        && dash_free(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0);
+    let j = (vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, i.1);
+    assert((|j: (StringView, nat)| name == pvc_name(j.0, vsts.metadata.name->0, j.1))(j));
+    assert(pvc_name_match(name, vsts.metadata.name->0));
+}
 
-// helper lemmas about pvc_name_match
-// NOTE: dash_char_view_eq_str_view may be helpful
-#[verifier(external_body)]
-pub proof fn vsts_name_non_eq_implies_no_pvc_name_match(
+pub proof fn vsts_name_neq_implies_no_pvc_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
 requires
@@ -97,10 +126,43 @@ requires
     pvc_name_match(name, vsts_name_a),
 ensures
     !pvc_name_match(name, vsts_name_b),
-{}
+{
+    if pvc_name_match(name, vsts_name_b) {
+        let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, vsts_name_a, i.1) && dash_free(i.0);
+        let suffix = i.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_a, i.1);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        let j = choose |j: (StringView, nat)| name == #[trigger] pvc_name(j.0, vsts_name_b, j.1) && dash_free(j.0);
+        let suffix2 = j.0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_b, j.1);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix2);
+        assert(suffix == suffix2) by {
+            assert("-"@ + suffix == name.subrange(VStatefulSetView::kind()->CustomResourceKind_0.len() as int, name.len() as int));
+            assert("-"@ + suffix2 == name.subrange(VStatefulSetView::kind()->CustomResourceKind_0.len() as int, name.len() as int));
+            if suffix != suffix2 {
+                seq_unequal_preserved_by_add_prefix(
+                    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@,
+                    suffix,
+                    suffix2
+                );
+                assert(false);
+            }
+        }
+        assert(pod_name_without_vsts_prefix(vsts_name_a, i.1) != pod_name_without_vsts_prefix(vsts_name_b, j.1)) by {
+            int_to_string_view_dash_free();
+            lemma_dash_free_suffix_preserves_prefix_inequality(
+                vsts_name_a,
+                vsts_name_b,
+                int_to_string_view(i.1 as int),
+                int_to_string_view(j.1 as int)
+            );
+        }
+        lemma_dash_free_prefix_preserves_suffix_inequality(
+            i.0, j.0, pod_name_without_vsts_prefix(vsts_name_a, i.1), pod_name_without_vsts_prefix(vsts_name_b, j.1)
+        );
+        assert(false);
+    }
+}
 
-#[verifier(external_body)]
-pub proof fn vsts_name_non_eq_implies_no_pod_name_match(
+pub proof fn vsts_name_neq_implies_no_pod_name_match(
     name: StringView, vsts_name_a: StringView, vsts_name_b: StringView
 )
 requires
@@ -108,53 +170,36 @@ requires
     pod_name_match(name, vsts_name_a),
 ensures
     !pod_name_match(name, vsts_name_b),
-{}
-
-// helper lemmas about name prefixes
-#[verifier(external_body)]
-pub proof fn generated_name_has_vsts_prefix_implies_generate_name_field_has_vsts_prefix(
-    name: StringView, generate_name_field: StringView, generated_suffix: StringView
-)
-requires
-    has_vsts_prefix(name),
-    name == generate_name_field + generated_suffix,
-    dash_free(generated_suffix),
-ensures
-    has_vsts_prefix(generate_name_field),
 {
-    let vsts_prefix = VStatefulSetView::kind()->CustomResourceKind_0 + "-"@;
-    dash_char_view_eq_str_view();
-    assert(!dash_free(name)) by {
-        assert(name[vsts_prefix.len() - 1] == '-'@);
-    }
-    assert(!dash_free(generate_name_field)) by {
-        if dash_free(generate_name_field) {
-            assert(dash_free(name));
-            assert(false);
+    if pod_name_match(name, vsts_name_b) {
+        let ord_a = choose |ord_a: nat| name == pod_name(vsts_name_a, ord_a);
+        let ord_b = choose |ord_b: nat| name == pod_name(vsts_name_b, ord_b);
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_a, ord_a));
+        assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(vsts_name_b, ord_b));
+        assert(pod_name_without_vsts_prefix(vsts_name_a, ord_a) != pod_name_without_vsts_prefix(vsts_name_b, ord_b)) by {
+            int_to_string_view_dash_free();
+            lemma_dash_free_suffix_preserves_prefix_inequality(
+                vsts_name_a,
+                vsts_name_b,
+                int_to_string_view(ord_a as int),
+                int_to_string_view(ord_b as int)
+            );
         }
+        seq_equal_preserved_by_add_prefix(
+            VStatefulSetView::kind()->CustomResourceKind_0 + "-"@,
+            pod_name_without_vsts_prefix(vsts_name_a, ord_a),
+            pod_name_without_vsts_prefix(vsts_name_b, ord_b)
+        );
+        assert(false);
     }
-    // we know exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix from has_vsts_prefix(name)
-    // and name == generate_name_field + generated_suffix, dash_free(generated_suffix)
-    // so generate_name_field must also start with VStatefulSetView::kind()->CustomResourceKind_0 + "-"@
-    // yet the proof is hard
 }
 
-#[verifier(external_body)]
-pub proof fn no_vsts_prefix_implies_no_vsts_previx_in_generate_name_field(s: APIServerState, generate_name_field: StringView)
-requires
-    !has_vsts_prefix(generate_name_field),
-ensures
-    !has_vsts_prefix(generated_name(s, generate_name_field))
-{}
-
-// helper lemma
 pub proof fn no_vsts_prefix_implies_no_pvc_name_match(name: StringView)
 requires
     !has_vsts_prefix(name),
 ensures
     forall |vsts_name: StringView| ! #[trigger] pvc_name_match(name, vsts_name),
 {
-    // proof by contradiction
     if exists |vsts_name: StringView| #[trigger] pvc_name_match(name, vsts_name) {
         let witness_vsts = choose |vsts_name: StringView| #[trigger] pvc_name_match(name, vsts_name);
         let i = choose |i: (StringView, nat)| name == #[trigger] pvc_name(i.0, witness_vsts, i.1);
