@@ -39,6 +39,11 @@ pub proof fn int_to_string_view_injectivity()
 {}
 
 #[verifier(external_body)]
+pub proof fn int_to_string_view_dash_free()
+    ensures forall |i: int| dash_free(#[trigger] int_to_string_view(i)),
+{}
+
+#[verifier(external_body)]
 pub fn bool_to_string(b: bool) -> (s: String)
     ensures s@ == bool_to_string_view(b),
 {
@@ -109,6 +114,43 @@ ensures
     } else {
         seq_equal_preserved_by_add(a1, a2, "-"@);
         seq_unequal_preserved_by_add_prefix(a1 + "-"@, b1, b2);
+    }
+}
+
+pub proof fn lemma_dash_free_suffix_preserves_prefix_inequality(
+    a1: Seq<char>, a2: Seq<char>, b1: Seq<char>, b2: Seq<char>,
+)
+requires
+    dash_free(b1),
+    dash_free(b2),
+    a1 != a2,
+ensures
+    a1 + "-"@ + b1 != a2 + "-"@ + b2
+{
+    let lhs = a1 + "-"@ + b1;
+    let rhs = a2 + "-"@ + b2;
+    dash_char_view_eq_str_view();
+    if lhs == rhs {
+        assert(lhs.len() == rhs.len());
+        assert(a1.len() + b1.len() + 1 == a2.len() + b2.len() + 1);
+        if a1.len() == a2.len() {
+            if forall |i: int| 0 <= i < a1.len() ==> a1[i] == a2[i] {
+                assert(a1 == a2);
+                assert(false);
+            }
+            let witness_idx = choose |i: int| 0 <= i < a1.len() && a1[i] != a2[i];
+            assert(lhs[witness_idx] != rhs[witness_idx]);
+        } else if a1.len() < a2.len() {
+            let witness_idx = a2.len() as int;
+            assert(rhs[witness_idx] == '-'@);
+            assert(lhs[witness_idx] == b1[witness_idx - a1.len() - 1]);
+            assert(lhs[witness_idx] != '-'@);
+        } else {
+            let witness_idx = a1.len() as int;
+            assert(lhs[witness_idx] == '-'@);
+            assert(rhs[witness_idx] == b2[witness_idx - a2.len() - 1]);
+            assert(rhs[witness_idx] != '-'@);
+        }
     }
 }
 
