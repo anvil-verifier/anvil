@@ -820,6 +820,17 @@ pub proof fn leads_to_exists_intro_with_pre<T, A>(spec: TempPred<T>, a_to_p: spe
     };
 }
 
+// also work without []
+// q is added to avoid proving the equivalence of closures (which Verus struggles with)
+#[verifier(external_body)]
+pub proof fn leads_to_always_within_domain<T, A>(spec: TempPred<T>, domain: spec_fn(A) -> bool, p: TempPred<T>, a_to_q: spec_fn(A) -> StatePred<T>, q: StatePred<T>)
+    requires
+        forall |a: A| #[trigger] domain(a) ==> spec.entails(p.leads_to(always(lift_state(a_to_q(a))))),
+        forall |s: T| (forall |a: A| #[trigger] domain(a) ==> a_to_q(a)(s)) ==> #[trigger] q(s),
+    ensures
+        spec.entails(p.leads_to(always(lift_state(q)))),
+{}
+
 // This lemmas instantiates tla_forall for a.
 pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a: A)
     requires spec.entails(tla_forall(a_to_p)),

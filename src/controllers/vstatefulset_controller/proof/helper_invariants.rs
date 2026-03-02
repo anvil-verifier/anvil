@@ -823,13 +823,26 @@ ensures
             &&& key.kind == Kind::PodKind
             &&& key.namespace == vsts.object_ref().namespace
             &&& pod_name_match(key.name, vsts.object_ref().name)
-        } ==> {
-            let obj = s.resources()[key];
-            obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
-        }
+        } ==> s.resources()[key].metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
     };
     assert(pre.entails(true_pred().leads_to(always(lift_state(all_pods_owned_by_vsts_only_have_vsts_owner_ref))))) by {
-        assume(false);
+        let cond = |key: ObjectRef| {
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.object_ref().namespace
+            &&& pod_name_match(key.name, vsts.object_ref().name)
+        };
+        assert forall |s: ClusterState| (forall |key: ObjectRef| #[trigger] cond(key) ==> Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts))(s))
+            implies #[trigger] all_pods_owned_by_vsts_only_have_vsts_owner_ref(s) by {
+            assert forall |key: ObjectRef| {
+                &&& #[trigger] s.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.object_ref().namespace
+                &&& pod_name_match(key.name, vsts.object_ref().name)
+            } implies s.resources()[key].metadata.owner_references == Some(seq![vsts.controller_owner_ref()]) by {
+                assert(cond(key)); // trigger
+            }
+        };
+        leads_to_always_within_domain(pre, cond, true_pred(), |key| Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)), all_pods_owned_by_vsts_only_have_vsts_owner_ref);
     }
     assert(lift_state(all_pods_owned_by_vsts_only_have_vsts_owner_ref)
         .and(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
