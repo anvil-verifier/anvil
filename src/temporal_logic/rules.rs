@@ -1978,64 +1978,6 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
 
 // push the domain inside state predicates
 // pre:
-//     forall |a: A|, a in domain ==> spec |= p ~> []a_to_q(a)
-//     domain.len() > 0 and domain.is_finite()
-//     // to improve stability in predicate matching:
-//     scoped_a_to_q == (|t: T| forall |a: A|, a in domain ==> a_to_q(a)(t))
-// post:
-//     spec |= p ~> []tla_forall(domain.contains(a) ==> a_to_q)
-// The domain set assist in showing type A contains finite elements.
-pub proof fn spec_entails_leads_to_always_tla_forall_within_domain<T, A>(
-    spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A)->StatePred<T>, domain: Set<A>,
-    scoped_a_to_q: StatePred<T> // workaround for flakiness
-)
-    requires
-        forall |a: A| #[trigger] domain.contains(a) ==> spec.entails(p.leads_to(always(lift_state(a_to_q(a))))),
-        domain.finite(),
-        domain.len() > 0,
-        scoped_a_to_q == (|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t))),
-    ensures spec.entails(p.leads_to(always(lift_state(scoped_a_to_q)))),
-{
-    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(lift_state(scoped_a_to_q))).satisfied_by(ex) by {
-        assert forall |i: nat| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(scoped_a_to_q))).satisfied_by(ex.suffix(i)) by {
-            assert forall |a: A| #[trigger] domain.contains(a) implies eventually(always(lift_state(a_to_q(a)))).satisfied_by(ex.suffix(i)) by {
-                entails_apply::<T>(ex, spec, p.leads_to(always(lift_state(a_to_q(a)))));
-                leads_to_unfold::<T>(ex, p, always(lift_state(a_to_q(a))));
-            };
-            let a_to_witness = Map::new(|a: A| domain.contains(a), |a: A| eventually_choose_witness::<T>(ex.suffix(i), always(lift_state(a_to_q(a)))));
-            let leq = |a1: nat, a2: nat| a1 <= a2;
-            let values = a_to_witness.values();
-            assert(a_to_witness.dom() =~= domain);
-            lemma_values_finite(a_to_witness);
-            assert(values.len() > 0) by {
-                let x = a_to_witness.dom().choose();
-                assert(domain.contains(x));
-                assert(values.contains(a_to_witness[x]));
-            };
-            let max_witness = values.find_unique_maximal(leq);
-            values.find_unique_maximal_ensures(leq);
-            values.lemma_maximal_equivalent_greatest(leq, max_witness);
-            assert(always(lift_state(scoped_a_to_q)).satisfied_by(ex.suffix(i).suffix(max_witness))) by {
-                assert(vstd::relations::is_greatest(leq, max_witness, values));
-                assert forall |a: A| #[trigger] domain.contains(a) implies always(lift_state(a_to_q(a))).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
-                    let witness = a_to_witness[a];
-                    assert(leq(witness, max_witness));
-                    always_propagate_forwards::<T>(ex.suffix(i).suffix(witness), lift_state(a_to_q(a)), (max_witness - witness) as nat);
-                    execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
-                }
-                assert forall |j: nat| #[trigger] lift_state(scoped_a_to_q).satisfied_by(ex.suffix(i).suffix(max_witness).suffix(j)) by {
-                    assert forall |a: A| #[trigger] domain.contains(a) implies lift_state(a_to_q(a)).satisfied_by(ex.suffix(i).suffix(max_witness).suffix(j)) by {
-                        always_propagate_forwards::<T>(ex.suffix(i).suffix(max_witness), lift_state(a_to_q(a)), j);
-                    }
-                }
-            }
-            eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(scoped_a_to_q)), max_witness);
-        }
-    }
-}
-
-// push the domain inside state predicates
-// pre:
 //     forall |a: A|, a in domain ==> spec |= []a_to_p(a) ~> []a_to_q(a)
 //     domain.len() > 0 and domain.is_finite()
 //     // to improve stability in predicate matching:

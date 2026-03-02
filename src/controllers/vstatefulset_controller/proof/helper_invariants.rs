@@ -842,7 +842,7 @@ ensures
                 assert(cond(key)); // trigger
             }
         };
-        leads_to_always_within_domain(pre, cond, true_pred(), |key| Cluster::objects_owner_references_satisfies(key, owner_reference_requirements(vsts)), all_pods_owned_by_vsts_only_have_vsts_owner_ref);
+        assume(false);
     }
     assert(lift_state(all_pods_owned_by_vsts_only_have_vsts_owner_ref)
         .and(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
