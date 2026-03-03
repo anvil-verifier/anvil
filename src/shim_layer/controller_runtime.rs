@@ -427,6 +427,17 @@ where
                                 .await,
                             );
                         }
+                        KubeAPIRequest::GetThenUpdateStatusRequest(req) => {
+                            check_fault_timing = true;
+                            kube_resp = KubeAPIResponse::GetThenUpdateStatusResponse(
+                                transactional_get_then_update_status_by_retry(
+                                    client,
+                                    req,
+                                    log_header.clone(),
+                                )
+                                .await,
+                            );
+                        }
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
                 }
@@ -602,6 +613,90 @@ pub async fn transactional_get_then_update_by_retry(
             Ok(obj) => {
                 info!("{} Update {} done", log_header, key);
                 return KubeGetThenUpdateResponse {
+                    res: Ok(DynamicObject::from_kube(obj)),
+                };
+            }
+        }
+    }
+}
+
+// transactional_get_then_update_status_by_retry retries get and then update status upon conflict errors to simulate atomic operations.
+// This guarantees that the entire get_then_update_status operation will not fail due to conflicts between concurrent
+// controllers. Note that transactional_get_then_update_status_by_retry's termination depends on fairness assumptions.
+pub async fn transactional_get_then_update_status_by_retry(
+    client: &Client,
+    req: KubeGetThenUpdateStatusRequest,
+    log_header: String,
+) -> KubeGetThenUpdateStatusResponse {
+    // sanity check, can be removed if type invariant is supported by Verus
+    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+        client.clone(),
+        &req.namespace,
+        req.api_resource.as_kube_ref(),
+    );
+    let pp = PostParams::default();
+    let key = req.key();
+    let mut obj_to_update = req.obj.into_kube();
+    
+    loop {
+        // Step 1: get the object
+        let get_result = api.get(&req.name).await;
+        if let Err(err) = get_result {
+            info!(
+                "{} Get of Get-then-Update-Status {} failed with error: {}",
+                log_header, key, err
+            );
+            return KubeGetThenUpdateStatusResponse {
+                res: Err(kube_error_to_api_error(&err)),
+            };
+        }
+        // Step 2: if the object exists, perform a check using a predicate on object
+        // The predicate: Is the current object owned by req.owner_ref?
+        let current_obj = DynamicObject::from_kube(get_result.unwrap());
+        if !current_obj
+            .metadata()
+            .owner_references_contains(&req.owner_ref)
+        {
+            return KubeGetThenUpdateStatusResponse {
+                res: Err(APIError::TransactionAbort),
+            };
+        }
+        // Step 3: if the check passes, overwrite the status of the object with the new one
+        // Note that resource_version and uid comes from the current object to avoid conflict error
+        obj_to_update.metadata.uid = current_obj.as_kube_ref().metadata.uid.clone();
+        obj_to_update.metadata.resource_version =
+            current_obj.as_kube_ref().metadata.resource_version.clone();
+        match api
+            .replace_status(
+                &req.name,
+                &pp,
+                deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap(),
+            )
+            .await
+        {
+            Err(err) => {
+                let api_err = kube_error_to_api_error(&err);
+                match api_err {
+                    APIError::Conflict => {
+                        // Retry upon a conflict error
+                        info!(
+                            "{} UpdateStatus of Get-then-Update-Status {} failed with Conflict; retry...",
+                            log_header, key
+                        );
+                        continue;
+                    }
+                    _ => {
+                        info!(
+                            "{} UpdateStatus of Get-then-Update-Status {} failed with error: {}",
+                            log_header, key, err
+                        );
+                        return KubeGetThenUpdateStatusResponse { res: Err(api_err) };
+                    }
+                }
+            }
+            Ok(obj) => {
+                info!("{} UpdateStatus {} done", log_header, key);
+                return KubeGetThenUpdateStatusResponse {
                     res: Ok(DynamicObject::from_kube(obj)),
                 };
             }

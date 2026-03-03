@@ -29,6 +29,7 @@ pub enum APIRequest {
     UpdateStatusRequest(UpdateStatusRequest),
     GetThenDeleteRequest(GetThenDeleteRequest),
     GetThenUpdateRequest(GetThenUpdateRequest),
+    GetThenUpdateStatusRequest(GetThenUpdateStatusRequest),
 }
 
 // GetRequest gets an object with the key (kind, name and namespace).
@@ -169,6 +170,28 @@ impl GetThenUpdateRequest {
     }
 }
 
+pub struct GetThenUpdateStatusRequest {
+    pub namespace: StringView,
+    pub name: StringView,
+    pub owner_ref: OwnerReferenceView,
+    pub obj: DynamicObjectView,
+}
+
+impl GetThenUpdateStatusRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.obj.kind,
+            namespace: self.namespace,
+            name: self.name,
+        }
+    }
+
+    pub open spec fn well_formed(self) -> bool {
+        self.owner_ref.controller is Some
+        && self.owner_ref.controller->0
+    }
+}
+
 // APIResponse represents API responses sent from the Kubernetes API for specifications.
 
 #[is_variant_no_deprecation_warning]
@@ -181,6 +204,7 @@ pub enum APIResponse {
     UpdateStatusResponse(UpdateStatusResponse),
     GetThenDeleteResponse(GetThenDeleteResponse),
     GetThenUpdateResponse(GetThenUpdateResponse),
+    GetThenUpdateStatusResponse(GetThenUpdateStatusResponse),
 }
 
 // GetResponse has the object returned by GetRequest.
@@ -229,6 +253,10 @@ pub struct GetThenUpdateResponse {
 
 pub struct GetThenDeleteResponse {
     pub res: Result<(), APIError>,
+}
+
+pub struct GetThenUpdateStatusResponse {
+    pub res: Result<DynamicObjectView, APIError>,
 }
 
 }
