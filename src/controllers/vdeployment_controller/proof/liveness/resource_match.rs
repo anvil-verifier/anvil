@@ -743,8 +743,10 @@ ensures
     assert(vds_prime.old_vrs_index == old_vrs_list.len());
 
     // prove local_state_is_coherent_with_etcd_valid_and_coherent(s_prime)
-    assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==>
-        old_vrs_list.contains(vds_prime.old_vrs_list[i]) && managed_vrs_list.contains(vds_prime.old_vrs_list[i])); // trigger
+    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
+        implies managed_vrs_list.contains(vds_prime.old_vrs_list[i]) by {
+        assert(old_vrs_list.contains(vds_prime.old_vrs_list[i])); // trigger
+    }
 }
 
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
