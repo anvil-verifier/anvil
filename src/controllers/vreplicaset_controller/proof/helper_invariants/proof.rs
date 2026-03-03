@@ -69,6 +69,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
             APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
             APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
             APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => no_other_pending_get_then_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
             _ => true,
         }
     };
