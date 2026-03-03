@@ -757,6 +757,50 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
     }
 }
 
+pub open spec fn handle_get_then_update_status_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
+    recommends
+        msg.content.is_get_then_update_status_request(),
+{
+    let req = msg.content.get_get_then_update_status_request();
+    if !req.well_formed() { // must have a controller reference
+        (s, form_get_then_update_status_resp_msg(msg, GetThenUpdateStatusResponse {res: Err(APIError::BadRequest)}))
+    } else {
+        // Step 1: get the object
+        let get_req = GetRequest {
+            key: req.key()
+        };
+        let get_resp = handle_get_request(get_req, s);
+        match get_resp.res {
+            Ok(_) => {
+                let current_obj = s.resources[req.key()];
+                // Step 2: if the object exists, perform a check using a predicate on object
+                // The predicate: Is the current object owned by req.owner_ref?
+                // TODO: the predicate should be provided by clients instead of the hardcoded one
+                if current_obj.metadata.owner_references_contains(req.owner_ref) {
+                    // Step 3: if the check passes, overwrite the status of the object with the new one
+                    // Note that resource_version and uid comes from the current object to avoid conflict error
+                    let new_obj = DynamicObjectView {
+                        metadata: current_obj.metadata, // Ignore any change to metadata
+                        spec: current_obj.spec, // Ignore any change to spec
+                        status: req.obj.status,
+                        ..current_obj
+                    };
+                    let update_status_req = UpdateStatusRequest {
+                        name: req.name,
+                        namespace: req.namespace,
+                        obj: new_obj,
+                    };
+                    let (s_prime, update_status_resp) = handle_update_status_request(installed_types, update_status_req, s);
+                    (s_prime, form_get_then_update_status_resp_msg(msg, GetThenUpdateStatusResponse {res: update_status_resp.res}))
+                } else {
+                    (s, form_get_then_update_status_resp_msg(msg, GetThenUpdateStatusResponse {res: Err(APIError::TransactionAbort)}))
+                }
+            }
+            Err(err) => (s, form_get_then_update_status_resp_msg(msg, GetThenUpdateStatusResponse {res: Err(err)}))
+        }
+    }
+}
+
 pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content is APIRequest,
@@ -770,6 +814,7 @@ pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Messag
         APIRequest::UpdateStatusRequest(_) => handle_update_status_request_msg(installed_types, msg, s),
         APIRequest::GetThenDeleteRequest(_) => handle_get_then_delete_request_msg(msg, s),
         APIRequest::GetThenUpdateRequest(_) => handle_get_then_update_request_msg(installed_types, msg, s),
+        APIRequest::GetThenUpdateStatusRequest(_) => handle_get_then_update_status_request_msg(installed_types, msg, s),
     }
 }
 
