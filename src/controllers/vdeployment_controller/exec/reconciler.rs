@@ -273,7 +273,14 @@ ensures
 {
     let mut new_vrs = state.new_vrs.clone().unwrap();
     let mut new_spec = new_vrs.spec();
-    new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
+    let new_replicas = if vd.spec().replicas().unwrap_or(1) > new_vrs.spec().replicas().unwrap_or(1) {
+        new_vrs.spec().replicas().unwrap_or(1) + 1
+    } else if vd.spec().replicas().unwrap_or(1) < new_vrs.spec().replicas().unwrap_or(1) {
+        new_vrs.spec().replicas().unwrap_or(1) - 1
+    } else { // unreachable
+        new_vrs.spec().replicas().unwrap_or(1)
+    };
+    new_spec.set_replicas(new_replicas);
     new_vrs.set_spec(new_spec);
     let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
         api_resource: VReplicaSet::api_resource(),
