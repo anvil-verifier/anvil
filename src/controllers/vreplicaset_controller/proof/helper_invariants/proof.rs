@@ -459,7 +459,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
