@@ -68,6 +68,25 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
                 assert(!controller_owners.contains(vrs.controller_owner_ref()));
             }
         }
+    } else if msg.content.is_get_then_update_status_request() {
+        let req = msg.content.get_get_then_update_status_request();
+        if req.obj.kind == Kind::PodKind && s.resources().contains_key(req.key()) && matching_pod_entries(vrs, s.resources()).contains_key(req.key()) {
+            let obj = s.resources()[req.key()];
+            assert(req.owner_ref.kind != VReplicaSetView::kind());
+            if obj.metadata.owner_references_contains(req.owner_ref) {
+                assert(req.owner_ref != vrs.controller_owner_ref());
+                if req.well_formed() {
+                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                    lemma_singleton_contains_at_most_one_element(
+                        obj.metadata.owner_references->0.filter(controller_owner_filter()),
+                        vrs.controller_owner_ref(),
+                        req.owner_ref
+                    );
+                } else {
+                    assert(s_prime.resources()[req.key()] == s.resources()[req.key()]);
+                }
+            }
+        }
     }
     assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
