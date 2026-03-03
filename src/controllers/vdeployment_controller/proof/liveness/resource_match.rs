@@ -620,6 +620,7 @@ ensures
 }
 
 // this lemma specifies how VD controller construct the internal cache from list response
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
