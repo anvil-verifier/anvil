@@ -141,6 +141,7 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
                             APIRequest::UpdateStatusRequest(_) => {}
                             APIRequest::GetThenDeleteRequest(_) => {}
                             APIRequest::GetThenUpdateRequest(_) => {}
+                            APIRequest::GetThenUpdateStatusRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -169,6 +170,7 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
                             APIRequest::UpdateStatusRequest(_) => {}
                             APIRequest::GetThenDeleteRequest(_) => {}
                             APIRequest::GetThenUpdateRequest(_) => {}
+                            APIRequest::GetThenUpdateStatusRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -230,6 +232,7 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                                 assert(valid_object(obj, self.installed_types));
                             }
                             APIRequest::GetThenUpdateRequest(_) => {}
+                            APIRequest::GetThenUpdateStatusRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -249,6 +252,7 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                             APIRequest::UpdateStatusRequest(_) => {}
                             APIRequest::GetThenDeleteRequest(_) => {}
                             APIRequest::GetThenUpdateRequest(_) => {}
+                            APIRequest::GetThenUpdateStatusRequest(_) => {}
                         }
                     }
                     _ => {}

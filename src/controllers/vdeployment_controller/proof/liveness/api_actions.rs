@@ -787,6 +787,20 @@ ensures
                                     }
                                 }
                             },
+                            APIRequest::GetThenUpdateStatusRequest(req) => {
+                                if req.obj.kind == VReplicaSetView::kind() {
+                                    // rely condition
+                                    assert(req.owner_ref.kind != VDeploymentView::kind());
+                                    if obj.metadata.owner_references_contains(req.owner_ref) {
+                                        assert(req.owner_ref != vd.controller_owner_ref());
+                                        if req.well_formed() {
+                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                        } else {
+                                            assert(s_prime.resources()[k] == s.resources()[k]);
+                                        }
+                                    }
+                                }
+                            }
                             _ => {},
                         }
                     }

@@ -620,6 +620,7 @@ ensures
 }
 
 // this lemma specifies how VD controller construct the internal cache from list response
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
@@ -742,8 +743,10 @@ ensures
     assert(vds_prime.old_vrs_index == old_vrs_list.len());
 
     // prove local_state_is_coherent_with_etcd_valid_and_coherent(s_prime)
-    assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==>
-        old_vrs_list.contains(vds_prime.old_vrs_list[i]) && managed_vrs_list.contains(vds_prime.old_vrs_list[i])); // trigger
+    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
+        implies managed_vrs_list.contains(vds_prime.old_vrs_list[i]) by {
+        assert(old_vrs_list.contains(vds_prime.old_vrs_list[i])); // trigger
+    }
 }
 
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(

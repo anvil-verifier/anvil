@@ -159,6 +159,16 @@ pub open spec fn no_other_pending_get_then_delete_request_interferes_with_vrs_re
     }
 }
 
+pub open spec fn no_other_pending_get_then_update_status_request_interferes_with_vrs_reconcile(
+    req: GetThenUpdateStatusRequest,
+    vrs: VReplicaSetView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        req.obj.kind == Kind::PodKind ==> 
+            req.owner_ref.kind != VReplicaSetView::kind()
+    }
+}
+
 // States that no pending request that is not from the specific reconcile
 // associated with `vrs` interferes with the reconcile of `vrs`.
 pub open spec fn no_other_pending_request_interferes_with_vrs_reconcile(
@@ -180,6 +190,7 @@ pub open spec fn no_other_pending_request_interferes_with_vrs_reconcile(
                 APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
                 APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
                 APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                APIRequest::GetThenUpdateStatusRequest(req) => no_other_pending_get_then_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
                 _ => true,
             }
         }

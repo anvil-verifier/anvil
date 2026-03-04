@@ -122,6 +122,7 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sel
                     APIRequest::UpdateStatusRequest(_) => {}
                     APIRequest::GetThenDeleteRequest(_) => {}
                     APIRequest::GetThenUpdateRequest(_) => {}
+                    APIRequest::GetThenUpdateStatusRequest(_) => {}
                 }
                 assert(msg == handle_get_request_msg(req, s.api_server).1);
                 assert(s.resources().contains_key(req.content.get_get_request().key));

@@ -31,6 +31,7 @@ pub enum KubeAPIRequest {
     UpdateStatusRequest(KubeUpdateStatusRequest),
     GetThenDeleteRequest(KubeGetThenDeleteRequest),
     GetThenUpdateRequest(KubeGetThenUpdateRequest),
+    GetThenUpdateStatusRequest(KubeGetThenUpdateStatusRequest),
 }
 
 // KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
@@ -271,6 +272,44 @@ impl View for KubeGetThenUpdateRequest {
     }
 }
 
+// KubeGetThenUpdateStatusRequest has the name as the parameter of Api.get() and the obj as the parameter of Api.replace_status().
+//
+// TODO: KubeGetThenUpdateStatusRequest should carry a Box<dyn Fn(DynamicObject) -> Option<DynamicObject>> when Verus supports dyn
+
+pub struct KubeGetThenUpdateStatusRequest {
+    pub api_resource: ApiResource,
+    pub name: String,
+    pub namespace: String,
+    pub owner_ref: OwnerReference,
+    pub obj: DynamicObject,
+}
+
+impl KubeGetThenUpdateStatusRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
+    }
+
+    pub fn well_formed(&self) -> (res: bool)
+        ensures
+            res == self@.well_formed(),
+    {
+        self.owner_ref.controller().is_some() && self.owner_ref.controller().unwrap()
+    }
+}
+
+impl View for KubeGetThenUpdateStatusRequest {
+    type V = GetThenUpdateStatusRequest;
+    open spec fn view(&self) -> GetThenUpdateStatusRequest {
+        GetThenUpdateStatusRequest {
+            name: self.name@,
+            namespace: self.namespace@,
+            owner_ref: self.owner_ref@,
+            obj: self.obj@,
+        }
+    }
+}
+
 impl View for KubeAPIRequest {
     type V = APIRequest;
 
@@ -284,6 +323,7 @@ impl View for KubeAPIRequest {
             KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(update_status_req@),
             KubeAPIRequest::GetThenDeleteRequest(req) => APIRequest::GetThenDeleteRequest(req@),
             KubeAPIRequest::GetThenUpdateRequest(req) => APIRequest::GetThenUpdateRequest(req@),
+            KubeAPIRequest::GetThenUpdateStatusRequest(req) => APIRequest::GetThenUpdateStatusRequest(req@),
         }
     }
 }
@@ -310,6 +350,7 @@ pub enum KubeAPIResponse {
     UpdateStatusResponse(KubeUpdateStatusResponse),
     GetThenDeleteResponse(KubeGetThenDeleteResponse),
     GetThenUpdateResponse(KubeGetThenUpdateResponse),
+    GetThenUpdateStatusResponse(KubeGetThenUpdateStatusResponse),
 }
 
 // KubeGetResponse has the object returned by KubeGetRequest.
@@ -440,6 +481,22 @@ impl View for KubeGetThenDeleteResponse {
     }
 }
 
+// KubeGetThenUpdateStatusResponse has the object updated by KubeGetThenUpdateStatusRequest.
+
+pub struct KubeGetThenUpdateStatusResponse {
+    pub res: Result<DynamicObject, APIError>,
+}
+
+impl View for KubeGetThenUpdateStatusResponse {
+    type V = GetThenUpdateStatusResponse;
+    open spec fn view(&self) -> GetThenUpdateStatusResponse {
+        match self.res {
+            Ok(o) => GetThenUpdateStatusResponse { res: Ok(o@) },
+            Err(e) => GetThenUpdateStatusResponse { res: Err(e) },
+        }
+    }
+}
+
 impl View for KubeAPIResponse {
     type V = APIResponse;
     open spec fn view(&self) -> APIResponse {
@@ -452,6 +509,7 @@ impl View for KubeAPIResponse {
             KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp@),
             KubeAPIResponse::GetThenDeleteResponse(resp) => APIResponse::GetThenDeleteResponse(resp@),
             KubeAPIResponse::GetThenUpdateResponse(resp) => APIResponse::GetThenUpdateResponse(resp@),
+            KubeAPIResponse::GetThenUpdateStatusResponse(resp) => APIResponse::GetThenUpdateStatusResponse(resp@),
         }
     }
 }
@@ -544,7 +602,7 @@ declare_kube_api_response_helper_methods!(
 
 declare_kube_api_response_helper_methods!(
     is_update_status_response,
-    as_update_response_status_ref,
+    as_update_status_response_ref,
     into_update_status_response,
     UpdateStatusResponse,
     KubeUpdateStatusResponse,
@@ -567,4 +625,13 @@ declare_kube_api_response_helper_methods!(
     GetThenDeleteResponse,
     KubeGetThenDeleteResponse,
     get_GetThenDeleteResponse_0
+);
+
+declare_kube_api_response_helper_methods!(
+    is_get_then_update_status_response,
+    as_get_then_update_status_response_ref,
+    into_get_then_update_status_response,
+    GetThenUpdateStatusResponse,
+    KubeGetThenUpdateStatusResponse,
+    get_GetThenUpdateStatusResponse_0
 );

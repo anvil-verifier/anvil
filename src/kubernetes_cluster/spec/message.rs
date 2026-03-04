@@ -75,6 +75,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
         APIResponse::UpdateStatusResponse(update_status_resp) => update_status_resp.res is Ok,
         APIResponse::GetThenDeleteResponse(resp) => resp.res is Ok,
         APIResponse::GetThenUpdateResponse(resp) => resp.res is Ok,
+        APIResponse::GetThenUpdateStatusResponse(resp) => resp.res is Ok,
     }
 }
 
@@ -110,6 +111,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
             APIResponse::UpdateStatusResponse(_) => req_msg.content->APIRequest_0 is UpdateStatusRequest,
             APIResponse::GetThenDeleteResponse(_) => req_msg.content->APIRequest_0 is GetThenDeleteRequest,
             APIResponse::GetThenUpdateResponse(_) => req_msg.content->APIRequest_0 is GetThenUpdateRequest,
+            APIResponse::GetThenUpdateStatusResponse(_) => req_msg.content->APIRequest_0 is GetThenUpdateStatusRequest,
         }
     }
     ||| {
@@ -133,6 +135,7 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message, err: APIError) -> M
         APIRequest::UpdateStatusRequest(_) => form_update_status_resp_msg(req_msg, UpdateStatusResponse{res: Err(err)}),
         APIRequest::GetThenDeleteRequest(_) => form_get_then_delete_resp_msg(req_msg, GetThenDeleteResponse{res: Err(err)}),
         APIRequest::GetThenUpdateRequest(_) => form_get_then_update_resp_msg(req_msg, GetThenUpdateResponse{res: Err(err)}),
+        APIRequest::GetThenUpdateStatusRequest(_) => form_get_then_update_status_resp_msg(req_msg, GetThenUpdateStatusResponse{res: Err(err)}),
     }
 }
 
@@ -204,6 +207,15 @@ pub open spec fn get_then_delete_req_msg_content(key: ObjectRef, owner_ref: Owne
 
 pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: StringView, owner_ref: OwnerReferenceView, obj: DynamicObjectView) -> MessageContent {
     MessageContent::APIRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest{
+        namespace: namespace,
+        name: name,
+        owner_ref: owner_ref,
+        obj: obj,
+    }))
+}
+
+pub open spec fn get_then_update_status_req_msg_content(namespace: StringView, name: StringView, owner_ref: OwnerReferenceView, obj: DynamicObjectView) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::GetThenUpdateStatusRequest(GetThenUpdateStatusRequest{
         namespace: namespace,
         name: name,
         owner_ref: owner_ref,
@@ -341,6 +353,13 @@ declare_message_content_req_helper_methods!(
     get_GetThenUpdateRequest_0
 );
 
+declare_message_content_req_helper_methods!(
+    is_get_then_update_status_request,
+    get_get_then_update_status_request,
+    GetThenUpdateStatusRequest,
+    get_GetThenUpdateStatusRequest_0
+);
+
 declare_message_content_req_helper_methods_with_key!(
     is_delete_request_with_key,
     DeleteRequest,
@@ -369,6 +388,12 @@ declare_message_content_req_helper_methods_with_key!(
     is_get_then_update_request_with_key,
     GetThenUpdateRequest,
     get_GetThenUpdateRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    is_get_then_update_status_request_with_key,
+    GetThenUpdateStatusRequest,
+    get_GetThenUpdateStatusRequest_0
 );
 
 declare_message_content_resp_helper_methods!(
@@ -427,6 +452,13 @@ declare_message_content_resp_helper_methods!(
     get_GetThenUpdateResponse_0
 );
 
+declare_message_content_resp_helper_methods!(
+    is_get_then_update_status_response,
+    get_get_then_update_status_response,
+    GetThenUpdateStatusResponse,
+    get_GetThenUpdateStatusResponse_0
+);
+
 macro_rules! declare_form_resp_msg_functions {
     ($fun:ident, $resp_type:ty) => {
         verus! {
@@ -452,6 +484,8 @@ declare_form_resp_msg_functions!(form_update_status_resp_msg, UpdateStatusRespon
 declare_form_resp_msg_functions!(form_get_then_delete_resp_msg, GetThenDeleteResponse);
 
 declare_form_resp_msg_functions!(form_get_then_update_resp_msg, GetThenUpdateResponse);
+
+declare_form_resp_msg_functions!(form_get_then_update_status_resp_msg, GetThenUpdateStatusResponse);
 
 macro_rules! declare_is_req_msg_functions {
     ($is_fun:ident, $is_req:ident, $get_req:ident) => {
@@ -493,6 +527,12 @@ declare_is_req_msg_functions!(
     resource_get_then_update_request_msg,
     is_get_then_update_request,
     get_get_then_update_request
+);
+
+declare_is_req_msg_functions!(
+    resource_get_then_update_status_request_msg,
+    is_get_then_update_status_request,
+    get_get_then_update_status_request
 );
 
 verus! {

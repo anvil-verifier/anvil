@@ -69,6 +69,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
             APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
             APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
             APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => no_other_pending_get_then_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
             _ => true,
         }
     };
@@ -459,7 +460,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
