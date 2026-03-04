@@ -17,8 +17,23 @@ pub open spec fn vrs_eventually_stable_reconciliation_per_cr(vrs: VReplicaSetVie
 }
 
 pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<ClusterState> {
-    |s: ClusterState|
-        matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1)
+    |s: ClusterState| {
+        let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
+        &&& matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1)
+        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]) is Ok
+        &&& etcd_vrs.status is Some
+        &&& etcd_vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+    }
+}
+
+pub open spec fn desired_state_is(vrs: VReplicaSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& Cluster::desired_state_is(vrs)(s)
+        // has one and only one vd controller owner
+        &&& vrs.metadata.owner_references->0.filter(controller_owner_filter())
+            == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
+        &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
+    }
 }
 
 pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<DynamicObjectView> {
