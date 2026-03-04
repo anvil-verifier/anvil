@@ -53,7 +53,7 @@ impl Composition for RabbitmqReconciler {
     ensures
         spec.entails(Self::c().safety_guarantee),
     {
-        assume(false);
+        guarantee_condition_holds(spec, cluster, Self::id());
     }
 
     proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
