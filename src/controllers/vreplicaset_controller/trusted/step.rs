@@ -7,6 +7,7 @@ pub enum VReplicaSetReconcileStep {
     AfterListPods,
     AfterCreatePod(usize),
     AfterDeletePod(usize),
+    AfterUpdateVRSStatus(usize),
     Done,
     Error,
 }
@@ -28,6 +29,7 @@ impl View for VReplicaSetReconcileStep {
             VReplicaSetReconcileStep::AfterListPods => VReplicaSetRecStepView::AfterListPods,
             VReplicaSetReconcileStep::AfterCreatePod(diff) => VReplicaSetRecStepView::AfterCreatePod(*diff as nat),
             VReplicaSetReconcileStep::AfterDeletePod(diff) => VReplicaSetRecStepView::AfterDeletePod(*diff as nat),
+            VReplicaSetReconcileStep::AfterUpdateVRSStatus(diff) => VReplicaSetRecStepView::AfterUpdateVRSStatus(*diff as nat),
             VReplicaSetReconcileStep::Done => VReplicaSetRecStepView::Done,
             VReplicaSetReconcileStep::Error => VReplicaSetRecStepView::Error,
         }
@@ -39,6 +41,7 @@ pub enum VReplicaSetRecStepView {
     AfterListPods,
     AfterCreatePod(nat),
     AfterDeletePod(nat),
+    AfterUpdateVRSStatus(nat),
     Done,
     Error,
 }

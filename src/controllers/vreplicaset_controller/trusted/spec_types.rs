@@ -12,7 +12,9 @@ pub struct VReplicaSetView {
     pub status: Option<VReplicaSetStatusView>,
 }
 
-pub type VReplicaSetStatusView = EmptyStatusView;
+pub struct VReplicaSetStatusView {
+    pub replicas: int,
+}
 
 impl VReplicaSetView {
     pub open spec fn well_formed(self) -> bool {
@@ -40,6 +42,13 @@ impl VReplicaSetView {
     pub open spec fn with_spec(self, spec: VReplicaSetSpecView) -> VReplicaSetView {
         VReplicaSetView {
             spec: spec,
+            ..self
+        }
+    }
+
+    pub open spec fn with_status(self, status: VReplicaSetStatusView) -> VReplicaSetView {
+        VReplicaSetView {
+            status: Some(status),
             ..self
         }
     }

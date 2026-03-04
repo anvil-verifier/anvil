@@ -425,4 +425,20 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
     pod
 }
 
+fn make_get_then_update_status_request(vrs: &VReplicaSet) -> (req: KubeAPIRequest)
+    requires vrs@.well_formed(),
+    ensures req.deep_view() == model_reconciler::make_get_then_update_status_request(vrs@),
+{
+    let new_status = VReplicaSetStatus::default();
+    new_status.set_replicas(vrs.spec().replicas().unwrap_or(1));
+    let mut new_vrs = vrs.clone();
+    new_vrs.set_status(new_status);
+    KubeAPIRequest::GetThenUpdateStatusRequest(KubeGetThenUpdateStatusRequest {
+        api_resource: VReplicaSet::api_resource(),
+        name: vrs.metadata().name().unwrap(),
+        namespace: vrs.metadata().namespace().unwrap(),
+        obj: new_vrs.marshal(),
+    })
+}
+
 }
