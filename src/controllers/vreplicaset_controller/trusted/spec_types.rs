@@ -12,10 +12,6 @@ pub struct VReplicaSetView {
     pub status: Option<VReplicaSetStatusView>,
 }
 
-pub struct VReplicaSetStatusView {
-    pub replicas: int,
-}
-
 impl VReplicaSetView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.well_formed_for_namespaced()
@@ -136,6 +132,24 @@ impl VReplicaSetSpecView {
         VReplicaSetSpecView {
             template: Some(template),
             ..self
+        }
+    }
+}
+
+pub struct VReplicaSetStatusView {
+    pub replicas: int,
+}
+
+impl VReplicaSetStatusView {
+    pub open spec fn default() -> VReplicaSetStatusView {
+        VReplicaSetStatusView {
+            replicas: 0,
+        }
+    }
+
+    pub open spec fn with_replicas(self, replicas: int) -> VReplicaSetStatusView {
+        VReplicaSetStatusView {
+            replicas: replicas,
         }
     }
 }

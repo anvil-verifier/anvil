@@ -60,6 +60,7 @@ impl VReplicaSet {
         self.inner.spec = spec.into_kube();
     }
 
+    #[verifier(external_body)]
     pub fn set_status(&mut self, status: VReplicaSetStatus)
         ensures self@ == old(self)@.with_status(status@),
     {
@@ -161,15 +162,15 @@ impl VReplicaSetSpec {
 
 impl VReplicaSetStatus {
     #[verifier(external_body)]
-    pub fn replicas(&self) -> (replicas: int)
+    pub fn replicas(&self) -> (replicas: i32)
         ensures self@.replicas == replicas,
     {
         self.inner.replicas
     }
 
     #[verifier(external_body)]
-    pub fn set_replicas(&mut self, replicas: int)
-        ensures self@ == old(self)@.with_replicas(replicas),
+    pub fn set_replicas(&mut self, replicas: i32)
+        ensures self@ == old(self)@.with_replicas(replicas as int),
     {
         self.inner.replicas = replicas;
     }
