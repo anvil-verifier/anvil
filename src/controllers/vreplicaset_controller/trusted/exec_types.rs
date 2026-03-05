@@ -46,6 +46,18 @@ impl VReplicaSet {
     }
 
     #[verifier(external_body)]
+    pub fn status(&self) -> (status: Option<VReplicaSetStatus>)
+        ensures
+            status is Some == self@.status is Some,
+            status is Some ==> status->0@ == self@.status->0,
+    {
+        match &self.inner.status {
+            Some(s) => Some(VReplicaSetStatus { inner: s.clone() }),
+            None => None
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
         ensures owner_reference@ == self@.controller_owner_ref(),
     {

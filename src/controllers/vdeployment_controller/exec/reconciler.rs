@@ -147,7 +147,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 // no new vrs, create one
                 return create_new_vrs(&state_prime, vd);
             }
-            if !match_replicas(&vd, &new_vrs.unwrap()) {
+            if mismatch_replicas(&vd, &new_vrs.unwrap()) {
                 // scale new vrs to desired replicas
                 return scale_new_vrs(&state_prime, &vd);
             }
@@ -266,20 +266,20 @@ pub fn scale_new_vrs(state: &VDeploymentReconcileState, vd: &VDeployment) -> (re
 requires
     vd@.well_formed(),
     state@.new_vrs is Some,
+    state@.new_vrs->0.status is Some,
     model_util::valid_owned_vrs(state@.new_vrs->0, vd@),
 ensures
     res.1@ is Some && model_reconciler::scale_new_vrs(state@, vd@).1 is Some,
     (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(state@, vd@),
 {
     let mut new_vrs = state.new_vrs.clone().unwrap();
-    let mut new_spec = new_vrs.spec();
-    let new_replicas = if vd.spec().replicas().unwrap_or(1) > new_vrs.spec().replicas().unwrap_or(1) {
-        new_vrs.spec().replicas().unwrap_or(1) + 1
-    } else if vd.spec().replicas().unwrap_or(1) < new_vrs.spec().replicas().unwrap_or(1) {
-        new_vrs.spec().replicas().unwrap_or(1) - 1
-    } else { // unreachable
-        new_vrs.spec().replicas().unwrap_or(1)
+    let mut new_replicas = new_vrs.status().unwrap().replicas();
+    new_replicas = if vd.spec().replicas().unwrap_or(1) > new_replicas {
+        new_replicas + 1
+    } else {
+        new_replicas - 1
     };
+    let mut new_spec = new_vrs.spec();
     new_spec.set_replicas(new_replicas);
     new_vrs.set_spec(new_spec);
     let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
@@ -328,13 +328,13 @@ ensures
     return (state_prime, Some(Request::KRequest(req)))
 }
 
-fn match_replicas(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
+fn mismatch_replicas(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
 requires
     vd@.well_formed(),
     model_util::valid_owned_vrs(vrs@, vd@),
-ensures res == model_util::match_replicas(vd@, vrs@),
+ensures res == model_util::mismatch_replicas(vd@, vrs@),
 {
-    vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)
+    vrs.status().is_some() && vrs.status().unwrap().replicas() != vd.spec().replicas().unwrap_or(1)
 }
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
@@ -627,9 +627,7 @@ ensures
         metadata
     });
     let mut spec = VReplicaSetSpec::default();
-    if vd.spec().replicas().is_some() {
-        spec.set_replicas(vd.spec().replicas().unwrap());
-    }
+    spec.set_replicas(0);
     let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
     labels.insert("pod-template-hash".to_string(), pod_template_hash.clone());
     let mut label_selector = LabelSelector::default();

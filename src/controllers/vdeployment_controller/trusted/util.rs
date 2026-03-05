@@ -74,8 +74,8 @@ pub open spec fn match_template_without_hash(template: PodTemplateSpecView) -> s
     }
 }
 
-pub open spec fn match_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
-    vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
+pub open spec fn mismatch_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+    vrs.status is Some && vrs.status->0.replicas != vd.spec.replicas.unwrap_or(1)
 }
 
 #[macro_export]

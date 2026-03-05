@@ -100,7 +100,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         // create the new vrs
                         create_new_vrs(state_prime, vd)
                     } else {
-                        if !match_replicas(vd, new_vrs->0) {
+                        if mismatch_replicas(vd, new_vrs->0) {
                             // scale new vrs to desired replicas
                             scale_new_vrs(state_prime, vd)
                         } else {
@@ -212,7 +212,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
             ..ObjectMetaView::default()
         }.add_label("pod-template-hash"@, pod_template_hash),
         spec: VReplicaSetSpecView {
-            replicas: vd.spec.replicas,
+            replicas: Some(0),
             selector: LabelSelectorView {
                 match_labels: Some(match_labels),
             },
@@ -256,12 +256,10 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
 //  scale new vrs to desired replicas
 pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = state.new_vrs->0;
-    let new_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
-        new_vrs.spec.replicas.unwrap_or(1) + 1
-    } else if vd.spec.replicas.unwrap_or(1) < new_vrs.spec.replicas.unwrap_or(1) {
-        new_vrs.spec.replicas.unwrap_or(1) - 1
-    } else { // unreachable
-        new_vrs.spec.replicas.unwrap_or(1)
+    let new_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.status->0.replicas {
+        new_vrs.status->0.replicas + 1
+    } else {
+        new_vrs.status->0.replicas - 1
     };
     let new_vrs = VReplicaSetView {
         spec: VReplicaSetSpecView {
