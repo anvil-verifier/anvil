@@ -96,7 +96,17 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& valid_owned_obj_key(vd, s)(k)
             &&& filter_new_vrs_keys(vd.spec.template, s)(k)
             &&& etcd_vrs.metadata.uid is Some
-            &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+            &&& etcd_vrs.status is Some ==> {
+                let status = etcd_vrs.status->0.replicas;
+                let replicas = etcd_vrs.spec.replicas.unwrap_or(1);
+                if status > vd.spec.replicas.unwrap_or(1) {
+                    replicas == status - 1
+                } else if status < vd.spec.replicas.unwrap_or(1) {
+                    replicas == status + 1
+                } else {
+                    replicas == status
+                }
+            &&& etcd_vrs.status is None ==> etcd_vrs.spec.replicas == Some(0)
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(k)

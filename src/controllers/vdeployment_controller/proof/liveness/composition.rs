@@ -416,7 +416,7 @@ ensures
     return vrs_set;
 }
 
-pub proof fn conjuncted_current_state_matches_vrs_implies_composed_current_state_matches(vd: VDeploymentView, cluster: Cluster ,controller_id: int, vrs_set: Set<VReplicaSetView>, s: ClusterState)
+pub proof fn conjuncted_current_state_matches_vrs_implies_composed_current_state_matches(vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, s: ClusterState)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
