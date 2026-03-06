@@ -85,16 +85,16 @@ impl Composition for RabbitmqReconciler {
             spec.entails((Self::c().safety_partial_rely)(i))
             && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
     {
-        let rmq_guar = rmq_guarantee(Self::id());
+        let rmq_guarantee = rmq_guarantee(Self::id());
 
         {
-            let vsts_guar = vsts_guarantee(VStatefulSetReconciler::id());
+            let vsts_guarantee = vsts_guarantee(VStatefulSetReconciler::id());
             let rmq_rely_vsts = rmq_rely(VStatefulSetReconciler::id());
             let vsts_rely_rmq = vsts_rely(Self::id());
             assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
 
-            assert(lift_state(vsts_guar).entails(lift_state(rmq_rely_vsts))) by {
-                assert forall |s: ClusterState| #[trigger] vsts_guar(s) implies rmq_rely_vsts(s) by {
+            assert(lift_state(vsts_guarantee).entails(lift_state(rmq_rely_vsts))) by {
+                assert forall |s: ClusterState| #[trigger] vsts_guarantee(s) implies rmq_rely_vsts(s) by {
                     assert forall |msg| #[trigger] s.in_flight().contains(msg)
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(VStatefulSetReconciler::id())
@@ -131,15 +131,15 @@ impl Composition for RabbitmqReconciler {
                     };
                 };
             }
-            assert(spec.entails(always(lift_state(vsts_guar)))) by {
+            assert(spec.entails(always(lift_state(vsts_guarantee)))) by {
                 vsts_id_ne_vrs_id();
                 vsts_id_ne_vd_id();
                 assert(Self::composed()[VStatefulSetReconciler::id()] == VStatefulSetReconciler::c());
             }
-            always_weaken(spec, lift_state(vsts_guar), lift_state(rmq_rely_vsts));
+            always_weaken(spec, lift_state(vsts_guarantee), lift_state(rmq_rely_vsts));
 
-            assert(lift_state(rmq_guar).entails(lift_state(vsts_rely_rmq))) by {
-                assert forall |s: ClusterState| #[trigger] rmq_guar(s) implies vsts_rely_rmq(s) by {
+            assert(lift_state(rmq_guarantee).entails(lift_state(vsts_rely_rmq))) by {
+                assert forall |s: ClusterState| #[trigger] rmq_guarantee(s) implies vsts_rely_rmq(s) by {
                     assert forall |msg| #[trigger] s.in_flight().contains(msg)
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(Self::id())
@@ -170,7 +170,7 @@ impl Composition for RabbitmqReconciler {
                     };
                 };
             }
-            always_weaken(spec, lift_state(rmq_guar), lift_state(vsts_rely_rmq));
+            always_weaken(spec, lift_state(rmq_guarantee), lift_state(vsts_rely_rmq));
         }
 
         {
@@ -214,8 +214,8 @@ impl Composition for RabbitmqReconciler {
             }
             always_weaken(spec, lift_state(vrs_guar), lift_state(rmq_rely_vrs));
 
-            assert(lift_state(rmq_guar).entails(lift_state(vrs_rely_rmq))) by {
-                assert forall |s: ClusterState| #[trigger] rmq_guar(s) implies vrs_rely_rmq(s) by {
+            assert(lift_state(rmq_guarantee).entails(lift_state(vrs_rely_rmq))) by {
+                assert forall |s: ClusterState| #[trigger] rmq_guarantee(s) implies vrs_rely_rmq(s) by {
                     assert forall |msg| #[trigger] s.in_flight().contains(msg)
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(Self::id())
@@ -245,17 +245,17 @@ impl Composition for RabbitmqReconciler {
                     };
                 };
             }
-            always_weaken(spec, lift_state(rmq_guar), lift_state(vrs_rely_rmq));
+            always_weaken(spec, lift_state(rmq_guarantee), lift_state(vrs_rely_rmq));
         }
 
         {
-            let vd_guar = vd_guarantee(VDeploymentReconciler::id());
+            let vd_guarantee = vd_guarantee(VDeploymentReconciler::id());
             let rmq_rely_vd = rmq_rely(VDeploymentReconciler::id());
             let vd_rely_rmq = vd_rely(Self::id());
             assert(Self::composed().contains_key(VDeploymentReconciler::id())); // trigger
 
-            assert(lift_state(vd_guar).entails(lift_state(rmq_rely_vd))) by {
-                assert forall |s: ClusterState| #[trigger] vd_guar(s) implies rmq_rely_vd(s) by {
+            assert(lift_state(vd_guarantee).entails(lift_state(rmq_rely_vd))) by {
+                assert forall |s: ClusterState| #[trigger] vd_guarantee(s) implies rmq_rely_vd(s) by {
                     assert forall |msg| #[trigger] s.in_flight().contains(msg)
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(VDeploymentReconciler::id())
@@ -286,15 +286,15 @@ impl Composition for RabbitmqReconciler {
                     };
                 };
             }
-            assert(spec.entails(always(lift_state(vd_guar)))) by {
+            assert(spec.entails(always(lift_state(vd_guarantee)))) by {
                 vrs_id_ne_vd_id();
                 vsts_id_ne_vd_id();
                 assert(Self::composed()[VDeploymentReconciler::id()] == VDeploymentReconciler::c());
             }
-            always_weaken(spec, lift_state(vd_guar), lift_state(rmq_rely_vd));
+            always_weaken(spec, lift_state(vd_guarantee), lift_state(rmq_rely_vd));
 
-            assert(lift_state(rmq_guar).entails(lift_state(vd_rely_rmq))) by {
-                assert forall |s: ClusterState| #[trigger] rmq_guar(s) implies vd_rely_rmq(s) by {
+            assert(lift_state(rmq_guarantee).entails(lift_state(vd_rely_rmq))) by {
+                assert forall |s: ClusterState| #[trigger] rmq_guarantee(s) implies vd_rely_rmq(s) by {
                     assert forall |msg| #[trigger] s.in_flight().contains(msg)
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(Self::id())
@@ -325,7 +325,7 @@ impl Composition for RabbitmqReconciler {
                     };
                 };
             }
-            always_weaken(spec, lift_state(rmq_guar), lift_state(vd_rely_rmq));
+            always_weaken(spec, lift_state(rmq_guarantee), lift_state(vd_rely_rmq));
         }
     }
 }
