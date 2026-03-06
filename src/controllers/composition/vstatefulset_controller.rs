@@ -69,13 +69,11 @@ impl Composition for VStatefulSetReconciler {
             spec.entails((Self::c().safety_partial_rely)(i))
             && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
     {
-        // For i = VReplicaSetReconciler::id()
         let vsts_guar = vsts_guarantee(Self::id());
         let vsts_rely_vrs = vsts_rely(VReplicaSetReconciler::id());
         let vrs_guar = vrs_guarantee(VReplicaSetReconciler::id());
         let vrs_rely_vsts = vrs_rely(Self::id());
         assert(Self::composed().contains_key(VReplicaSetReconciler::id())); // trigger
-        // vrs_guarantee alone implies vsts_rely
         assert(lift_state(vrs_guar).entails(lift_state(vsts_rely_vrs))) by {
             assert forall |s: ClusterState| #[trigger] vrs_guar(s) implies vsts_rely_vrs(s) by {
                 assert forall |msg| #[trigger] s.in_flight().contains(msg) && msg.content is APIRequest && msg.src.is_controller_id(VReplicaSetReconciler::id()) implies (
@@ -170,5 +168,12 @@ impl Composition for VStatefulSetReconciler {
     }
 }
 
+impl HorizontalComposition for VStatefulSetReconciler {
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_guarantee),
+    {
+        assume(false);
+    }
+}
 
 }
