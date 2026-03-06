@@ -40,6 +40,7 @@ pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
     let owner_references = req.obj.metadata.owner_references->0;
     &&& req.obj.metadata.name is Some
     &&& has_vsts_prefix(req.obj.metadata.name->0)
+    &&& (req.obj.kind == Kind::PodKind || req.obj.kind == Kind::PersistentVolumeClaimKind)
     &&& req.obj.kind == Kind::PodKind
         ==> exists |vsts: VStatefulSetView| req.obj.metadata.owner_references == Some(Seq::empty().push(#[trigger] vsts.controller_owner_ref()))
     &&& req.obj.kind == Kind::PersistentVolumeClaimKind
