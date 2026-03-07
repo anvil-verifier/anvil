@@ -143,6 +143,7 @@ pub proof fn esr_for_each_ranking(
             false_pred()
         );
         false_is_stable::<ClusterState>();
+        stable_to_always::<ClusterState>(false_pred());
         false_leads_to(spec, always(lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n))));
     }
 }
