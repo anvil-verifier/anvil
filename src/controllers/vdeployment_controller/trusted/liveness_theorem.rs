@@ -106,7 +106,8 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
                 } else {
                     replicas == status
                 }
-            &&& etcd_vrs.status is None ==> etcd_vrs.spec.replicas == Some(0)
+            }
+            &&& etcd_vrs.status is None ==> etcd_vrs.spec.replicas == Some(0 as int)
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(k)
