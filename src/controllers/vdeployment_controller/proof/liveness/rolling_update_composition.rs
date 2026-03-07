@@ -128,15 +128,23 @@ pub proof fn esr_for_each_ranking(
         spec, desired_state_is_vrs(), current_state_matches_vrs(), vrs_set,
         conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
     );
-    // Now we have: spec |= [] conjuncted_desired_state_is(vrs_set) ~> [] conjuncted_current_state_matches(vrs_set)
-    // Need to show: [] p(n) ~> [] q(n) where p(n) adds the ranking constraint
-    // Since p(n) implies conjuncted_desired_state_is and q(n) adds the same ranking constraint as p(n),
-    // and the ranking constraint is a pure property of vrs_set (not state-dependent for a fixed set),
-    // this follows from the conjuncted ESR
-    assume(spec.entails(
-        always(lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n)))
-        .leads_to(always(lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n))))
-    )); // TODO: bridge the ranking constraint
+    if exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && match_template_without_hash(vd.spec.template)(new_vrs) && replicas_diff(vd, new_vrs) == n {
+        temp_pred_equality(
+            lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n)),
+            lift_state(conjuncted_desired_state_is_vrs(vrs_set))
+        );
+        temp_pred_equality(
+            lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n)),
+            lift_state(conjuncted_current_state_matches_vrs(vrs_set))
+        );
+    } else {
+        temp_pred_equality(
+            lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n)),
+            false_pred()
+        );
+        false_is_stable::<ClusterState>();
+        false_leads_to(spec, always(lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n))));
+    }
 }
 
 // Obligation 2: Monotonicity (ranking never increases)

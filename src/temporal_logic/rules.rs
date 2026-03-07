@@ -1165,6 +1165,17 @@ pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T
     };
 }
 
+// False is stable.
+// post:
+//     |= stable(false)
+pub proof fn false_is_stable<T>()
+    ensures valid(stable(false_pred::<T>())),
+{
+    assert forall |ex| #[trigger] false_pred::<T>().satisfied_by(ex) implies always(false_pred::<T>()).satisfied_by(ex) by {
+        assert(false);
+    }
+}
+
 // An always predicate is stable.
 // post:
 //     |= stable(always(p))
@@ -2423,6 +2434,20 @@ pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
                     assert(p.and(r) != false_pred::<T>());
                 }
             });
+        }
+    }
+}
+
+// Proving false leads to p vacuously.
+// post:
+//     spec |= false ~> p
+pub proof fn false_leads_to<T>(spec: TempPred<T>, p: TempPred<T>)
+    ensures
+        spec.entails(false_pred().leads_to(p)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies false_pred().leads_to(p).satisfied_by(ex) by {
+        assert forall |i| #[trigger] false_pred().satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
+            assert(false);
         }
     }
 }
