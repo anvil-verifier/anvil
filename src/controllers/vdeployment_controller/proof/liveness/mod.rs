@@ -1,5 +1,4 @@
 pub mod proof;
-pub mod composition;
 pub mod rolling_update_composition;
 pub mod spec;
 pub mod terminate;

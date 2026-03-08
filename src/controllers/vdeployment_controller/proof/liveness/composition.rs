@@ -1,3 +1,4 @@
+// Deprecated, check rolling_update_compoisition for up-to-date proofs
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
 use crate::reconciler::spec::io::*;
