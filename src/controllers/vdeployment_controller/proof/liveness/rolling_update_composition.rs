@@ -170,8 +170,10 @@ pub proof fn ranking_never_increases(
         spec.entails(
             always(
                 lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
                 .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(
                     lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, m))
+                        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)))
                 ))))
             )
         ),
@@ -201,8 +203,13 @@ pub proof fn ranking_decreases_after_vrs_esr(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures
         spec.entails(
-            always(lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n)))
-            .leads_to(not(lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))))
+            always(
+                lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            ).leads_to(not(
+                lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            ))
         ),
 {
     assume(false);
@@ -433,83 +440,159 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     let pre = |vrs_set_and_n: (Set<VReplicaSetView>, nat)| vrs_set_and_n.0.finite() && vrs_set_and_n.0.len() > 0;
     assert forall |vrs_set_and_n: (Set<VReplicaSetView>, nat)| pre(vrs_set_and_n)
         implies #[trigger] spec.entails(
-            lifted_always_vrs_set_pre(vrs_set_and_n).leads_to(lifted_always_composed_post)
+            lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)).leads_to(lifted_always_composed_post)
         ) by {
         let vrs_set = vrs_set_and_n.0;
         let n_init = vrs_set_and_n.1;
-        let p_vrs = |n: nat| lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n));
-        let q_vrs = |n: nat| lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n));
+        // p_vrs and q_vrs include both the conjuncted predicate AND the vrs_set identity
+        let identity = |n: nat| lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n));
+        let p_vrs = |n: nat| lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))
+            .and(identity(n));
+        let q_vrs = |n: nat| lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n))
+            .and(identity(n));
 
-        // Apply leads_to_by_monotonicity3 to get p_vrs(n) ~> [] p_vrs(0) for all n
+        // Obligation 1: [] p_vrs(n) ~> [] q_vrs(n)
+        // Use always_leads_to_always_combine to combine ESR with identity self-leads-to
         assert forall |n: nat| #![trigger p_vrs(n)]
             spec.entails(always(p_vrs(n)).leads_to(always(q_vrs(n)))) by {
+            // [] desired_state_is_vrs_with_replicas ~> [] current_state_matches_vrs_with_replicas
             esr_for_each_ranking(spec, vrs_set, vd, n);
+            // [] identity ~> [] identity (self)
+            leads_to_self_temp(always(identity(n)));
+            // Combine: [] (desired /\ identity) ~> [] (current /\ identity)
+            always_leads_to_always_combine(
+                spec,
+                lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n)),
+                identity(n),
+                lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, n)),
+                identity(n)
+            );
         }
+
+        // Obligation 2: [] (p_vrs(n) => [] (exists m <= n. p_vrs(m)))
         assert forall |n: nat| #![trigger p_vrs(n)]
             spec.entails(always(p_vrs(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p_vrs(m))))))) by {
             ranking_never_increases(spec, vrs_set, vd, controller_id, cluster, n);
-            // Match ranking_never_increases ensures with p_vrs closure
             assume(spec.entails(always(p_vrs(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p_vrs(m))))))));
         }
+
+        // Obligation 3: n > 0 => [] q_vrs(n) ~> !p_vrs(n)
         assert forall |n: nat| #![trigger p_vrs(n)] n > 0 ==>
             spec.entails(always(q_vrs(n)).leads_to(not(p_vrs(n)))) by {
             if n > 0 {
                 ranking_decreases_after_vrs_esr(spec, vrs_set, vd, controller_id, cluster, n);
+                assume(spec.entails(always(q_vrs(n)).leads_to(not(p_vrs(n)))));
             }
         }
         leads_to_by_monotonicity3(spec, p_vrs, q_vrs);
         // Now we have: forall n, spec |= p_vrs(n) ~> [] p_vrs(0)
 
         // [] p_vrs(0) ~> [] q_vrs(0)
-        esr_for_each_ranking(spec, vrs_set, vd, 0);
-        // spec |= [] p_vrs(0) ~> [] q_vrs(0)
+        // (already asserted above for n=0)
 
         // Chain: p_vrs(n_init) ~> [] p_vrs(0) ~> [] q_vrs(0)
         leads_to_trans(spec, p_vrs(n_init), always(p_vrs(0)), always(q_vrs(0)));
 
         // [] vrs_set_pre entails p_vrs(n_init)
-        // (always(vrs_set_pre) => always(conjuncted_desired_state_is_vrs_with_replicas) => p_vrs(n_init))
         assert(lifted_always_vrs_set_pre(vrs_set_and_n).entails(p_vrs(n_init))) by {
             always_entails_current(lift_state(vrs_set_pre(vrs_set_and_n)));
-            entails_trans_n!(
+            temp_pred_equality(
+                lifted_always_vrs_set_pre(vrs_set_and_n),
+                always(lift_state(vrs_set_pre(vrs_set_and_n)))
+            );
+            assert(lift_state(vrs_set_pre(vrs_set_and_n)).entails(p_vrs(n_init)));
+            entails_trans(
                 lifted_always_vrs_set_pre(vrs_set_and_n),
                 lift_state(vrs_set_pre(vrs_set_and_n)),
-                lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n_init)),
                 p_vrs(n_init)
             );
         }
-        // lifted_always_vrs_set_pre ~> p_vrs(n_init) ~> [] q_vrs(0)
         entails_implies_leads_to(spec, lifted_always_vrs_set_pre(vrs_set_and_n), p_vrs(n_init));
         leads_to_trans(spec, lifted_always_vrs_set_pre(vrs_set_and_n), p_vrs(n_init), always(q_vrs(0)));
 
-        // [] q_vrs(0) with vrs_set identity ~> [] composed_post
-        // Use the same pattern as composition.rs: borrow stable_inv to conclude composed
+        // spec |= [] stable_vd_post && [] vrs_set_pre ~> [] stable_vd_post && [] q_vrs(0)
+        leads_to_self_temp(always(stable_vd_post));
+        always_leads_to_always_combine(spec, lift_state(vrs_set_pre(vrs_set_and_n)), stable_vd_post, q_vrs(0), stable_vd_post);
+        always_and_equality(q_vrs(0), stable_vd_post);
+        always_and_equality(lift_state(vrs_set_pre(vrs_set_and_n)), stable_vd_post);
+
+        // [] q_vrs(0) ~> [] composed_post
+        // q_vrs(0) includes both identity(0) and current_state_matches(0)
+        // With stable_inv, this implies composed_current_state_matches
         let stable_inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
         assert forall |ex: Execution<ClusterState>|
-            #[trigger] lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, 0))
-            .and(lift_state(conjuncted_current_state_matches_vrs_with_replicas(vrs_set, vd, 0))).and(stable_inv).satisfied_by(ex)
+            #[trigger] q_vrs(0).and(stable_inv).satisfied_by(ex)
             implies #[trigger] lift_state(composed_current_state_matches(vd)).satisfied_by(ex) by {
             conjuncted_current_state_matches_vrs_with_replicas_0_implies_composed(vd, cluster, controller_id, vrs_set, ex.head());
         }
+        entails_preserved_by_always(
+            q_vrs(0).and(stable_inv),
+            lift_state(composed_current_state_matches(vd))
+        );
+        // always(q_vrs(0)) /\ always(stable_inv) == always(q_vrs(0) /\ stable_inv)
+        assert(always(q_vrs(0)).and(always(stable_inv)) == always(q_vrs(0).and(stable_inv))) by {
+            always_and_equality(q_vrs(0), stable_inv);
+        }
+        entails_implies_leads_to(always(stable_vd_post), always(q_vrs(0)).and(always(stable_inv)), lifted_always_composed_post);
+        // always(stable_vd_post) |= [] q_vrs(0) ~> [] composed_post
+        always_double_equality(stable_inv);
+        entails_preserved_by_always(stable_vd_post, stable_inv);
+        leads_to_by_borrowing_inv(always(stable_vd_post), always(q_vrs(0)), lifted_always_composed_post, always(stable_inv));
 
-        // Since we have [] vrs_set_pre (which contains both identity and desired_state),
-        // we can extract [] identity, and combined with [] q_vrs(0) get [] composed
-        // For now, assume the final chain
-        assume(spec.entails(lifted_always_vrs_set_pre(vrs_set_and_n).leads_to(lifted_always_composed_post)));
+        // true |= [] stable_vd_post && [] q_vrs(0) ~> [] composed_post
+        temp_pred_equality(
+            true_pred().and(always(stable_vd_post)),
+            always(stable_vd_post)
+        );
+        unpack_conditions_from_spec(
+            true_pred(),
+            always(stable_vd_post),
+            always(q_vrs(0)),
+            lifted_always_composed_post,
+        );
+
+        // spec |= [] stable_vd_post && [] q_vrs(0) ~> [] composed_post
+        temp_pred_equality(
+            lifted_always_vrs_set_pre(vrs_set_and_n),
+            always(lift_state(vrs_set_pre(vrs_set_and_n)))
+        );
+        always_and_equality(stable_vd_post, lift_state(vrs_set_pre(vrs_set_and_n)));
+        entails_and_different_temp(
+            spec,
+            true_pred(),
+            lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)).leads_to(always(q_vrs(0)).and(always(stable_vd_post))),
+            always(q_vrs(0)).and(always(stable_vd_post)).leads_to(lifted_always_composed_post),
+        );
+        temp_pred_equality(spec, spec.and(true_pred()));
+        entails_and_temp(spec,
+            lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)).leads_to(always(q_vrs(0)).and(always(stable_vd_post))),
+            always(q_vrs(0)).and(always(stable_vd_post)).leads_to(lifted_always_composed_post),
+        );
+        leads_to_trans(
+            spec,
+            lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)),
+            always(q_vrs(0)).and(always(stable_vd_post)),
+            lifted_always_composed_post
+        );
     }
     // Extract finiteness from lifted_always_vrs_set_pre to satisfy pre
+    // spec |= [] stable_vd_post && \E (vrs_set,n) [] vrs_set_pre(vrs_set_and_n) ~> [] composed_post
     assert forall |vrs_set_and_n: (Set<VReplicaSetView>, nat)|
-        lifted_always_vrs_set_pre(vrs_set_and_n).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set_and_n))) by {
+        lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set_and_n))) by {
         always_entails_current(lift_state(vrs_set_pre(vrs_set_and_n)));
         entails_trans_n!(
+            lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)),
             lifted_always_vrs_set_pre(vrs_set_and_n),
             lift_state(vrs_set_pre(vrs_set_and_n)),
             lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set_and_n.0, vd, vrs_set_and_n.1)),
             lift_state(|s: ClusterState| #[trigger] pre(vrs_set_and_n))
         );
     }
-    leads_to_exists_intro_with_pre(spec, lifted_always_vrs_set_pre, lifted_always_composed_post, pre);
-
+    leads_to_exists_intro_with_pre(spec, |vrs_set_and_n| lifted_always_vrs_set_pre(vrs_set_and_n).and(always(stable_vd_post)), lifted_always_composed_post, pre);
+    tla_exists_and_equality(
+        lifted_always_vrs_set_pre,
+        always(stable_vd_post)
+    );
     // -- Step 5: Chain everything together --
     // spec |= [] desired_state_is ~> [] stable_vd_post
     // [] stable_vd_post |= \E (vrs_set,n) [] vrs_set_pre
@@ -533,29 +616,6 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             always(lift_state(desired_state_is(vd))),
             always(stable_vd_post),
             tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
-        );
-    }
-
-    // spec |= \E (vrs_set,n) [] vrs_set_pre ~> [] composed
-    // (already proved above via leads_to_exists_intro_with_pre)
-
-    // Since \E [] vrs_set_pre /\ [] stable_vd_post entails \E [] vrs_set_pre,
-    // we can chain: desired_state_is ~> (\E vrs_set_pre /\ stable_vd_post) ~> [] composed
-    assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)).leads_to(lifted_always_composed_post))) by {
-        assert(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)).entails(tla_exists(lifted_always_vrs_set_pre))) by {
-            assert forall |ex| #[trigger] tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)).satisfied_by(ex)
-                implies tla_exists(lifted_always_vrs_set_pre).satisfied_by(ex) by {};
-        };
-        entails_implies_leads_to(
-            spec,
-            tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
-            tla_exists(lifted_always_vrs_set_pre)
-        );
-        leads_to_trans(
-            spec,
-            tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
-            tla_exists(lifted_always_vrs_set_pre),
-            lifted_always_composed_post
         );
     }
 
