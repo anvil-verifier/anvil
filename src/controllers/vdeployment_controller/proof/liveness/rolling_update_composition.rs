@@ -481,7 +481,6 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             spec.entails(always(q_vrs(n)).leads_to(not(p_vrs(n)))) by {
             if n > 0 {
                 ranking_decreases_after_vrs_esr(spec, vrs_set, vd, controller_id, cluster, n);
-                assume(spec.entails(always(q_vrs(n)).leads_to(not(p_vrs(n)))));
             }
         }
         leads_to_by_monotonicity3(spec, p_vrs, q_vrs);
