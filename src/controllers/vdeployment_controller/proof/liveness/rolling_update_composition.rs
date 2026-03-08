@@ -168,14 +168,12 @@ pub proof fn ranking_never_increases(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures
         spec.entails(
-            always(
-                lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))
-                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
-                .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(
-                    lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, m))
-                        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)))
-                ))))
-            )
+            always(lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))
+                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n)
+                .and(lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, m))
+                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
+            ))))
         ),
 {
     assume(false);
@@ -473,7 +471,17 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         assert forall |n: nat| #![trigger p_vrs(n)]
             spec.entails(always(p_vrs(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p_vrs(m))))))) by {
             ranking_never_increases(spec, vrs_set, vd, controller_id, cluster, n);
-            assume(spec.entails(always(p_vrs(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p_vrs(m))))))));
+            temp_pred_equality(
+                p_vrs(n),
+                lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, n))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            );
+            tla_exists_p_tla_exists_q_equality(
+                |m: nat| lift_state(|s| m <= n).and(p_vrs(m)),
+                |m: nat| lift_state(|s| m <= n)
+                    .and(lift_state(conjuncted_desired_state_is_vrs_with_replicas(vrs_set, vd, m))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
+            );
         }
 
         // Obligation 3: n > 0 => [] q_vrs(n) ~> !p_vrs(n)
