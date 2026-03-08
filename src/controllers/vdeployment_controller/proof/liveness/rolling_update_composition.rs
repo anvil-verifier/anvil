@@ -4,7 +4,7 @@ use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
-    proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*, composition::*}, predicate::*},
+    proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*}, predicate::*},
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*}
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
@@ -17,6 +17,21 @@ use crate::vstd_ext::{set_lib::*, map_lib::*};
 verus! {
 
 // *** Rolling update ESR composition helpers ***
+pub open spec fn desired_state_is_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
+    |vrs: VReplicaSetView| Cluster::desired_state_is(vrs)
+}
+
+pub open spec fn current_state_matches_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
+    |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs)
+}
+
+pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))
+}
+
+pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+    |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))
+}
 
 // Compute the absolute difference between desired replicas and new VRS replicas
 // This is the ranking function for leads_to_by_monotonicity3
@@ -58,17 +73,15 @@ pub open spec fn conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set:
     }
 }
 
-// Strip resource_version, status, AND spec.replicas for vrs_set identity stability.
+// Strip resource_version AND status for vrs_set identity stability.
 // When VD controller changes replicas via GetThenUpdate, or VRS controller changes status,
 // the mapped set remains the same.
+// spec.replicas is passed as argument in higher level predicates
 pub open spec fn map_vrs_for_identity(vrs: VReplicaSetView) -> VReplicaSetView {
     VReplicaSetView {
         metadata: vrs.metadata.without_resource_version(),
-        spec: VReplicaSetSpecView {
-            replicas: None,
-            ..vrs.spec
-        },
-        status: None
+        status: None,
+        ..vrs
     }
 }
 
@@ -312,33 +325,63 @@ pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_co
     assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
         assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
             implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(new_vrs, obj) by {
-            if valid_owned_pods(vd, s)(obj) {
-                if !vrs_liveness::owned_selector_match_is(new_vrs, obj) {
-                    let havoc_vrs = choose |vrs: VReplicaSetView| {
-                        &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
-                        &&& valid_owned_vrs(vrs, vd)
-                        &&& s.resources().contains_key(vrs.object_ref())
-                        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
-                    };
-                    assert(vrs_set.contains(havoc_vrs)) by {
-                        assume(false);
-                        let havoc_obj = s.resources()[havoc_vrs.object_ref()];
-                        assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(havoc_obj));
-                    }
-                    assert(havoc_vrs.spec.replicas.unwrap_or(1) > 0) by {
-                        assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).len() > 0) by {
-                            assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
-                            // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
-                            injective_finite_map_implies_dom_len_is_equal_to_values_len(s.resources());
-                            finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| vrs_liveness::owned_selector_match_is(havoc_vrs, obj));
-                            lemma_set_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs, s.resources()));
-                        }
+            if valid_owned_pods(vd, s)(obj) && !vrs_liveness::owned_selector_match_is(new_vrs, obj) {
+                let havoc_vrs = choose |vrs: VReplicaSetView| {
+                    &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
+                    &&& valid_owned_vrs(vrs, vd)
+                    &&& s.resources().contains_key(vrs.object_ref())
+                    &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
+                };
+                assert(vrs_set.map(|vrs: VReplicaSetView| map_vrs_for_identity(vrs)).contains(map_vrs_for_identity(havoc_vrs))) by {
+                    let etcd_obj = s.resources()[havoc_vrs.object_ref()];
+                    assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj));
+                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                    assert(s.resources().values()
+                        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+                        .contains(etcd_vrs));
+                    assert(map_vrs_for_identity(havoc_vrs) == map_vrs_for_identity(etcd_vrs));
+                }
+                assert(exists |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) 
+                    && map_vrs_for_identity(vrs) == map_vrs_for_identity(havoc_vrs) && vrs != new_vrs);
+                let havoc_vrs_in_set = choose |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs)
+                    && map_vrs_for_identity(vrs) == map_vrs_for_identity(havoc_vrs) && vrs != new_vrs;
+                assert(havoc_vrs_in_set.spec.replicas.unwrap_or(1) > 0) by {
+                    assert(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()).len() > 0) by {
+                        assert(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()).contains(obj));
+                        // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
+                        injective_finite_map_implies_dom_len_is_equal_to_values_len(s.resources());
+                        finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| vrs_liveness::owned_selector_match_is(havoc_vrs_in_set, obj));
+                        lemma_set_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()));
                     }
                 }
+                assert(false);
             }
-            if vrs_liveness::owned_selector_match_is(new_vrs, obj) {
-                assume(false);
-            } // trivial
+            if vrs_liveness::owned_selector_match_is(new_vrs, obj) && !valid_owned_pods(vd, s)(obj) {
+                assert(vrs_set.map(|vrs: VReplicaSetView| map_vrs_for_identity(vrs)).contains(map_vrs_for_identity(new_vrs)));
+                let mapped_vrs_set_in_etcd = s.resources().values()
+                    .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                    .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                    .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+                    .map(|vrs: VReplicaSetView| map_vrs_for_identity(vrs));
+                assert(exists |vrs: VReplicaSetView| #[trigger] mapped_vrs_set_in_etcd.contains(vrs) && vrs == map_vrs_for_identity(new_vrs));
+                let mapped_new_vrs_in_etcd = choose |vrs: VReplicaSetView| #[trigger] mapped_vrs_set_in_etcd.contains(vrs) && vrs == map_vrs_for_identity(new_vrs);
+                let vrs_set_in_etcd = s.resources().values()
+                    .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                    .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                    .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+                assert(exists |vrs: VReplicaSetView| #[trigger] vrs_set_in_etcd.contains(vrs) && map_vrs_for_identity(vrs) == mapped_new_vrs_in_etcd);
+                let new_vrs_in_etcd = choose |vrs: VReplicaSetView| #[trigger] vrs_set_in_etcd.contains(vrs) && map_vrs_for_identity(vrs) == mapped_new_vrs_in_etcd;
+                assert(map_vrs_for_identity(new_vrs_in_etcd) == map_vrs_for_identity(new_vrs));
+                assert({
+                    &&& #[trigger] vrs_liveness::owned_selector_match_is(new_vrs_in_etcd, obj)
+                    &&& valid_owned_vrs(new_vrs_in_etcd, vd)
+                    &&& s.resources().contains_key(new_vrs_in_etcd.object_ref())
+                    &&& VReplicaSetView::unmarshal(s.resources()[new_vrs_in_etcd.object_ref()])->Ok_0 == new_vrs_in_etcd
+                });
+                assert(false);
+            }
         }
     }
 }
