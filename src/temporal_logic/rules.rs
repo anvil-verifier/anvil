@@ -872,21 +872,21 @@ pub proof fn always_entails_current<T>(p: TempPred<T>)
 }
 
 // Entails p and q if entails each of them.
-// pre:
-//     spec |= p
-//     spec |= q
 // post:
-//     spec |= p && q
+//     spec |= p && q <==> spec |= p && spec |= q
 pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p),
-        spec.entails(q),
-    ensures spec.entails(p.and(q)),
+    ensures spec.entails(p.and(q)) <==> spec.entails(p) && spec.entails(q),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.and(q).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, p);
-        implies_apply::<T>(ex, spec, q);
-    };
+    if spec.entails(p) && spec.entails(q) {
+        assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.and(q).satisfied_by(ex) by {
+            implies_apply::<T>(ex, spec, p);
+            implies_apply::<T>(ex, spec, q);
+        };
+    }
+    if spec.entails(p.and(q)) {
+        entails_trans::<T>(spec, p.and(q), q);
+        entails_trans::<T>(spec, p.and(q), p);
+    }
 }
 
 // Entails
