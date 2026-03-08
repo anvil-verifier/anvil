@@ -214,7 +214,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
 // *** Helper lemmas ***
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replicas(
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
     vd: VDeploymentView,
     cluster: Cluster,
     controller_id: int,
@@ -289,7 +289,7 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replicas(
 
 // q(0) with vrs_set identity implies composed_current_state_matches
 #[verifier(external_body)]
-pub proof fn conjuncted_current_state_matches_vrs_with_replicas_0_implies_composed(
+pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_composed(
     vd: VDeploymentView,
     cluster: Cluster,
     controller_id: int,
@@ -422,7 +422,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             implies tla_exists(|vrs_set_with_diff| lift_state(vrs_set_pre(vrs_set_with_diff))).satisfied_by(ex) by {
             always_to_current(ex, stable_vd_post);
             assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(ex.head()));
-            let (vrs_set, n) = current_state_match_vd_implies_exists_vrs_set_with_replicas(vd, cluster, controller_id, ex.head());
+            let (vrs_set, n) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, cluster, controller_id, ex.head());
             assert((|vrs_set_with_diff: (Set<VReplicaSetView>, nat)| lift_state(vrs_set_pre(vrs_set_with_diff)))((vrs_set, n)).satisfied_by(ex));
         }
         // Then show stability: vrs_set_pre is preserved by transitions under stable_vd_post
@@ -579,7 +579,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         assert forall |ex: Execution<ClusterState>|
             #[trigger] q_vrs(0).and(stable_inv).satisfied_by(ex)
             implies #[trigger] lift_state(composed_current_state_matches(vd)).satisfied_by(ex) by {
-            conjuncted_current_state_matches_vrs_with_replicas_0_implies_composed(vd, cluster, controller_id, vrs_set, ex.head());
+            conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_composed(vd, cluster, controller_id, vrs_set, ex.head());
         }
         entails_preserved_by_always(
             q_vrs(0).and(stable_inv),
