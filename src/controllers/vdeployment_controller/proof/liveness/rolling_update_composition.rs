@@ -288,7 +288,6 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
 }
 
 // q(0) with vrs_set identity implies composed_current_state_matches
-#[verifier(external_body)]
 pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_composed(
     vd: VDeploymentView,
     cluster: Cluster,
@@ -303,7 +302,46 @@ pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_co
         current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, 0)(s),
     ensures
         composed_current_state_matches(vd)(s),
-{}
+{
+    VReplicaSetView::marshal_preserves_integrity();
+    let new_vrs = choose |vrs: VReplicaSetView| {
+        &&& #[trigger] vrs_set.contains(vrs)
+        &&& match_template_without_hash(vd.spec.template)(vrs)
+        &&& replicas_diff(vd, vrs) == 0
+    };
+    assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
+        assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
+            implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(new_vrs, obj) by {
+            if valid_owned_pods(vd, s)(obj) {
+                if !vrs_liveness::owned_selector_match_is(new_vrs, obj) {
+                    let havoc_vrs = choose |vrs: VReplicaSetView| {
+                        &&& #[trigger] vrs_liveness::owned_selector_match_is(vrs, obj)
+                        &&& valid_owned_vrs(vrs, vd)
+                        &&& s.resources().contains_key(vrs.object_ref())
+                        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
+                    };
+                    assert(vrs_set.contains(havoc_vrs)) by {
+                        assume(false);
+                        let havoc_obj = s.resources()[havoc_vrs.object_ref()];
+                        assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(havoc_obj));
+                    }
+                    assert(havoc_vrs.spec.replicas.unwrap_or(1) > 0) by {
+                        assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).len() > 0) by {
+                            assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
+                            // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
+                            injective_finite_map_implies_dom_len_is_equal_to_values_len(s.resources());
+                            finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| vrs_liveness::owned_selector_match_is(havoc_vrs, obj));
+                            lemma_set_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs, s.resources()));
+                        }
+                    }
+                }
+            }
+            if vrs_liveness::owned_selector_match_is(new_vrs, obj) {
+                assume(false);
+            } // trivial
+        }
+    }
+}
 
 // Stability of vrs_set identity (modulo rv/status/replicas) and conjuncted p(n)
 #[verifier(external_body)]
