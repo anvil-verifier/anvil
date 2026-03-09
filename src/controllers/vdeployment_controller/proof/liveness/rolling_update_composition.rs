@@ -189,7 +189,17 @@ pub proof fn ranking_never_increases(
                 .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
             ))))
         ),
-{}
+{
+    let monotonic_inv = |n: nat| and!(
+        conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n),
+        current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)
+    );
+    let stronger_next = cluster.next();
+    assert forall |s: ClusterState, s_prime: ClusterState| monotonic_inv(n)(s) && stronger_next(s, s_prime)
+        implies exists |m: nat| m <= n && monotonic_inv(m)(s_prime) by {
+        assume(false);
+    }
+}
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)

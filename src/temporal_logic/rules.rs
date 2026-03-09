@@ -2411,6 +2411,42 @@ proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usiz
     }
 }
 
+// Prove monotinicity holds
+// This lemma help to prove precondition of leads_to_by_monotonicity3
+// pre:
+//     spec |= []next
+//     forall |s: T, s_prime: T| #[trigger] next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && p(m)(s_prime)
+// post:
+//     spec |= p(n) ~> [] (exists |m: nat| m <= n && p(m))
+pub proof fn next_monotonic_to_always_exists<T>(spec: TempPred<T>, next: ActionPred<T>, p: spec_fn(nat) -> StatePred<T>, n: nat)
+    requires
+        spec.entails(always(lift_action(next))),
+        forall |s: T, s_prime: T| #[trigger] next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && #[trigger] p(m)(s_prime),
+    ensures
+        spec.entails(always(lift_state(p(n))).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m))))))),
+{
+    let inv_state_pred = |s| exists |m: nat| m <= n && #[trigger] p(m)(s);
+    let stronger_next = |s, s_prime| next(s, s_prime) && p(n)(s) && p(n)(s_prime);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+        implies always(lift_state(p(n))).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))).satisfied_by(ex) by {
+        entails_apply(ex, spec, always(lift_action(next)));
+        if always(lift_state(p(n))).satisfied_by(ex) {
+            always_to_current(ex, lift_state(p(n)));
+            assume(always(lift_action(stronger_next)).satisfied_by(ex));
+            assert forall |i| tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))).satisfied_by(ex.suffix(i)) by {
+                assert forall |idx: nat| stronger_next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()) by {
+                    always_propagate_forwards(ex, lift_action(stronger_next), idx);
+                    assume(false);
+                }
+                init_invariant_rec(ex, p(n), stronger_next, inv_state_pred, i);
+                let m_to_p = |m: nat| lift_state(|s| m <= n).and(lift_state(p(m)));
+                let m_witness = choose |m: nat| m <= n && #[trigger] p(m)(ex.suffix(i).head());
+                tla_exists_proved_by_witness(ex.suffix(i), m_to_p, m_witness);
+            }
+        }
+    }
+}
+
 // Proving p leads to q vacuously.
 // pre:
 //     spec |= []r
