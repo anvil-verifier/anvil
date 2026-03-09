@@ -74,9 +74,7 @@ pub proof fn reconcile_eventually_terminates(
             lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
-                unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterUpdateVRSStatus
-                )
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
             ))))),
     ensures
         spec.entails(tla_forall(|key: ObjectRef| 
@@ -192,9 +190,7 @@ pub proof fn reconcile_eventually_terminates(
             lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
-                unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterUpdateVRSStatus
-                )
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
         )))) by {
             always_tla_forall_apply::<ClusterState, VReplicaSetView>(
                 spec,
@@ -202,9 +198,7 @@ pub proof fn reconcile_eventually_terminates(
                 lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                     controller_id,
                     vrs.object_ref(),
-                    unwrap_local_state_closure(
-                        |s: VReplicaSetReconcileState| s.reconcile_step is AfterUpdateVRSStatus
-                    )
+                    at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
                 )),
                 vrs
             );
@@ -329,9 +323,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
             lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
-                unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step is AfterUpdateVRSStatus
-                )
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
             )))),
     ensures
         spec.entails(true_pred().leads_to(
@@ -469,6 +461,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
         tla_exists(at_after_create_pod),
         tla_exists(at_after_delete_pod),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
         lift_state(reconcile_idle)
