@@ -29,7 +29,7 @@ verus! {
 
 pub open spec fn assumption_and_invariants_of_all_phases(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     invariants(vrs, cluster, controller_id)
-    .and(always(lift_state(Cluster::desired_state_is(vrs))))
+    .and(always(lift_state(desired_state_is(vrs))))
     .and(invariants_since_phase_i(controller_id, vrs))
     .and(invariants_since_phase_ii(controller_id, vrs))
     .and(invariants_since_phase_iii(vrs, cluster, controller_id))
@@ -45,7 +45,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetV
 {
     reveal_with_fuel(spec_before_phase_n, 5);
     invariants_is_stable(vrs, cluster, controller_id);
-    always_p_is_stable(lift_state(Cluster::desired_state_is(vrs)));
+    always_p_is_stable(lift_state(desired_state_is(vrs)));
     invariants_since_phase_i_is_stable(controller_id, vrs);
     invariants_since_phase_ii_is_stable(controller_id, vrs);
     invariants_since_phase_iii_is_stable(vrs, cluster, controller_id);
@@ -53,7 +53,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetV
     invariants_since_phase_v_is_stable(vrs, cluster, controller_id);
     stable_and_n!(
         invariants(vrs, cluster, controller_id),
-        always(lift_state(Cluster::desired_state_is(vrs))),
+        always(lift_state(desired_state_is(vrs))),
         invariants_since_phase_i(controller_id, vrs),
         invariants_since_phase_ii(controller_id, vrs),
         invariants_since_phase_iii(vrs, cluster, controller_id),
@@ -97,7 +97,7 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(v
 pub open spec fn invariants_since_phase_n(n: nat, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     if n == 0 {
         invariants(vrs, cluster, controller_id)
-        .and(always(lift_state(Cluster::desired_state_is(vrs))))
+        .and(always(lift_state(desired_state_is(vrs))))
     } else if n == 1 {
         invariants_since_phase_i(controller_id, vrs)
     } else if n == 2 {
@@ -117,7 +117,7 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView, cluster: Clus
     decreases n,
 {
     if n == 1 {
-        invariants(vrs, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vrs))))
+        invariants(vrs, cluster, controller_id).and(always(lift_state(desired_state_is(vrs))))
     } else if 2 <= n <= 6 {
         spec_before_phase_n((n-1) as nat, vrs, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vrs, cluster, controller_id))
     } else {
