@@ -20,7 +20,7 @@ verus! {
 // *** ESR composition helpers ***
 // verus is bad at reasoning about closures
 pub open spec fn desired_state_is_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
-    |vrs: VReplicaSetView| Cluster::desired_state_is(vrs)
+    |vrs: VReplicaSetView| desired_state_is_vrs()(vrs)
 }
 
 pub open spec fn current_state_matches_vrs() -> spec_fn(VReplicaSetView) -> StatePred<ClusterState> {
@@ -69,7 +69,7 @@ requires
     // stable spec and invariants
     spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))),
     // ESR for vrs
-    spec.entails(tla_forall(|vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
+    spec.entails(tla_forall(|vrs| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))))),
     // ESR for vd, note: stability is not required
     spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))),
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -224,8 +224,8 @@ ensures
             );
             assert(spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))))) by {
                 assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies
-                    spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))) by {
-                    use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))), vrs);
+                    spec.entails(always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs))))) by {
+                    use_tla_forall(spec, |vrs| always(lift_state(desired_state_is_vrs()(vrs))).leads_to(always(lift_state(current_state_matches_vrs()(vrs)))), vrs);
                 }
                 spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
                     spec, desired_state_is_vrs(), current_state_matches_vrs(), vrs_set,
@@ -381,7 +381,7 @@ ensures
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
     VReplicaSetView::marshal_preserves_integrity();
-    assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> Cluster::desired_state_is(vrs)(s));
+    assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s));
     // from current_state_matches
     let k = choose |k: ObjectRef| {
         let etcd_obj = s.resources()[k];

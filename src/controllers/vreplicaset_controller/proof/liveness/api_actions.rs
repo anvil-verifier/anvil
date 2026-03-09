@@ -100,7 +100,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
     requires
         cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
         req_msg_is_list_pods_req(vrs, msg),
-        Cluster::desired_state_is(vrs)(s),
+        desired_state_is(vrs)(s),
         Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         cluster.each_builtin_object_in_etcd_is_well_formed()(s),
         cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
@@ -113,7 +113,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
     let pre = {
         &&& cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg)))
         &&& req_msg_is_list_pods_req(vrs, msg)
-        &&& Cluster::desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
@@ -304,7 +304,7 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     requires
         cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
         req_msg_is_create_matching_pod_req(vrs, msg),
-        Cluster::desired_state_is(vrs)(s),
+        desired_state_is(vrs)(s),
         Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         cluster.each_builtin_object_in_etcd_is_well_formed()(s),
         cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),

@@ -100,14 +100,14 @@ impl VerticalComposition for VDeploymentReconciler {
         }
         let current_state_matches_vrs = |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs);
         assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vrs)));
-        assert(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))))));
-        assert forall |vrs| #[trigger] spec.entails(always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
-            use_tla_forall(spec, |vrs| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))), vrs);
+        assert(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))))));
+        assert forall |vrs| #[trigger] spec.entails(always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
+            use_tla_forall(spec, |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))), vrs);
         }
         assert forall |vd: VDeploymentView| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id()))))) by {
             vd_proof::eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, Self::id());
         }
-        spec_entails_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))));
+        spec_entails_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))));
         assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(Self::id())))) by {
             assert forall |vd| #[trigger] spec.entails(always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(Self::id(), vd)))) by {
                 helper_invariants::lemma_always_vd_reconcile_request_only_interferes_with_itself(spec, cluster, Self::id(), vd);
