@@ -887,6 +887,8 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         forall |n: nat| #![auto]
             spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))
                 .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
             .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error))
@@ -900,6 +902,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
 
     let state_after_list_pods = |s_marshalled: ReconcileLocalState| {
         let s = VReplicaSetReconcileState::unmarshal(s_marshalled).unwrap();
+        ||| s.reconcile_step == VReplicaSetRecStepView::AfterUpdateVRSStatus
         ||| exists |n: nat| s.reconcile_step == VReplicaSetRecStepView::AfterCreatePod(n)
         ||| exists |n: nat| s.reconcile_step == VReplicaSetRecStepView::AfterDeletePod(n)
         ||| s.reconcile_step == VReplicaSetRecStepView::Done
@@ -982,6 +985,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         spec, lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_list_pods)),
         tla_exists(at_after_create_pod),
         tla_exists(at_after_delete_pod),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
         lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
