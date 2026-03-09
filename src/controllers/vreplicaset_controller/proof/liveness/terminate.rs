@@ -349,9 +349,12 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that after_create_pod_rank(0) \/ after_delete_pod_rank(0) ~> reconcile_idle.
+    lemma_from_after_update_vrs_status_to_reconcile_idle(spec, vrs, cluster, controller_id);
+
+    // Third, prove that after_create_pod_rank(0) \/ after_delete_pod_rank(0) ~> reconcile_idle.
     lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(spec, vrs, cluster, controller_id);
 
-    // Third, prove for all n that AfterCreatePod(n) ~> reconcile_idle.
+    // Fourth, prove for all n that AfterCreatePod(n) ~> reconcile_idle.
     assert forall |n: nat| #![auto]
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))
                     .leads_to(lift_state(reconcile_idle))) by {
@@ -405,7 +408,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         );
     }
 
-    // Fourth, prove that after_list_pods | done ~> reconcile_idle.
+    // Fifth, prove that after_list_pods | done ~> reconcile_idle.
     lemma_from_after_list_pods_to_reconcile_idle(spec, vrs, cluster, controller_id);
     assert(spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
         .leads_to(lift_state(reconcile_idle))));
@@ -426,7 +429,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     // Need some extra statements to prove the lemma.
     VReplicaSetReconcileState::marshal_preserves_integrity();
 
-    // Fifth, prove that reconcile init state can reach AfterListPods.
+    // Sixth, prove that reconcile init state can reach AfterListPods.
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
         spec, controller_id, vrs.object_ref(), 
         at_step_closure(VReplicaSetRecStepView::Init), 
@@ -607,6 +610,8 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
                 )
             )))),
         // The next state will lead to reconcile_idle
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
             .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error))
@@ -622,11 +627,13 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
 
     let state_after_create_or_delete = |s_marshalled: ReconcileLocalState| {
         let s = VReplicaSetReconcileState::unmarshal(s_marshalled).unwrap();
-        s.reconcile_step == VReplicaSetRecStepView::Done
-        || s.reconcile_step == VReplicaSetRecStepView::Error
+        ||| s.reconcile_step == VReplicaSetRecStepView::AfterUpdateVRSStatus
+        ||| s.reconcile_step == VReplicaSetRecStepView::Done
+        ||| s.reconcile_step == VReplicaSetRecStepView::Error
     };
     or_leads_to_combine_and_equality!(
         spec, lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_create_or_delete)),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
         lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
