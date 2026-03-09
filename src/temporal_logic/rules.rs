@@ -1200,15 +1200,15 @@ pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
 }
 
 // Forall a leads-to predicate p -> q(a) is stable.
-// pre:
-//     forall |a| |= stable(p -> q(a))
 // post:
 //     |= stable(tla_forall(|a| p -> q(a)))
 pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
-    requires forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a)))),
     ensures valid(stable(tla_forall(|a: A| p.leads_to(a_to_q(a))))),
 {
     let target = tla_forall(|a: A| p.leads_to(a_to_q(a)));
+    assert forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a)))) by {
+        p_leads_to_q_is_stable(p, a_to_q(a));
+    }
     assert forall |ex| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
         assert forall |i| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) && target.satisfied_by(ex)
             implies #[trigger] target.satisfied_by(ex.suffix(i)) by {
@@ -1217,6 +1217,31 @@ pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(p: TempPred<T>, a_to_q:
                 assert(stable(p.leads_to(a_to_q(a))).satisfied_by(ex));
                 if (p.leads_to(a_to_q(a)).satisfied_by(ex)) {
                     assert(p.leads_to(a_to_q(a)).satisfied_by(ex.suffix(i)));
+                }
+            }
+        }
+    }
+}
+
+
+// Forall a leads-to predicate p(a) -> q(a) is stable.
+// post:
+//     |= stable(tla_forall(|a| p(a) -> q(a)))
+pub proof fn tla_forall_a_p_a_leads_to_q_a_is_stable<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
+    ensures valid(stable(tla_forall(|a: A| a_to_p(a).leads_to(a_to_q(a))))),
+{
+    let target = tla_forall(|a: A| a_to_p(a).leads_to(a_to_q(a)));
+    assert forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a)))) by {
+        p_leads_to_q_is_stable(a_to_p(a), a_to_q(a));
+    }
+    assert forall |ex| (forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
+        assert forall |i| (forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a))))) && target.satisfied_by(ex)
+            implies #[trigger] target.satisfied_by(ex.suffix(i)) by {
+            assert forall |a: A| a_to_p(a).leads_to(a_to_q(a)).satisfied_by(ex) implies #[trigger] a_to_p(a).leads_to(a_to_q(a)).satisfied_by(ex.suffix(i)) by {
+                assert(valid(stable(a_to_p(a).leads_to(a_to_q(a)))));
+                assert(stable(a_to_p(a).leads_to(a_to_q(a))).satisfied_by(ex));
+                if (a_to_p(a).leads_to(a_to_q(a)).satisfied_by(ex)) {
+                    assert(a_to_p(a).leads_to(a_to_q(a)).satisfied_by(ex.suffix(i)));
                 }
             }
         }
@@ -1787,6 +1812,30 @@ pub proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred
     always_implies_to_leads_to::<T>(spec, q1, q2);
     leads_to_trans::<T>(spec, p2, p1, q1);
     leads_to_trans::<T>(spec, p2, q1, q2);
+}
+
+// Combine leads_to with an entailed leads_to.
+// pre:
+//     spec |= p ~> q /\ r
+//     q |= r ~> s
+// post:
+//     spec |= p ~> s
+pub proof fn leads_to_trans_with_entailed_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>, s: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(q.and(r))),
+        q.entails(r.leads_to(s)),
+    ensures spec.entails(p.leads_to(s)),
+{
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies q.and(r).leads_to(s).satisfied_by(ex) by {
+        assert forall |i: nat| #[trigger] q.and(r).satisfied_by(ex.suffix(i))
+            implies eventually(s).satisfied_by(ex.suffix(i)) by {
+            entails_apply::<T>(ex.suffix(i), q, r.leads_to(s));
+            leads_to_unfold::<T>(ex.suffix(i), r, s);
+            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
+            implies_apply::<T>(ex.suffix(i), r, eventually(s));
+        };
+    };
+    leads_to_trans::<T>(spec, p, q.and(r), s);
 }
 
 // Combine the premises of two leads_to using or.
@@ -2422,9 +2471,9 @@ proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usiz
 pub proof fn next_monotonic_to_always_exists<T>(spec: TempPred<T>, next: ActionPred<T>, p: spec_fn(nat) -> StatePred<T>)
     requires
         spec.entails(always(lift_action(next))),
-        forall |n: nat| (forall |s: T, s_prime: T| #[trigger] next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && #[trigger] p(m)(s_prime)),
+        forall |n: nat| #![trigger p(n)] (forall |s: T, s_prime: T| #[trigger] next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && #[trigger] p(m)(s_prime)),
     ensures
-        forall |n: nat| spec.entails(always(lift_state(p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))))),
+        forall |n: nat| spec.entails(always(lift_state(#[trigger] p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))))),
 {}
 
 // Proving p leads to q vacuously.

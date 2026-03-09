@@ -916,12 +916,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
 
     // Prove termination is stable.
     let term_closure = |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key));
-    assert forall |key: ObjectRef| #[trigger] valid(stable(true_pred().leads_to(term_closure(key)))) by {
-        p_leads_to_q_is_stable(
-            true_pred(),
-            lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-        );
-    };
     tla_forall_a_p_leads_to_q_a_is_stable(
         true_pred(),
         |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)),
