@@ -1012,6 +1012,7 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
                     .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)))
                     .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))))
                     .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))))
+                    .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)))
                     .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
                     .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)))
 {
@@ -1020,6 +1021,7 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
         .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)))
         .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))))
         .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))))
+        .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)))
         .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
         .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)));
     
@@ -1051,6 +1053,7 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
             .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)))
             .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))))
             .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))))
+            .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)))
             .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
             .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)))
     );
