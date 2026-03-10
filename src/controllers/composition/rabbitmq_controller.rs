@@ -69,7 +69,10 @@ impl Composition for RabbitmqReconciler {
     uninterp spec fn id() -> int;
 
     open spec fn composed() -> Map<int, ControllerSpec> {
-        Map::<int, ControllerSpec>::empty().insert(VStatefulSetReconciler::id(), VStatefulSetReconciler::c()).insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c()).insert(VDeploymentReconciler::id(), VDeploymentReconciler::c())
+        Map::<int, ControllerSpec>::empty()
+            .insert(VStatefulSetReconciler::id(), VStatefulSetReconciler::c())
+            .insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c())
+            .insert(VDeploymentReconciler::id(), VDeploymentReconciler::c())
     }
 
     proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
