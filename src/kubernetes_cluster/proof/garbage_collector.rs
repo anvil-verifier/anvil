@@ -330,6 +330,137 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
     );
 }
 
+
+// Universally quantified versions of spec fns for reasoning about all keys satisfying cond.
+
+pub open spec fn every_update_msg_sets_owner_references_as_for_all(
+    cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| #[trigger] cond(key) ==> Self::every_update_msg_sets_owner_references_as(key, requirements)(s)
+    }
+}
+
+pub open spec fn every_create_msg_sets_owner_references_as_for_all(
+    cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| #[trigger] cond(key) ==> Self::every_create_msg_sets_owner_references_as(key, requirements)(s)
+    }
+}
+
+pub open spec fn every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+    cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| #[trigger] cond(key)
+            ==> Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, requirements)(s)
+    }
+}
+
+pub open spec fn gc_is_enabled_for_all_keys_violating_owner_ref_requirements(
+    cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| #[trigger] cond(key) && Self::objects_owner_references_violates(key, requirements)(s)
+            ==> Self::garbage_collector_deletion_enabled(key)(s)
+    }
+}
+
+pub open spec fn object_has_no_finalizers_for_all(cond: spec_fn(ObjectRef) -> bool) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| #[trigger] cond(key) ==> Self::object_has_no_finalizers(key)(s)
+    }
+}
+
+pub open spec fn objects_owner_references_satisfies_for_all(
+    cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| #[trigger] cond(key)
+            ==> Self::objects_owner_references_satisfies(key, requirements)(s)
+    }
+}
+
+// Strengthened version of lemma_eventually_objects_owner_references_satisfies that proves the property
+// for all keys satisfying `cond` simultaneously, instead of just for a single key.
+//
+// This lemma proves: spec |= true ~> [](forall key. cond(key) ==> (key in resources ==> requirements(key.owner_references)))
+//
+// The proof mirrors the single-key proof structure but at the for_all level:
+//   pre_for_all ~> delete_msg_in_flight_for_all ~> post_for_all
+// where all predicates use forall with cond(key) outside.
+#[verifier(rlimit(100))]
+pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
+    self, spec: TempPred<ClusterState>, cond: spec_fn(ObjectRef) -> bool, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+)
+    requires
+        spec.entails(always(lift_action(self.next()))),
+        spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| self.builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::req_drop_disabled()))),
+        spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::object_has_no_finalizers_for_all(cond)))),
+        // If any key satisfying cond violates the requirement, gc deletion is enabled for that key.
+        spec.entails(always(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Self::etcd_is_finite()))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))))),
+{
+    let post = Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)(s)
+        &&& Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)(s)
+        &&& Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)(s)
+        &&& Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)(s)
+        &&& Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)(s_prime)
+        &&& Self::object_has_no_finalizers_for_all(cond)(s)
+        &&& Self::req_drop_disabled()(s)
+        &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Self::etcd_is_finite()(s)
+    };
+    always_to_always_later(spec, lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
+        lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
+        lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)),
+        lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)),
+        later(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref))),
+        lift_state(Self::object_has_no_finalizers_for_all(cond)),
+        lift_state(Self::req_drop_disabled()),
+        lift_state(Self::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Self::etcd_is_finite())
+    );
+
+    // Prove stability: post(s) && stronger_next(s, s_prime) ==> post(s_prime)
+    assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        assert forall |key: ObjectRef| #[trigger] cond(key) implies Self::objects_owner_references_satisfies(key, eventual_owner_ref)(s_prime) by {
+            let step = choose |step| self.next_step(s, s_prime, step);
+            match step {
+                Step::APIServerStep(input) => {
+                    let req = input->0;
+                    if resource_create_request_msg(key)(req) {}
+                    if resource_update_request_msg(key)(req) {}
+                    if resource_get_then_update_request_msg(key)(req) {}
+                    if resource_create_request_msg_without_name(key.kind, key.namespace)(req) {}
+                },
+                _ => {
+                    assert(s.resources() == s_prime.resources());
+                }
+            }
+        }
+    }
+    assume(spec.entails(true_pred().leads_to(lift_state(post))));
+
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(post));
+}
+
 }
 
 }
