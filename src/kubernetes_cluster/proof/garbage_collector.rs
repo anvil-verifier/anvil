@@ -439,26 +439,35 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
     );
 
     // Prove stability: post(s) && stronger_next(s, s_prime) ==> post(s_prime)
-    assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] cond(key) implies Self::objects_owner_references_satisfies(key, eventual_owner_ref)(s_prime) by {
-            let step = choose |step| self.next_step(s, s_prime, step);
-            match step {
-                Step::APIServerStep(input) => {
-                    let req = input->0;
-                    if resource_create_request_msg(key)(req) {}
-                    if resource_update_request_msg(key)(req) {}
-                    if resource_get_then_update_request_msg(key)(req) {}
-                    if resource_create_request_msg_without_name(key.kind, key.namespace)(req) {}
-                },
-                _ => {
-                    assert(s.resources() == s_prime.resources());
-                }
-            }
-        }
-    }
+    // assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+    //     assert forall |key: ObjectRef| #[trigger] cond(key) implies Self::objects_owner_references_satisfies(key, eventual_owner_ref)(s_prime) by {
+    //         let step = choose |step| self.next_step(s, s_prime, step);
+    //         match step {
+    //             Step::APIServerStep(input) => {
+    //                 let req = input->0;
+    //                 if resource_create_request_msg(key)(req) {}
+    //                 if resource_update_request_msg(key)(req) {}
+    //                 if resource_get_then_update_request_msg(key)(req) {}
+    //                 if resource_create_request_msg_without_name(key.kind, key.namespace)(req) {}
+    //             },
+    //             _ => {
+    //                 assert(s.resources() == s_prime.resources());
+    //             }
+    //         }
+    //     }
+    // }
     let domain = |s: ClusterState| |key: ObjectRef| cond(key) && s.resources().contains_key(key);
-    spec_entails_eventually_always_within_dynamic_finite_domain(
-        spec, stronger_next, |k| Self::objects_owner_references_satisfies(k, eventual_owner_ref), domain
+    assert(spec.entails(eventually(always(lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref)))))) by {
+        spec_entails_eventually_always_within_dynamic_finite_domain(
+            spec, stronger_next, |k| Self::objects_owner_references_satisfies(k, eventual_owner_ref), domain
+        );
+        temp_pred_equality(
+            lift_state(|s: ClusterState| (forall |k| domain(s)(k) ==> #[trigger] Self::objects_owner_references_satisfies(k, eventual_owner_ref)(s))),
+            lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))
+        );
+    }
+    true_leads_to_eventually_always_equality(
+        spec, lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))
     );
 }
 

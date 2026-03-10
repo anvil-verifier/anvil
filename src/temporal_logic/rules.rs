@@ -1165,6 +1165,37 @@ pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T
     };
 }
 
+pub proof fn true_leads_to_eventually_always_equality<T>(spec: TempPred<T>, p: TempPred<T>)
+    ensures
+        spec.entails(true_pred().leads_to(always(p))) <==> spec.entails(eventually(always(p)))
+{
+    if spec.entails(true_pred().leads_to(always(p))) {
+        assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(always(p)).satisfied_by(ex) by {
+            entails_apply(ex, spec, true_pred().leads_to(always(p)));
+            leads_to_unfold(ex, true_pred(), always(p));
+            assert(true_pred().satisfied_by(ex.suffix(0)));
+            execution_equality(ex, ex.suffix(0));
+        }
+    }
+    if spec.entails(eventually(always(p))) {
+        assert forall |ex| #[trigger] spec.satisfied_by(ex) implies true_pred().leads_to(always(p)).satisfied_by(ex) by {
+            entails_apply(ex, spec, eventually(always(p)));
+            let witness = eventually_choose_witness(ex, always(p));
+            assert forall |i: nat| true_pred().satisfied_by(ex.suffix(i)) implies eventually(always(p)).satisfied_by(#[trigger] ex.suffix(i)) by {
+                assert(true_pred().satisfied_by(ex.suffix(i)));
+                if i < witness {
+                    execution_equality(ex.suffix(i).suffix((witness - i) as nat), ex.suffix(witness));
+                    eventually_proved_by_witness(ex.suffix(i), always(p), (witness - i) as nat);
+                } else {
+                    execution_equality(ex.suffix(witness).suffix((i - witness) as nat), ex.suffix(i).suffix(0));
+                    always_propagate_forwards(ex.suffix(witness), p, (i - witness) as nat);
+                    eventually_proved_by_witness(ex.suffix(i), always(p), 0);
+                }
+            }
+        }
+    }
+}
+
 // False is stable.
 // post:
 //     |= stable(false)
