@@ -2036,6 +2036,100 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     eventually_proved_by_witness(ex, always(tla_forall(a_to_p)), max_witness);
 }
 
+pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
+    spec: TempPred<T>, next: ActionPred<T>, a_to_p: spec_fn(A) -> StatePred<T>, domain: spec_fn(T) -> spec_fn(A) -> bool
+)
+    requires
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a))))))),
+        forall |s| Set::new(#[trigger] domain(s)).finite(), // domain is finite
+        forall |s, s_prime| #[trigger] next(s, s_prime) ==> (forall |a| #[trigger] domain(s_prime)(a) ==> domain(s)(a)) // domain is non-increasing
+    ensures spec.entails(eventually(always(tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))))))
+{
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex)
+        implies eventually(always(tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))))).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, always(lift_action(next)));
+        entails_apply::<T>(ex, spec, tla_forall(|a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a)))))));
+        tla_forall_unfold::<T, A>(ex, |a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a))))));
+        always_unfold::<T>(ex, lift_action(next));
+
+        // For each a in the initial domain, domain(ex.head())(a) holds, so we get eventually always a_to_p(a)
+        let d0 = Set::new(|a: A| domain(ex.head())(a));
+        assert(d0.finite()) by {
+            assert(Set::new(domain(ex.head())).finite());
+            assert(d0 =~= Set::new(domain(ex.head())));
+        };
+        assert forall |a: A| #[trigger] d0.contains(a) implies eventually(always(lift_state(a_to_p(a)))).satisfied_by(ex) by {
+            assert(lift_state(|s: T| domain(s)(a)).satisfied_by(ex));
+            let a_to_pred = |a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a)))));
+            assert(a_to_pred(a).satisfied_by(ex));
+            implies_apply::<T>(ex, lift_state(|s: T| domain(s)(a)), eventually(always(lift_state(a_to_p(a)))));
+        };
+
+        if d0.len() > 0 {
+            // Build a map from each a in d0 to its witness index
+            let a_to_witness = Map::new(|a: A| d0.contains(a), |a: A| eventually_choose_witness::<T>(ex, always(lift_state(a_to_p(a)))));
+            let leq = |a1: nat, a2: nat| a1 <= a2;
+            let values = a_to_witness.values();
+            assert(a_to_witness.dom() =~= d0);
+            lemma_values_finite(a_to_witness);
+            assert(values.len() > 0) by {
+                let x = a_to_witness.dom().choose();
+                assert(d0.contains(x));
+                assert(values.contains(a_to_witness[x]));
+            };
+            let max_witness = values.find_unique_maximal(leq);
+            values.find_unique_maximal_ensures(leq);
+            values.lemma_maximal_equivalent_greatest(leq, max_witness);
+            // From max_witness onwards, for all a in d0, always(lift_state(a_to_p(a))) holds
+            assert forall |a: A| d0.contains(a) implies always(lift_state(#[trigger] a_to_p(a))).satisfied_by(ex.suffix(max_witness)) by {
+                assert(vstd::relations::is_greatest(leq, max_witness, values));
+                let witness = a_to_witness[a];
+                assert(leq(witness, max_witness));
+                always_propagate_forwards::<T>(ex.suffix(witness), lift_state(a_to_p(a)), (max_witness - witness) as nat);
+                execution_equality::<T>(ex.suffix(max_witness), ex.suffix(witness).suffix((max_witness - witness) as nat));
+            };
+            // from max_witness onwards, tla_forall(|a| lift_state(|s| domain(s,a) ==> a_to_p(a)(s))) holds
+            assert forall |j: nat| tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))).satisfied_by(#[trigger] ex.suffix(max_witness).suffix(j)) by {
+                assert forall |a: A| #![trigger a_to_p(a)] (lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))).satisfied_by(ex.suffix(max_witness).suffix(j)) by {
+                    if d0.contains(a) {
+                        // a_to_p(a) holds at this state since always(lift_state(a_to_p(a))) from max_witness
+                        always_propagate_forwards::<T>(ex.suffix(max_witness), lift_state(a_to_p(a)), j);
+                        always_to_current::<T>(ex.suffix(max_witness).suffix(j), lift_state(a_to_p(a)));
+                        assert(a_to_p(a)(ex.suffix(max_witness).suffix(j).head()));
+                        // the implication domain(s)(a) ==> a_to_p(a)(s) holds because a_to_p(a)(s) is true
+                    } else {
+                        assert(!domain(ex.head())(a));
+                        let inv = lift_state(|s: T| !domain(s)(a));
+                        assert(inv.satisfied_by(ex));
+                        assert forall |idx: nat| inv.satisfied_by(#[trigger] ex.suffix(idx)) && lift_action(next).satisfied_by(ex.suffix(idx))
+                            implies inv.satisfied_by(ex.suffix(idx + 1)) by {
+                            execution_equality::<T>(ex.suffix(idx + 1), ex.suffix(idx).suffix(1));
+                        };
+                        next_preserves_inv_rec::<T>(ex, lift_action(next), inv, (max_witness + j) as nat,);
+                        assert(!domain(ex.suffix(max_witness + j).head())(a));
+                        execution_equality::<T>(ex.suffix(max_witness + j), ex.suffix(max_witness).suffix(j));
+                    }
+                };
+            };
+            eventually_proved_by_witness(ex, always(tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s)))), max_witness);
+        } else {
+            assert forall |j: nat| tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))).satisfied_by(#[trigger] ex.suffix(j)) by {
+                assert forall |a: A| #![trigger a_to_p(a)] (lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))).satisfied_by(ex.suffix(j)) by {
+                    // d0 is finite with len == 0, so prove !domain(ex.head())(a) by contradiction
+                    if domain(ex.head())(a) {
+                        assert(d0.contains(a));
+                        assert(false);
+                    }
+                    next_preserves_inv_rec::<T>(ex, lift_action(next), lift_state(|s: T| !domain(s)(a)), j);
+                };
+            };
+            execution_equality::<T>(ex, ex.suffix(0));
+            eventually_proved_by_witness(ex, always(tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s)))), 0);
+        }
+    };
+}
+
 // push the domain inside state predicates
 // pre:
 //     forall |a: A|, a in domain ==> spec |= []a_to_p(a) ~> []a_to_q(a)
@@ -2762,5 +2856,6 @@ pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> 
     }
 }
 
+pub uninterp spec fn dummy<T>(t: T) -> bool; // dummy trigger
 
 }
