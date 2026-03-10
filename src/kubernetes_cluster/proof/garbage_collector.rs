@@ -456,9 +456,10 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
             }
         }
     }
-    assume(spec.entails(true_pred().leads_to(lift_state(post))));
-
-    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(post));
+    let domain = |s: ClusterState| |key: ObjectRef| cond(key) && s.resources().contains_key(key);
+    spec_entails_eventually_always_within_dynamic_finite_domain(
+        spec, stronger_next, |k| Self::objects_owner_references_satisfies(k, eventual_owner_ref), domain
+    );
 }
 
 }
