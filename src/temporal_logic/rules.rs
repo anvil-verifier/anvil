@@ -2041,7 +2041,7 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
 )
     requires
         spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a))))))),
+        forall |a| spec.entails(lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(#[trigger] a_to_p(a)))))),
         forall |s| Set::new(#[trigger] domain(s)).finite(), // domain is finite
         forall |s, s_prime| #[trigger] next(s, s_prime) ==> (forall |a| #[trigger] domain(s_prime)(a) ==> domain(s)(a)) // domain is non-increasing
     ensures spec.entails(eventually(always(tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))))))
@@ -2049,8 +2049,6 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
     assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex)
         implies eventually(always(tla_forall(|a: A| lift_state(|s: T| domain(s)(a) ==> a_to_p(a)(s))))).satisfied_by(ex) by {
         entails_apply::<T>(ex, spec, always(lift_action(next)));
-        entails_apply::<T>(ex, spec, tla_forall(|a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a)))))));
-        tla_forall_unfold::<T, A>(ex, |a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a))))));
         always_unfold::<T>(ex, lift_action(next));
 
         // For each a in the initial domain, domain(ex.head())(a) holds, so we get eventually always a_to_p(a)
@@ -2060,9 +2058,8 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
             assert(d0 =~= Set::new(domain(ex.head())));
         };
         assert forall |a: A| #[trigger] d0.contains(a) implies eventually(always(lift_state(a_to_p(a)))).satisfied_by(ex) by {
+            entails_apply::<T>(ex, spec, lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(#[trigger] a_to_p(a))))));
             assert(lift_state(|s: T| domain(s)(a)).satisfied_by(ex));
-            let a_to_pred = |a: A| lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(a_to_p(a)))));
-            assert(a_to_pred(a).satisfied_by(ex));
             implies_apply::<T>(ex, lift_state(|s: T| domain(s)(a)), eventually(always(lift_state(a_to_p(a)))));
         };
 
