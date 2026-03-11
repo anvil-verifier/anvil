@@ -2072,14 +2072,15 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
 )
     requires
         spec.entails(always(lift_action(next))),
+        spec.entails(lift_state(|s: T| Set::new(domain(s)).finite())), // domain is finite in the beginning
         forall |a| spec.entails(lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(#[trigger] a_to_p(a)))))),
-        forall |s| Set::new(#[trigger] domain(s)).finite(), // domain is finite
         forall |s, s_prime| #[trigger] next(s, s_prime) ==> (forall |a| #[trigger] domain(s_prime)(a) ==> domain(s)(a)) // domain is non-increasing
     ensures spec.entails(eventually(always(lift_state(|s: T| (forall |a| #[trigger] domain(s)(a) ==> a_to_p(a)(s))))))
 {
     assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex)
         implies eventually(always(lift_state(|s| forall |a| #[trigger]domain(s)(a) ==> a_to_p(a)(s)))).satisfied_by(ex) by {
         entails_apply::<T>(ex, spec, always(lift_action(next)));
+        entails_apply::<T>(ex, spec, lift_state(|s: T| Set::new(domain(s)).finite()));
         always_unfold::<T>(ex, lift_action(next));
         // For each a in the initial domain, domain(ex.head())(a) holds, so we get eventually always a_to_p(a)
         let d0 = Set::new(|a: A| domain(ex.head())(a));
