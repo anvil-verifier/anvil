@@ -662,43 +662,21 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         entails_preserved_by_always(stable_vd_post, stable_inv);
         leads_to_by_borrowing_inv(always(stable_vd_post), always(n_to_q(0)), lifted_always_composed_post, always(stable_inv));
 
-        // true |= [] stable_vd_post && [] n_to_q(0) ~> [] composed_post
-        temp_pred_equality(
-            true_pred().and(always(stable_vd_post)),
-            always(stable_vd_post)
-        );
-        unpack_conditions_from_spec(
-            true_pred(),
-            always(stable_vd_post),
-            always(n_to_q(0)),
-            lifted_always_composed_post,
-        );
-
         // stable_vd_post |= [] stable_vd_post && [] n_to_q(0) ~> [] composed_post
         temp_pred_equality(
             lifted_always_vrs_set_pre(vrs_set_with_diff),
             always(lift_state(vrs_set_pre(vrs_set_with_diff)))
         );
         always_and_equality(stable_vd_post, lift_state(vrs_set_pre(vrs_set_with_diff)));
-        entails_and_different_temp(
-            always(stable_vd_post),
-            true_pred(),
-            lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(always(n_to_q(0)).and(always(stable_vd_post))),
-            always(n_to_q(0)).and(always(stable_vd_post)).leads_to(lifted_always_composed_post),
-        );
-        temp_pred_equality(
-            always(stable_vd_post),
-            always(stable_vd_post).and(true_pred())
-        );
         entails_and_temp(
             always(stable_vd_post),
-            lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(always(n_to_q(0)).and(always(stable_vd_post))),
-            always(n_to_q(0)).and(always(stable_vd_post)).leads_to(lifted_always_composed_post),
+            lifted_always_vrs_set_pre(vrs_set_with_diff).leads_to(always(n_to_q(0))),
+            always(n_to_q(0)).leads_to(lifted_always_composed_post),
         );
         leads_to_trans(
             always(stable_vd_post),
-            lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)),
-            always(n_to_q(0)).and(always(stable_vd_post)),
+            lifted_always_vrs_set_pre(vrs_set_with_diff),
+            always(n_to_q(0)),
             lifted_always_composed_post
         );
     }
