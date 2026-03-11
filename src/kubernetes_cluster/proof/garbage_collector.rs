@@ -540,7 +540,38 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
                 spec, stronger_next, k_to_p, havoc_domain
             );
             // proof on benign domain
-            assume(false);
+            assert(spec.entails(eventually(always(lift_state(|s: ClusterState| (forall |k| #[trigger] benign_domain(s)(k) ==> k_to_p(k)(s))))))) by {
+                temp_pred_equality(
+                    lift_state(|s: ClusterState| (forall |k| #[trigger] benign_domain(s)(k) ==> k_to_p(k)(s))),
+                    true_pred()
+                );
+                temp_pred_equality(
+                    always(true_pred()),
+                    true_pred::<ClusterState>()
+                );
+                eventually_true::<ClusterState>();
+            }
+            assert(lift_state(|s: ClusterState| (forall |k| #[trigger] havoc_domain(s)(k) ==> k_to_p(k)(s)))
+                .and(lift_state(|s: ClusterState| (forall |k| #[trigger] benign_domain(s)(k) ==> k_to_p(k)(s))))
+                .entails(lift_state(|s: ClusterState| (forall |k| #[trigger] domain(s)(k) ==> k_to_p(k)(s))))
+            ) by {
+                assert forall |s: ClusterState| #![trigger domain(s)] 
+                    (forall |k| #[trigger] havoc_domain(s)(k) ==> k_to_p(k)(s)) && (forall |k| #[trigger] benign_domain(s)(k) ==> k_to_p(k)(s))
+                    implies (forall |k| #[trigger] domain(s)(k) ==> k_to_p(k)(s)) by {
+                    assert forall |k| #[trigger] domain(s)(k) implies k_to_p(k)(s) by {
+                        if eventual_owner_ref(s.resources()[k].metadata.owner_references) {
+                            assert(benign_domain(s)(k));
+                        } else {
+                            assert(havoc_domain(s)(k));
+                        }
+                    }
+                }
+            }
+            eventually_always_combine(spec,
+                lift_state(|s: ClusterState| (forall |k| #[trigger] havoc_domain(s)(k) ==> k_to_p(k)(s))),
+                lift_state(|s: ClusterState| (forall |k| #[trigger] benign_domain(s)(k) ==> k_to_p(k)(s))),
+                lift_state(|s: ClusterState| (forall |k| #[trigger] domain(s)(k) ==> k_to_p(k)(s)))
+            );
         }
         assert(forall |s, k| (#[trigger] domain(s)(k) ==> k_to_p(k)(s)) == (domain(s)(k) ==> Self::objects_owner_references_satisfies(k, eventual_owner_ref)(s)));
         // Note: trigger's position affects the result
