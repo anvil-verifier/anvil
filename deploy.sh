@@ -30,6 +30,8 @@ kind load docker-image local/$app-controller:v0.1.0 --name $cluster_name
 # for VDeployment, need to deploy VReplicaSet as a dependency
 if [ "$app" == "vdeployment" ]; then
     kind load docker-image local/vreplicaset-controller:v0.1.0 --name $cluster_name
+elif [ "$app" == "rabbitmq" ]; then
+    kind load docker-image local/vstatefulset-controller:v0.1.0 --name $cluster_name
 fi
 
 # admission controller has a different deployment process

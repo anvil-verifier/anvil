@@ -36,6 +36,15 @@ if [ "$app" == "vdeployment" ]; then
     else
         echo "Use existing vreplicaset controller image"
     fi
+elif [ "$app" == "rabbitmq" ]; then
+    if [ $build_controller == 1 ]; then
+        echo "Building vstatefulset controller binary"
+        ./build.sh "vstatefulset_controller.rs" "--no-verify" $@
+        echo "Building vstatefulset controller image"
+        docker build -f $dockerfile -t local/vstatefulset-controller:v0.1.0 --build-arg APP=vstatefulset .
+    else
+        echo "Use existing vstatefulset controller image"
+    fi
 fi
 
 # Setup cluster, deploy the controller as a pod to the kind cluster, using the image just loaded
