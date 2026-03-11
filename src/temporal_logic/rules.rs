@@ -2625,10 +2625,21 @@ pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     }
 }
 
+pub proof fn false_implies_anything<T>(spec: TempPred<T>, p: TempPred<T>)
+    ensures
+        spec.entails(false_pred().implies(p)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies false_pred().implies(p).satisfied_by(ex) by {
+        if false_pred().satisfied_by(ex) {
+            assert(false);
+        }
+    }
+}
+
 // Proving false leads to p vacuously.
 // post:
 //     spec |= false ~> p
-pub proof fn false_leads_to<T>(spec: TempPred<T>, p: TempPred<T>)
+pub proof fn false_leads_to_anything<T>(spec: TempPred<T>, p: TempPred<T>)
     ensures
         spec.entails(false_pred().leads_to(p)),
 {
