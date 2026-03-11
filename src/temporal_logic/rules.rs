@@ -2286,6 +2286,13 @@ pub proof fn eventually_always_tla_forall_unfold<T, A>(spec: TempPred<T>, a_to_p
     };
 }
 
+// Combine the conclusions of two eventually always
+// pre:
+//     spec |= <>[]p
+//     spec |= <>[]q
+//     p /\ q |= r
+// post:
+//     spec |= <>[](r)
 pub proof fn eventually_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         spec.entails(eventually(always(p))),
