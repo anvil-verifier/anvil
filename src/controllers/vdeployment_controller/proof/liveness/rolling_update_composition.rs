@@ -635,7 +635,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
 
         // stable_vd_post |= [] stable_vd_post && [] vrs_set_pre ~> [] stable_vd_post && [] n_to_q(0)
         leads_to_self_temp(always(stable_vd_post));
-        always_leads_to_always_combine(stable_vd_post, lift_state(vrs_set_pre(vrs_set_with_diff)), stable_vd_post, n_to_q(0), stable_vd_post);
+        always_leads_to_always_combine(always(stable_vd_post), lift_state(vrs_set_pre(vrs_set_with_diff)), stable_vd_post, n_to_q(0), stable_vd_post);
         always_and_equality(n_to_q(0), stable_vd_post);
         always_and_equality(lift_state(vrs_set_pre(vrs_set_with_diff)), stable_vd_post);
 
@@ -681,18 +681,22 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         );
         always_and_equality(stable_vd_post, lift_state(vrs_set_pre(vrs_set_with_diff)));
         entails_and_different_temp(
-            stable_vd_post,
+            always(stable_vd_post),
             true_pred(),
             lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(always(n_to_q(0)).and(always(stable_vd_post))),
             always(n_to_q(0)).and(always(stable_vd_post)).leads_to(lifted_always_composed_post),
         );
-        temp_pred_equality(stable_vd_post, stable_vd_post.and(true_pred()));
-        entails_and_temp(stable_vd_post,
+        temp_pred_equality(
+            always(stable_vd_post),
+            always(stable_vd_post).and(true_pred())
+        );
+        entails_and_temp(
+            always(stable_vd_post),
             lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(always(n_to_q(0)).and(always(stable_vd_post))),
             always(n_to_q(0)).and(always(stable_vd_post)).leads_to(lifted_always_composed_post),
         );
         leads_to_trans(
-            stable_vd_post,
+            always(stable_vd_post),
             lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)),
             always(n_to_q(0)).and(always(stable_vd_post)),
             lifted_always_composed_post
