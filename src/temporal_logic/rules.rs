@@ -2705,6 +2705,18 @@ pub proof fn false_leads_to_anything<T>(spec: TempPred<T>, p: TempPred<T>)
     }
 }
 
+// Proving eventually true.
+// post:
+//     |= <>true
+pub proof fn eventually_true<T>()
+    ensures
+        valid(eventually(true_pred::<T>())),
+{
+    assert forall |ex| #[trigger] eventually(true_pred::<T>()).satisfied_by(ex) by {
+        assert(true_pred::<T>().satisfied_by(ex.suffix(0)));
+    }
+}
+
 // Proving p leads to q by borrowing the inv.
 // pre:
 //     spec |= p /\ inv ~> q
