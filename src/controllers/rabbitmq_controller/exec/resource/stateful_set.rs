@@ -532,7 +532,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             if rabbitmq_resources.is_some() {
                 rabbitmq_container.set_resources(rabbitmq_resources.unwrap());
             }
-            rabbitmq_container.set_name("rabbitmq".to_string().concat("-"));
+            rabbitmq_container.set_name("rabbitmq".to_string());
             rabbitmq_container.set_image(rabbitmq.spec().image());
             rabbitmq_container.set_lifecycle({
                 let mut lifecycle = Lifecycle::default();
