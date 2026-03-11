@@ -2,11 +2,16 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 verus! {
 
 // VRS Rely Condition
+
+pub open spec fn has_vrs_prefix(name: StringView) -> bool {
+    exists |suffix| name == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
+}
 
 // Other controllers don't create pods owned by a VReplicaSet.
 pub open spec fn vrs_rely_create_req(req: CreateRequest) -> StatePred<ClusterState> {
@@ -14,8 +19,15 @@ pub open spec fn vrs_rely_create_req(req: CreateRequest) -> StatePred<ClusterSta
         req.obj.kind == Kind::PodKind ==> !{
             let owner_references = req.obj.metadata.owner_references->0;
             &&& req.obj.metadata.owner_references is Some
-            &&& exists |vrs: VReplicaSetView| 
+            &&& exists |vrs: VReplicaSetView|
                 #[trigger] owner_references.contains(vrs.controller_owner_ref())
+        } && !{
+            if req.obj.metadata.name is Some {
+                has_vrs_prefix(req.obj.metadata.name->0)
+            } else {
+                &&& req.obj.metadata.generate_name is Some
+                &&& has_vrs_prefix(req.obj.metadata.generate_name->0)
+            }
         }
     }
 }
@@ -43,8 +55,9 @@ pub open spec fn vrs_rely_update_req(req: UpdateRequest) -> StatePred<ClusterSta
             // Prevents 2): where other controllers update pods so they become
             // owned by a VReplicaSet.
             && (req.obj.metadata.owner_references is Some ==>
-                    forall |vrs: VReplicaSetView| 
+                    forall |vrs: VReplicaSetView|
                         ! #[trigger] req.obj.metadata.owner_references->0.contains(vrs.controller_owner_ref()))
+            && !has_vrs_prefix(req.key().name)
     }
 }
 
@@ -66,8 +79,9 @@ pub open spec fn vrs_rely_get_then_update_req(req: GetThenUpdateRequest) -> Stat
             // Prevents 2): where other controllers update pods so they become
             // owned by a VReplicaSet.
             &&& (req.obj.metadata.owner_references is Some ==>
-                forall |vrs: VReplicaSetView| 
+                forall |vrs: VReplicaSetView|
                     ! req.obj.metadata.owner_references->0.contains(#[trigger] vrs.controller_owner_ref()))
+            &&& !has_vrs_prefix(req.key().name)
         }
     }
 }
@@ -87,9 +101,10 @@ pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
                 &&& etcd_obj.metadata.resource_version is Some
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 &&& etcd_obj.metadata.owner_references is Some
-                &&& exists |vrs: VReplicaSetView| 
+                &&& exists |vrs: VReplicaSetView|
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             }
+            && !has_vrs_prefix(req.key().name)
     }
 }
 
@@ -108,9 +123,10 @@ pub open spec fn vrs_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
                 &&& etcd_obj.metadata.resource_version
                     == req.preconditions->0.resource_version
                 &&& etcd_obj.metadata.owner_references is Some
-                &&& exists |vrs: VReplicaSetView| 
+                &&& exists |vrs: VReplicaSetView|
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             }
+            && !has_vrs_prefix(req.key.name)
     }
 }
 
@@ -121,6 +137,7 @@ pub open spec fn vrs_rely_get_then_delete_req(req: GetThenDeleteRequest) -> Stat
             &&& req.owner_ref.controller is Some
             &&& req.owner_ref.controller->0
             &&& req.owner_ref.kind != VReplicaSetView::kind()
+            &&& !has_vrs_prefix(req.key.name)
         }
     }
 }
@@ -129,10 +146,10 @@ pub open spec fn vrs_rely_get_then_delete_req(req: GetThenDeleteRequest) -> Stat
 pub open spec fn vrs_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& req.obj.kind == Kind::PodKind ==> 
-            req.owner_ref.kind != VReplicaSetView::kind()
+            req.owner_ref.kind != VReplicaSetView::kind() && !has_vrs_prefix(req.key().name)
         &&& req.obj.kind != VReplicaSetView::kind()
     }
-} 
+}
 
 pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -160,8 +177,10 @@ pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<Clust
     |s: ClusterState| {
         let owner_references = req.obj.metadata.owner_references->0;
         &&& req.obj.kind == Kind::PodKind
+        &&& req.obj.metadata.name is Some
+        &&& has_vrs_prefix(req.obj.metadata.name->0)
         &&& req.obj.metadata.owner_references is Some
-        &&& exists |vrs: VReplicaSetView| 
+        &&& exists |vrs: VReplicaSetView|
             owner_references == seq![#[trigger] vrs.controller_owner_ref()]
     }
 }
@@ -171,7 +190,8 @@ pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<Clust
 pub open spec fn vrs_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& req.key.kind == Kind::PodKind
-        &&& exists |vrs: VReplicaSetView| 
+        &&& has_vrs_prefix(req.key.name)
+        &&& exists |vrs: VReplicaSetView|
             req.owner_ref == #[trigger] vrs.controller_owner_ref()
     }
 }

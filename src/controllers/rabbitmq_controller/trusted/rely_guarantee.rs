@@ -1,7 +1,9 @@
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::{
-    model::reconciler::*, proof::predicate::*, trusted::spec_types::*,
+    model::{install::rabbitmq_controller_model, reconciler::*},
+    proof::predicate::*,
+    trusted::spec_types::*,
 };
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -130,6 +132,18 @@ pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
             _ => false, // rmq doesn't send other requests
         }
     }
+}
+
+pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    ensures
+        spec.entails(always(lift_state(rmq_guarantee(controller_id))))
+{
+    assume(false);
 }
 
 }

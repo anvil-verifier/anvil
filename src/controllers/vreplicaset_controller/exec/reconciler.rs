@@ -407,6 +407,14 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
     filtered_pods
 }
 
+fn pod_generate_name(vrs: &VReplicaSet) -> (name: String) 
+    requires vrs@.well_formed(),
+    ensures name@ == model_reconciler::pod_generate_name(vrs@) 
+{
+    let prefix = "vreplicaset".to_string().concat("-"); 
+    prefix.concat(vrs.metadata().name().unwrap().concat("-").as_str())
+}
+
 fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
     requires v_replica_set@.well_formed(),
     ensures pod@ == model_reconciler::make_pod(v_replica_set@),
@@ -427,7 +435,7 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
         if finalizers.is_some() {
             metadata.set_finalizers(finalizers.unwrap());
         }
-        metadata.set_generate_name(v_replica_set.metadata().name().unwrap().concat("-"));
+        metadata.set_generate_name(pod_generate_name(v_replica_set));
         metadata.set_owner_references(make_owner_references(v_replica_set));
         metadata
     });

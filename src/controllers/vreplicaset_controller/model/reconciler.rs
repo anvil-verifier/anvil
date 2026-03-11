@@ -1,6 +1,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::{spec_types::*, step::*};
+use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 
@@ -234,6 +235,10 @@ pub open spec fn filter_pods(pods: Seq<PodView>, v_replica_set: VReplicaSetView)
         && pod.metadata.deletion_timestamp is None)
 }
 
+pub open spec fn pod_generate_name(vrs: VReplicaSetView) -> StringView {
+    VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + vrs.metadata.name.unwrap() + "-"@
+}
+
 pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
     let template = v_replica_set.spec.template.unwrap();
     let pod = PodView::default();
@@ -249,7 +254,7 @@ pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
                 ..metadata
             };
             let metadata = metadata.with_generate_name(
-                v_replica_set.metadata.name.unwrap() + "-"@
+                pod_generate_name(v_replica_set)
             );
             let metadata = metadata.with_owner_references(
                 make_owner_references(v_replica_set)

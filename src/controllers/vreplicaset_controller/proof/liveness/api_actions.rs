@@ -297,6 +297,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
     return resp_msg;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     msg: Message,

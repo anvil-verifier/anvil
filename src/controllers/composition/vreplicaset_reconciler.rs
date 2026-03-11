@@ -9,7 +9,7 @@ use crate::vreplicaset_controller::model::{
     reconciler::*, install::*
 };
 use crate::vreplicaset_controller::proof::{
-    guarantee::*, liveness::spec::*
+    guarantee::*, liveness::{spec::*, proof::eventually_stable_reconciliation_holds}
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -35,7 +35,7 @@ impl Composition for VReplicaSetReconciler {
     uninterp spec fn id() -> int;
 
     open spec fn composed() -> Map<int, ControllerSpec> {
-        Map::empty().insert(Self::id(), Self::c())
+        Map::empty()
     }
 
     proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
@@ -51,6 +51,14 @@ impl Composition for VReplicaSetReconciler {
             spec.entails((Self::c().safety_partial_rely)(i))
             && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
     {}
+}
+
+impl HorizontalComposition for VReplicaSetReconciler {
+    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_guarantee),
+    {
+        eventually_stable_reconciliation_holds(spec, cluster, Self::id());
+    }
 }
 
 

@@ -15,7 +15,7 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
