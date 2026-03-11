@@ -1,0 +1,1 @@
+vstd::prelude::FnSpec<((vstd::set::Set<vreplicaset_controller::trusted::spec_types::VReplicaSetView>, vstd::prelude::nat),), temporal_logic::defs::TempPred<kubernetes_cluster::spec::cluster::ClusterState>>

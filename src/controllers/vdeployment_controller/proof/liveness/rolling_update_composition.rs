@@ -687,6 +687,25 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     }
     // Extract finiteness from lifted_always_vrs_set_pre to satisfy pre
     // stable_vd_post |= [] stable_vd_post && \E (vrs_set,n) [] vrs_set_pre(vrs_set_with_diff) ~> [] composed_post
+    assert(always(stable_vd_post) == always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))) by {
+        entails_and_temp(
+            always(stable_vd_post),
+            always(stable_vd_post),
+            tla_exists(lifted_always_vrs_set_pre)
+        );
+        simplify_predicate(
+            always(stable_vd_post),
+            tla_exists(lifted_always_vrs_set_pre)
+        );
+    }
+    tla_exists_and_equality(
+        lifted_always_vrs_set_pre,
+        always(stable_vd_post)
+    );
+    temp_pred_equality(
+        tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
+        always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))
+    );
     assert forall |vrs_set_with_diff: (Set<VReplicaSetView>, nat)|
         lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set_with_diff))) by {
         always_entails_current(lift_state(vrs_set_pre(vrs_set_with_diff)));
@@ -698,15 +717,15 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             lift_state(|s: ClusterState| #[trigger] pre(vrs_set_with_diff))
         );
     }
+    assert forall |vrs_set_with_diff: (Set<VReplicaSetView>, nat)| pre(vrs_set_with_diff)
+        implies #[trigger] always(stable_vd_post).entails(lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(lifted_always_composed_post)) by {
+        assume(false);
+    }
     leads_to_exists_intro_with_pre(
         always(stable_vd_post),
-        lifted_always_vrs_set_pre,
+        |vrs_set_with_diff| lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)),
         lifted_always_composed_post,
         pre
-    );
-    tla_exists_and_equality(
-        lifted_always_vrs_set_pre,
-        always(stable_vd_post)
     );
     // -- Step 5: Chain everything together --
     // spec |= [] desired_state_is ~> [] stable_vd_post
@@ -715,25 +734,16 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     // Need: spec |= [] desired_state_is ~> [] composed
 
     // First: spec |= [] desired_state_is ~> \E (vrs_set,n) [] vrs_set_pre /\ [] stable_vd_post
-    assert(spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))))) by {
-        assert(always(stable_vd_post) == always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))) by {
-            entails_and_temp(
-                always(stable_vd_post),
-                always(stable_vd_post),
-                tla_exists(lifted_always_vrs_set_pre)
-            );
-            simplify_predicate(
-                always(stable_vd_post),
-                tla_exists(lifted_always_vrs_set_pre)
-            );
-        }
-    }
 
     // Final chain
+    temp_pred_equality(
+        always(stable_vd_post),
+        always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)))
+    );
     leads_to_trans_with_entailed_leads_to(spec,
         always(lift_state(desired_state_is(vd))),
         always(stable_vd_post),
-        tla_exists(lifted_always_vrs_set_pre),
+        tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
         lifted_always_composed_post
     )
 }
