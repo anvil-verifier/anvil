@@ -29,26 +29,28 @@ use deps_hack::tracing::{error, info};
 use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
+use crate::rabbitmq_controller::exec::reconciler::RabbitmqReconciler;
+use crate::external_shim_layer::VoidExternalShimLayer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // tracing_subscriber::fmt::init();
-    // let args: Vec<String> = env::args().collect();
-    // let cmd = args[1].clone();
+    tracing_subscriber::fmt::init();
+    let args: Vec<String> = env::args().collect();
+    let cmd = args[1].clone();
 
-    // if cmd == String::from("export") {
-    //     println!(
-    //         "{}",
-    //         serde_yaml::to_string(&deps_hack::RabbitmqCluster::crd())?
-    //     );
-    // } else if cmd == String::from("run") {
-    //     info!("running rabbitmq-controller");
-    //     run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler>(false).await?;
-    // } else if cmd == String::from("crash") {
-    //     info!("running rabbitmq-controller in crash-testing mode");
-    //     run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler>(true).await?;
-    // } else {
-    //     error!("wrong command; please use \"export\", \"run\" or \"crash\"");
-    // }
+    if cmd == String::from("export") {
+        println!(
+            "{}",
+            serde_yaml::to_string(&deps_hack::RabbitmqCluster::crd())?
+        );
+    } else if cmd == String::from("run") {
+        info!("running rabbitmq-controller");
+        run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler, VoidExternalShimLayer>(false).await?;
+    } else if cmd == String::from("crash") {
+        info!("running rabbitmq-controller in crash-testing mode");
+        run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler, VoidExternalShimLayer>(true).await?;
+    } else {
+        error!("wrong command; please use \"export\", \"run\" or \"crash\"");
+    }
     Ok(())
 }
