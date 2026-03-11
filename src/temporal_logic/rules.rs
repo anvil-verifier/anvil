@@ -2075,10 +2075,10 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
         forall |a| spec.entails(lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(#[trigger] a_to_p(a)))))),
         forall |s| Set::new(#[trigger] domain(s)).finite(), // domain is finite
         forall |s, s_prime| #[trigger] next(s, s_prime) ==> (forall |a| #[trigger] domain(s_prime)(a) ==> domain(s)(a)) // domain is non-increasing
-    ensures spec.entails(eventually(always(lift_state(|s: T| (forall |a| #![trigger(a_to_p(a))] domain(s)(a) ==> a_to_p(a)(s))))))
+    ensures spec.entails(eventually(always(lift_state(|s: T| (forall |a| #[trigger] domain(s)(a) ==> a_to_p(a)(s))))))
 {
     assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex)
-        implies eventually(always(lift_state(|s| forall |a| #![trigger(a_to_p(a))]domain(s)(a) ==> a_to_p(a)(s)))).satisfied_by(ex) by {
+        implies eventually(always(lift_state(|s| forall |a| #[trigger]domain(s)(a) ==> a_to_p(a)(s)))).satisfied_by(ex) by {
         entails_apply::<T>(ex, spec, always(lift_action(next)));
         always_unfold::<T>(ex, lift_action(next));
         // For each a in the initial domain, domain(ex.head())(a) holds, so we get eventually always a_to_p(a)
@@ -2117,7 +2117,7 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
                 execution_equality::<T>(ex.suffix(max_witness), ex.suffix(witness).suffix((max_witness - witness) as nat));
             }
             // from max_witness onwards, tla_forall(|a| lift_state(|s| domain(s,a) ==> a_to_p(a)(s))) holds
-            assert forall |j: nat| lift_state(|s| forall |a| #![trigger(a_to_p(a))] domain(s)(a) ==> a_to_p(a)(s)).satisfied_by(#[trigger] ex.suffix(max_witness).suffix(j)) by {
+            assert forall |j: nat| lift_state(|s| forall |a| #[trigger] domain(s)(a) ==> a_to_p(a)(s)).satisfied_by(#[trigger] ex.suffix(max_witness).suffix(j)) by {
                 assert forall |a: A| #![trigger a_to_p(a)] domain(ex.suffix(max_witness).suffix(j).head())(a) implies a_to_p(a)(ex.suffix(max_witness).suffix(j).head()) by {
                     if d0.contains(a) {
                         // a_to_p(a) holds at this state since always(lift_state(a_to_p(a))) from max_witness
@@ -2139,9 +2139,9 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
                     }
                 }
             }
-            eventually_proved_by_witness(ex, always(lift_state(|s| forall |a| #![trigger(a_to_p(a))] domain(s)(a) ==> a_to_p(a)(s))), max_witness);
+            eventually_proved_by_witness(ex, always(lift_state(|s| forall |a| #[trigger] domain(s)(a) ==> a_to_p(a)(s))), max_witness);
         } else {
-            assert forall |j: nat| lift_state(|s| forall |a| #![trigger(a_to_p(a))] domain(s)(a) ==> a_to_p(a)(s)).satisfied_by(#[trigger] ex.suffix(j)) by {
+            assert forall |j: nat| lift_state(|s| forall |a| #[trigger] domain(s)(a) ==> a_to_p(a)(s)).satisfied_by(#[trigger] ex.suffix(j)) by {
                 assert forall |a: A| #![trigger a_to_p(a)] domain(ex.suffix(j).head())(a) implies a_to_p(a)(ex.suffix(j).head()) by {
                     // d0 is finite with len == 0, so prove !domain(ex.head())(a) by contradiction
                     if domain(ex.head())(a) {
@@ -2152,7 +2152,7 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
                 };
             };
             execution_equality::<T>(ex, ex.suffix(0));
-            eventually_proved_by_witness(ex, always(lift_state(|s| forall |a| #![trigger(a_to_p(a))] domain(s)(a) ==> a_to_p(a)(s))), 0);
+            eventually_proved_by_witness(ex, always(lift_state(|s| forall |a| #[trigger] domain(s)(a) ==> a_to_p(a)(s))), 0);
         }
     };
 }

@@ -457,12 +457,30 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
     //     }
     // }
     let domain = |s: ClusterState| |key: ObjectRef| cond(key) && s.resources().contains_key(key);
+    let k_to_p = |k| Self::objects_owner_references_satisfies(k, eventual_owner_ref);
     assert(spec.entails(eventually(always(lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref)))))) by {
-        spec_entails_eventually_always_within_dynamic_finite_domain(
-            spec, stronger_next, |k| Self::objects_owner_references_satisfies(k, eventual_owner_ref), domain
-        );
+        assert(spec.entails(eventually(always(lift_state(|s: ClusterState| (forall |k| #[trigger] domain(s)(k) ==> k_to_p(k)(s))))))) by {
+            assert forall |k| spec.entails(lift_state(|s: ClusterState| domain(s)(k)).implies(eventually(always(lift_state(#[trigger] k_to_p(k)))))) by {
+                assume(false);
+            }
+            assert forall |s| Set::new(#[trigger] domain(s)).finite() by {
+                assume(false);
+            }
+            assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies (forall |a| #[trigger] domain(s_prime)(a) ==> domain(s)(a)) by {
+                assume(false);
+            }
+            spec_entails_eventually_always_within_dynamic_finite_domain(
+                spec, stronger_next, k_to_p, domain
+            );
+        }
+        assert(forall |s, k| (#[trigger] domain(s)(k) ==> k_to_p(k)(s)) == (domain(s)(k) ==> Self::objects_owner_references_satisfies(k, eventual_owner_ref)(s)));
+        // Note: trigger's position affects the result
         temp_pred_equality(
             lift_state(|s: ClusterState| (forall |k| domain(s)(k) ==> #[trigger] Self::objects_owner_references_satisfies(k, eventual_owner_ref)(s))),
+            lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))
+        );
+        temp_pred_equality(
+            lift_state(|s: ClusterState| (forall |k| #[trigger] domain(s)(k) ==> k_to_p(k)(s))),
             lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))
         );
     }
