@@ -608,13 +608,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             }
         }
         leads_to_by_monotonicity3(always(stable_vd_post), n_to_p, n_to_q);
-        // Now we have: forall n, stable_vd_post |= n_to_p(n) ~> [] n_to_p(0)
-
-        // [] n_to_p(0) ~> [] n_to_q(0)
-        // (already asserted above for n=0)
-
-        // Chain: n_to_p(n_init) ~> [] n_to_p(0) ~> [] n_to_q(0)
-        leads_to_trans(always(stable_vd_post), n_to_p(n_init), always(n_to_p(0)), always(n_to_q(0)));
+        // Now we have: forall n, stable_vd_post |= n_to_p(n) ~> [] n_to_q(0)
 
         // [] vrs_set_pre entails n_to_p(n_init)
         assert(lifted_always_vrs_set_pre(vrs_set_with_diff).entails(n_to_p(n_init))) by {
