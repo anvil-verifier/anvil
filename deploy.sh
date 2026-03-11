@@ -4,7 +4,7 @@
 ##
 ## Requires a running Kubernetes cluster and kubectl to be installed.
 
-set -eu
+set -u
 
 YELLOW='\033[1;33m'
 GREEN='\033[1;32m'
@@ -21,6 +21,8 @@ if [ $? -eq 0 ]; then
     echo -e "${YELLOW}A kind cluster named \"$cluster_name\" already exists. Deleting...${NC}"
     kind delete cluster --name $cluster_name
 fi
+
+set -eu
 
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml --name $cluster_name
