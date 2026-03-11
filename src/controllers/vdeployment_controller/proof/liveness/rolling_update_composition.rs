@@ -109,10 +109,7 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set
 // Obligation 1: ESR for each ranking level
 // forall n. spec |= [] p(n) ~> [] q(n)
 pub proof fn esr_for_each_ranking(
-    spec: TempPred<ClusterState>,
-    vrs_set: Set<VReplicaSetView>,
-    vd: VDeploymentView,
-    n: nat,
+    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, n: nat
 )
     requires
         vrs_set.finite(),
@@ -159,21 +156,15 @@ pub proof fn esr_for_each_ranking(
 // forall n. spec |= [] (p(n) => [] (exists m <= n. p(m)))
 #[verifier(external_body)]
 pub proof fn ranking_never_increases(
-    spec: TempPred<ClusterState>,
-    vrs_set: Set<VReplicaSetView>,
-    vd: VDeploymentView,
-    controller_id: int,
-    cluster: Cluster,
-    n: nat,
+    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster, n: nat
 )
     requires
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
+        spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     ensures
         spec.entails(
             always(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
@@ -189,12 +180,7 @@ pub proof fn ranking_never_increases(
 // forall n > 0. spec |= [] q(n) ~> !p(n)
 #[verifier(external_body)]
 pub proof fn ranking_decreases_after_vrs_esr(
-    spec: TempPred<ClusterState>,
-    vrs_set: Set<VReplicaSetView>,
-    vd: VDeploymentView,
-    controller_id: int,
-    cluster: Cluster,
-    n: nat,
+    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster, n: nat
 )
     requires
         n > 0,
@@ -202,10 +188,9 @@ pub proof fn ranking_decreases_after_vrs_esr(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))),
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+        spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     ensures
         spec.entails(
             always(
@@ -221,12 +206,8 @@ pub proof fn ranking_decreases_after_vrs_esr(
 // *** Helper lemmas ***
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
-    vd: VDeploymentView,
-    cluster: Cluster,
-    controller_id: int,
-    s: ClusterState
-) -> (res: (Set<VReplicaSetView>, nat))
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState)
+    -> (res: (Set<VReplicaSetView>, nat))
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -296,11 +277,7 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
 
 // q(0) with vrs_set identity implies composed_current_state_matches
 pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_composed(
-    vd: VDeploymentView,
-    cluster: Cluster,
-    controller_id: int,
-    vrs_set: Set<VReplicaSetView>,
-    s: ClusterState,
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, s: ClusterState
 )
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -383,13 +360,7 @@ pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_co
 // Stability of vrs_set identity (modulo rv/status/replicas) and conjuncted p(n)
 #[verifier(external_body)]
 pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
-    vd: VDeploymentView,
-    controller_id: int,
-    cluster: Cluster,
-    vrs_set: Set<VReplicaSetView>,
-    n: nat,
-    s: ClusterState,
-    s_prime: ClusterState,
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, n: nat, s: ClusterState, s_prime: ClusterState
 )
     requires
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -412,17 +383,14 @@ pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
 
 // *** Top-level rolling update ESR composition theorem ***
 pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
-    spec: TempPred<ClusterState>,
-    vd: VDeploymentView,
-    controller_id: int,
-    cluster: Cluster,
+    spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster
 )
     requires
         // environment invariants
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lift_action(cluster.next()))),
         // stable spec and invariants
         spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))),
@@ -430,32 +398,16 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
         // ESR for vd (with rolling update behavior)
         spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))),
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+        // vd rely
+        spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     ensures
         spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
     // -- Step 1: Pack invariants into stable_vd_post_spec (same as original composition.rs) --
-    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
     let lifted_inv = lift_action(cluster.next())
         .and(lifted_vd_rely_condition(cluster, controller_id))
         .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
         .and(tla_forall(|vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))));
-    assert(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id).entails(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))) by {
-        assert forall |ex| #[trigger] lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id).satisfied_by(ex)
-            implies lifted_vd_reconcile_request_only_interferes_with_itself(controller_id).satisfied_by(ex) by {
-            assert(forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.head()));
-        }
-    };
-    entails_preserved_by_always(
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
-        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)
-    );
-    entails_trans(
-        spec,
-        always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)),
-        always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
-    );
     // Prove: 1. vrs_eventually_stable_reconciliation == \A vrs, [] desired_state_is(vrs) ~> [] current_state_matches(vrs)
     // 2. valid(stable(vrs_eventually_stable_reconciliation))
     assert(valid(stable(tla_forall(|vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))))))) by {
@@ -541,7 +493,6 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             assert((|vrs_set_with_diff: (Set<VReplicaSetView>, nat)| lift_state(vrs_set_pre(vrs_set_with_diff)))((vrs_set, n)).satisfied_by(ex));
         }
         // Then show stability: vrs_set_pre is preserved by transitions under stable_vd_post_spec
-        vd_rely_condition_equivalent_to_lifted_vd_rely_condition(always(stable_vd_post_spec), cluster, controller_id);
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
             &&& inductive_current_state_matches(vd, controller_id)(s)
