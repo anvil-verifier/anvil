@@ -1859,6 +1859,21 @@ pub proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred
     leads_to_trans::<T>(spec, p2, q1, q2);
 }
 
+pub proof fn leads_to_weaken2<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p1.leads_to(q)),
+    ensures
+        spec.entails(p1.and(p2).leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p1.and(p2).leads_to(q).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, p1.leads_to(q));
+        leads_to_unfold::<T>(ex, p1, q);
+        assert forall |i| #[trigger] p1.and(p2).satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            entails_apply::<T>(ex.suffix(i), p1.and(p2), p1);
+        };
+    };
+}
+
 // Combine leads_to with an entailed leads_to.
 // pre:
 //     spec |= p ~> q /\ r
