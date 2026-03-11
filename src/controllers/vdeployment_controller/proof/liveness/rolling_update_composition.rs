@@ -586,6 +586,19 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         assert forall |n: nat| #![trigger n_to_p(n)] always(stable_vd_post).entails(
             always(n_to_p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(n_to_p(m))))))) by {
             ranking_never_increases(always(stable_vd_post), vrs_set, vd, controller_id, cluster, n);
+            temp_pred_equality(
+                n_to_p(n),
+                lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            );
+            assert forall |m: nat| #![trigger n_to_p(m)] lift_state(|s| m <= n).and(n_to_p(m)) == lift_state(|s| m <= n)
+                .and(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m))
+                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)))) by {}
+            tla_exists_p_tla_exists_q_equality(
+                |m: nat| lift_state(|s| m <= n).and(n_to_p(m)),
+                |m: nat| lift_state(|s| m <= n).and(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m))
+                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
+            );
         }
 
         // Obligation 3: n > 0 => [] n_to_q(n) ~> !n_to_p(n)
