@@ -194,6 +194,20 @@ proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
     };
 }
 
+// Prove p implies q vacuously
+// pre:
+//     spec |= q
+// post:
+//     spec |= p => q
+pub proof fn vacuous_implies<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires spec.entails(q),
+    ensures spec.entails(p.implies(q)),
+{
+    assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.implies(q).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, q);
+    };
+}
+
 proof fn always_distributed_by_and<T>(p: TempPred<T>, q: TempPred<T>)
     ensures valid(always(p.and(q)).implies(always(p).and(always(q)))),
 {
@@ -2625,6 +2639,9 @@ pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     }
 }
 
+// Proving false implies p vacuously.
+// post:
+//     spec |= false => p
 pub proof fn false_implies_anything<T>(spec: TempPred<T>, p: TempPred<T>)
     ensures
         spec.entails(false_pred().implies(p)),
