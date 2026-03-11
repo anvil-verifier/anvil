@@ -685,8 +685,13 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             lifted_always_composed_post
         );
     }
+    // \A (vrs_set, n) [] stable_vd_post |= [] vrs_set_pre /\ [] stable_vd_post ~> [] composed_post
+    assert forall |vrs_set_with_diff: (Set<VReplicaSetView>, nat)| pre(vrs_set_with_diff)
+        implies #[trigger] always(stable_vd_post).entails(lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(lifted_always_composed_post)) by {
+        leads_to_weaken2(always(stable_vd_post), lifted_always_vrs_set_pre(vrs_set_with_diff), always(stable_vd_post), lifted_always_composed_post);
+    }
     // Extract finiteness from lifted_always_vrs_set_pre to satisfy pre
-    // stable_vd_post |= [] stable_vd_post && \E (vrs_set,n) [] vrs_set_pre(vrs_set_with_diff) ~> [] composed_post
+    // [] stable_vd_post |= [] stable_vd_post && \E (vrs_set,n) [] vrs_set_pre(vrs_set_with_diff) ~> [] composed_post
     assert(always(stable_vd_post) == always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))) by {
         entails_and_temp(
             always(stable_vd_post),
@@ -717,10 +722,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             lift_state(|s: ClusterState| #[trigger] pre(vrs_set_with_diff))
         );
     }
-    assert forall |vrs_set_with_diff: (Set<VReplicaSetView>, nat)| pre(vrs_set_with_diff)
-        implies #[trigger] always(stable_vd_post).entails(lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(lifted_always_composed_post)) by {
-        leads_to_weaken2(always(stable_vd_post), lifted_always_vrs_set_pre(vrs_set_with_diff), always(stable_vd_post), lifted_always_composed_post);
-    }
+    // [] stable_vd_post |= tla_exists([] vrs_set_pre)  ~> [] composed_post
     leads_to_exists_intro_with_pre(
         always(stable_vd_post),
         |vrs_set_with_diff| lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)),
