@@ -65,6 +65,7 @@ pub fn rabbitmq_cluster_ephemeral() -> String {
 pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("rabbitmq-{}-server-conf", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     let timeout = Duration::from_secs(600);
     let start = Instant::now();
     loop {
@@ -127,10 +128,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                         pod.metadata
                             .name
                             .as_ref()
-                            .is_some_and(|name| name.starts_with(&rabbitmq_sts_name))
-                            && pod.status.as_ref().is_some_and(|s| {
-                                s.phase.as_ref().is_some_and(|p| p == "Running")
-                            })
+                            .is_some_and(|name| name.starts_with(&pod_name))
                     })
                     .collect();
                 if running_pods.len() == 3 {
@@ -152,6 +150,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
 
 pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
     let sts_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
@@ -218,10 +217,7 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                         pod.metadata
                             .name
                             .as_ref()
-                            .is_some_and(|name| name.starts_with(&rabbitmq_sts_name))
-                            && pod.status.as_ref().is_some_and(|s| {
-                                s.phase.as_ref().is_some_and(|p| p == "Running")
-                            })
+                            .is_some_and(|name| name.starts_with(&pod_name))
                     })
                     .collect();
                 if running_pods.len() == 3 {
@@ -246,6 +242,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
     let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     run_command(
         "kubectl",
         vec![
@@ -284,10 +281,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                         pod.metadata
                             .name
                             .as_ref()
-                            .is_some_and(|name| name.starts_with(&rabbitmq_sts_name))
-                            && pod.status.as_ref().is_some_and(|s| {
-                                s.phase.as_ref().is_some_and(|p| p == "Running")
-                            })
+                            .is_some_and(|name| name.starts_with(&pod_name))
                     })
                     .collect();
                 if running_pods.len() == 3 {
@@ -305,7 +299,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
     }
 
     // Check if the configuration file used by the rabbitmq server is actually updated
-    let pod_name = rabbitmq_name + "-server-0";
+    let pod_name = format!("vstatefulset-{}-0", &rabbitmq_sts_name);
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let attached = pod_api
         .exec(
@@ -342,6 +336,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let sts_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
     let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
 
     run_command(
         "kubectl",
@@ -394,10 +389,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                         pod.metadata
                             .name
                             .as_ref()
-                            .is_some_and(|name| name.starts_with(&rabbitmq_sts_name))
-                            && pod.status.as_ref().is_some_and(|s| {
-                                s.phase.as_ref().is_some_and(|p| p == "Running")
-                            })
+                            .is_some_and(|name| name.starts_with(&pod_name))
                     })
                     .collect();
                 if running_pods.len() == 4 {
@@ -422,6 +414,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
     let start = Instant::now();
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     run_command(
         "kubectl",
         vec![
@@ -459,10 +452,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
                         pod.metadata
                             .name
                             .as_ref()
-                            .is_some_and(|name| name.starts_with(&rabbitmq_sts_name))
-                            && pod.status.as_ref().is_some_and(|s| {
-                                s.phase.as_ref().is_some_and(|p| p == "Running")
-                            })
+                            .is_some_and(|name| name.starts_with(&pod_name))
                     })
                     .collect();
                 if running_pods.len() == 3 {
