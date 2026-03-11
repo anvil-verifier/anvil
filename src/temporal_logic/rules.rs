@@ -2962,6 +2962,4 @@ pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> 
     }
 }
 
-pub uninterp spec fn dummy<T>(t: T) -> bool; // dummy trigger
-
 }
