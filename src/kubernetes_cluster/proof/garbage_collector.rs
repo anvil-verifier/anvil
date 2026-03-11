@@ -443,7 +443,62 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
     assert(spec.entails(eventually(always(lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref)))))) by {
         assert(spec.entails(eventually(always(lift_state(|s: ClusterState| (forall |k| #[trigger] domain(s)(k) ==> k_to_p(k)(s))))))) by {
             assert forall |k| spec.entails(lift_state(|s: ClusterState| domain(s)(k)).implies(eventually(always(lift_state(#[trigger] k_to_p(k)))))) by {
-                assume(false);
+                if cond(k) {
+                    entails_preserved_by_always(
+                        lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
+                        lift_state(Self::every_create_msg_sets_owner_references_as(k, eventual_owner_ref))
+                    );
+                    entails_trans(spec,
+                        always(lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref))),
+                        always(lift_state(Self::every_create_msg_sets_owner_references_as(k, eventual_owner_ref)))
+                    );
+                    entails_preserved_by_always(
+                        lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
+                        lift_state(Self::every_update_msg_sets_owner_references_as(k, eventual_owner_ref))
+                    );
+                    entails_trans(spec,
+                        always(lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref))),
+                        always(lift_state(Self::every_update_msg_sets_owner_references_as(k, eventual_owner_ref)))
+                    );
+                    entails_preserved_by_always(
+                        lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)),
+                        lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(k, eventual_owner_ref))
+                    );
+                    entails_trans(spec,
+                        always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref))),
+                        always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(k, eventual_owner_ref)))
+                    );
+                    entails_preserved_by_always(
+                        lift_state(Self::object_has_no_finalizers_for_all(cond)),
+                        lift_state(Self::object_has_no_finalizers(k))
+                    );
+                    entails_trans(spec,
+                        always(lift_state(Self::object_has_no_finalizers_for_all(cond))),
+                        always(lift_state(Self::object_has_no_finalizers(k)))
+                    );
+                    entails_preserved_by_always(
+                        lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)),
+                        lift_state(Self::objects_owner_references_violates(k, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(k)))
+                    );
+                    entails_trans(spec,
+                        always(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref))),
+                        always(lift_state(Self::objects_owner_references_violates(k, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(k))))
+                    );
+                    self.lemma_eventually_objects_owner_references_satisfies(spec, k, eventual_owner_ref);
+                    true_leads_to_eventually_always_equality(
+                        spec, lift_state(Self::objects_owner_references_satisfies(k, eventual_owner_ref))
+                    );
+                    vacuous_implies(spec,
+                        lift_state(|s: ClusterState| domain(s)(k)),
+                        eventually(always(lift_state(k_to_p(k))))
+                    );
+                } else {
+                    temp_pred_equality(
+                        lift_state(|s: ClusterState| domain(s)(k)),
+                        false_pred()
+                    );
+                    false_implies_anything(spec, eventually(always(lift_state(k_to_p(k)))));
+                }
             }
             assert(spec.entails(lift_state(|s: ClusterState| Set::new(domain(s)).finite()))) by {
                 let finite_req = |s: ClusterState| Set::new(domain(s)).finite();
