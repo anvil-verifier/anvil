@@ -12,38 +12,26 @@ app_filename=$(echo "$app" | tr '-' '_')
 dockerfile="docker/controller/Dockerfile.local"
 build_controller=0
 
+build() { # build app_name build_args
+    echo "Building $1 controller binary"
+    local app_filename=$(echo "$1" | tr '-' '_')
+    ./build.sh "${app_filename}_controller.rs" "--no-verify" ${2:-}
+    echo "Building $1 controller image"
+    docker build -f $dockerfile -t local/$1-controller:v0.1.0 --build-arg APP=$app_filename .
+}
+
 if [ $# -gt 1 ]; then
     if  [ "$2" == "--build" ]; then # chain build.sh
         command -v verus; # if not set quit by set -e
-        build_controller=1
-        echo "Building $app controller binary"
         shift 2
-        ./build.sh "${app_filename}_controller.rs" "--no-verify" $@
-        echo "Building $app controller image"
-        docker build -f $dockerfile -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+        build $app $@;
+        if [ "$app" == "vdeployment" ]; then
+            build vreplicaset $@;
+        elif [ "$app" == "rabbitmq" ]; then
+            build vstatefulset $@;
+        fi
     else
         echo "Use existing $app controller image"
-    fi
-fi
-
-# for VDeployment, need to deploy VReplicaSet as a dependency
-if [ "$app" == "vdeployment" ]; then
-    if [ $build_controller == 1 ]; then
-        echo "Building vreplicaset controller binary"
-        ./build.sh "vreplicaset_controller.rs" "--no-verify" $@
-        echo "Building vreplicaset controller image"
-        docker build -f $dockerfile -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
-    else
-        echo "Use existing vreplicaset controller image"
-    fi
-elif [ "$app" == "rabbitmq" ]; then
-    if [ $build_controller == 1 ]; then
-        echo "Building vstatefulset controller binary"
-        ./build.sh "vstatefulset_controller.rs" "--no-verify" $@
-        echo "Building vstatefulset controller image"
-        docker build -f $dockerfile -t local/vstatefulset-controller:v0.1.0 --build-arg APP=vstatefulset .
-    else
-        echo "Use existing vstatefulset controller image"
     fi
 fi
 
