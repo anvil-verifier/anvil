@@ -23,6 +23,44 @@ jobs:
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
+  build-vstatefulset-controller:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build vstatefulset controller image
+        run: |
+          cp docker/controller/Dockerfile.publish Dockerfile
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vstatefulset .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:${{ github.sha }}
+      - name: Push vstatefulset controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:${{ github.sha }}
+  build-rabbitmq-controller:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build rabbitmq controller image
+        run: |
+          cp docker/controller/Dockerfile.publish Dockerfile
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=rabbitmq .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
+      - name: Push rabbitmq controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
   build-vdeployment-controller:
     runs-on: ubuntu-24.04
     permissions:
