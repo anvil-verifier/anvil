@@ -719,7 +719,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     }
     assert forall |vrs_set_with_diff: (Set<VReplicaSetView>, nat)| pre(vrs_set_with_diff)
         implies #[trigger] always(stable_vd_post).entails(lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)).leads_to(lifted_always_composed_post)) by {
-        assume(false);
+        leads_to_weaken2(always(stable_vd_post), lifted_always_vrs_set_pre(vrs_set_with_diff), always(stable_vd_post), lifted_always_composed_post);
     }
     leads_to_exists_intro_with_pre(
         always(stable_vd_post),
