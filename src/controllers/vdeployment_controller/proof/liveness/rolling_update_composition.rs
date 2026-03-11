@@ -698,7 +698,12 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             lift_state(|s: ClusterState| #[trigger] pre(vrs_set_with_diff))
         );
     }
-    leads_to_exists_intro_with_pre(stable_vd_post, |vrs_set_with_diff| lifted_always_vrs_set_pre(vrs_set_with_diff).and(always(stable_vd_post)), lifted_always_composed_post, pre);
+    leads_to_exists_intro_with_pre(
+        always(stable_vd_post),
+        lifted_always_vrs_set_pre,
+        lifted_always_composed_post,
+        pre
+    );
     tla_exists_and_equality(
         lifted_always_vrs_set_pre,
         always(stable_vd_post)
@@ -710,24 +715,25 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     // Need: spec |= [] desired_state_is ~> [] composed
 
     // First: spec |= [] desired_state_is ~> \E (vrs_set,n) [] vrs_set_pre /\ [] stable_vd_post
-    assert(spec.entails(always(lift_state(desired_state_is(vd))).leads_to(stable_vd_post.and(tla_exists(lifted_always_vrs_set_pre)).and(always(stable_vd_post))))) by {
-        entails_and_temp(
-            always(stable_vd_post),
-            tla_exists(lifted_always_vrs_set_pre),
-            always(stable_vd_post)
-        );
-        simplify_predicate(
-            always(stable_vd_post),
-            tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post))
-        );
+    assert(spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))))) by {
+        assert(always(stable_vd_post) == always(stable_vd_post).and(tla_exists(lifted_always_vrs_set_pre))) by {
+            entails_and_temp(
+                always(stable_vd_post),
+                always(stable_vd_post),
+                tla_exists(lifted_always_vrs_set_pre)
+            );
+            simplify_predicate(
+                always(stable_vd_post),
+                tla_exists(lifted_always_vrs_set_pre)
+            );
+        }
     }
 
     // Final chain
-    leads_to_trans_with_entailed_leads_to(
-        spec,
+    leads_to_trans_with_entailed_leads_to(spec,
         always(lift_state(desired_state_is(vd))),
-        stable_vd_post,
-        tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
+        always(stable_vd_post),
+        tla_exists(lifted_always_vrs_set_pre),
         lifted_always_composed_post
     )
 }
