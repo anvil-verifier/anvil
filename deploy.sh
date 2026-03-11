@@ -4,7 +4,7 @@
 ##
 ## Requires a running Kubernetes cluster and kubectl to be installed.
 
-set -xu
+set -eu
 
 YELLOW='\033[1;33m'
 GREEN='\033[1;32m'
@@ -22,7 +22,6 @@ if [ $? -eq 0 ]; then
     kind delete cluster --name $cluster_name
 fi
 
-set -xeu
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml --name $cluster_name
 kind load docker-image local/$app-controller:v0.1.0 --name $cluster_name
