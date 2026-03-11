@@ -2286,6 +2286,37 @@ pub proof fn eventually_always_tla_forall_unfold<T, A>(spec: TempPred<T>, a_to_p
     };
 }
 
+pub proof fn eventually_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(eventually(always(p))),
+        spec.entails(eventually(always(q))),
+        p.and(q).entails(r),
+    ensures spec.entails(eventually(always(r))),
+{
+    always_and_equality(p, q);
+    entails_preserved_by_always(p.and(q), r);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(always(r)).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, eventually(always(p)));
+        entails_apply::<T>(ex, spec, eventually(always(q)));
+        let witness_p_idx = eventually_choose_witness::<T>(ex, always(p));
+        let witness_q_idx = eventually_choose_witness::<T>(ex, always(q));
+
+        if witness_p_idx < witness_q_idx {
+            always_propagate_forwards::<T>(ex.suffix(witness_p_idx), p, (witness_q_idx - witness_p_idx) as nat);
+            execution_equality::<T>(ex.suffix(witness_q_idx), ex.suffix(witness_p_idx).suffix((witness_q_idx - witness_p_idx) as nat));
+            eventually_proved_by_witness::<T>(ex, always(p).and(always(q)), witness_q_idx);
+            entails_apply::<T>(ex.suffix(witness_q_idx), always(p.and(q)), always(r));
+            eventually_proved_by_witness::<T>(ex, always(r), witness_q_idx);
+        } else {
+            always_propagate_forwards::<T>(ex.suffix(witness_q_idx), q, (witness_p_idx - witness_q_idx) as nat);
+            execution_equality::<T>(ex.suffix(witness_p_idx), ex.suffix(witness_q_idx).suffix((witness_p_idx - witness_q_idx) as nat));
+            eventually_proved_by_witness::<T>(ex, always(p).and(always(q)), witness_p_idx);
+            entails_apply::<T>(ex.suffix(witness_p_idx), always(p.and(q)), always(r));
+            eventually_proved_by_witness::<T>(ex, always(r), witness_p_idx);
+        }
+    };
+}
+
 // Combine the conclusions of two leads_to if the conclusions are stable.
 // pre:
 //     spec |= p ~> []q
