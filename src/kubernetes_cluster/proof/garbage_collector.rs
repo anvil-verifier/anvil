@@ -445,8 +445,14 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
             assert forall |k| spec.entails(lift_state(|s: ClusterState| domain(s)(k)).implies(eventually(always(lift_state(#[trigger] k_to_p(k)))))) by {
                 assume(false);
             }
-            assert forall |s| Set::new(#[trigger] domain(s)).finite() by {
-                assume(false);
+            assert(spec.entails(lift_state(|s: ClusterState| Set::new(domain(s)).finite()))) by {
+                let finite_req = |s: ClusterState| Set::new(domain(s)).finite();
+                assert forall |s: ClusterState| #[trigger] Self::etcd_is_finite()(s) implies finite_req(s) by {
+                    let keys = s.resources().dom().filter(cond);
+                    assert(keys == Set::new(domain(s)));
+                }
+                always_entails_current(lift_state(Self::etcd_is_finite()));
+                entails_trans_n!(spec, always(lift_state(Self::etcd_is_finite())), lift_state(Self::etcd_is_finite()), lift_state(finite_req));
             }
             assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies (forall |a| #[trigger] domain(s_prime)(a) ==> domain(s)(a)) by {
                 assume(false);
