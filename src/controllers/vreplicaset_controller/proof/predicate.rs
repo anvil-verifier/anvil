@@ -67,11 +67,8 @@ pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, 
         &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).is_ok()
         &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
         &&& triggering_cr.object_ref() == vrs.object_ref()
-        &&& triggering_cr.spec == vrs.spec
-        &&& triggering_cr.metadata.uid == vrs.metadata.uid
-        &&& triggering_cr.metadata.owner_references->0.filter(controller_owner_filter())
-            == vrs.metadata.owner_references->0.filter(controller_owner_filter())
-        &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
+        &&& triggering_cr.spec() == vrs.spec()
+        &&& triggering_cr.metadata().uid == vrs.metadata().uid
         &&& local_state.reconcile_step == step
     }
 }
@@ -421,78 +418,6 @@ pub open spec fn filtered_pods_in_vrs_matching_pods(
             &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
             &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
         }
-    }
-}
-
-pub open spec fn req_msg_is_get_then_update_status_vrs_req(
-    vrs: VReplicaSetView, controller_id: int, req_msg: Message,
-) -> bool {
-    let req = req_msg.content.get_get_then_update_status_request();
-    &&& req_msg.src == HostId::Controller(controller_id, vrs.object_ref())
-    &&& req_msg.dst == HostId::APIServer
-    &&& req_msg.content.is_get_then_update_status_request()
-    &&& resource_get_then_update_status_request_msg(vrs.object_ref())(req_msg)
-    &&& req.owner_ref == vrs.metadata.owner_references->0.filter(controller_owner_filter())[0]
-    // replicas field is updated
-    &&& VReplicaSetView::unmarshal(req.obj) is Ok
-    &&& VReplicaSetView::unmarshal(req.obj)->Ok_0.status is Some
-    &&& VReplicaSetView::unmarshal(req.obj)->Ok_0.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
-}
-
-pub open spec fn pending_req_in_flight_at_get_then_update_status_step(
-    vrs: VReplicaSetView, controller_id: int
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let step = VReplicaSetRecStepView::AfterUpdateVRSStatus;
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-        &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
-        &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
-        &&& s.in_flight().contains(msg)
-        &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, msg)
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_get_then_update_status_req_at_get_then_update_status_step(
-    vrs: VReplicaSetView, controller_id: int, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let step = VReplicaSetRecStepView::AfterUpdateVRSStatus;
-        &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
-        &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
-        &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, req_msg)
-    }
-}
-
-pub open spec fn exists_ok_resp_in_flight_at_get_then_update_status_step(
-    vrs: VReplicaSetView, controller_id: int
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let step = VReplicaSetRecStepView::AfterUpdateVRSStatus;
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-        &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
-        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, msg)
-        &&& exists |resp_msg| {
-            &&& #[trigger] s.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_then_update_status_response().res is Ok
-        }
-    }
-}
-
-pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(
-    vrs: VReplicaSetView, controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let step = VReplicaSetRecStepView::AfterUpdateVRSStatus;
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
-        &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
-        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, msg)
-        &&& s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_get_then_update_status_response().res is Ok
     }
 }
 
