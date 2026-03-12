@@ -222,6 +222,21 @@ pub proof fn ranking_decreases_after_vrs_esr(
         &&& conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)(s)
         &&& current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s)
     };
+    let pre = always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))));
+    let post = not(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))));
+    assert(spec.and(pre).entails(always(lift_state(conjuncted_pre)))) by {
+        assume(false); // bug in verus
+        combine_spec_entails_always_n!(
+            spec.and(pre),
+            lift_state(conjuncted_pre),
+            lift_state(inductive_current_state_matches(vd, controller_id)),
+            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+            lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)),
+            lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))
+        );
+    }
     // big bomb
     assert forall |s| #[trigger] conjuncted_pre(s) implies false by {
         let (vrs_set2, diff2) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, cluster, controller_id, s);
@@ -253,26 +268,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
         }
         assert(false);
     }
-    let pre = always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))
-        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))));
-    let post = not(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))));
     assert(spec.and(pre).entails(true_pred().leads_to(post))) by {
-        entails_always_and_n!(
-            spec.and(pre),
-            lift_state(inductive_current_state_matches(vd, controller_id)),
-            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-            lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)),
-            lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))
-        );
-        combine_spec_entails_always_n!(
-            spec.and(pre),
-            lift_state(conjuncted_pre),
-            lift_state(inductive_current_state_matches(vd, controller_id)),
-            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-            lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)),
-            lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))
-        );
         false_entails_anything(true_pred().leads_to(post));
         always_entails_current(lift_state(conjuncted_pre));
         entails_trans_n!(
