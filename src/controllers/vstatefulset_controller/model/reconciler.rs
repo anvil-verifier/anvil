@@ -796,7 +796,8 @@ pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool 
     &&& pod.spec is Some
     &&& pod.spec->0.hostname == Some(pod.metadata.name->0)
     &&& pod.spec->0.subdomain == Some(vsts.spec.service_name)
-    &&& forall |i: int| 0 <= i < pvc_cnt(vsts) ==> vol_names.contains(vsts.spec.volume_claim_templates->0[i].metadata.name->0)
+    &&& forall |i: int| #![trigger vsts.spec.volume_claim_templates->0[i]]
+        0 <= i < pvc_cnt(vsts) ==> vol_names.contains(vsts.spec.volume_claim_templates->0[i].metadata.name->0)
     &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
         == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain()
 }

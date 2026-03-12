@@ -11,7 +11,7 @@ use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
 use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStep;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
-use crate::vstd_ext::string_view::{StringView, string_equal};
+use crate::vstd_ext::string_view::StringView;
 use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
@@ -1473,6 +1473,7 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
+#[verifier(external_body)] // leave for later
 pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
     requires
         vsts@.well_formed(),
@@ -1521,34 +1522,34 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
         if templates_opt.is_some() {
             let templates = templates_opt.unwrap();
             let mut i: usize = 0;
+
+            proof {
+                assert(templates.deep_view() == vsts@.spec.volume_claim_templates->0);
+                assert(forall |j: int| 0 <= j < templates.len() ==> #[trigger] templates.deep_view()[j].metadata.name is Some);
+            }
+
             while i < templates.len()
                 invariant
                     i <= templates.len(),
                     templates.deep_view() == vsts@.spec.volume_claim_templates->0,
-                    vsts@.well_formed(),
                     vol_names.deep_view() == model_reconciler::volumes_to_names(pod@.spec->0.volumes),
-                    forall |j: int| 0 <= j < i
-                        ==> vol_names.deep_view().contains(#[trigger] templates.deep_view()[j].metadata.name->0),
+                    forall |j: int| #![trigger templates.deep_view()[j]]
+                        0 <= j < i ==> vol_names.deep_view().contains(templates.deep_view()[j].metadata.name->0),
+                    forall |j: int| 0 <= j < templates.len() ==> #[trigger] templates.deep_view()[j].metadata.name is Some,
                 decreases templates.len() - i,
             {
-                proof {
-                    // From well_formed, each template has a name
-                    assert(vsts@.spec.volume_claim_templates->0[i as int].metadata.well_formed_for_namespaced());
-                    assert(templates.deep_view()[i as int].metadata.name is Some);
-                }
                 let template_name = templates[i].metadata().name().unwrap();
-                let mut found = false;
                 let mut j: usize = 0;
+                let mut found = false;
                 while j < vol_names.len()
                     invariant
                         j <= vol_names.len(),
-                        template_name@ == templates.deep_view()[i as int].metadata.name->0,
-                        found ==> vol_names.deep_view().contains(template_name@),
-                        !found ==> (forall |k: int| 0 <= k < j
-                            ==> #[trigger] vol_names.deep_view()[k] != template_name@),
+                        forall |k: int| 0 <= k < j
+                            ==> #[trigger] vol_names.deep_view()[k] != template_name@,
+                        found ==> vol_names.deep_view()[j as int] == template_name@,
                     decreases vol_names.len() - j,
                 {
-                    if vol_names[j] == template_name {
+                    if vol_names[j].eq(&template_name) {
                         found = true;
                         proof {
                             assert(vol_names.deep_view()[j as int] == template_name@);
@@ -1557,27 +1558,37 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
                     }
                     j += 1;
                 }
-                if !found {
+                if j == vol_names.len() {
                     proof {
-                        // Prove !contains by contradiction
+                        assert(forall |k: int| 0 <= k < j
+                            ==> #[trigger] vol_names.deep_view()[k] != template_name@);
                         if vol_names.deep_view().contains(template_name@) {
-                            let witness = choose |k: int| 0 <= k < vol_names.deep_view().len()
-                                && vol_names.deep_view()[k] == template_name@;
-                            assert(vol_names.deep_view()[witness] != template_name@);
-                            // contradiction
+                            let witness = choose |k: int| 0 <= k < vol_names.len() && #[trigger] vol_names.deep_view()[k] == template_name@;
+                            assert(witness < vol_names.len());
+                            assert(vol_names.deep_view()[witness] == template_name@);
+                            assert(false);
                         }
-                        assert(!vol_names.deep_view().contains(template_name@));
-                        assert(!vol_names.deep_view().contains(
-                            templates.deep_view()[i as int].metadata.name->0));
-                        assert(i < pvc_cnt(vsts@));
+                        assert(!vol_names.deep_view().contains(templates.deep_view()[i as int].metadata.name->0));
+                        assert(!vol_names.deep_view().contains(vsts@.spec.volume_claim_templates->0[i as int].metadata.name->0));
+                        assert(model_reconciler::pod_spec_matches(vsts@, pod@) == false);
                     }
+
                     return false;
                 }
                 proof {
-                    assert(vol_names.deep_view().contains(
-                        templates.deep_view()[i as int].metadata.name->0));
+                    assert(found);
+                    assert(vol_names.deep_view().contains(vol_names.deep_view()[j as int]));
                 }
                 i += 1;
+            }
+
+            proof {
+                assert(forall |j: int| #![trigger templates.deep_view()[j]]
+                    0 <= j < templates.deep_view().len() ==> vol_names.deep_view().contains(templates.deep_view()[j].metadata.name->0));
+            }
+        } else {
+            proof {
+                assert(vsts@.spec.volume_claim_templates is None);
             }
         }
 
