@@ -124,14 +124,26 @@ pub proof fn esr_for_each_ranking(
     // Instantiate VRS ESR for each vrs in the set
     assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies
         spec.entails(always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
+        tla_forall_p_tla_forall_q_equality(
+            |vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs),
+            |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))
+        );
         use_tla_forall(spec, |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
     }
     // Compose individual VRS ESRs into the conjuncted form
     // [] (forall vrs in set, desired_state_is(vrs)) ~> [] (forall vrs in set, current_state_matches(vrs))
-    spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
-        spec, |vrs| vrs_liveness::desired_state_is(vrs), |vrs| vrs_liveness::current_state_matches(vrs), vrs_set,
-        conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
-    );
+    assert(spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))))) by {
+        let desired_state_is_vrs = |vrs| vrs_liveness::desired_state_is(vrs);
+        let current_state_matches_vrs = |vrs| vrs_liveness::current_state_matches(vrs);
+        assert(conjuncted_desired_state_is_vrs(vrs_set)
+            == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs(vrs)(s)));
+        assert(conjuncted_current_state_matches_vrs(vrs_set)
+            == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs(vrs)(s)));
+        spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
+            spec, desired_state_is_vrs, current_state_matches_vrs, vrs_set,
+            conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
+        );
+    }
     if exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && match_template_without_hash(vd.spec.template)(new_vrs) && replicas_diff(vd, new_vrs) == n {
         temp_pred_equality(
             lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n)),
