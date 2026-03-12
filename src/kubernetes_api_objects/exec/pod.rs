@@ -189,7 +189,14 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
-    pub fn set_hostname(&mut self, hostname: String) 
+    pub fn hostname(&self) -> (hostname: Option<String>)
+        ensures hostname.deep_view() == self@.hostname
+    {
+        self.inner.hostname.clone()
+    }
+
+    #[verifier(external_body)]
+    pub fn set_hostname(&mut self, hostname: String)
         ensures self@ == old(self)@.with_hostname(hostname@)
     {
         self.inner.hostname = Some(hostname);
@@ -200,6 +207,13 @@ impl PodSpec {
         ensures self@ == old(self)@.without_hostname()
     {
         self.inner.hostname = None;
+    }
+
+    #[verifier(external_body)]
+    pub fn subdomain(&self) -> (subdomain: Option<String>)
+        ensures subdomain.deep_view() == self@.subdomain
+    {
+        self.inner.subdomain.clone()
     }
 
     #[verifier(external_body)]

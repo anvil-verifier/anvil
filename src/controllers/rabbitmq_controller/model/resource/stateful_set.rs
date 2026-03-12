@@ -120,7 +120,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
 
     let spec = VStatefulSetSpecView {
         replicas: Some(rabbitmq.spec.replicas),
-        service_name: name + "-nodes"@,
+        service_name: RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + name + "-nodes"@,
         selector: LabelSelectorView::default().with_match_labels(labels),
         template: PodTemplateSpecView::default()
                     .with_metadata(
@@ -168,7 +168,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         VolumeView::default()
             .with_name("plugins-conf"@)
             .with_config_map(ConfigMapVolumeSourceView::default()
-                .with_name(rabbitmq.metadata.name->0 + "-plugins-conf"@)
+                .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-plugins-conf"@)
             ),
         VolumeView::default()
             .with_name("rabbitmq-confd"@)
@@ -176,7 +176,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 .with_sources(seq![
                     VolumeProjectionView::default()
                         .with_config_map(ConfigMapProjectionView::default()
-                            .with_name(rabbitmq.metadata.name->0 + "-server-conf"@)
+                            .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server-conf"@)
                             .with_items(seq![
                                 KeyToPathView::default()
                                     .with_key("operatorDefaults.conf"@)
@@ -188,7 +188,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         ),
                     VolumeProjectionView::default()
                         .with_secret(SecretProjectionView::default()
-                            .with_name(rabbitmq.metadata.name->0 + "-default-user"@)
+                            .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-default-user"@)
                             .with_items(seq![
                                 KeyToPathView::default()
                                     .with_key("default_user.conf"@)
@@ -203,7 +203,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         VolumeView::default()
             .with_name("erlang-cookie-secret"@)
             .with_secret(SecretVolumeSourceView::default()
-                .with_secret_name(rabbitmq.metadata.name->0 + "-erlang-cookie"@)
+                .with_secret_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-erlang-cookie"@)
             ),
         VolumeView::default()
             .with_name("rabbitmq-plugins"@)
@@ -222,7 +222,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
     ];
 
     PodSpecView {
-        service_account_name: Some(rabbitmq.metadata.name->0 + "-server"@),
+        service_account_name: Some(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server"@),
         init_containers: Some(
             seq![
                 ContainerView::default()
@@ -403,7 +403,7 @@ pub open spec fn make_env_vars(rabbitmq: RabbitmqClusterView) -> Seq<EnvVarView>
         },
         EnvVarView {
             name: "K8S_SERVICE_NAME"@,
-            value: Some(rabbitmq.metadata.name->0 + "-nodes"@),
+            value:  Some(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-nodes"@),
             ..EnvVarView::default()
         },
         EnvVarView {

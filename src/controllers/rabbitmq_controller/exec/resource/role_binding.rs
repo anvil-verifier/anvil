@@ -108,7 +108,7 @@ pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group("rbac.authorization.k8s.io".to_string());
     role_ref.set_kind("Role".to_string());
-    role_ref.set_name(rabbitmq.metadata().name().unwrap().concat("-peer-discovery"));
+    role_ref.set_name("rabbitmq".to_string().concat("-").concat(rabbitmq.metadata().name().unwrap().as_str()).concat("-peer-discovery"));
     role_ref
 }
 
@@ -120,7 +120,7 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     subjects.push({
         let mut subject = Subject::default();
         subject.set_kind("ServiceAccount".to_string());
-        subject.set_name(rabbitmq.metadata().name().unwrap().concat("-server"));
+        subject.set_name("rabbitmq".to_string().concat("-").concat(rabbitmq.metadata().name().unwrap().as_str()).concat("-server"));
         subject.set_namespace(rabbitmq.metadata().namespace().unwrap());
         subject
     });

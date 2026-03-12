@@ -42,10 +42,9 @@ rules:
   - apiGroups:
       - apps
     resources:
-      - deployments
-      - daemonsets
-      - replicasets
-      - statefulsets
+      - vdeployments
+      - vreplicasets
+      - vstatefulsets
     verbs:
       - "*"
   - apiGroups:

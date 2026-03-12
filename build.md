@@ -63,7 +63,7 @@ This process can be automated with:
 **1-3**
 
 ```
-./local-test.sh <controller_name> [--build|--build-remote]
+./local-test.sh <controller_name> [--build]
 Usage:
 	--build:		Call ./build.sh to build the controller before test, should have VERUS_DIR speccified
 	<empty>:		Just use existing built controller image to set up kind cluster. Assume the image is named as `local/$app-controller:v0.1.0`
