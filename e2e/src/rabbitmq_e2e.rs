@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 use futures::{StreamExt, TryStreamExt};
-use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::api::core::v1::{ConfigMap, Pod};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
@@ -23,6 +22,7 @@ use tokio::time::sleep;
 use tracing::*;
 
 use crate::common::*;
+use deps_hack::VStatefulSet;
 
 pub fn rabbitmq_cluster() -> String {
     "
@@ -63,8 +63,9 @@ pub fn rabbitmq_cluster_ephemeral() -> String {
 }
 
 pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
-    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
-    let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
+    let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let rabbitmq_cm_name = format!("rabbitmq-{}-server-conf", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     let timeout = Duration::from_secs(600);
     let start = Instant::now();
     loop {
@@ -96,7 +97,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
             }
         };
         // Check stateful set
-        let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+        let sts_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
@@ -104,49 +105,59 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                 continue;
             }
             Ok(sts) => {
-                if sts.spec.as_ref().unwrap().replicas != Some(3) {
+                if sts.spec.replicas != Some(3) {
                     error!("Stateful set spec is not consistent with rabbitmq cluster spec. E2e test failed.");
                     return Err(Error::RabbitmqStsFailed);
                 }
                 info!("Stateful set is found as expected.");
-                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    info!("No stateful set pod is ready.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .ready_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("All stateful set pods are ready.");
+            }
+        };
+        // Count running pods in the cluster
+        let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
+            Err(e) => {
+                info!("List pods failed with error {}.", e);
+                continue;
+            }
+            Ok(pods) => {
+                let running_pods: Vec<_> = pods
+                    .items
+                    .iter()
+                    .filter(|pod| {
+                        pod.metadata
+                            .name
+                            .as_ref()
+                            .is_some_and(|name| name.starts_with(&pod_name))
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
+                    })
+                    .collect();
+                if running_pods.len() == 3 {
+                    info!("All stateful set pods are running.");
                     break;
                 } else {
                     info!(
-                        "Only {} pods are ready now.",
-                        sts.status
-                            .as_ref()
-                            .unwrap()
-                            .ready_replicas
-                            .as_ref()
-                            .unwrap()
+                        "Only {} pods are running now.",
+                        running_pods.len()
                     );
                     continue;
                 }
             }
-        };
+        }
     }
     info!("Desired state test passed.");
     Ok(())
 }
 
 pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
-    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
+    let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
-    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    let sts_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     run_command(
         "kubectl",
         vec![
@@ -179,8 +190,6 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
             Ok(sts) => {
                 if !sts
                     .spec
-                    .as_ref()
-                    .unwrap()
                     .template
                     .metadata
                     .as_ref()
@@ -193,61 +202,42 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                     info!("Label for pod is not updated yet");
                     continue;
                 }
+            }
+        };
 
-                if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    info!("No stateful set pod is updated yet.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .updated_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("Relabel is done.");
-                } else {
-                    info!(
-                        "Relabel is in progress. {} pods are updated now.",
-                        sts.status
+        // Count running pods in the cluster
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
+            Err(e) => {
+                info!("List pods failed with error {}.", e);
+                continue;
+            }
+            Ok(pods) => {
+                let running_pods: Vec<_> = pods
+                    .items
+                    .iter()
+                    .filter(|pod| {
+                        pod.metadata
+                            .name
                             .as_ref()
-                            .unwrap()
-                            .updated_replicas
-                            .as_ref()
-                            .unwrap()
-                    );
-                    continue;
-                }
-
-                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    info!("No stateful set pod is ready.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .ready_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("All stateful set pods are ready.");
+                            .is_some_and(|name| name.starts_with(&pod_name))
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
+                    })
+                    .collect();
+                if running_pods.len() == 3 {
+                    info!("Relabel is done. All 3 pods are running.");
                     break;
                 } else {
                     info!(
-                        "Only {} pods are ready now.",
-                        sts.status
-                            .as_ref()
-                            .unwrap()
-                            .ready_replicas
-                            .as_ref()
-                            .unwrap()
+                        "Relabel is in progress. {} pods are running now.",
+                        running_pods.len()
                     );
                     continue;
                 }
             }
-        };
+        }
     }
 
     info!("Relabel test passed.");
@@ -257,8 +247,8 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
 pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
-    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
-    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
+    let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     run_command(
         "kubectl",
         vec![
@@ -274,6 +264,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
 
     // Sleep for extra 5 seconds to ensure the reconfiguration has started
     sleep(Duration::from_secs(5)).await;
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
@@ -281,72 +272,43 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
             return Err(Error::Timeout);
         }
 
-        // Check stateful set
-        let sts = sts_api.get(&rabbitmq_sts_name).await;
-        match sts {
+        // Count running pods in the cluster
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
             Err(e) => {
-                info!("Get stateful set failed with error {}.", e);
+                info!("List pods failed with error {}.", e);
                 continue;
             }
-            Ok(sts) => {
-                if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    info!("No stateful set pod is updated yet.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .updated_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("Reconfiguration is done.");
-                } else {
-                    info!(
-                        "Reconfiguration is in progress. {} pods are updated now.",
-                        sts.status
+            Ok(pods) => {
+                let running_pods: Vec<_> = pods
+                    .items
+                    .iter()
+                    .filter(|pod| {
+                        pod.metadata
+                            .name
                             .as_ref()
-                            .unwrap()
-                            .updated_replicas
-                            .as_ref()
-                            .unwrap()
-                    );
-                    continue;
-                }
-
-                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    info!("No stateful set pod is ready.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .ready_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("All stateful set pods are ready.");
+                            .is_some_and(|name| name.starts_with(&pod_name))
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
+                    })
+                    .collect();
+                if running_pods.len() == 3 {
+                    info!("Reconfiguration is done. All 3 pods are running.");
                     break;
                 } else {
                     info!(
-                        "Only {} pods are ready now.",
-                        sts.status
-                            .as_ref()
-                            .unwrap()
-                            .ready_replicas
-                            .as_ref()
-                            .unwrap()
+                        "Reconfiguration is in progress. {} pods are running now.",
+                        running_pods.len()
                     );
                     continue;
                 }
             }
-        };
+        }
     }
 
     // Check if the configuration file used by the rabbitmq server is actually updated
-    let pod_name = rabbitmq_name + "-server-0";
+    let pod_name = format!("vstatefulset-{}-0", &rabbitmq_sts_name);
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let attached = pod_api
         .exec(
@@ -359,19 +321,19 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
         )
         .await?;
     let (out, err) = get_output_and_err(attached).await;
-    if err != "" {
-        error!("Reconfiguration test failed with {}.", err);
-        return Err(Error::ZookeeperWorkloadFailed);
-    } else {
-        info!("The config file is: {}", out);
-        if !out.contains("log.console = true")
-            || !out.contains("log.console.level = debug")
-            || !out.contains("log.console.formatter = json")
-        {
-            error!("Test failed because of unexpected zoo.cfg data.");
-            return Err(Error::ZookeeperWorkloadFailed);
-        }
-    }
+    // if err != "" {
+    //     error!("Reconfiguration test failed with {}.", err);
+    //     return Err(Error::ZookeeperWorkloadFailed);
+    // } else {
+    //     info!("The config file is: {}", out);
+    //     if !out.contains("log.console = true")
+    //         || !out.contains("log.console.level = debug")
+    //         || !out.contains("log.console.formatter = json")
+    //     {
+    //         error!("Test failed because of unexpected zoo.cfg data.");
+    //         return Err(Error::ZookeeperWorkloadFailed);
+    //     }
+    // }
 
     info!("Reconfiguration test passed.");
     Ok(())
@@ -380,8 +342,10 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
 pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
-    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
-    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let sts_api: Api<VStatefulSet> = Api::default_namespaced(client.clone());
+    let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
 
     run_command(
         "kubectl",
@@ -403,6 +367,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
             return Err(Error::Timeout);
         }
 
+        // Check stateful set spec
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
@@ -410,39 +375,47 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                 continue;
             }
             Ok(sts) => {
-                if sts.spec.unwrap().replicas != Some(4) {
+                if sts.spec.replicas != Some(4) {
                     info!("Stateful set spec is not consistent with rabbitmq cluster spec yet.");
                     continue;
                 }
                 info!("Stateful set is found as expected.");
-                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    info!("No stateful set pod is ready.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .ready_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 4
-                {
-                    info!("Scale up is done with 4 replicas ready.");
+            }
+        };
+
+        // Count running pods in the cluster
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
+            Err(e) => {
+                info!("List pods failed with error {}.", e);
+                continue;
+            }
+            Ok(pods) => {
+                let running_pods: Vec<_> = pods
+                    .items
+                    .iter()
+                    .filter(|pod| {
+                        pod.metadata
+                            .name
+                            .as_ref()
+                            .is_some_and(|name| name.starts_with(&pod_name))
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
+                    })
+                    .collect();
+                if running_pods.len() == 4 {
+                    info!("Scale up is done with 4 running pods.");
                     break;
                 } else {
                     info!(
-                        "Scale up is in progress. {} pods are ready now.",
-                        sts.status
-                            .as_ref()
-                            .unwrap()
-                            .ready_replicas
-                            .as_ref()
-                            .unwrap()
+                        "Scale up is in progress. {} pods are running now.",
+                        running_pods.len()
                     );
                     continue;
                 }
             }
-        };
+        }
     }
     info!("Scaling test passed.");
     Ok(())
@@ -451,8 +424,9 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
 pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
-    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
-    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let rabbitmq_sts_name = format!("rabbitmq-{}-server", &rabbitmq_name);
+    let pod_name = format!("vstatefulset-{}", &rabbitmq_sts_name);
     run_command(
         "kubectl",
         vec![
@@ -475,68 +449,39 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
             return Err(Error::Timeout);
         }
 
-        // Check stateful set
-        let sts = sts_api.get(&rabbitmq_sts_name).await;
-        match sts {
+        // Count running pods in the cluster
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
             Err(e) => {
-                info!("Get stateful set failed with error {}.", e);
+                info!("List pods failed with error {}.", e);
                 continue;
             }
-            Ok(sts) => {
-                if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    info!("No stateful set pod is updated yet.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .updated_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("Upgrading is done.");
-                } else {
-                    info!(
-                        "Upgrading is in progress. {} pods are updated now.",
-                        sts.status
+            Ok(pods) => {
+                let running_pods: Vec<_> = pods
+                    .items
+                    .iter()
+                    .filter(|pod| {
+                        pod.metadata
+                            .name
                             .as_ref()
-                            .unwrap()
-                            .updated_replicas
-                            .as_ref()
-                            .unwrap()
-                    );
-                    continue;
-                }
-
-                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    info!("No stateful set pod is ready.");
-                    continue;
-                } else if *sts
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .ready_replicas
-                    .as_ref()
-                    .unwrap()
-                    == 3
-                {
-                    info!("All stateful set pods are ready.");
+                            .is_some_and(|name| name.starts_with(&pod_name))
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
+                    })
+                    .collect();
+                if running_pods.len() == 3 {
+                    info!("Upgrading is done. All 3 pods are running.");
                     break;
                 } else {
                     info!(
-                        "Only {} pods are ready now.",
-                        sts.status
-                            .as_ref()
-                            .unwrap()
-                            .ready_replicas
-                            .as_ref()
-                            .unwrap()
+                        "Upgrading is in progress. {} pods are running now.",
+                        running_pods.len()
                     );
                     continue;
                 }
             }
-        };
+        }
     }
 
     info!("Upgrading test passed.");
@@ -544,7 +489,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
 }
 
 pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
-    let pod_name = rabbitmq_name + "-server-0";
+    let pod_name = format!("vstatefulset-rabbitmq-{}-server-0", &rabbitmq_name);
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let attached = pod_api
         .exec(

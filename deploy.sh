@@ -4,7 +4,7 @@
 ##
 ## Requires a running Kubernetes cluster and kubectl to be installed.
 
-set -xu
+set -u
 
 YELLOW='\033[1;33m'
 GREEN='\033[1;32m'
@@ -22,7 +22,8 @@ if [ $? -eq 0 ]; then
     kind delete cluster --name $cluster_name
 fi
 
-set -xeu
+set -eu
+
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml --name $cluster_name
 kind load docker-image local/$app-controller:v0.1.0 --name $cluster_name
@@ -30,6 +31,8 @@ kind load docker-image local/$app-controller:v0.1.0 --name $cluster_name
 # for VDeployment, need to deploy VReplicaSet as a dependency
 if [ "$app" == "vdeployment" ]; then
     kind load docker-image local/vreplicaset-controller:v0.1.0 --name $cluster_name
+elif [ "$app" == "rabbitmq" ]; then
+    kind load docker-image local/vstatefulset-controller:v0.1.0 --name $cluster_name
 fi
 
 # admission controller has a different deployment process
