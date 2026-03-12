@@ -1,6 +1,7 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
+use crate::vstatefulset_controller::trusted::liveness_theorem::pvc_cnt;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -791,9 +792,21 @@ pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
 // TODO: compare other fields of the pod if necessary
 pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
     // from validation we know vsts.spec.template.spec is Some
+    let vol_names = volumes_to_names(pod.spec->0.volumes);
     &&& pod.spec is Some
+    &&& pod.spec->0.hostname == Some(pod.metadata.name->0)
+    &&& pod.spec->0.subdomain == Some(vsts.spec.service_name)
+    &&& forall |i: int| 0 <= i < pvc_cnt(vsts) ==> vol_names.contains(vsts.spec.volume_claim_templates->0[i].metadata.name->0)
     &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
         == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain()
+}
+
+pub open spec fn volumes_to_names(volumes: Option<Seq<VolumeView>>) -> Seq<StringView> {
+    if volumes is Some {
+        volumes->0.map_values(|v: VolumeView| v.name)
+    } else {
+        Seq::<StringView>::empty()
+    }
 }
 
 pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {

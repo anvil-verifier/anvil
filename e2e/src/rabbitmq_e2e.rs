@@ -129,9 +129,9 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                             .name
                             .as_ref()
                             .is_some_and(|name| name.starts_with(&pod_name))
-                            // && pod.status.as_ref().is_some_and(|s| {
-                            //     s.phase.as_ref().is_some_and(|p| p == "Running")
-                            // })
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
                     })
                     .collect();
                 if running_pods.len() == 3 {
@@ -221,9 +221,9 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                             .name
                             .as_ref()
                             .is_some_and(|name| name.starts_with(&pod_name))
-                            // && pod.status.as_ref().is_some_and(|s| {
-                            //     s.phase.as_ref().is_some_and(|p| p == "Running")
-                            // })
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
                     })
                     .collect();
                 if running_pods.len() == 3 {
@@ -288,9 +288,9 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                             .name
                             .as_ref()
                             .is_some_and(|name| name.starts_with(&pod_name))
-                            // && pod.status.as_ref().is_some_and(|s| {
-                            //     s.phase.as_ref().is_some_and(|p| p == "Running")
-                            // })
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
                     })
                     .collect();
                 if running_pods.len() == 3 {
@@ -321,19 +321,19 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
         )
         .await?;
     let (out, err) = get_output_and_err(attached).await;
-    // if err != "" {
-    //     error!("Reconfiguration test failed with {}.", err);
-    //     return Err(Error::ZookeeperWorkloadFailed);
-    // } else {
-    //     info!("The config file is: {}", out);
-    //     if !out.contains("log.console = true")
-    //         || !out.contains("log.console.level = debug")
-    //         || !out.contains("log.console.formatter = json")
-    //     {
-    //         error!("Test failed because of unexpected zoo.cfg data.");
-    //         return Err(Error::ZookeeperWorkloadFailed);
-    //     }
-    // }
+    if err != "" {
+        error!("Reconfiguration test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        info!("The config file is: {}", out);
+        if !out.contains("log.console = true")
+            || !out.contains("log.console.level = debug")
+            || !out.contains("log.console.formatter = json")
+        {
+            error!("Test failed because of unexpected zoo.cfg data.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
 
     info!("Reconfiguration test passed.");
     Ok(())
@@ -399,9 +399,9 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                             .name
                             .as_ref()
                             .is_some_and(|name| name.starts_with(&pod_name))
-                            // && pod.status.as_ref().is_some_and(|s| {
-                            //     s.phase.as_ref().is_some_and(|p| p == "Running")
-                            // })
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
                     })
                     .collect();
                 if running_pods.len() == 4 {
@@ -465,9 +465,9 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
                             .name
                             .as_ref()
                             .is_some_and(|name| name.starts_with(&pod_name))
-                            // && pod.status.as_ref().is_some_and(|s| {
-                            //     s.phase.as_ref().is_some_and(|p| p == "Running")
-                            // })
+                            && pod.status.as_ref().is_some_and(|s| {
+                                s.phase.as_ref().is_some_and(|p| p == "Running")
+                            })
                     })
                     .collect();
                 if running_pods.len() == 3 {
