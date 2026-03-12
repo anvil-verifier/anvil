@@ -276,7 +276,30 @@ pub proof fn ranking_decreases_after_vrs_esr(
         }
         let etcd_obj = choose |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj) && obj.object_ref() == new_vrs.object_ref();
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        assume(vrs_with_no_rv_status(etcd_vrs) == new_vrs);
+        assert(vrs_with_no_rv_status(etcd_vrs) == new_vrs) by {
+            assert(exists |new_vrs_with_rv_status| vrs_with_no_rv_status(new_vrs_with_rv_status) == new_vrs
+                && s.resources().values()
+                .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(new_vrs_with_rv_status));
+            let new_vrs_with_rv_status = choose |new_vrs_with_rv_status| vrs_with_no_rv_status(new_vrs_with_rv_status) == new_vrs
+                && s.resources().values()
+                .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(new_vrs_with_rv_status);
+            assert(s.resources().values()
+                .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(new_vrs_with_rv_status));
+            assert(exists |etcd_obj| #![trigger s.resources().values().contains(etcd_obj)]
+                VReplicaSetView::unmarshal(etcd_obj)->Ok_0 == new_vrs_with_rv_status
+                && s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj));
+            let etcd_obj2 = choose |etcd_obj| #![trigger s.resources().values().contains(etcd_obj)]
+                VReplicaSetView::unmarshal(etcd_obj)->Ok_0 == new_vrs_with_rv_status
+                && s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj);
+            VReplicaSetView::marshal_preserves_integrity();
+            assert(etcd_obj2.object_ref() == new_vrs.object_ref());
+            assert(etcd_obj2 == etcd_obj);
+        }
         assert(replicas_diff(vd, etcd_vrs) == n);
         assert(etcd_vrs.spec.replicas.unwrap_or(1) == etcd_vrs.status->0.replicas) by { // from current_state_matches(vrs)
             assert(vrs_liveness::current_state_matches(new_vrs)(s));
