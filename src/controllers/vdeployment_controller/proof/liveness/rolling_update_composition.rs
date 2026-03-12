@@ -736,7 +736,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         always(stable_vd_post),
         tla_exists(lifted_always_vrs_set_pre).and(always(stable_vd_post)),
         lifted_always_composed_post
-    )
+    );
 }
 
 }
