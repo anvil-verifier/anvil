@@ -4,7 +4,6 @@ use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::model::reconciler::pod_has_ord;
-use crate::vstatefulset_controller::trusted::liveness_theorem::pvc_cnt;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
@@ -1473,176 +1472,22 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-#[verifier(external_body)] // leave for later
-pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
-    requires
-        vsts@.well_formed(),
-        pod@.metadata.name.is_some(),
+pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
+    requires vsts@.well_formed()
     ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)
 {
     if let Some(mut spec) = pod.spec() {
-        // Check hostname == Some(pod_name)
-        let hostname = spec.hostname();
-        let pod_name = pod.metadata().name().unwrap();
-        if hostname.is_none() {
-            return false;
-        }
-        let hostname_val = hostname.unwrap();
-        if hostname_val != pod_name {
-            return false;
-        }
-
-        // Check subdomain == Some(service_name)
-        let subdomain = spec.subdomain();
-        let service_name = vsts.spec().service_name();
-        if subdomain.is_none() {
-            return false;
-        }
-        let subdomain_val = subdomain.unwrap();
-        if subdomain_val != service_name {
-            return false;
-        }
-
-        // Check volume names contain all PVC template names
-        let volumes_opt = spec.volumes();
-        let vol_names: Vec<String>;
-        if volumes_opt.is_some() {
-            vol_names = volumes_to_names(&volumes_opt.unwrap());
-            proof {
-                assert(vol_names.deep_view() == model_reconciler::volumes_to_names(pod@.spec->0.volumes));
-            }
-        } else {
-            vol_names = Vec::new();
-            proof {
-                assert(vol_names.deep_view() == model_reconciler::volumes_to_names(pod@.spec->0.volumes));
-            }
-        }
-
-        let templates_opt = vsts.spec().volume_claim_templates();
-        if templates_opt.is_some() {
-            let templates = templates_opt.unwrap();
-            let mut i: usize = 0;
-
-            proof {
-                assert(templates.deep_view() == vsts@.spec.volume_claim_templates->0);
-                assert(forall |j: int| 0 <= j < templates.len() ==> #[trigger] templates.deep_view()[j].metadata.name is Some);
-            }
-
-            while i < templates.len()
-                invariant
-                    i <= templates.len(),
-                    templates.deep_view() == vsts@.spec.volume_claim_templates->0,
-                    vol_names.deep_view() == model_reconciler::volumes_to_names(pod@.spec->0.volumes),
-                    forall |j: int| #![trigger templates.deep_view()[j]]
-                        0 <= j < i ==> vol_names.deep_view().contains(templates.deep_view()[j].metadata.name->0),
-                    forall |j: int| 0 <= j < templates.len() ==> #[trigger] templates.deep_view()[j].metadata.name is Some,
-                decreases templates.len() - i,
-            {
-                let template_name = templates[i].metadata().name().unwrap();
-                let mut j: usize = 0;
-                let mut found = false;
-                while j < vol_names.len()
-                    invariant
-                        j <= vol_names.len(),
-                        forall |k: int| 0 <= k < j
-                            ==> #[trigger] vol_names.deep_view()[k] != template_name@,
-                        found ==> vol_names.deep_view()[j as int] == template_name@,
-                    decreases vol_names.len() - j,
-                {
-                    if vol_names[j].eq(&template_name) {
-                        found = true;
-                        proof {
-                            assert(vol_names.deep_view()[j as int] == template_name@);
-                        }
-                        break;
-                    }
-                    j += 1;
-                }
-                if j == vol_names.len() {
-                    proof {
-                        assert(forall |k: int| 0 <= k < j
-                            ==> #[trigger] vol_names.deep_view()[k] != template_name@);
-                        if vol_names.deep_view().contains(template_name@) {
-                            let witness = choose |k: int| 0 <= k < vol_names.len() && #[trigger] vol_names.deep_view()[k] == template_name@;
-                            assert(witness < vol_names.len());
-                            assert(vol_names.deep_view()[witness] == template_name@);
-                            assert(false);
-                        }
-                        assert(!vol_names.deep_view().contains(templates.deep_view()[i as int].metadata.name->0));
-                        assert(!vol_names.deep_view().contains(vsts@.spec.volume_claim_templates->0[i as int].metadata.name->0));
-                        assert(model_reconciler::pod_spec_matches(vsts@, pod@) == false);
-                    }
-
-                    return false;
-                }
-                proof {
-                    assert(found);
-                    assert(vol_names.deep_view().contains(vol_names.deep_view()[j as int]));
-                }
-                i += 1;
-            }
-
-            proof {
-                assert(forall |j: int| #![trigger templates.deep_view()[j]]
-                    0 <= j < templates.deep_view().len() ==> vol_names.deep_view().contains(templates.deep_view()[j].metadata.name->0));
-            }
-        } else {
-            proof {
-                assert(vsts@.spec.volume_claim_templates is None);
-            }
-        }
-
-        // Check spec equality after removing volumes/hostname/subdomain
+        let mut vsts_spec = vsts.spec().template().spec().unwrap();
         spec.unset_volumes();
         spec.unset_hostname();
         spec.unset_subdomain();
-        let mut vsts_spec = vsts.spec().template().spec().unwrap();
         vsts_spec.unset_volumes();
         vsts_spec.unset_hostname();
         vsts_spec.unset_subdomain();
-        spec.eq_spec(&vsts_spec)
+        return spec.eq_spec(&vsts_spec);
     } else {
-        false
+        return false;
     }
-}
-
-pub fn volumes_to_names(volumes: &Vec<Volume>) -> (result: Vec<String>)
-    ensures
-        result.deep_view() == volumes.deep_view().map_values(|v: VolumeView| v.name),
-{
-    let mut names = Vec::new();
-    let mut idx: usize = 0;
-
-    proof {
-        assert_seqs_equal!(
-            names.deep_view(),
-            volumes.deep_view().take(0).map_values(|v: VolumeView| v.name)
-        );
-    }
-
-    while idx < volumes.len()
-        invariant
-            idx <= volumes.len(),
-            names.deep_view() =~= volumes.deep_view().take(idx as int).map_values(|v: VolumeView| v.name),
-        decreases volumes.len() - idx,
-    {
-        names.push(volumes[idx].name());
-        proof {
-            assert(volumes.deep_view().take((idx + 1) as int)
-                =~= volumes.deep_view().take(idx as int).push(volumes.deep_view()[idx as int]));
-            assert_seqs_equal!(
-                volumes.deep_view().take((idx + 1) as int).map_values(|v: VolumeView| v.name),
-                volumes.deep_view().take(idx as int).map_values(|v: VolumeView| v.name).push(volumes.deep_view()[idx as int].name)
-            );
-        }
-        idx += 1;
-    }
-
-    proof {
-        assert(volumes.deep_view().take(volumes.deep_view().len() as int) =~= volumes.deep_view());
-    }
-
-    names
 }
 
 pub fn get_largest_unmatched_pods(
