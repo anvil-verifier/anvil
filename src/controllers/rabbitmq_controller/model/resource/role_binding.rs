@@ -104,10 +104,10 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
         ).with_role_ref(RoleRefView::default()
             .with_api_group("rbac.authorization.k8s.io"@)
             .with_kind("Role"@)
-            .with_name(rabbitmq.metadata.name->0 + "-peer-discovery"@)
+            .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-peer-discovery"@)
         ).with_subjects(seq![SubjectView::default()
             .with_kind("ServiceAccount"@)
-            .with_name(rabbitmq.metadata.name->0 + "-server"@)
+            .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server"@)
             .with_namespace(rabbitmq.metadata.namespace->0)
         ])
 }
