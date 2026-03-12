@@ -2697,29 +2697,38 @@ pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     }
 }
 
-// Proving false implies p vacuously.
+// Proving false implies any vacuously.
 // post:
-//     spec |= false => p
-pub proof fn false_implies_anything<T>(spec: TempPred<T>, p: TempPred<T>)
-    ensures
-        spec.entails(false_pred().implies(p)),
+//     spec |= false => any
+pub proof fn false_implies_anything<T>(spec: TempPred<T>, any: TempPred<T>)
+    ensures spec.entails(false_pred().implies(any)),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies false_pred().implies(p).satisfied_by(ex) by {
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies false_pred().implies(any).satisfied_by(ex) by {
         if false_pred().satisfied_by(ex) {
             assert(false);
         }
     }
 }
 
+// Proving false implies any vacuously.
+// post:
+//     false |= any
+pub proof fn false_entails_anything<T>(any: TempPred<T>)
+    ensures false_pred().entails(any)
+{
+    assert forall |ex| #[trigger] false_pred().satisfied_by(ex) implies any.satisfied_by(ex) by {
+        assert(false);
+    }
+}
+
 // Proving false leads to p vacuously.
 // post:
 //     spec |= false ~> p
-pub proof fn false_leads_to_anything<T>(spec: TempPred<T>, p: TempPred<T>)
-    ensures
-        spec.entails(false_pred().leads_to(p)),
+pub proof fn false_leads_to_anything<T>(spec: TempPred<T>, any: TempPred<T>)
+    ensures spec.entails(false_pred().leads_to(any)),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies false_pred().leads_to(p).satisfied_by(ex) by {
-        assert forall |i| #[trigger] false_pred().satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies false_pred().leads_to(any).satisfied_by(ex) by {
+        assert forall |i| #[trigger] false_pred().satisfied_by(ex.suffix(i)) implies eventually(any).satisfied_by(ex.suffix(i)) by {
             assert(false);
         }
     }
