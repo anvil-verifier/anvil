@@ -241,9 +241,6 @@ pub proof fn ranking_decreases_after_vrs_esr(
     assert forall |s| #[trigger] conjuncted_pre(s) implies false by {
         let (vrs_set2, diff2) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, cluster, controller_id, s);
         assert(vrs_set == vrs_set2); // obtained from the same set of filters/maps
-        assert(diff2 == n) by {
-            assume(false);
-        }
         // one and only one new vrs exists as we requires n > 0
         let new_vrs = choose |new_vrs: VReplicaSetView| { // from current_state_match_vd_applied_to_vrs_set_with_replicas
             &&& #[trigger] vrs_set.contains(new_vrs)
@@ -256,6 +253,27 @@ pub proof fn ranking_decreases_after_vrs_esr(
                 &&& old_vrs.spec.replicas.unwrap_or(1) > 0
             }
         };
+        if diff2 != n {
+            let new_vrs2 = choose |new_vrs: VReplicaSetView| { // from current_state_match_vd_applied_to_vrs_set_with_replicas
+                &&& #[trigger] vrs_set.contains(new_vrs)
+                &&& match_template_without_hash(vd.spec.template)(new_vrs)
+                &&& replicas_diff(vd, new_vrs) == diff2
+                // all old vrs have replicas == Some(0)
+                &&& !exists |old_vrs: VReplicaSetView| {
+                    &&& #[trigger] vrs_set.contains(old_vrs)
+                    &&& old_vrs != new_vrs
+                    &&& old_vrs.spec.replicas.unwrap_or(1) > 0
+                }
+            };
+            assert(new_vrs2 != new_vrs);
+            if new_vrs2.spec.replicas.unwrap_or(1) > 0 {
+                assert(false); // should pass the old_vrs check of new_vrs
+            }
+            if new_vrs.spec.replicas.unwrap_or(1) > 0 {
+                assert(false); // vice versa
+            }
+            assert(diff2 == n); // if they are both zero
+        }
         let etcd_obj = choose |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj) && obj.object_ref() == new_vrs.object_ref();
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         assume(vrs_with_no_rv_status(etcd_vrs) == new_vrs);
