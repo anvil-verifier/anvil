@@ -133,6 +133,7 @@ pub proof fn esr_for_each_ranking(
     // Compose individual VRS ESRs into the conjuncted form
     // [] (forall vrs in set, desired_state_is(vrs)) ~> [] (forall vrs in set, current_state_matches(vrs))
     assert(spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))))) by {
+        // prove predicate equality for Verus
         let desired_state_is_vrs = |vrs| vrs_liveness::desired_state_is(vrs);
         let current_state_matches_vrs = |vrs| vrs_liveness::current_state_matches(vrs);
         assert(conjuncted_desired_state_is_vrs(vrs_set)
