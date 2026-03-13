@@ -305,7 +305,31 @@ pub proof fn ranking_decreases_after_vrs_esr(
             assert(vrs_liveness::current_state_matches(new_vrs)(s));
         }
         assert(etcd_vrs.spec.replicas.unwrap_or(1) != etcd_vrs.status->0.replicas) by {
-            assume(replicas_match_status(etcd_vrs, vd.spec.replicas.unwrap_or(1))); // from current_state_matches(vd)
+            assert(current_state_matches(vd)(s));
+            let new_vrs_key = choose |k: ObjectRef| {
+                let etcd_obj = s.resources()[k];
+                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                &&& #[trigger] s.resources().contains_key(k)
+                &&& valid_owned_obj_key(vd, s)(k)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+                &&& etcd_vrs.metadata.uid is Some
+                &&& replicas_match_status(etcd_vrs, vd.spec.replicas.unwrap_or(1))
+                // no old vrs, including the 2nd new vrs (if any)
+                &&& !exists |old_k: ObjectRef| {
+                    &&& #[trigger] s.resources().contains_key(old_k)
+                    &&& valid_owned_obj_key(vd, s)(old_k)
+                    &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
+                }
+            };
+            if new_vrs_key != new_vrs.object_ref() {
+                assert(s.resources().contains_key(new_vrs.object_ref())); // trigger
+                if new_vrs.spec.replicas.unwrap_or(1) > 0 {
+                    assert(false);
+                } else {
+                    assume(false);
+                }
+            }
+            assert(replicas_match_status(etcd_vrs, vd.spec.replicas.unwrap_or(1))); // from current_state_matches(vd)
         }
         assert(false);
     }
