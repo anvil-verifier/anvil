@@ -237,7 +237,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
             lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))
         );
     }
-    // big bomb
+    // big bang: spec /\ pre |= false |= the universe
     assert forall |s| #[trigger] conjuncted_pre(s) implies false by {
         let (vrs_set2, diff2) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, cluster, controller_id, s);
         assert(vrs_set == vrs_set2); // obtained from the same set of filters/maps
@@ -323,10 +323,38 @@ pub proof fn ranking_decreases_after_vrs_esr(
             };
             if new_vrs_key != new_vrs.object_ref() {
                 assert(s.resources().contains_key(new_vrs.object_ref())); // trigger
+                assert(s.resources().contains_key(new_vrs_key)); // trigger
                 if new_vrs.spec.replicas.unwrap_or(1) > 0 {
                     assert(false);
                 } else {
-                    assume(false);
+                    VReplicaSetView::marshal_preserves_integrity();
+                    let etcd_obj2 = s.resources()[new_vrs_key];
+                    let etcd_vrs2 = VReplicaSetView::unmarshal(etcd_obj2)->Ok_0;
+                    assert(vrs_set.contains(vrs_with_no_rv_status(etcd_vrs2))) by {
+                        assert(s.resources().values().contains(etcd_obj2));
+                        assert(s.resources().values()
+                            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                            .contains(etcd_obj2));
+                        assert(s.resources().values()
+                            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(etcd_vrs2));
+                        assert(valid_owned_vrs(etcd_vrs2, vd));
+                        assert(s.resources().values()
+                            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(etcd_vrs2));
+                    }
+                    if etcd_vrs2.spec.replicas.unwrap_or(1) > 0 {
+                        assert(false); // can pass old_vrs filter of new_vrs
+                    } else {
+                        if etcd_vrs2.status is Some {
+                            let replicas = etcd_vrs2.spec.replicas.unwrap_or(1);
+                            assert(replicas_match_status(etcd_vrs2, vd.spec.replicas.unwrap_or(1)));
+                            assert(replicas > 0); // for all possible conditions in replicas_match_status
+                            assert(false);
+                        } // enforced by replicas_match_status in current_state_matches(vd)
+                        assert(vrs_liveness::current_state_matches(etcd_vrs2)(s)); // conflict, should has status
+                    }
                 }
             }
             assert(replicas_match_status(etcd_vrs, vd.spec.replicas.unwrap_or(1))); // from current_state_matches(vd)
