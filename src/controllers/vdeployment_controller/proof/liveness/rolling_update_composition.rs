@@ -187,7 +187,9 @@ pub proof fn ranking_never_increases(
                 .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
             ))))
         ),
-{}
+{
+    // use next_monotonic_to_always_exists
+}
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
