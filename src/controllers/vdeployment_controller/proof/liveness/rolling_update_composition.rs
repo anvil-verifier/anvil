@@ -777,6 +777,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         }
 
         // Obligation 3: n > 0 => [] n_to_q(n) ~> !n_to_p(n)
+        always_p_is_stable(stable_vd_post); // valid(stable(always(stable_vd_post)))
         assert forall |n: nat| #![trigger n_to_p(n)] n > 0 ==> always(stable_vd_post).entails(always(n_to_q(n)).leads_to(not(n_to_p(n)))) by {
             if n > 0 {
                 ranking_decreases_after_vrs_esr(always(stable_vd_post), vrs_set, vd, controller_id, cluster, n);
