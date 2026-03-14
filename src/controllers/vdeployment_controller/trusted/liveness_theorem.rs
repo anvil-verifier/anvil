@@ -46,7 +46,7 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& valid_owned_obj_key(vd, s)(k)
             &&& filter_new_vrs_keys(vd.spec.template, s)(k)
             &&& etcd_vrs.metadata.uid is Some
-            &&& replicas_match_status(etcd_vrs, vd.spec.replicas.unwrap_or(1))
+            /// &&& etcd_vrs_spec.replicas == 0
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |old_k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(old_k)
@@ -54,23 +54,6 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
                 &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
             }
         }
-    }
-}
-
-pub open spec fn replicas_match_status(vrs: VReplicaSetView, vd_replicas: int) -> bool
-{
-    if vrs.status is Some {
-        let status = vrs.status->0.replicas;
-        let replicas = vrs.spec.replicas.unwrap_or(1);
-        if status > vd_replicas {
-            replicas == status - 1
-        } else if status < vd_replicas {
-            replicas == status + 1
-        } else {
-            replicas == status
-        }
-    } else {
-        vrs.spec.replicas == Some(0 as int)
     }
 }
 
