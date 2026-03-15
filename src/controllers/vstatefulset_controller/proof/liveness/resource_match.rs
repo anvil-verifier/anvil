@@ -3259,6 +3259,7 @@ ensures
         &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         &&& s.resources().contains_key(pod.object_ref())
         &&& pod_spec_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
+        &&& pod_annotations_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
     } by {
         PodView::marshal_preserves_integrity();
         seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
@@ -3303,6 +3304,7 @@ ensures
         &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         &&& s.resources().contains_key(key)
         &&& pod_spec_weakly_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
+        &&& pod_annotations_eq(needed_pod, PodView::unmarshal(obj)->Ok_0)
     } by {
         PodView::marshal_preserves_integrity();
         let key = key_with_ord(ord);
@@ -3386,6 +3388,7 @@ ensures
             seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt);
             assert(s.resources().contains_key(key));
             assert(pod_spec_weakly_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
+            assert(pod_annotations_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
             assert(outdated_obj_key_filter(s, vsts)(key));
         }
         assert forall |key: ObjectRef| #[trigger] outdated_obj_keys_in_etcd(s, vsts).contains(key) implies outdated_pod_keys.to_set().contains(key) by {
@@ -3800,6 +3803,7 @@ ensures
             &&& state.needed[ord as int] is Some ==> {
                 &&& s_prime.resources().contains_key(key)
                 &&& pod_spec_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(s_prime.resources()[key])->Ok_0)
+                &&& pod_annotations_eq(state.needed[ord as int]->0, PodView::unmarshal(s_prime.resources()[key])->Ok_0)
             }
             &&& ord < state.needed_index ==> {
                 &&& s_prime.resources().contains_key(key)
@@ -3900,6 +3904,7 @@ ensures
                 if key == req.key() {
                     PodView::marshal_spec_preserves_integrity();
                     assert(pod_spec_weakly_eq(pod_prime, pod));
+                    assert(pod_annotations_eq(pod_prime, pod));
                 }
             }
         }
@@ -3945,6 +3950,7 @@ ensures
             &&& state.needed[ord as int] is Some ==> {
                 &&& s_prime.resources().contains_key(key)
                 &&& pod_spec_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(s_prime.resources()[key])->Ok_0)
+                &&& pod_annotations_eq(state.needed[ord as int]->0, PodView::unmarshal(s_prime.resources()[key])->Ok_0)
             }
             &&& ord < state.needed_index ==> {
                 &&& s_prime.resources().contains_key(key)

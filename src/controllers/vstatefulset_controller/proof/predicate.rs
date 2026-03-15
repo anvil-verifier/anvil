@@ -31,6 +31,10 @@ pub open spec fn pod_spec_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
         == pod_prime.spec->0.without_volumes().without_hostname().without_subdomain()
 }
 
+pub open spec fn pod_annotations_eq(pod: PodView, pod_prime: PodView) -> bool {
+    pod.metadata.annotations == pod_prime.metadata.annotations
+}
+
 pub open spec fn has_vsts_prefix(name: StringView) -> bool {
     exists |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
