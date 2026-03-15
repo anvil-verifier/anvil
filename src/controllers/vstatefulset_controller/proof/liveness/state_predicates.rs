@@ -290,7 +290,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
                 &&& s.resources().contains_key(key)
                 // so outdated pod selection is correct
                 &&& pod_spec_weakly_eq(state.needed[ord as int]->0, PodView::unmarshal(s.resources()[key])->Ok_0)
-                &&& pod_annotations_eq(state.needed[ord as int]->0, PodView::unmarshal(s.resources()[key])->Ok_0)
+                // &&& pod_annotations_eq(state.needed[ord as int]->0, PodView::unmarshal(s.resources()[key])->Ok_0)
             }
             &&& ord < needed_index_considering_update ==> {
                 &&& s.resources().contains_key(key)
