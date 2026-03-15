@@ -7,6 +7,15 @@ pub struct StringMap {
     inner: std::collections::BTreeMap<std::string::String, std::string::String>,
 }
 
+impl PartialEq for StringMap {
+    #[verifier(external_body)]
+    fn eq(&self, other: &Self) -> (res: bool) 
+        ensures res == (self@ == other@)
+    {
+        self.inner == other.inner
+    }
+}
+
 impl View for StringMap {
     type V = Map<Seq<char>, Seq<char>>;
 
