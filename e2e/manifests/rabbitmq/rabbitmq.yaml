@@ -2,9 +2,9 @@ apiVersion: anvil.dev/v1
 kind: RabbitmqCluster
 metadata:
   name: test-cluster
-  namespace: rabbitmq
+  namespace: default
 spec:
-  image: rabbitmq:3.11.10-management
+  image: rabbitmq:3.11.9-management
   persistence:
     storage: 10Gi
     storageClassName: null
