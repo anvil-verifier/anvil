@@ -5,6 +5,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*}, predicate::*},
+    proof::liveness::rolling_update::predicate as ru_predicate,
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*}
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
@@ -372,7 +373,7 @@ requires
     current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, replicas_diff)(s),
     Cluster::etcd_objects_have_unique_uids()(s),
 ensures // still, when all new vrs have 0 replicas, the chosen one may be different from the one in argument
-    exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] resp_objs_with_new_vrs_status_matching_replicas_and_no_old_vrs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1)))(s),
+    exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] ru_predicate::ru_resp_objs_with_new_vrs_status_matching_replicas_and_no_old_vrs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1)))(s),
 {}
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
