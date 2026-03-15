@@ -794,6 +794,7 @@ pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool 
     &&& pod.spec is Some
     &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
         == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain()
+    &&& pod.metadata.annotations == vsts.spec.template.metadata->0.annotations
 }
 
 pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {
