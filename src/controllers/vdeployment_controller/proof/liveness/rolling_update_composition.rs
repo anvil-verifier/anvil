@@ -300,12 +300,21 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd:
         }
     };
     let new_obj = s.resources()[k];
-    let new_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+    let new_etcd_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+    let new_vrs = vrs_with_no_rv_status(new_etcd_vrs);
     assert(vrs_set.contains(new_vrs)) by {
         assert(s.resources().values().contains(new_obj));
-        assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(new_obj));
+        assert(s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(new_obj));
+        assert(s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(new_etcd_vrs));
+        assert(s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(new_etcd_vrs));
     }
-    assert(match_template_without_hash(vd.spec.template)(new_vrs));
+    assert(match_template_without_hash(vd.spec.template)(new_etcd_vrs));
     if exists |old_vrs: VReplicaSetView| {
         &&& #[trigger] vrs_set.contains(old_vrs)
         &&& old_vrs != new_vrs
@@ -318,9 +327,17 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd:
         };
         let old_k = old_vrs.object_ref();
         assert(s.resources().contains_key(old_k)); // trigger
+        assert(old_vrs.metadata.uid->0 != new_vrs.metadata.uid->0) by {
+            let old_etcd_vrs = VReplicaSetView::unmarshal(s.resources()[old_k])->Ok_0;
+            assert(old_vrs == vrs_with_no_rv_status(old_etcd_vrs));
+            if old_vrs.object_ref() == k { // so they points to different obj with different uid
+                assert(old_vrs == new_vrs);
+                assert(false);
+            }
+        }
         assert(false);
     }
-    return (vrs_set, replicas_diff(vd, new_vrs));
+    return (vrs_set, replicas_diff(vd, new_etcd_vrs));
 }
 
 // q(0) with vrs_set identity implies composed_current_state_matches
