@@ -29,6 +29,7 @@ pub open spec fn pod_spec_weakly_eq(pod: PodView, pod_prime: PodView) -> bool {
     &&& pod_prime.spec is Some
     &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
         == pod_prime.spec->0.without_volumes().without_hostname().without_subdomain()
+    &&& pod.metadata.annotations == pod_prime.metadata.annotations
 }
 
 pub open spec fn has_vsts_prefix(name: StringView) -> bool {
