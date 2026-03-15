@@ -211,6 +211,7 @@ pub proof fn ranking_never_increases(
     // pre, inv is preserved
     assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
         assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) implies exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
+            // we need a stronger version of inductive_current_state_matches covering scaling new_vrs req
             assume(false);
         }
     }
