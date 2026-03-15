@@ -223,7 +223,6 @@ pub proof fn ranking_decreases_after_vrs_esr(
 // *** Helper lemmas ***
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
-#[verifier(external_body)]
 pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState)
     -> (res: (Set<VReplicaSetView>, nat))
     requires
@@ -251,10 +250,41 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd:
                 .map(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0),
             |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)
         );
+        s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+            .lemma_map_finite(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
     VReplicaSetView::marshal_preserves_integrity();
-    assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::desired_state_is(vrs)(s));
+    assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies vrs_liveness::desired_state_is(vrs)(s) by {
+        VReplicaSetView::marshal_preserves_integrity();
+        let etcd_obj = choose |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj) && obj.object_ref() == vrs.object_ref();
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        assert(exists |vrs_with_rv_status| vrs_with_no_rv_status(vrs_with_rv_status) == vrs
+            && s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(vrs_with_rv_status));
+        let vrs_with_rv_status = choose |vrs_with_rv_status| vrs_with_no_rv_status(vrs_with_rv_status) == vrs
+            && s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(vrs_with_rv_status);
+        assert(s.resources().values()
+            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs_with_rv_status));
+        assert(exists |etcd_obj| #![trigger s.resources().values().contains(etcd_obj)]
+            VReplicaSetView::unmarshal(etcd_obj)->Ok_0 == vrs_with_rv_status
+            && s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj));
+        let etcd_obj2 = choose |etcd_obj| #![trigger s.resources().values().contains(etcd_obj)]
+            VReplicaSetView::unmarshal(etcd_obj)->Ok_0 == vrs_with_rv_status
+            && s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj);
+        assert(etcd_obj2.object_ref() == vrs.object_ref());
+        assert(etcd_obj2 == etcd_obj);
+        assert(vrs_liveness::desired_state_is(etcd_vrs)(s));
+    }
     // from current_state_matches
     let k = choose |k: ObjectRef| {
         let etcd_obj = s.resources()[k];
@@ -263,7 +293,6 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd:
         &&& valid_owned_obj_key(vd, s)(k)
         &&& filter_new_vrs_keys(vd.spec.template, s)(k)
         &&& etcd_vrs.metadata.uid is Some
-        &&& replicas_match_status(etcd_vrs, vd.spec.replicas.unwrap_or(1))
         &&& !exists |old_k: ObjectRef| {
             &&& #[trigger] s.resources().contains_key(old_k)
             &&& valid_owned_obj_key(vd, s)(old_k)

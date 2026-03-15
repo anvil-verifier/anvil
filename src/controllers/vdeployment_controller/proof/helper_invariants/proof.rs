@@ -1603,6 +1603,14 @@ ensures
     }
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_always_spec_entails_every_vrs_in_etcd_has_one_controller_owner(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+ensures
+    spec.entails(always(lift_state(every_vrs_in_etcd_has_one_controller_owner()))),
+{}
+
 pub proof fn lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
