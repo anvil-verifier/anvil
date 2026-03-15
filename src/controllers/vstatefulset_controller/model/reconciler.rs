@@ -697,6 +697,7 @@ pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: 
                     .unwrap_or(Map::<StringView, StringView>::empty())
                     .insert(StatefulSetPodNameLabel, pod.metadata.name->0)
                     .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
+            annotations: vsts.spec.template.metadata->0.annotations,
             owner_references: Some(make_owner_references(vsts)),
             finalizers: None,
             deletion_timestamp: None,
