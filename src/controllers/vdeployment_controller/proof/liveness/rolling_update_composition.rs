@@ -350,11 +350,57 @@ pub proof fn ranking_decreases_after_vrs_esr(
         );
     }
     // 3. init ~> after_list ~> after_scale_new_vrs
-    assume(false);
+    // similar to lemma_from_init_to_current_state_matches and lemma_inductive_current_state_matches_preserves_from_s_to_s_prime
     // 4. after_scale_new_vrs /\ [] current_state_matches ~> replicas_diff decreases
 }
 
-// *** Helper lemmas ***
+// *** Helper lemmas and predicates ***
+
+// stronger version of new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs
+pub open spec fn resp_objs_with_new_vrs_status_matching_replicas_and_no_old_vrs(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key: Option<(Uid, ObjectRef)>
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let vrs_list = objects_to_vrs_list(resp_objs)->0;
+        let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+        &&& {
+            let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
+            &&& new_vrs is Some == nv_uid_key is Some
+            &&& new_vrs is Some ==> {
+                &&& new_vrs->0.metadata.uid is Some
+                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key->0).0
+                &&& new_vrs->0.metadata.name is Some
+                &&& new_vrs->0.metadata.namespace is Some
+                &&& new_vrs->0.status is Some
+                &&& new_vrs->0.status->0.replicas == get_replicas(new_vrs->0.spec.replicas)
+                &&& new_vrs->0.object_ref() == (nv_uid_key->0).1
+                &&& get_replicas(new_vrs->0.spec.replicas) == get_replicas(vd.spec.replicas)
+            }
+            &&& old_vrs_list.len() == 0
+        }
+    }
+}
+
+// stronger version of lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs
+// works when we have [] desired_state_is(vrs)
+#[verifier(external_body)]
+proof fn lemma_etcd_state_is_and_desired_state_is_vrs_implies_filter_old_and_new_vrs_from_resp_objs(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, replicas_diff: nat, nv_uid_key: (Uid, ObjectRef), msg: Message, s: ClusterState
+)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    current_state_matches(vd)(s),
+    resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, replicas_diff)(s),
+    current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, replicas_diff)(s),
+    Cluster::etcd_objects_have_unique_uids()(s),
+ensures // still, when all new vrs have 0 replicas, the chosen one may be different from the one in argument
+    exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] resp_objs_with_new_vrs_status_matching_replicas_and_no_old_vrs(vd, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1)))(s),
+{}
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
 pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState)
