@@ -235,7 +235,7 @@ pub proof fn ranking_never_increases(
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
-#[verifier(external_body)]
+// Prove with a specialized version of ESR proof with spec |= [] current_state_matches
 pub proof fn ranking_decreases_after_vrs_esr(
     spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster, n: nat
 )
@@ -249,18 +249,110 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
-        valid(stable(spec)),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+        spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
+        spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
     ensures
         spec.entails(
-            always(
-                lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))
-                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
-            ).leads_to(not(
-                lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
-            ))
-        ),
-{}
+            always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))
+                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            ).leads_to(not(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+            ))),
+{
+    // 0. unpack invariants from cluster_invariants_since_reconciliation
+    entails_always_unpack_n!(spec,
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
+        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
+        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(desired_state_is(vd))
+    );
+    always_to_always_later(spec, lift_state(desired_state_is(vd)));
+    // 1. termination, true ~> reconcile_idle
+    // same as lemma_true_leads_to_always_current_state_matches
+    let reconcile_idle = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+    };
+    assume(spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
+    assert(spec.entails(true_pred().leads_to(lift_state(reconcile_idle)))) by {
+        assume(false); // TODO: compose other inv in addition to cluster_invariants_since_reconciliation
+        terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
+        use_tla_forall(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
+    }
+    // reconcile_idle ~> reconcile_scheduled
+    let reconcile_scheduled = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
+    };
+    assert(spec.entails(lift_state(reconcile_idle).leads_to(lift_state(reconcile_scheduled)))) by {
+        let input = vd.object_ref();
+        let stronger_reconcile_idle = |s: ClusterState| {
+            &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+            &&& !s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
+        };
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime)
+            &&& desired_state_is(vd)(s)
+            &&& desired_state_is(vd)(s_prime)
+        };
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(desired_state_is(vd)),
+            later(lift_state(desired_state_is(vd)))
+        );
+        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(
+            spec, controller_id, input, stronger_next, and!(stronger_reconcile_idle, desired_state_is(vd)), reconcile_scheduled
+        );
+        temp_pred_equality(
+            lift_state(stronger_reconcile_idle).and(lift_state(desired_state_is(vd))),
+            lift_state(and!(stronger_reconcile_idle, desired_state_is(vd)))
+        );
+        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
+        entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        or_leads_to_combine(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
+    }
+    let init = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vd, controller_id)
+    );
+    // 2. reconcile_idle ~> init
+    assert(spec.entails(lift_state(reconcile_scheduled).leads_to(lift_state(init)))) by {
+        let input = (None, Some(vd.object_ref()));
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime) 
+            &&& Cluster::crash_disabled(controller_id)(s) 
+            &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s) 
+            &&& helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime) 
+            &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
+        };
+        always_to_always_later(spec, lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(Cluster::crash_disabled(controller_id)),
+            lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+            later(lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))),
+            later(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))
+        );
+        assert forall |s, s_prime| reconcile_scheduled(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies init(s_prime) by {
+            VDeploymentReconcileState::marshal_preserves_integrity();
+            lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
+        }
+        cluster.lemma_pre_leads_to_post_by_controller(
+            spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, reconcile_scheduled, init
+        );
+    }
+    // 3. init ~> after_list ~> after_scale_new_vrs
+    assume(false);
+    // 4. after_scale_new_vrs /\ [] current_state_matches ~> replicas_diff decreases
+}
 
 // *** Helper lemmas ***
 

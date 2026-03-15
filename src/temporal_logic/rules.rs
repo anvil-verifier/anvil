@@ -999,6 +999,37 @@ macro_rules! entails_always_and_n_internal {
 pub use entails_always_and_n;
 pub use entails_always_and_n_internal;
 
+// Entails all invariants unpacked from their conjunction
+// pre:
+//     spec |= []inv
+//     inv |= p1, p2, ..., pn
+// post:
+//     spec |= []p1, []p2, ..., []pn
+// Usage: entails_always_unpack_n!(spec, inv, p1, p2, ..., pn)
+#[macro_export]
+macro_rules! entails_always_unpack_n {
+    [$($tail:tt)*] => {
+        verus_proof_macro_exprs!($crate::temporal_logic::rules::entails_always_unpack_n_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! entails_always_unpack_n_internal {
+    ($spec:expr, $inv:expr) => {};
+    ($spec:expr, $inv:expr, $p1:expr) => {
+        entails_preserved_by_always($inv, $p1);
+        entails_trans($spec, always($inv), always($p1));
+    };
+    ($spec:expr, $inv:expr, $p1:expr, $($tail:tt)*) => {
+        entails_preserved_by_always($inv, $p1);
+        entails_trans($spec, always($inv), always($p1));
+        entails_always_unpack_n_internal!($spec, $inv, $($tail)*);
+    };
+}
+
+pub use entails_always_unpack_n;
+pub use entails_always_unpack_n_internal;
+
 // Merge the next and other state predicates together into one action predicate.
 // Usage:
 // Given next, p1, p2, p3, ...,
