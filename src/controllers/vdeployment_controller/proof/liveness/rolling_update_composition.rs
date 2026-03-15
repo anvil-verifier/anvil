@@ -167,28 +167,69 @@ pub proof fn esr_for_each_ranking(
 
 // Obligation 2: Monotonicity (ranking never increases)
 // forall n. spec |= [] (p(n) => [] (exists m <= n. p(m)))
-#[verifier(external_body)]
 pub proof fn ranking_never_increases(
-    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster, n: nat
+    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster
 )
     requires
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     ensures
-        spec.entails(
-            always(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
-            .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n)
-                .and(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m))
-                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
-            ))))
-        ),
+        forall |n| spec.entails(always(lift_state(#[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+            .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+        .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n)
+            .and(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m))
+            .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
+        ))))),
 {
     // use next_monotonic_to_always_exists
+    let p = |n: nat| and!(
+        conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n),
+        current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)
+    );
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
+        lifted_vd_rely_condition(cluster, controller_id)
+    );
+    assert forall |n: nat| lift_state(p(n)) == lift_state(#[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))) by {
+        and_eq(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n), current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n));
+    }
+    // pre, inv is preserved
+    assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
+        assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) implies exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
+            assume(false);
+        }
+    }
+    assert forall |n: nat| spec.entails(always(lift_state(#[trigger] p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))))) by {
+        next_monotonic_to_always_exists(spec, stronger_next, p);
+    }
+    assert forall |n| spec.entails(always(lift_state(#[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+    .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n)
+        .and(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
+    ))))) by {
+        tla_exists_p_tla_exists_q_equality(
+            |m: nat| lift_state(|s| m <= n).and(lift_state(p(m))),
+            |m: nat| lift_state(|s| m <= n)
+                .and(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m))
+                .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m))))
+        );
+    }
 }
 
 // Obligation 3: Ranking decrease
@@ -648,9 +689,10 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         }
 
         // Obligation 2: [] (n_to_p(n) => [] (exists m <= n. n_to_p(m)))
+        ranking_never_increases(always(stable_vd_post), vrs_set, vd, controller_id, cluster);
+        // equality proof
         assert forall |n: nat| #![trigger n_to_p(n)] always(stable_vd_post).entails(
             always(n_to_p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(n_to_p(m))))))) by {
-            ranking_never_increases(always(stable_vd_post), vrs_set, vd, controller_id, cluster, n);
             temp_pred_equality(
                 n_to_p(n),
                 lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
