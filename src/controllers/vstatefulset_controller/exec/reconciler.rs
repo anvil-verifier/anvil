@@ -988,7 +988,7 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
     updated_pod
 }
 
-// TODO: implement this
+// TODO: also change annotations
 pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         pod@.metadata.name is Some,
@@ -1476,7 +1476,7 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
     requires vsts@.well_formed()
     ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)
 {
-    if let Some(mut spec) = pod.spec() {
+    let spec_matches = if let Some(mut spec) = pod.spec() {
         let mut vsts_spec = vsts.spec().template().spec().unwrap();
         spec.unset_volumes();
         spec.unset_hostname();
@@ -1484,10 +1484,18 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
         vsts_spec.unset_volumes();
         vsts_spec.unset_hostname();
         vsts_spec.unset_subdomain();
-        return spec.eq_spec(&vsts_spec);
+        spec.eq_spec(&vsts_spec)
     } else {
-        return false;
-    }
+        false
+    };
+    let pod_annotations = pod.metadata().annotations();
+    let template_annotations = vsts.spec().template().metadata().unwrap().annotations();
+    let annotations_match = match (pod_annotations, template_annotations) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    };
+    spec_matches && annotations_match
 }
 
 pub fn get_largest_unmatched_pods(

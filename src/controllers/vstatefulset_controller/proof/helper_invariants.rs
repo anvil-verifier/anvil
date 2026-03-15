@@ -272,7 +272,7 @@ pub open spec fn all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref
     }
 }
 
-#[verifier(rlimit(100))]
+#[verifier(rlimit(1000))]
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView

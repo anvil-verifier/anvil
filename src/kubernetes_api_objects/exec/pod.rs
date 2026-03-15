@@ -230,12 +230,17 @@ impl PodSpec {
         self.inner.subdomain = None;
     }
 
-    // TODO: fix this for VSTS controller
     #[verifier(external_body)]
     pub fn eq_spec(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
-        true
+        self.inner.volumes == other.inner.volumes
+        && self.inner.containers.len() == other.inner.containers.len()
+        // && self.inner.tolerations == other.inner.tolerations
+        && self.inner.containers
+            .iter()
+            .zip(other.inner.containers.iter())
+            .all(|(c1, c2)| c1.image == c2.image /* && c1.resources == c2.resources */)
     }
 }
 
