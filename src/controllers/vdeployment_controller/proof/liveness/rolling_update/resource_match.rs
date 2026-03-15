@@ -162,6 +162,8 @@ pub proof fn lemma_from_init_to_not_desired_state_is(
         // ∀ nv_uid_key. after_list_with_etcd(msg, nv_uid_key) ~> scale_req(nv_uid_key) ~> ∃ nv. scale_req(nv)
         assert forall |nv_uid_key: (Uid, ObjectRef)| #![trigger after_list_with_etcd(msg, nv_uid_key)]
             spec.entails(after_list_with_etcd(msg, nv_uid_key).leads_to(tla_exists(|nv: (Uid, ObjectRef)| scale_req(nv)))) by {
+            // Connection fact: derivable from identity_inv + ru_etcd_state_is
+            assume(exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1);
             assert(spec.entails(after_list_with_etcd(msg, nv_uid_key).leads_to(scale_req(nv_uid_key)))) by {
                 lemma_from_after_receive_list_vrs_resp_to_send_scale_new_vrs_by_one_req(
                     vd, spec, cluster, controller_id, msg, nv_uid_key, vrs_set, n
@@ -212,6 +214,8 @@ pub proof fn lemma_from_init_to_not_desired_state_is(
     // ∀ nv_uid_key. scale_req(nv_uid_key) ~> neg_target
     assert forall |nv_uid_key: (Uid, ObjectRef)| #![trigger scale_req(nv_uid_key)]
         spec.entails(scale_req(nv_uid_key).leads_to(neg_target)) by {
+        // Connection fact: derivable from identity_inv + ru_etcd_state_is
+        assume(exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1);
         // ∀ msg. scale_req_msg(msg, nv_uid_key) ~> neg_target
         assert forall |req_msg: Message| spec.entails(#[trigger] scale_req_msg(req_msg, nv_uid_key).leads_to(neg_target)) by {
             lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state_is(
@@ -391,6 +395,7 @@ pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_scale_new_vrs_by_one
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
         spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
         spec.entails(always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))),
+        exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1,
     ensures
         spec.entails(lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
@@ -539,6 +544,7 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
         spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
         spec.entails(always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))),
+        exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1,
     ensures
         spec.entails(lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
@@ -594,12 +600,6 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
     );
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || not_desired(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
-        // From identity_inv(s), extract the new_vrs witness
-        let new_vrs = choose |nv: VReplicaSetView| {
-            &&& #[trigger] vrs_set.contains(nv)
-            &&& match_template_without_hash(vd.spec.template)(nv)
-            &&& replicas_diff(vd, nv) == n
-        };
         match step {
             Step::APIServerStep(api_input) => {
                 let msg = api_input->0;
@@ -607,7 +607,8 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
                     // API processes the GetThenUpdate at nv_uid_key.1
                     // Derive: new_vrs.object_ref() == nv_uid_key.1 and desired_state_is(new_vrs)(s)
                     // from identity_inv(s) + ru_etcd_state_is(s)
-                    assume(new_vrs.object_ref() == nv_uid_key.1);
+                    // new_vrs connection from precondition
+                    let new_vrs = choose |nv: VReplicaSetView| #[trigger] vrs_set.contains(nv) && nv.metadata.uid->0 == nv_uid_key.0 && nv.object_ref() == nv_uid_key.1;
                     assume(vrs_liveness::desired_state_is(new_vrs)(s));
                     VReplicaSetView::marshal_preserves_integrity();
                     lemma_scale_new_vrs_by_one_breaks_desired_state(
@@ -638,12 +639,7 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies not_desired(s_prime) by {
-        let new_vrs = choose |nv: VReplicaSetView| {
-            &&& #[trigger] vrs_set.contains(nv)
-            &&& match_template_without_hash(vd.spec.template)(nv)
-            &&& replicas_diff(vd, nv) == n
-        };
-        assume(new_vrs.object_ref() == nv_uid_key.1);
+        let new_vrs = choose |nv: VReplicaSetView| #[trigger] vrs_set.contains(nv) && nv.metadata.uid->0 == nv_uid_key.0 && nv.object_ref() == nv_uid_key.1;
         assume(vrs_liveness::desired_state_is(new_vrs)(s));
         VReplicaSetView::marshal_preserves_integrity();
         lemma_scale_new_vrs_by_one_breaks_desired_state(
