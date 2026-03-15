@@ -988,7 +988,7 @@ pub fn init_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: 
     updated_pod
 }
 
-// TODO: implement this
+// TODO: also change annotations
 pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         pod@.metadata.name is Some,
