@@ -379,7 +379,7 @@ ensures
                             &&& #[trigger] s_prime.in_flight().contains(resp_msg)
                             &&& resp_msg.src is APIServer
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime) by {
+                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime) by {
                             assert(s.in_flight().contains(resp_msg)) by {
                                 if !s.in_flight().contains(resp_msg) {
                                     assert(new_msgs.contains(resp_msg));
@@ -427,7 +427,7 @@ ensures
                             &&& #[trigger] s_prime.in_flight().contains(msg)
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
                             } else {
@@ -511,7 +511,7 @@ ensures
                         &&& #[trigger] s_prime.in_flight().contains(msg)
                         &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                    } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                    } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
                         if !new_msgs.contains(msg) {
                             assert(s.in_flight().contains(msg));
                         }
@@ -529,7 +529,7 @@ ensures
                     &&& #[trigger] s_prime.in_flight().contains(msg)
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
-                } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
                     if !new_msgs.contains(msg) {
                         assert(s.in_flight().contains(msg));
                     }

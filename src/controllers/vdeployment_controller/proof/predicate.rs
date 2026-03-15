@@ -112,7 +112,7 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         }
     }
 }
@@ -128,7 +128,7 @@ pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
         // predicate on resp_msg
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
     }
 }
 
@@ -140,7 +140,7 @@ The unmarshallability part can be proved using each_custom_object_in_etcd_is_wel
 */
 
 pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, s: ClusterState
+    vd: VDeploymentView, resp_msg: Message, s: ClusterState
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
@@ -182,7 +182,7 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         let vrs_list = objects_to_vrs_list(resp_objs)->0;
         let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         &&& {
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
             &&& new_vrs is Some == nv_uid_key_replicas is Some

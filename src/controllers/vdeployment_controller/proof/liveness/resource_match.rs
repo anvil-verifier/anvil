@@ -87,7 +87,7 @@ ensures
             let resp_msg = choose |resp_msg| {
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
             };
             assert((|msg| list_resp_msg(msg))(resp_msg).satisfied_by(ex));
         }
@@ -595,7 +595,7 @@ ensures
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)
+                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime)
                     });
                 }
             },
@@ -611,7 +611,7 @@ ensures
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime)
         });
     }
     cluster.lemma_pre_leads_to_post_by_api_server(

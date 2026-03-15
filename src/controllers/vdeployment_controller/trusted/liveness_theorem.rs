@@ -74,7 +74,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                     &&& #[trigger] s.in_flight().contains(msg)
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
-                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s)
+                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s)
             } else {
                 s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }
