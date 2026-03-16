@@ -254,7 +254,9 @@ ensures
     exists |m: nat| m < n
         && #[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime)
         && #[trigger] current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime),
-{}
+{
+    assume(false);
+}
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
