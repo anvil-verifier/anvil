@@ -117,6 +117,13 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn without_annotations(self) -> ObjectMetaView {
+        ObjectMetaView {
+            annotations: None,
+            ..self
+        }
+    }
+
     pub open spec fn add_annotation(self, key: StringView, value: StringView) -> ObjectMetaView {
         let old_map = if self.annotations is None {
             Map::empty()

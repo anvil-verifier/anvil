@@ -1004,6 +1004,12 @@ pub fn update_identity(vsts: &VStatefulSet, pod: Pod, ordinal: usize) -> (result
     labels.insert("apps.kubernetes.io/pod-index".to_string(), usize_to_string(ordinal));
     meta.set_labels(labels);
     meta.set_owner_references(make_owner_references(vsts));
+
+    match vsts.spec().template().metadata().unwrap().annotations() {
+        Some(annotations) => { meta.set_annotations(annotations); }
+        None => { meta.unset_annotations(); }
+    };
+
     meta.unset_deletion_timestamp();
     meta.unset_finalizers();
     result.set_metadata(meta);

@@ -270,6 +270,13 @@ impl ObjectMeta {
     {
         self.inner.deletion_timestamp = None;
     }
+
+    #[verifier(external_body)]
+    pub fn unset_annotations(&mut self)
+        ensures self@ == old(self)@.without_annotations(),
+    {
+        self.inner.annotations = None;
+    }
 }
 
 }
