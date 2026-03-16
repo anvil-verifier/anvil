@@ -199,14 +199,17 @@ pub proof fn ranking_never_increases(
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(cluster, controller_id)(s)
         &&& inductive_current_state_matches(vd, controller_id)(s)
+        &&& inductive_current_state_matches(vd, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(inductive_current_state_matches(vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
         lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
-        lift_state(inductive_current_state_matches(vd, controller_id))
+        lift_state(inductive_current_state_matches(vd, controller_id)),
+        later(lift_state(inductive_current_state_matches(vd, controller_id)))
     );
     assert forall |n: nat| lift_state(p(n)) == lift_state(#[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
         .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))) by {
@@ -248,6 +251,7 @@ requires
     forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     inductive_current_state_matches(vd, controller_id)(s),
+    inductive_current_state_matches(vd, controller_id)(s_prime),
     conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n)(s),
     current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s),
 ensures
