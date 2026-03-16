@@ -4,7 +4,7 @@ use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
-    proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*}, predicate::*},
+    proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*, rolling_update::resource_match::*}, predicate::*},
     proof::liveness::rolling_update::predicate as ru_predicate,
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*}
 };
@@ -255,6 +255,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+        valid(stable(spec)),
     ensures
         spec.entails(
             always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))
@@ -350,9 +351,39 @@ pub proof fn ranking_decreases_after_vrs_esr(
             spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, reconcile_scheduled, init
         );
     }
-    // 3. init ~> after_list ~> after_scale_new_vrs
-    // similar to lemma_from_init_to_current_state_matches and lemma_inductive_current_state_matches_preserves_from_s_to_s_prime
-    // 4. after_scale_new_vrs /\ [] current_state_matches ~> replicas_diff decreases
+    // 3. init ~> after_list ~> after_scale_new_vrs ~> !desired_state_is
+    let pre = lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)));
+    let post = not(lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
+        .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))));
+    assert(spec.entails(always(pre).leads_to(lift_state(init).and(always(pre))))) by {
+        leads_to_trans_n!(
+            spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init)
+        );
+        leads_to_with_always(spec, true_pred(), lift_state(init), pre);
+        temp_pred_equality(true_pred().and(always(pre)), always(pre));
+    }
+    assert(spec.entails(lift_state(init).and(always(pre)).leads_to(post))) by {
+        // convert preconditions
+        entails_trans(spec.and(always(pre)), spec, always(lift_action(cluster.next())));
+        entails_trans(spec.and(always(pre)), spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
+        entails_trans(spec.and(always(pre)), spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
+        entails_trans(spec.and(always(pre)), spec, always(lifted_vd_rely_condition(cluster, controller_id)));
+        entails_trans(spec.and(always(pre)), spec, always(lift_state(inductive_current_state_matches(vd, controller_id))));
+        entails_trans(spec.and(always(pre)), spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
+        entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
+        entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)));
+        entails_trans(spec.and(always(pre)), spec, tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))));
+        entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
+        entails_preserved_by_always(pre, lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)));
+        entails_preserved_by_always(pre, lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)));
+        entails_trans(spec.and(always(pre)), always(pre), always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n))));
+        entails_trans(spec.and(always(pre)), always(pre), always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))));
+        lemma_from_init_to_not_desired_state_is(vd, spec.and(always(pre)), cluster, controller_id, vrs_set, n);
+        always_p_is_stable(pre);
+        unpack_conditions_from_spec(spec, always(pre), lift_state(init), post);
+    }
+    leads_to_trans(spec, always(pre), lift_state(init).and(always(pre)), post);
 }
 
 // *** Helper lemmas and predicates ***

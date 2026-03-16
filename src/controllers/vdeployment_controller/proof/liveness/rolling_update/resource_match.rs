@@ -34,7 +34,7 @@ pub proof fn lemma_from_init_to_not_desired_state_is(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
