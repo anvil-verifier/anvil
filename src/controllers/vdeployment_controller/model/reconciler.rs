@@ -256,10 +256,10 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
 //  scale new vrs to desired replicas
 pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = state.new_vrs->0;
-    let new_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.status->0.replicas {
-        new_vrs.status->0.replicas + 1
+    let new_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
+        new_vrs.spec.replicas.unwrap_or(1) + 1
     } else {
-        new_vrs.status->0.replicas - 1
+        new_vrs.spec.replicas.unwrap_or(1) - 1
     };
     let new_vrs = VReplicaSetView {
         spec: VReplicaSetSpecView {
