@@ -259,6 +259,16 @@ ensures
         && #[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime)
         && #[trigger] current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime),
 {
+    // I believe the equivlance between new_vrs chosen in inductive_current_state_matches and in conjuncted_desired_state_is_vrs_with_replica_diff is not needed
+    // because that's not provable anyway
+    // 1. inductive_current_state_matches |= exists |m| p(m)
+    // 2. if m != n, prove by contradiction:
+    //     only one write request is enabled by inductive_current_state_matches:
+    //     req must satisfies req_msg_is_scale_new_vrs_req
+    //     it will only make replicas of local_state.new_vrs to be closer to vd.spec.replicas
+    //     req is req_msg_is_scale_new_vrs_req && replicas_diff changes
+    //         ==> new_vrs is the same or 2 different new vrs and each has 0 replicas
+    //         ==> m = n - 1, Q.E.D.
     assume(false);
 }
 
