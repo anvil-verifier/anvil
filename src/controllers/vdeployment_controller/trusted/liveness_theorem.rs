@@ -61,7 +61,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
     |s: ClusterState| {
         &&& current_state_matches(vd)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s)
+            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
             &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) ==> {
                 let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                 &&& vds.old_vrs_index == 0
@@ -75,6 +75,10 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s)
+            } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
+                &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, s)
             } else {
                 s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }

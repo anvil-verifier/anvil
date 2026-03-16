@@ -384,7 +384,10 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& req_vrs.spec.replicas == Some(vd.spec.replicas.unwrap_or(1))
+        &&& get_replicas(vd.spec.replicas) > get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
+        &&& get_replicas(vd.spec.replicas) < get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
+        // unreachable
+        &&& get_replicas(vd.spec.replicas) == get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas))
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
