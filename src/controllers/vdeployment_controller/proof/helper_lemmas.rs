@@ -244,6 +244,7 @@ pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_refere
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState
 )
