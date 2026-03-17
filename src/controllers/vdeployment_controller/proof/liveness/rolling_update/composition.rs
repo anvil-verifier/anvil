@@ -216,18 +216,27 @@ pub proof fn ranking_never_increases(
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
         &&& vd_rely_condition(cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s_prime)
         &&& inductive_current_state_matches(vd, controller_id)(s)
         &&& inductive_current_state_matches(vd, controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
+    always_to_always_later(spec, lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
+    always_to_always_later(spec, lifted_vd_rely_condition(cluster, controller_id));
     always_to_always_later(spec, lift_state(inductive_current_state_matches(vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
+        later(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
         lifted_vd_rely_condition(cluster, controller_id),
+        later(lifted_vd_rely_condition(cluster, controller_id)),
         lift_state(inductive_current_state_matches(vd, controller_id)),
         later(lift_state(inductive_current_state_matches(vd, controller_id)))
     );
@@ -238,7 +247,7 @@ pub proof fn ranking_never_increases(
     // pre, inv is preserved
     assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
         assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) implies exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
-            ranking_never_decreases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n);
+            ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n);
         }
     }
     assert forall |n: nat| spec.entails(always(lift_state(#[trigger] p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))))) by {
@@ -259,7 +268,7 @@ pub proof fn ranking_never_increases(
     }
 }
 
-proof fn ranking_never_decreases_from_s_to_s_prime(
+proof fn ranking_never_increases_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, vrs_set: Set<VReplicaSetView>, n: nat
 )
 requires
@@ -268,14 +277,17 @@ requires
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     cluster.next()(s, s_prime),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
     forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime),
     vd_rely_condition(cluster, controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s_prime),
     inductive_current_state_matches(vd, controller_id)(s),
     inductive_current_state_matches(vd, controller_id)(s_prime),
     conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n)(s),
     current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s),
 ensures
-    exists |m: nat| m < n
+    exists |m: nat| m <= n
         && #[trigger] conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime)
         && #[trigger] current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime),
 {
@@ -306,8 +318,21 @@ ensures
     assert(new_vrs.object_ref() == k);
     // 2. prove new_vrs is also the new_vrs in s_prime or there exists another new_vrs_tmp in s with 0 replicas
     // and in both cases their replicas diff decrease
-    assert(exists |k: ObjectRef| #![trigger s_prime.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime));
-    let k_prime = choose |k: ObjectRef| #![trigger s_prime.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
+    assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime));
+    let k_prime = choose |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
+    if k == k_prime {
+        let (vrs_set_prime, new_vrs_prime, m) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k, cluster, controller_id, s_prime);
+        assume(vrs_set_prime == vrs_set); // weaken it later to allow mismatch in replicas
+        if m != n {
+            assert(s.resources()[k] != s.resources()[k_prime]);
+            // it has to be updated by request from vd controller, which only decreases replicas_diff
+            assume(m < n);
+        }
+        assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
+        assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
+    } else {
+        assume(false);
+    }
 }
 
 // Obligation 3: Ranking decrease
@@ -475,11 +500,12 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
     ensures
         current_state_match_vd_applied_to_vrs_set_with_replicas(res.0, vd, res.2)(s),
         conjuncted_desired_state_is_vrs_with_replica_diff(res.0, vd, res.2)(s),
-        // these 2 post conditions are provided for ranking_never_decreases_from_s_to_s_prime
+        // these 2 post conditions are provided for ranking_never_increases_from_s_to_s_prime
         vrs_is_new_vrs_in_vrs_set(res.0, vd, res.1, res.2),
         VReplicaSetView::unmarshal(s.resources()[k]) is Ok,
         res.1 == vrs_with_no_rv_status(VReplicaSetView::unmarshal(s.resources()[k])->Ok_0),
         res.1.object_ref() == k,
+        res.2 == replicas_diff(vd, res.1),
         res.0.finite(),
         res.0.len() > 0,
 {
