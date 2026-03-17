@@ -255,7 +255,14 @@ pub proof fn ranking_never_increases(
                 Step::APIServerStep(input) => {
                     let msg = input->0;
                     if msg.src == HostId::Controller(controller_id, vd.object_ref()) {
-                        ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n, msg);
+                        let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s) {
+                            ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n, msg);
+                        } else {
+                            assert(req_msg_is_list_vrs_req(vd, controller_id, msg, s)); // read-only
+                            assert(s_prime.resources() == s.resources());
+                            assert(p(n)(s_prime));
+                        }
                     } else {
                         assume(false); // api_action::other_requests_maintains_vrs_set_and_conjuncted_desired_state_is_vrs
                     }
@@ -304,6 +311,10 @@ requires
     conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n)(s),
     current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s),
     req_msg.src == HostId::Controller(controller_id, vd.object_ref()),
+    ({
+        let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s)
+    }),
 ensures
     exists |m: nat| #![trigger current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)] m <= n
         && conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime)
@@ -312,82 +323,75 @@ ensures
     // 0. this message is scale_new_vrs_req
     let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-    if req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s) {
-        // 1. extract new_vrs from s
-        assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s));
-        let k = choose |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s);
-        let (vrs_set_tmp, new_vrs, n_tmp) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k, cluster, controller_id, s);
-        assert(vrs_set_tmp == vrs_set);
-        if n_tmp != n {
-            let new_vrs_tmp = choose |vrs: VReplicaSetView| #[trigger] vrs_is_new_vrs_in_vrs_set(vrs_set, vd, vrs, n);
-            // the chosen new_vrs is different, this only happens when we have 2 new_vrs with 0 replicas
-            assert(new_vrs_tmp != new_vrs);
-            // then they should match each other's old vrs conditions
-            if new_vrs_tmp.spec.replicas.unwrap_or(1) > 0 {
-                assert(vrs_set.contains(new_vrs_tmp)); // trigger
-                assert(false);
-            }
-            if new_vrs.spec.replicas.unwrap_or(1) > 0 {
-                assert(vrs_set.contains(new_vrs)); // trigger
-                assert(false);
-            }
-            // so they both have 0 replicas, n_tmp == n
+    // 1. extract new_vrs from s
+    assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s));
+    let k = choose |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s);
+    let (vrs_set_tmp, new_vrs, n_tmp) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k, cluster, controller_id, s);
+    assert(vrs_set_tmp == vrs_set);
+    if n_tmp != n {
+        let new_vrs_tmp = choose |vrs: VReplicaSetView| #[trigger] vrs_is_new_vrs_in_vrs_set(vrs_set, vd, vrs, n);
+        // the chosen new_vrs is different, this only happens when we have 2 new_vrs with 0 replicas
+        assert(new_vrs_tmp != new_vrs);
+        // then they should match each other's old vrs conditions
+        if new_vrs_tmp.spec.replicas.unwrap_or(1) > 0 {
+            assert(vrs_set.contains(new_vrs_tmp)); // trigger
             assert(false);
         }
-        // now we have all post conditions of current_state_match_vd_implies_exists_vrs_set_with_replica_diff
-        assert(new_vrs.object_ref() == k);
-        // 2. prove new_vrs is also the new_vrs in s_prime or there exists another new_vrs_tmp in s with 0 replicas
-        // and in both cases their replicas diff decrease
-        assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime));
-        let k_prime = choose |k: ObjectRef| #[trigger] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
-        let (vrs_set_prime, new_vrs_prime, m) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k_prime, cluster, controller_id, s_prime);
-        assume(vrs_set_prime == vrs_set); // weaken it later to allow mismatch in new_vrs replicas
-        assume(s.resources().dom() == s_prime.resources().dom()); // update request won't change keys
-        if k == k_prime {
-            if m != n {
-                assert(s.resources()[k] != s.resources()[k_prime]);
-                // it has to be updated by request from vd controller, which only decreases replicas_diff
-                assume(m < n);
-            }
-            assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
-            assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
-        } else {
-            // so key_prime must be in k's "old key list", in s, the vrs pointed to by it has 0 replicas
-            // and replicas can't be negative so rank won't increase
-            assert(s.resources().contains_key(k_prime)); // trigger
-            assume(valid_owned_obj_key(vd, s)(k_prime));
-            assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s)(k_prime));
-            assert(VReplicaSetView::unmarshal(s.resources()[k_prime])->Ok_0.spec.replicas.unwrap_or(1) == 0);
-            // vice versa, k is in k_prime's "old key list", in s_prime, the vrs pointed to by it has 0 replicas
-            assert(s_prime.resources().contains_key(k)); // trigger
-            assume(valid_owned_obj_key(vd, s_prime)(k));
-            assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s_prime)(k));
-            assert(VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0.spec.replicas.unwrap_or(1) == 0);
-            // then, we have (k_prime, s) has 0 replicas and (k, s_prime) has 0 replicas
-            // either (k, s) has 0 replicas and n == vd.replicas
-            if new_vrs.spec.replicas.unwrap_or(1) == 0 {
-                assert(n == vd.spec.replicas.unwrap_or(1));
-                // we know previously its replicas is 0
-                // so it's the object being updated
-                if new_vrs_prime.spec.replicas.unwrap_or(1) != 0 {
-                    assume(m < n);
-                } else {
-                    assert(m == n);
-                }
-            } else { // or (k, s) has positive replicas
-                // so k must be updated by request
-                // and replicas diff must decrease according to req_msg_is_scale_new_vrs_req
-                assume(m < n);
-            }
-            assert(m <= n);
-            assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
-            assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
+        if new_vrs.spec.replicas.unwrap_or(1) > 0 {
+            assert(vrs_set.contains(new_vrs)); // trigger
+            assert(false);
         }
+        // so they both have 0 replicas, n_tmp == n
+        assert(false);
+    }
+    // now we have all post conditions of current_state_match_vd_implies_exists_vrs_set_with_replica_diff
+    assert(new_vrs.object_ref() == k);
+    // 2. prove new_vrs is also the new_vrs in s_prime or there exists another new_vrs_tmp in s with 0 replicas
+    // and in both cases their replicas diff decrease
+    assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime));
+    let k_prime = choose |k: ObjectRef| #[trigger] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
+    let (vrs_set_prime, new_vrs_prime, m) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k_prime, cluster, controller_id, s_prime);
+    assume(vrs_set_prime == vrs_set); // weaken it later to allow mismatch in new_vrs replicas
+    assume(s.resources().dom() == s_prime.resources().dom()); // update request won't change keys
+    if k == k_prime {
+        if m != n {
+            assert(s.resources()[k] != s.resources()[k_prime]);
+            // it has to be updated by request from vd controller, which only decreases replicas_diff
+            assume(m < n);
+        }
+        assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
+        assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
     } else {
-        assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)); // read only
-        assert(s.resources() == s_prime.resources());
-        assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n)(s_prime));
-        assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s_prime));
+        // so key_prime must be in k's "old key list", in s, the vrs pointed to by it has 0 replicas
+        // and replicas can't be negative so rank won't increase
+        assert(s.resources().contains_key(k_prime)); // trigger
+        assume(valid_owned_obj_key(vd, s)(k_prime));
+        assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s)(k_prime));
+        assert(VReplicaSetView::unmarshal(s.resources()[k_prime])->Ok_0.spec.replicas.unwrap_or(1) == 0);
+        // vice versa, k is in k_prime's "old key list", in s_prime, the vrs pointed to by it has 0 replicas
+        assert(s_prime.resources().contains_key(k)); // trigger
+        assume(valid_owned_obj_key(vd, s_prime)(k));
+        assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s_prime)(k));
+        assert(VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0.spec.replicas.unwrap_or(1) == 0);
+        // then, we have (k_prime, s) has 0 replicas and (k, s_prime) has 0 replicas
+        // either (k, s) has 0 replicas and n == vd.replicas
+        if new_vrs.spec.replicas.unwrap_or(1) == 0 {
+            assert(n == vd.spec.replicas.unwrap_or(1));
+            // we know previously its replicas is 0
+            // so it's the object being updated
+            if new_vrs_prime.spec.replicas.unwrap_or(1) != 0 {
+                assume(m < n);
+            } else {
+                assert(m == n);
+            }
+        } else { // or (k, s) has positive replicas
+            // so k must be updated by request
+            // and replicas diff must decrease according to req_msg_is_scale_new_vrs_req
+            assume(m < n);
+        }
+        assert(m <= n);
+        assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
+        assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
     }
 }
 
