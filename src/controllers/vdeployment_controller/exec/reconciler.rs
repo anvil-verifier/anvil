@@ -334,7 +334,9 @@ requires
     model_util::valid_owned_vrs(vrs@, vd@),
 ensures res == model_util::mismatch_replicas(vd@, vrs@),
 {
-    vrs.status().is_some() && vrs.status().unwrap().replicas() != vd.spec().replicas().unwrap_or(1)
+    vrs.status().is_some()
+    && vrs.status().unwrap().replicas() == vrs.spec().replicas().unwrap_or(1)
+    && vrs.spec().replicas().unwrap_or(1) != vd.spec().replicas().unwrap_or(1)
 }
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
