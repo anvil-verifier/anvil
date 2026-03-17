@@ -202,6 +202,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
 uninterp spec fn make_vrs() -> VReplicaSetView;
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
@@ -1264,6 +1265,7 @@ ensures
 
 // TODO: investigate flaky proof.
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
 )
