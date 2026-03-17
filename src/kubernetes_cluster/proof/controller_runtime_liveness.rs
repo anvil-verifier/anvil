@@ -545,6 +545,8 @@ pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_
 
 // this has dependency over the "no request message to external not owned by the controller",
 // which will be completed in another PR on controller state machine
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),

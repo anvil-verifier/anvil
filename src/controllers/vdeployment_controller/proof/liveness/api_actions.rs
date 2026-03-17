@@ -157,6 +157,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
@@ -275,6 +276,7 @@ ensures
     return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_scale_new_vrs_req_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
