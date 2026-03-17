@@ -463,6 +463,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceVi
 
 // TODO: investigate flaky proof.
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(50))]
 pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceView>(
     self, spec: TempPred<ClusterState>,
 )
