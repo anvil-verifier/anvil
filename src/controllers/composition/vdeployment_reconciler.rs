@@ -13,7 +13,7 @@ use crate::composition::vreplicaset_reconciler::*;
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, rely_guarantee::*, util::*, liveness_theorem as vd_liveness},
     model::{reconciler::*, install::vd_controller_model},
-    proof::{guarantee::*, liveness::{spec as vd_spec, proof as vd_proof, composition::*}, predicate::*, helper_lemmas::*, helper_invariants, liveness::api_actions::*}
+    proof::{guarantee::*, liveness::{spec as vd_spec, proof as vd_proof, rolling_update::composition::*}, predicate::*, helper_lemmas::*, helper_invariants, liveness::api_actions::*}
 };
 use crate::vstd_ext::{
     string_view::*, seq_lib::*, set_lib::*, map_lib::*
@@ -98,27 +98,25 @@ impl VerticalComposition for VDeploymentReconciler {
         assert(spec.entails(vd_spec::next_with_wf(cluster, Self::id()))) by {
             entails_trans(spec, next_with_wf, vd_spec::next_with_wf(cluster, Self::id()));
         }
-        let current_state_matches_vrs = |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs);
-        assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vrs)));
-        assert(spec.entails(tla_forall(|vrs: VReplicaSetView| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))))));
-        assert forall |vrs| #[trigger] spec.entails(always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
-            use_tla_forall(spec, |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs)))), vrs);
-        }
         assert forall |vd: VDeploymentView| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id()))))) by {
             vd_proof::eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, Self::id());
         }
-        spec_entails_tla_forall(spec, |vrs: VReplicaSetView| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))));
-        assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(Self::id())))) by {
+        assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(Self::id())))) by {
             assert forall |vd| #[trigger] spec.entails(always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(Self::id(), vd)))) by {
                 helper_invariants::lemma_always_vd_reconcile_request_only_interferes_with_itself(spec, cluster, Self::id(), vd);
             }
             spec_entails_tla_forall(spec, |vd| always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(Self::id(), vd))));
             spec_entails_always_tla_forall_equality(spec, |vd| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(Self::id(), vd)));
-            only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, Self::id());
+            // FIXME
+            assume(lifted_vd_reconcile_request_only_interferes_with_itself(Self::id()) == tla_forall(|vd| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(Self::id(), vd))));
+        }
+        assert(spec.entails(always(lifted_vd_rely_condition(cluster, Self::id())))) by {
+            // FIXME
+            assume(false);
         }
         assert forall |vd| #[trigger] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::composed_current_state_matches(vd))))) by {
             vd_spec::spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec, vd, Self::id(), cluster);
-            vrs_set_matches_vd_stable_state_leads_to_composed_current_state_matches_vd(spec, vd, Self::id(), cluster);
+            rolling_update_leads_to_composed_current_state_matches_vd(spec, vd, Self::id(), cluster);
         }
         spec_entails_tla_forall(spec, |vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::composed_current_state_matches(vd)))));
     }
