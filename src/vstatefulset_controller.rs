@@ -25,6 +25,7 @@ use deps_hack::tokio;
 use deps_hack::tracing::{error, info};
 use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller_watching_owned;
+use deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim;
 use std::env;
 
 #[tokio::main]
@@ -44,6 +45,7 @@ async fn main() -> Result<()> {
             deps_hack::VStatefulSet,
             VStatefulSetReconciler,
             VoidExternalShimLayer,
+            PersistentVolumeClaim,
         >(false)
         .await?;
     } else if cmd == String::from("crash") {
@@ -52,6 +54,7 @@ async fn main() -> Result<()> {
             deps_hack::VStatefulSet,
             VStatefulSetReconciler,
             VoidExternalShimLayer,
+            PersistentVolumeClaim,
         >(true)
         .await?;
     } else {

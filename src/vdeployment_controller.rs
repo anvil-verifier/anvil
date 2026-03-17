@@ -25,7 +25,7 @@ use deps_hack::serde_yaml;
 use deps_hack::tokio;
 use deps_hack::tracing::{error, info};
 use deps_hack::tracing_subscriber;
-use shim_layer::controller_runtime::run_controller;
+use shim_layer::controller_runtime::run_controller_watching_owned;
 use std::env;
 use crate::external_shim_layer::VoidExternalShimLayer;
 use crate::vdeployment_controller::exec::reconciler::VDeploymentReconciler;
@@ -40,13 +40,13 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::VDeployment::crd())?);
     } else if cmd == String::from("run") {
         info!("running vdeployment-controller");
-        run_controller::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer>(
+        run_controller_watching_owned::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer, deps_hack::VReplicaSet>(
             false,
         )
         .await?;
     } else if cmd == String::from("crash") {
         info!("running vdeployment-controller in crash-testing mode");
-        run_controller::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer>(
+        run_controller_watching_owned::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer, deps_hack::VReplicaSet>(
             true,
         )
         .await?;
