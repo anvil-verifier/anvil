@@ -337,6 +337,7 @@ ensures
 }
 
 // similar to lemma_from_list_resp_to_next_state, carved out to reduce flakiness and proof time for debugging
+#[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, step: Step
 )
