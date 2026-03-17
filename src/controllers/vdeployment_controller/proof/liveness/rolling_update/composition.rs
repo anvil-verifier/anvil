@@ -352,12 +352,40 @@ ensures
     let k_prime = choose |k: ObjectRef| #[trigger] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
     let (vrs_set_prime, new_vrs_prime, m) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k_prime, cluster, controller_id, s_prime);
     assume(vrs_set_prime == vrs_set); // weaken it later to allow mismatch in new_vrs replicas
-    assume(s.resources().dom() == s_prime.resources().dom()); // update request won't change keys
+    // GetThenUpdate only does s.resources.insert(key, ...) at an existing key, preserving dom()
+    // The request key is k (new VRS key), which we know s.resources().contains_key(k)
+    let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
+    let req_key = req.key();
+    assert(req_key == local_state.new_vrs->0.object_ref());
+    assert(s.resources().contains_key(req_key));
+    // After GetThenUpdate with existing key, dom is preserved
+    assert(s.resources().dom() == s_prime.resources().dom());
     if k == k_prime {
         if m != n {
-            assert(s.resources()[k] != s.resources()[k_prime]);
-            // it has to be updated by request from vd controller, which only decreases replicas_diff
-            assume(m < n);
+            assert(s.resources()[k] != s_prime.resources()[k_prime]);
+            // k == k_prime == req_key, so the resource at k was updated by req_msg
+            // From req_msg_is_scale_new_vrs_req:
+            //   desired > current ==> new_replicas = current + 1 (diff decreases by 1)
+            //   desired < current ==> new_replicas = current - 1 (diff decreases by 1)
+            //   desired == current ==> new_replicas = current (diff unchanged, contradicts m != n)
+            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+            let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
+            let desired = vd.spec.replicas.unwrap_or(1);
+            let current_replicas = get_replicas(etcd_vrs.spec.replicas);
+            // new_vrs and new_vrs_prime are vrs_with_no_rv_status of the etcd VRS at k in s and s_prime
+            // n = replicas_diff(vd, new_vrs), m = replicas_diff(vd, new_vrs_prime)
+            // The update changes spec.replicas by ±1 toward desired, so diff decreases
+            if desired > current_replicas {
+                assert(req_vrs.spec.replicas == Some(current_replicas + 1));
+                // diff was (desired - current), now (desired - (current+1)) = diff - 1
+            } else if desired < current_replicas {
+                assert(req_vrs.spec.replicas == Some(current_replicas - 1));
+                // diff was (current - desired), now ((current-1) - desired) = diff - 1
+            } else {
+                // desired == current, replicas unchanged, so m == n, contradiction
+                assert(req_vrs.spec.replicas == Some(current_replicas));
+            }
+            assert(m < n);
         }
         assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
         assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
@@ -365,12 +393,39 @@ ensures
         // so key_prime must be in k's "old key list", in s, the vrs pointed to by it has 0 replicas
         // and replicas can't be negative so rank won't increase
         assert(s.resources().contains_key(k_prime)); // trigger
-        assume(valid_owned_obj_key(vd, s)(k_prime));
+        // Only the resource at req_key was modified from s to s_prime
+        // We need valid_owned_obj_key(vd, s)(k_prime)
+        // Since key_is_new_vrs_key_in_current_state_matches(vd, k_prime, s_prime) holds,
+        // we know valid_owned_obj_key(vd, s_prime)(k_prime)
+        if k_prime == req_key {
+            // k_prime was the key modified by the request
+            // From req_msg_is_scale_new_vrs_req: valid_owned_vrs(req_vrs, vd) and the etcd obj
+            // in s was valid too (s.resources().contains_key(req_key) && valid_owned_obj_key(vd, s)(req_key))
+            // The original etcd VRS at k_prime in s was also valid (from req_msg precondition)
+            assert(valid_owned_obj_key(vd, s)(k_prime));
+        } else {
+            // k_prime != req_key, so s.resources()[k_prime] == s_prime.resources()[k_prime]
+            assert(s.resources()[k_prime] == s_prime.resources()[k_prime]);
+            assert(valid_owned_obj_key(vd, s)(k_prime));
+        }
         assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s)(k_prime));
         assert(VReplicaSetView::unmarshal(s.resources()[k_prime])->Ok_0.spec.replicas.unwrap_or(1) == 0);
         // vice versa, k is in k_prime's "old key list", in s_prime, the vrs pointed to by it has 0 replicas
         assert(s_prime.resources().contains_key(k)); // trigger
-        assume(valid_owned_obj_key(vd, s_prime)(k));
+        // We need valid_owned_obj_key(vd, s_prime)(k)
+        // Since key_is_new_vrs_key_in_current_state_matches(vd, k, s) holds,
+        // we know valid_owned_obj_key(vd, s)(k)
+        if k == req_key {
+            // k was the key modified by the request
+            // From req_msg_is_scale_new_vrs_req: valid_owned_vrs(req_vrs, vd)
+            // The updated object in s_prime preserves uid, namespace, name, owner_references,
+            // deletion_timestamp and the req_vrs passes valid_owned_vrs
+            assert(valid_owned_obj_key(vd, s_prime)(k));
+        } else {
+            // k != req_key, so s.resources()[k] == s_prime.resources()[k]
+            assert(s.resources()[k] == s_prime.resources()[k]);
+            assert(valid_owned_obj_key(vd, s_prime)(k));
+        }
         assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s_prime)(k));
         assert(VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0.spec.replicas.unwrap_or(1) == 0);
         // then, we have (k_prime, s) has 0 replicas and (k, s_prime) has 0 replicas
