@@ -188,6 +188,8 @@ pub proof fn esr_for_each_ranking(
 
 // Obligation 2: Monotonicity (ranking never increases)
 // forall n. spec |= [] (p(n) => [] (exists m <= n. p(m)))
+#[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 pub proof fn ranking_never_increases(
     spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster
 )
@@ -245,9 +247,19 @@ pub proof fn ranking_never_increases(
         and_eq(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n), current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n));
     }
     // pre, inv is preserved
-    assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
-        assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) implies exists |m: nat| m < n && #[trigger] p(m)(s_prime) by {
-            ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n);
+    assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && #[trigger] p(m)(s_prime) by {
+        assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) implies exists |m: nat| m <= n && #[trigger] p(m)(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::APIServerStep(input) => {
+                    ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n);
+                    // let msg = input->0;
+                },
+                _ => {
+                    assert(s_prime.resources() == s.resources());
+                    assert(p(n)(s_prime));
+                }
+            }
         }
     }
     assert forall |n: nat| spec.entails(always(lift_state(#[trigger] p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))))) by {
