@@ -2135,6 +2135,7 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     eventually_proved_by_witness(ex, always(tla_forall(a_to_p)), max_witness);
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
     spec: TempPred<T>, next: ActionPred<T>, a_to_p: spec_fn(A) -> StatePred<T>, domain: spec_fn(T) -> spec_fn(A) -> bool
 )
