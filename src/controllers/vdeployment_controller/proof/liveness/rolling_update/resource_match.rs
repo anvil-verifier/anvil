@@ -296,7 +296,7 @@ pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
         spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
@@ -390,7 +390,7 @@ pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_scale_new_vrs_by_one
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
         spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
@@ -433,7 +433,7 @@ pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_scale_new_vrs_by_one
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -526,6 +526,7 @@ proof fn lemma_scale_new_vrs_by_one_breaks_desired_state(
 }
 
 #[verifier(rlimit(20))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state_is(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster,
     controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef),
@@ -539,7 +540,7 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+        spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
         spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
@@ -593,7 +594,7 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
         lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))
