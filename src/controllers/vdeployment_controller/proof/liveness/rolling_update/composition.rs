@@ -627,6 +627,7 @@ pub proof fn conjuncted_current_state_matches_vrs_with_replica_diff_0_implies_co
 }
 
 // Stability of vrs_set identity (modulo rv/status/replicas) and conjuncted p(n)
+// TODO: deprecate this
 #[verifier(external_body)] // trivial
 pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, n: nat, s: ClusterState, s_prime: ClusterState
