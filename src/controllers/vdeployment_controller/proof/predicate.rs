@@ -358,6 +358,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let req_vrs_replicas = get_replicas(req_vrs.spec.replicas);
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content is APIRequest
@@ -380,6 +381,10 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
+        &&& req_vrs.spec == VReplicaSetSpec { // eq w/o replicas
+            replicas: Some(req_vrs_replicas)
+            ..etcd_vrs.spec
+        }
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
