@@ -273,14 +273,14 @@ ensures
     (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(state@, vd@),
 {
     let mut new_vrs = state.new_vrs.clone().unwrap();
-    let mut new_replicas = new_vrs.status().unwrap().replicas();
-    new_replicas = if vd.spec().replicas().unwrap_or(1) > new_replicas {
-        new_replicas + 1
+    let mut replicas = new_vrs.spec().replicas().unwrap_or(1);
+    if vd.spec().replicas().unwrap_or(1) >  replicas {
+        replicas = replicas + 1
     } else {
-        new_replicas - 1
+        replicas = replicas - 1
     };
     let mut new_spec = new_vrs.spec();
-    new_spec.set_replicas(new_replicas);
+    new_spec.set_replicas(replicas);
     new_vrs.set_spec(new_spec);
     let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
         api_resource: VReplicaSet::api_resource(),
