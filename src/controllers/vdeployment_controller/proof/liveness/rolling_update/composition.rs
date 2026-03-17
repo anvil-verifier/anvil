@@ -105,6 +105,36 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set
     }
 }
 
+// inside \E of current_state_matches
+pub open spec fn key_is_new_vrs_key_in_current_state_matches(vd: VDeploymentView, k: ObjectRef, s: ClusterState) -> bool {
+    let etcd_obj = s.resources()[k];
+    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+    &&& #[trigger] s.resources().contains_key(k)
+    &&& valid_owned_obj_key(vd, s)(k)
+    &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+    &&& etcd_vrs.metadata.uid is Some
+    // &&& etcd_vrs_spec.replicas == 0
+    // no old vrs, including the 2nd new vrs (if any)
+    &&& !exists |old_k: ObjectRef| {
+        &&& #[trigger] s.resources().contains_key(old_k)
+        &&& valid_owned_obj_key(vd, s)(old_k)
+        &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
+    }
+}
+
+// inside \E of current_state_match_vd_applied_to_vrs_set_with_replicas
+pub open spec fn vrs_is_new_vrs_in_vrs_set(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, new_vrs: VReplicaSetView, n: nat) -> bool {
+    &&& vrs_set.contains(new_vrs)
+    &&& match_template_without_hash(vd.spec.template)(new_vrs)
+    &&& replicas_diff(vd, new_vrs) == n
+    // all old vrs have replicas == Some(0)
+    &&& !exists |old_vrs: VReplicaSetView| {
+        &&& #[trigger] vrs_set.contains(old_vrs)
+        &&& old_vrs != new_vrs
+        &&& old_vrs.spec.replicas.unwrap_or(1) > 0
+    }
+}
+
 // *** Obligation proofs for leads_to_by_monotonicity3 (per fixed vrs_set) ***
 
 // Obligation 1: ESR for each ranking level
@@ -262,6 +292,36 @@ ensures
     // I believe the equivlance between new_vrs chosen in inductive_current_state_matches and in conjuncted_desired_state_is_vrs_with_replica_diff is not needed
     // because that's not provable anyway
     // 1. inductive_current_state_matches |= exists |m| p(m)
+    let new_vrs_key = choose |k: ObjectRef| {
+        let etcd_obj = s.resources()[k];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& #[trigger] s.resources().contains_key(k)
+        &&& valid_owned_obj_key(vd, s)(k)
+        &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+        &&& etcd_vrs.metadata.uid is Some
+        // &&& etcd_vrs_spec.replicas == 0
+        // no old vrs, including the 2nd new vrs (if any)
+        &&& !exists |old_k: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(old_k)
+            &&& valid_owned_obj_key(vd, s)(old_k)
+            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
+        }
+    };
+    let new_vrs_key_prime = choose |k: ObjectRef| {
+        let etcd_obj = s_prime.resources()[k];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& #[trigger] s_prime.resources().contains_key(k)
+        &&& valid_owned_obj_key(vd, s_prime)(k)
+        &&& filter_new_vrs_keys(vd.spec.template, s_prime)(k)
+        &&& etcd_vrs.metadata.uid is Some
+        // &&& etcd_vrs_spec.replicas == 0
+        // no old vrs, including the 2nd new vrs (if any)
+        &&& !exists |old_k: ObjectRef| {
+            &&& #[trigger] s_prime.resources().contains_key(old_k)
+            &&& valid_owned_obj_key(vd, s_prime)(old_k)
+            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s_prime)(old_k)
+        }
+    };
     // 2. if m != n, prove by contradiction:
     //     only one write request is enabled by inductive_current_state_matches:
     //     req must satisfies req_msg_is_scale_new_vrs_req
@@ -427,15 +487,19 @@ pub proof fn ranking_decreases_after_vrs_esr(
 // *** Helper lemmas and predicates ***
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState)
-    -> (res: (Set<VReplicaSetView>, nat))
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
+    vd: VDeploymentView, k: ObjectRef, cluster: Cluster, controller_id: int, s: ClusterState
+) -> (res: (Set<VReplicaSetView>, VReplicaSetView, nat)) // vrs_set, new_vrs, replicas_diff
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-        inductive_current_state_matches(vd, controller_id)(s),
+        key_is_new_vrs_key_in_current_state_matches(vd, k, s),
     ensures
-        current_state_match_vd_applied_to_vrs_set_with_replicas(res.0, vd, res.1)(s),
-        conjuncted_desired_state_is_vrs_with_replica_diff(res.0, vd, res.1)(s),
+        current_state_match_vd_applied_to_vrs_set_with_replicas(res.0, vd, res.2)(s),
+        conjuncted_desired_state_is_vrs_with_replica_diff(res.0, vd, res.2)(s),
+        vrs_is_new_vrs_in_vrs_set(res.0, vd, res.1, res.2),
+        VReplicaSetView::unmarshal(s.resources()[k]) is Ok,
+        res.1 == vrs_with_no_rv_status(VReplicaSetView::unmarshal(s.resources()[k])->Ok_0),
         res.0.finite(),
         res.0.len() > 0,
 {
@@ -490,19 +554,6 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd:
         assert(vrs_liveness::desired_state_is(etcd_vrs)(s));
     }
     // from current_state_matches
-    let k = choose |k: ObjectRef| {
-        let etcd_obj = s.resources()[k];
-        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        &&& #[trigger] s.resources().contains_key(k)
-        &&& valid_owned_obj_key(vd, s)(k)
-        &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-        &&& etcd_vrs.metadata.uid is Some
-        &&& !exists |old_k: ObjectRef| {
-            &&& #[trigger] s.resources().contains_key(old_k)
-            &&& valid_owned_obj_key(vd, s)(old_k)
-            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
-        }
-    };
     let new_obj = s.resources()[k];
     let new_etcd_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
     let new_vrs = vrs_with_no_rv_status(new_etcd_vrs);
@@ -541,7 +592,7 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd:
         }
         assert(false);
     }
-    return (vrs_set, replicas_diff(vd, new_etcd_vrs));
+    return (vrs_set, new_vrs, replicas_diff(vd, new_etcd_vrs));
 }
 
 // q(0) with vrs_set identity implies composed_current_state_matches
@@ -767,7 +818,10 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             implies tla_exists(|vrs_set_with_diff| lift_state(vrs_set_pre(vrs_set_with_diff))).satisfied_by(ex) by {
             always_to_current(ex, stable_vd_post);
             assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(ex.head()));
-            let (vrs_set, n) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, cluster, controller_id, ex.head());
+            assert(current_state_matches(vd)(ex.head()));
+            assert(exists |k: ObjectRef| #![trigger ex.head().resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, ex.head()));
+            let k = choose |k: ObjectRef| #[trigger] key_is_new_vrs_key_in_current_state_matches(vd, k, ex.head());
+            let (vrs_set, _, n) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k, cluster, controller_id, ex.head());
             assert((|vrs_set_with_diff: (Set<VReplicaSetView>, nat)| lift_state(vrs_set_pre(vrs_set_with_diff)))((vrs_set, n)).satisfied_by(ex));
         }
         // Then show stability: vrs_set_pre is preserved by transitions under stable_vd_post
