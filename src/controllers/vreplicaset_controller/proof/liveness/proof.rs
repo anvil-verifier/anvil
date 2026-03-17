@@ -16,6 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
+#[verifier(external_body)]
 pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
