@@ -319,10 +319,11 @@ ensures
     // 2. prove new_vrs is also the new_vrs in s_prime or there exists another new_vrs_tmp in s with 0 replicas
     // and in both cases their replicas diff decrease
     assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime));
-    let k_prime = choose |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
+    let k_prime = choose |k: ObjectRef| #[trigger] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
+    let (vrs_set_prime, new_vrs_prime, m) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k_prime, cluster, controller_id, s_prime);
+    assume(vrs_set_prime == vrs_set); // weaken it later to allow mismatch in new_vrs replicas
+    assume(s.resources().dom() == s_prime.resources().dom()); // update request won't change keys
     if k == k_prime {
-        let (vrs_set_prime, new_vrs_prime, m) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k, cluster, controller_id, s_prime);
-        assume(vrs_set_prime == vrs_set); // weaken it later to allow mismatch in replicas
         if m != n {
             assert(s.resources()[k] != s.resources()[k_prime]);
             // it has to be updated by request from vd controller, which only decreases replicas_diff
@@ -331,7 +332,36 @@ ensures
         assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
         assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
     } else {
-        assume(false);
+        // so key_prime must be in k's "old key list", in s, the vrs pointed to by it has 0 replicas
+        // and replicas can't be negative so rank won't increase
+        assert(s.resources().contains_key(k_prime)); // trigger
+        assume(valid_owned_obj_key(vd, s)(k_prime));
+        assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s)(k_prime));
+        assert(VReplicaSetView::unmarshal(s.resources()[k_prime])->Ok_0.spec.replicas.unwrap_or(1) == 0);
+        // vice versa, k is in k_prime's "old key list", in s_prime, the vrs pointed to by it has 0 replicas
+        assert(s_prime.resources().contains_key(k)); // trigger
+        assume(valid_owned_obj_key(vd, s_prime)(k));
+        assert(!filter_old_vrs_keys(Some(new_vrs.metadata.uid->0), s_prime)(k));
+        assert(VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0.spec.replicas.unwrap_or(1) == 0);
+        // then, we have (k_prime, s) has 0 replicas and (k, s_prime) has 0 replicas
+        // either (k, s) has 0 replicas and n == vd.replicas
+        if new_vrs.spec.replicas.unwrap_or(1) == 0 {
+            assert(n == vd.spec.replicas.unwrap_or(1));
+            // we know previously its replicas is 0
+            // so it's the object being updated
+            if new_vrs_prime.spec.replicas.unwrap_or(1) != 0 {
+                assume(m < n);
+            } else {
+                assert(m == n);
+            }
+        } else { // or (k, s) has positive replicas
+            // so k must be updated by request
+            // and replicas diff must decrease according to req_msg_is_scale_new_vrs_req
+            assume(m < n);
+        }
+        assert(m <= n);
+        assert(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, m)(s_prime));
+        assert(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, m)(s_prime));
     }
 }
 
@@ -500,14 +530,15 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
     ensures
         current_state_match_vd_applied_to_vrs_set_with_replicas(res.0, vd, res.2)(s),
         conjuncted_desired_state_is_vrs_with_replica_diff(res.0, vd, res.2)(s),
-        // these 2 post conditions are provided for ranking_never_increases_from_s_to_s_prime
+        // for spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain
+        res.0.finite(),
+        res.0.len() > 0,
+        // for ranking_never_increases_from_s_to_s_prime
         vrs_is_new_vrs_in_vrs_set(res.0, vd, res.1, res.2),
         VReplicaSetView::unmarshal(s.resources()[k]) is Ok,
         res.1 == vrs_with_no_rv_status(VReplicaSetView::unmarshal(s.resources()[k])->Ok_0),
         res.1.object_ref() == k,
         res.2 == replicas_diff(vd, res.1),
-        res.0.finite(),
-        res.0.len() > 0,
 {
     let vrs_set = s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
