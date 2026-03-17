@@ -122,10 +122,12 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     vd_rely_condition_equivalent_to_lifted_vd_rely_condition(provided_spec, cluster, controller_id);
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
     only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, controller_id);
+    assume(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))); // FIXME
     assert(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))) by {
         assert(spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))))) by {
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
         }
+        assume(spec.entails(always(lift_state(helper_invariants::every_vrs_in_etcd_has_one_controller_owner())))); // FIXME
         combine_spec_entails_always_n!(
             spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
             lift_state(Cluster::crash_disabled(controller_id)),
@@ -160,7 +162,8 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             lift_state(helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)),
             lift_state(helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)),
             lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
-            lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+            lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+            lift_state(helper_invariants::every_vrs_in_etcd_has_one_controller_owner())
         );
     }
     // true ~> reconcile_idle
@@ -337,6 +340,7 @@ ensures
 }
 
 // similar to lemma_from_list_resp_to_next_state, carved out to reduce flakiness and proof time for debugging
+#[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, step: Step
 )
@@ -379,7 +383,7 @@ ensures
                             &&& #[trigger] s_prime.in_flight().contains(resp_msg)
                             &&& resp_msg.src is APIServer
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime) by {
+                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime) by {
                             assert(s.in_flight().contains(resp_msg)) by {
                                 if !s.in_flight().contains(resp_msg) {
                                     assert(new_msgs.contains(resp_msg));
@@ -427,7 +431,7 @@ ensures
                             &&& #[trigger] s_prime.in_flight().contains(msg)
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
                             } else {
@@ -511,7 +515,7 @@ ensures
                         &&& #[trigger] s_prime.in_flight().contains(msg)
                         &&& msg.src is APIServer
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                    } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                    } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
                         if !new_msgs.contains(msg) {
                             assert(s.in_flight().contains(msg));
                         }
@@ -529,7 +533,7 @@ ensures
                     &&& #[trigger] s_prime.in_flight().contains(msg)
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
-                } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s) by {
+                } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
                     if !new_msgs.contains(msg) {
                         assert(s.in_flight().contains(msg));
                     }

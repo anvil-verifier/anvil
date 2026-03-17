@@ -15,7 +15,7 @@ use crate::vdeployment_controller::{
         rely_guarantee::vd_rely, liveness_theorem::*},
     model::{install::*, reconciler::*},
 };
-use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
+use crate::vreplicaset_controller::trusted::spec_types::{VReplicaSetView, VReplicaSetSpecView};
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use vstd::prelude::*;
 
@@ -112,7 +112,7 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         }
     }
 }
@@ -128,7 +128,7 @@ pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
         // predicate on resp_msg
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
     }
 }
 
@@ -140,7 +140,7 @@ The unmarshallability part can be proved using each_custom_object_in_etcd_is_wel
 */
 
 pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, s: ClusterState
+    vd: VDeploymentView, resp_msg: Message, s: ClusterState
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
@@ -182,7 +182,7 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         let vrs_list = objects_to_vrs_list(resp_objs)->0;
         let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         &&& {
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
             &&& new_vrs is Some == nv_uid_key_replicas is Some
@@ -358,6 +358,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let req_vrs_replicas = get_replicas(req_vrs.spec.replicas);
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content is APIRequest
@@ -380,11 +381,18 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
+        &&& req_vrs.spec == VReplicaSetSpecView { // eq w/o replicas
+            replicas: Some(req_vrs_replicas),
+            ..etcd_vrs.spec
+        }
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& req_vrs.spec.replicas == Some(vd.spec.replicas.unwrap_or(1))
+        &&& get_replicas(vd.spec.replicas) > get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
+        &&& get_replicas(vd.spec.replicas) < get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
+        // unreachable
+        &&& get_replicas(vd.spec.replicas) == get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas))
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
@@ -708,7 +716,8 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd),
         helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id),
         helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id),
-        helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)
+        helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id),
+        helper_invariants::every_vrs_in_etcd_has_one_controller_owner()
     )
 }
 

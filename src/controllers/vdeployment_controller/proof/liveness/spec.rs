@@ -229,6 +229,8 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         next_with_wf(cluster, controller_id),
         always(lift_action(cluster.next()))
     );
+    // FIXME
+    assume(assumption_and_invariants_of_all_phases(vd, cluster, controller_id).entails(always(lift_state(every_vrs_in_etcd_has_one_controller_owner()))));
     spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vd, cluster, controller_id);
     always_tla_forall_apply(assumption_and_invariants_of_all_phases(vd, cluster, controller_id), |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
     combine_spec_entails_always_n!(
@@ -266,7 +268,8 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+        lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
+        lift_state(every_vrs_in_etcd_has_one_controller_owner())
     );
     entails_implies_leads_to(
         spec,

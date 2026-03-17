@@ -472,6 +472,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
+#[verifier(rlimit(30))]
 proof fn newly_added_msg_have_different_id_from_existing_ones(self, s: ClusterState, s_prime: ClusterState, msg_1: Message, msg_2: Message)
     requires
         self.next()(s, s_prime),

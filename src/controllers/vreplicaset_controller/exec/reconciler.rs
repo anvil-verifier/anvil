@@ -133,10 +133,10 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
             let desired_replicas: usize = replicas as usize;
             if filtered_pods.len() == desired_replicas {
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
                     ..state
                 };
-                return (state_prime, None);
+                return (state_prime, Some(Request::KRequest(make_get_then_update_status_request(v_replica_set))));
             } else if filtered_pods.len() < desired_replicas {
                 let diff =  desired_replicas - filtered_pods.len();
                 let pod = make_pod(v_replica_set);
@@ -177,10 +177,10 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
             }
             if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
                     ..state
                 };
-                return (state_prime, None);
+                return (state_prime, Some(Request::KRequest(make_get_then_update_status_request(v_replica_set))));
             } else {
                 let pod = make_pod(v_replica_set);
                 let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -202,10 +202,10 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
             }
             if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
                     ..state
                 };
-                return (state_prime, None);
+                return (state_prime, Some(Request::KRequest(make_get_then_update_status_request(v_replica_set))));
             } else {
                 if state.filtered_pods.is_none() {
                     return (error_state(state), None);
@@ -229,6 +229,16 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 };
                 return (state_prime, Some(Request::KRequest(req)));
             }
+        },
+        VReplicaSetReconcileStep::AfterUpdateVRSStatus => {
+            if !(is_some_k_get_then_update_status_resp!(resp_o) && extract_some_k_get_then_update_status_resp!(resp_o).is_ok()) {
+                return (error_state(state), None);
+            }
+            let state_prime = VReplicaSetReconcileState {
+                reconcile_step: VReplicaSetReconcileStep::Done,
+                ..state
+            };
+            return (state_prime, None);
         },
         _ => {
             return (state, None);
@@ -433,4 +443,21 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
     pod
 }
 
+#[verifier(external_body)] // FIXME
+fn make_get_then_update_status_request(vrs: &VReplicaSet) -> (req: KubeAPIRequest)
+    requires vrs@.well_formed(),
+    ensures req.deep_view() == model_reconciler::make_get_then_update_status_request(vrs@),
+{
+    let mut new_status = VReplicaSetStatus::default();
+    new_status.set_replicas(vrs.spec().replicas().unwrap_or(1));
+    let mut new_vrs = vrs.clone();
+    new_vrs.set_status(new_status);
+    KubeAPIRequest::GetThenUpdateStatusRequest(KubeGetThenUpdateStatusRequest {
+        api_resource: VReplicaSet::api_resource(),
+        name: vrs.metadata().name().unwrap(),
+        namespace: vrs.metadata().namespace().unwrap(),
+        owner_ref: vrs.metadata().owner_references().unwrap().into_iter().find(|o: &OwnerReference| o.controller().is_some() && o.controller().unwrap()).unwrap(),
+        obj: new_vrs.marshal(),
+    })
+}
 }

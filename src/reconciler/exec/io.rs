@@ -205,6 +205,14 @@ macro_rules! is_some_k_get_then_delete_resp {
 }
 
 #[macro_export]
+macro_rules! is_some_k_get_then_update_status_resp {
+    ($r:expr) => {
+        $r.is_some() && $r.as_ref().unwrap().is_k_response()
+        && $r.as_ref().unwrap().as_k_response_ref().is_get_then_update_status_response()
+    };
+}
+
+#[macro_export]
 macro_rules! extract_some_k_get_resp {
     ($r:expr) => {
         $r.unwrap().into_k_response().into_get_response().res
@@ -250,6 +258,13 @@ macro_rules! extract_some_k_get_then_update_resp {
 macro_rules! extract_some_k_get_then_delete_resp {
     ($r:expr) => {
         $r.unwrap().into_k_response().into_get_then_delete_response().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_get_then_update_status_resp {
+    ($r:expr) => {
+        $r.unwrap().into_k_response().into_get_then_update_status_response().res
     };
 }
 
@@ -302,6 +317,13 @@ macro_rules! extract_some_k_get_then_delete_resp_as_ref {
     };
 }
 
+#[macro_export]
+macro_rules! extract_some_k_get_then_update_status_resp_as_ref {
+    ($r:expr) => {
+        $r.as_ref().unwrap().as_k_response_ref().as_get_then_update_status_response_ref().res
+    };
+}
+
 pub use is_some_k_get_resp;
 pub use is_some_k_create_resp;
 pub use is_some_k_update_resp;
@@ -309,6 +331,7 @@ pub use is_some_k_list_resp;
 pub use is_some_k_delete_resp;
 pub use is_some_k_get_then_update_resp;
 pub use is_some_k_get_then_delete_resp;
+pub use is_some_k_get_then_update_status_resp;
 pub use extract_some_k_get_resp;
 pub use extract_some_k_create_resp;
 pub use extract_some_k_update_resp;
@@ -316,6 +339,7 @@ pub use extract_some_k_list_resp;
 pub use extract_some_k_delete_resp;
 pub use extract_some_k_get_then_update_resp;
 pub use extract_some_k_get_then_delete_resp;
+pub use extract_some_k_get_then_update_status_resp;
 pub use extract_some_k_get_resp_as_ref;
 pub use extract_some_k_create_resp_as_ref;
 pub use extract_some_k_update_resp_as_ref;
@@ -323,5 +347,6 @@ pub use extract_some_k_list_resp_as_ref;
 pub use extract_some_k_delete_resp_as_ref;
 pub use extract_some_k_get_then_update_resp_as_ref;
 pub use extract_some_k_get_then_delete_resp_as_ref;
+pub use extract_some_k_get_then_update_status_resp_as_ref;
 
 }

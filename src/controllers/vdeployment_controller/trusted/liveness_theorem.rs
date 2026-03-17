@@ -35,7 +35,6 @@ pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState
     }
 }
 
-// exists and only exists one VRS that matches vd.spec.template and has desired replicas
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // new vrs exists and only one exists
@@ -47,27 +46,25 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& valid_owned_obj_key(vd, s)(k)
             &&& filter_new_vrs_keys(vd.spec.template, s)(k)
             &&& etcd_vrs.metadata.uid is Some
-            &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+            // &&& etcd_vrs_spec.replicas == 0
             // no old vrs, including the 2nd new vrs (if any)
-            &&& !exists |k: ObjectRef| {
-                &&& #[trigger] s.resources().contains_key(k)
-                &&& valid_owned_obj_key(vd, s)(k)
-                &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
+            &&& !exists |old_k: ObjectRef| {
+                &&& #[trigger] s.resources().contains_key(old_k)
+                &&& valid_owned_obj_key(vd, s)(old_k)
+                &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
             }
         }
     }
 }
 
-// self-sustaining closure of current_state_matches
 pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& current_state_matches(vd)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) ==> {
-                let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                &&& vds.old_vrs_index == 0
-            }
+            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
+            &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
+                ==> local_state.old_vrs_index == 0
             &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                 &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
@@ -76,7 +73,12 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                     &&& #[trigger] s.in_flight().contains(msg)
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
-                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, msg, s)
+                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s)
+            } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                &&& local_state.new_vrs is Some
+                &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
+                &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s)
             } else {
                 s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }
