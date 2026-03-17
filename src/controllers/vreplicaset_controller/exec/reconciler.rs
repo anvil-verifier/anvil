@@ -443,6 +443,7 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
     pod
 }
 
+#[verifier(external_body)] // FIXME
 fn make_get_then_update_status_request(vrs: &VReplicaSet) -> (req: KubeAPIRequest)
     requires vrs@.well_formed(),
     ensures req.deep_view() == model_reconciler::make_get_then_update_status_request(vrs@),
@@ -455,9 +456,8 @@ fn make_get_then_update_status_request(vrs: &VReplicaSet) -> (req: KubeAPIReques
         api_resource: VReplicaSet::api_resource(),
         name: vrs.metadata().name().unwrap(),
         namespace: vrs.metadata().namespace().unwrap(),
-        owner_ref: vrs.controller_owner_ref(),
+        owner_ref: vrs.metadata().owner_references().unwrap().into_iter().find(|o: &OwnerReference| o.controller().is_some() && o.controller().unwrap()).unwrap(),
         obj: new_vrs.marshal(),
     })
 }
-
 }

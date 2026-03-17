@@ -278,7 +278,7 @@ pub open spec fn make_get_then_update_status_request(vrs: VReplicaSetView) -> (r
     let req = APIRequest::GetThenUpdateStatusRequest(GetThenUpdateStatusRequest {
         name: vrs.metadata.name.unwrap(),
         namespace: vrs.metadata.namespace.unwrap(),
-        owner_ref: vrs.controller_owner_ref(),
+        owner_ref: vrs.metadata.owner_references->0.filter(controller_owner_filter())[0],
         obj: vrs_with_new_status.marshal(),
     });
     req
