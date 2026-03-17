@@ -90,17 +90,7 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
             .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
             .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs)) // strim updated RV/status
-        &&& exists |new_vrs: VReplicaSetView| {
-            &&& #[trigger] vrs_set.contains(new_vrs)
-            &&& match_template_without_hash(vd.spec.template)(new_vrs)
-            &&& replicas_diff(vd, new_vrs) == n
-            // all old vrs have replicas == Some(0)
-            &&& !exists |old_vrs: VReplicaSetView| {
-                &&& #[trigger] vrs_set.contains(old_vrs)
-                &&& old_vrs != new_vrs
-                &&& old_vrs.spec.replicas.unwrap_or(1) > 0
-            }
-        }
+        &&& exists |vrs: VReplicaSetView| #[trigger] vrs_is_new_vrs_in_vrs_set(vrs_set, vd, vrs, n)
         &&& vrs_set.finite() && vrs_set.len() > 0
     }
 }
@@ -291,45 +281,33 @@ ensures
 {
     // I believe the equivlance between new_vrs chosen in inductive_current_state_matches and in conjuncted_desired_state_is_vrs_with_replica_diff is not needed
     // because that's not provable anyway
-    // 1. inductive_current_state_matches |= exists |m| p(m)
-    let new_vrs_key = choose |k: ObjectRef| {
-        let etcd_obj = s.resources()[k];
-        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        &&& #[trigger] s.resources().contains_key(k)
-        &&& valid_owned_obj_key(vd, s)(k)
-        &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-        &&& etcd_vrs.metadata.uid is Some
-        // &&& etcd_vrs_spec.replicas == 0
-        // no old vrs, including the 2nd new vrs (if any)
-        &&& !exists |old_k: ObjectRef| {
-            &&& #[trigger] s.resources().contains_key(old_k)
-            &&& valid_owned_obj_key(vd, s)(old_k)
-            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
+    // 1. extract new_vrs from s
+    assert(exists |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s));
+    let k = choose |k: ObjectRef| #![trigger s.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s);
+    let (vrs_set_tmp, new_vrs, n_tmp) = current_state_match_vd_implies_exists_vrs_set_with_replica_diff(vd, k, cluster, controller_id, s);
+    assert(vrs_set_tmp == vrs_set);
+    if n_tmp != n {
+        let new_vrs_tmp = choose |vrs: VReplicaSetView| #[trigger] vrs_is_new_vrs_in_vrs_set(vrs_set, vd, vrs, n);
+        // the chosen new_vrs is different, this only happens when we have 2 new_vrs with 0 replicas
+        assert(new_vrs_tmp != new_vrs);
+        // then they should match each other's old vrs conditions
+        if new_vrs_tmp.spec.replicas.unwrap_or(1) > 0 {
+            assert(vrs_set.contains(new_vrs_tmp)); // trigger
+            assert(false);
         }
-    };
-    let new_vrs_key_prime = choose |k: ObjectRef| {
-        let etcd_obj = s_prime.resources()[k];
-        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        &&& #[trigger] s_prime.resources().contains_key(k)
-        &&& valid_owned_obj_key(vd, s_prime)(k)
-        &&& filter_new_vrs_keys(vd.spec.template, s_prime)(k)
-        &&& etcd_vrs.metadata.uid is Some
-        // &&& etcd_vrs_spec.replicas == 0
-        // no old vrs, including the 2nd new vrs (if any)
-        &&& !exists |old_k: ObjectRef| {
-            &&& #[trigger] s_prime.resources().contains_key(old_k)
-            &&& valid_owned_obj_key(vd, s_prime)(old_k)
-            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s_prime)(old_k)
+        if new_vrs.spec.replicas.unwrap_or(1) > 0 {
+            assert(vrs_set.contains(new_vrs)); // trigger
+            assert(false);
         }
-    };
-    // 2. if m != n, prove by contradiction:
-    //     only one write request is enabled by inductive_current_state_matches:
-    //     req must satisfies req_msg_is_scale_new_vrs_req
-    //     it will only make replicas of local_state.new_vrs to be closer to vd.spec.replicas
-    //     req is req_msg_is_scale_new_vrs_req && replicas_diff changes
-    //         ==> new_vrs is the same or 2 different new vrs and each has 0 replicas
-    //         ==> m = n - 1, Q.E.D.
-    assume(false);
+        // so they both have 0 replicas, n_tmp == n
+        assert(false);
+    }
+    // now we have all post conditions of current_state_match_vd_implies_exists_vrs_set_with_replica_diff
+    assert(new_vrs.object_ref() == k);
+    // 2. prove new_vrs is also the new_vrs in s_prime or there exists another new_vrs_tmp in s with 0 replicas
+    // and in both cases their replicas diff decrease
+    assert(exists |k: ObjectRef| #![trigger s_prime.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime));
+    let k_prime = choose |k: ObjectRef| #![trigger s_prime.resources().contains_key(k)] key_is_new_vrs_key_in_current_state_matches(vd, k, s_prime);
 }
 
 // Obligation 3: Ranking decrease
@@ -497,9 +475,11 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
     ensures
         current_state_match_vd_applied_to_vrs_set_with_replicas(res.0, vd, res.2)(s),
         conjuncted_desired_state_is_vrs_with_replica_diff(res.0, vd, res.2)(s),
+        // these 2 post conditions are provided for ranking_never_decreases_from_s_to_s_prime
         vrs_is_new_vrs_in_vrs_set(res.0, vd, res.1, res.2),
         VReplicaSetView::unmarshal(s.resources()[k]) is Ok,
         res.1 == vrs_with_no_rv_status(VReplicaSetView::unmarshal(s.resources()[k])->Ok_0),
+        res.1.object_ref() == k,
         res.0.finite(),
         res.0.len() > 0,
 {
@@ -592,6 +572,7 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
         }
         assert(false);
     }
+    assert(vrs_is_new_vrs_in_vrs_set(vrs_set, vd, new_vrs, replicas_diff(vd, new_etcd_vrs))); // trigger
     return (vrs_set, new_vrs, replicas_diff(vd, new_etcd_vrs));
 }
 
