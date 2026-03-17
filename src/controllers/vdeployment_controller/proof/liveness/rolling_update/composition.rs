@@ -1174,8 +1174,6 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     // spec |= \E (vrs_set,n) [] vrs_set_pre ~> [] composed
     // Need: spec |= [] desired_state_is ~> [] composed
 
-    // First: spec |= [] desired_state_is ~> \E (vrs_set,n) [] vrs_set_pre /\ [] stable_vd_post
-
     // Final chain
     temp_pred_equality(
         always(stable_vd_post),
