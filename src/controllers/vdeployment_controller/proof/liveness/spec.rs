@@ -230,7 +230,7 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         always(lift_action(cluster.next()))
     );
     // FIXME
-    assume(spec.entails(always(lift_state(every_vrs_in_etcd_has_one_controller_owner()))));
+    assume(assumption_and_invariants_of_all_phases(vd, cluster, controller_id).entails(always(lift_state(every_vrs_in_etcd_has_one_controller_owner()))));
     spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vd, cluster, controller_id);
     always_tla_forall_apply(assumption_and_invariants_of_all_phases(vd, cluster, controller_id), |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
     combine_spec_entails_always_n!(
