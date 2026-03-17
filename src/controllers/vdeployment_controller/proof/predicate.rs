@@ -15,7 +15,7 @@ use crate::vdeployment_controller::{
         rely_guarantee::vd_rely, liveness_theorem::*},
     model::{install::*, reconciler::*},
 };
-use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
+use crate::vreplicaset_controller::trusted::spec_types::{VReplicaSetView, VReplicaSetSpecView};
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use vstd::prelude::*;
 
@@ -381,8 +381,8 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
-        &&& req_vrs.spec == VReplicaSetSpec { // eq w/o replicas
-            replicas: Some(req_vrs_replicas)
+        &&& req_vrs.spec == VReplicaSetSpecView { // eq w/o replicas
+            replicas: Some(req_vrs_replicas),
             ..etcd_vrs.spec
         }
         // owned by vd
