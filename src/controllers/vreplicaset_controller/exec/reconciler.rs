@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
-use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
+use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView, exec_types::*, step::*};
 use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -399,7 +399,7 @@ fn pod_generate_name(vrs: &VReplicaSet) -> (name: String)
     requires vrs@.well_formed(),
     ensures name@ == model_reconciler::pod_generate_name(vrs@) 
 {
-    let prefix = "vreplicaset".to_string().concat("-"); 
+    let prefix = "vreplicaset".to_string().concat("-");
     prefix.concat(vrs.metadata().name().unwrap().concat("-").as_str())
 }
 
