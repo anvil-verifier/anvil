@@ -166,9 +166,17 @@ ensures
 }
 
 // const string assumptions
+
 #[verifier(external_body)]
 pub proof fn vrs_prefix_equality() 
     ensures "vreplicaset-"@ == "vreplicaset"@ + "-"@
+{}
+
+#[verifier(external_body)]
+pub proof fn vrs_vsts_str_neq()
+    ensures
+        "vreplicaset"@.len() < "vstatefulset"@.len(),
+        "vstatefulset"@.take("vreplicaset"@.len() as int) != "vreplicaset"@,
 {}
 
 }

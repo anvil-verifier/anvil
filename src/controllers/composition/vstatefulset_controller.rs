@@ -1,7 +1,10 @@
 use crate::kubernetes_cluster::proof::composition::*;
 use crate::vdeployment_controller::model::reconciler::VDeploymentReconciler;
 use crate::vdeployment_controller::trusted::rely_guarantee::*;
-use crate::vreplicaset_controller::model::reconciler::VReplicaSetReconciler;
+use crate::vreplicaset_controller::{
+    model::reconciler::{VReplicaSetReconciler, has_vrs_prefix},
+    trusted::spec_types::*,
+};
 use crate::vreplicaset_controller::trusted::rely_guarantee::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
@@ -22,12 +25,23 @@ use vstd::prelude::*;
 verus !{
 
 // Helper lemma: vsts and vrs prefixes are disjoint
-#[verifier(external_body)]
 proof fn vsts_prefix_not_vrs_prefix(name: StringView)
     ensures
-        has_vsts_prefix(name) ==> !has_vrs_prefix(name),
-        has_vrs_prefix(name) ==> !has_vsts_prefix(name),
-{}
+        !(has_vsts_prefix(name) && has_vrs_prefix(name)),
+{
+    if has_vsts_prefix(name) && has_vrs_prefix(name) {
+        let vsts_suffix = choose |suffix| name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix;
+        let vrs_suffix = choose |suffix| name == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix;
+        assert(VStatefulSetView::kind()->CustomResourceKind_0 == "vstatefulset"@);
+        assert(VReplicaSetView::kind()->CustomResourceKind_0 == "vreplicaset"@);
+        assert(name.take(VStatefulSetView::kind()->CustomResourceKind_0.len() as int) == VStatefulSetView::kind()->CustomResourceKind_0);
+        assert(name.take(VReplicaSetView::kind()->CustomResourceKind_0.len() as int) == VReplicaSetView::kind()->CustomResourceKind_0);
+        vrs_vsts_str_neq();
+        assert(VStatefulSetView::kind()->CustomResourceKind_0.len() > VReplicaSetView::kind()->CustomResourceKind_0.len());
+        assert(VStatefulSetView::kind()->CustomResourceKind_0.take(VReplicaSetView::kind()->CustomResourceKind_0.len() as int) == VReplicaSetView::kind()->CustomResourceKind_0);
+        assert(false);
+    }
+}
 
 // Helper lemma: VRS and VD controllers have distinct IDs
 #[verifier(external_body)]
@@ -90,7 +104,7 @@ impl Composition for VStatefulSetReconciler {
                     match req {
                         APIRequest::CreateRequest(r) => {
                             assert(vrs_guarantee_create_req(r)(s));
-                            vsts_prefix_not_vrs_prefix(r.obj.metadata.name->0);
+                            vsts_prefix_not_vrs_prefix(r.obj.metadata.generate_name->0);
                         }
                         APIRequest::GetThenDeleteRequest(r) => {
                             assert(vrs_guarantee_get_then_delete_req(r)(s));
