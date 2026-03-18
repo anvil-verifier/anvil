@@ -629,7 +629,11 @@ ensures
         metadata
     });
     let mut spec = VReplicaSetSpec::default();
-    spec.set_replicas(0);
+    if vd.spec().replicas().unwrap_or(1) > 0 {
+        spec.set_replicas(1);
+    } else {
+        spec.set_replicas(0);
+    }
     let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
     labels.insert("pod-template-hash".to_string(), pod_template_hash.clone());
     let mut label_selector = LabelSelector::default();

@@ -57,6 +57,8 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     }
 }
 
+// TODO: strengthen a bit to make it inductive:
+// whenever local new vrs is chosen, it match the new_vrs in current_state_matches
 pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
