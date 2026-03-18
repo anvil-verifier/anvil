@@ -212,7 +212,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
             ..ObjectMetaView::default()
         }.add_label("pod-template-hash"@, pod_template_hash),
         spec: VReplicaSetSpecView {
-            replicas: Some(0),
+            replicas: Some(if vd.spec.replicas.unwrap_or(1) > 0 {1} else {0}),
             selector: LabelSelectorView {
                 match_labels: Some(match_labels),
             },
