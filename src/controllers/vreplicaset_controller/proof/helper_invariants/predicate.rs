@@ -164,8 +164,8 @@ pub open spec fn no_other_pending_get_then_update_status_request_interferes_with
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> 
-            req.owner_ref.kind != VReplicaSetView::kind()
+        &&& req.obj.kind == Kind::PodKind ==> req.owner_ref.kind != VReplicaSetView::kind()
+        &&& req.obj.kind == VReplicaSetView::kind() ==> req.key() != vrs.object_ref()
     }
 }
 
