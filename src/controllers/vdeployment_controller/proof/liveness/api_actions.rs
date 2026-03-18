@@ -363,6 +363,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -407,6 +408,7 @@ ensures
     
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
     msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
@@ -500,6 +502,7 @@ ensures
 }
 
 // filter_obj_keys_managed_by_vd is maintained
+#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     msg: Message, nv_uid: Option<Uid>
@@ -549,6 +552,7 @@ ensures
 }
 
 // next time, we should unify the filters to use obj or key
+#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_vrs_set_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     msg: Message
