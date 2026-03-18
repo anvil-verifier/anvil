@@ -688,6 +688,8 @@ ensures
         &&& VReplicaSetView::unmarshal(s_prime.resources()[k]) is Ok
         &&& vrs_weakly_eq(vrs, vrs_prime)
         &&& vrs.spec == vrs_prime.spec
+        // convenient post condition
+        &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     },
     forall |k: ObjectRef| { // <==c
         let obj = s_prime.resources()[k];
@@ -703,6 +705,7 @@ ensures
         &&& VReplicaSetView::unmarshal(s.resources()[k]) is Ok
         &&& vrs_weakly_eq(vrs, vrs_prime)
         &&& vrs.spec == vrs_prime.spec
+        &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     },
 {
     assert forall |k: ObjectRef| { // ==>
@@ -719,6 +722,7 @@ ensures
         &&& VReplicaSetView::unmarshal(s_prime.resources()[k]) is Ok
         &&& vrs_weakly_eq(vrs, vrs_prime)
         &&& vrs.spec == vrs_prime.spec
+        &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     } by {
         // ==>
         let obj = s.resources()[k];
@@ -830,6 +834,7 @@ ensures
         &&& VReplicaSetView::unmarshal(s.resources()[k]) is Ok
         &&& vrs_weakly_eq(vrs, vrs_prime)
         &&& vrs.spec == vrs_prime.spec
+        &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     } by {
         let obj = s_prime.resources()[k];
         // <==
