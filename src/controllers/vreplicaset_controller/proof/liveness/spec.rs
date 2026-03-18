@@ -35,6 +35,7 @@ pub open spec fn assumption_and_invariants_of_all_phases(vrs: VReplicaSetView, c
     .and(invariants_since_phase_iii(vrs, cluster, controller_id))
     .and(invariants_since_phase_iv(vrs, cluster, controller_id))
     .and(invariants_since_phase_v(vrs, cluster, controller_id))
+    .and(invariants_since_phase_vi(vrs, cluster, controller_id))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
