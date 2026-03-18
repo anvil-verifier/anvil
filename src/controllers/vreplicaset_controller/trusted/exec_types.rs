@@ -23,6 +23,12 @@ implement_field_wrapper_type!(
     spec_types::VReplicaSetSpecView
 );
 
+implement_field_wrapper_type!(
+    VReplicaSetStatus,
+    deps_hack::VReplicaSetStatus,
+    spec_types::VReplicaSetStatusView
+);
+
 impl VReplicaSet {
     #[verifier(external_body)]
     pub fn well_formed(&self) -> (b: bool)
@@ -40,6 +46,18 @@ impl VReplicaSet {
     }
 
     #[verifier(external_body)]
+    pub fn status(&self) -> (status: Option<VReplicaSetStatus>)
+        ensures
+            status is Some == self@.status is Some,
+            status is Some ==> status->0@ == self@.status->0,
+    {
+        match &self.inner.status {
+            Some(s) => Some(VReplicaSetStatus { inner: s.clone() }),
+            None => None
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
         ensures owner_reference@ == self@.controller_owner_ref(),
     {
@@ -52,6 +70,13 @@ impl VReplicaSet {
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = spec.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_status(&mut self, status: VReplicaSetStatus)
+        ensures self@ == old(self)@.with_status(status@),
+    {
+        self.inner.status = Some(status.into_kube());
     }
 
     pub fn state_validation(&self) -> (res: bool)
@@ -144,6 +169,22 @@ impl VReplicaSetSpec {
         ensures self@ == old(self)@.with_template(template@),
     {
         self.inner.template = Some(template.into_kube());
+    }
+}
+
+impl VReplicaSetStatus {
+    #[verifier(external_body)]
+    pub fn replicas(&self) -> (replicas: i32)
+        ensures self@.replicas == replicas,
+    {
+        self.inner.replicas
+    }
+
+    #[verifier(external_body)]
+    pub fn set_replicas(&mut self, replicas: i32)
+        ensures self@ == old(self)@.with_replicas(replicas as int),
+    {
+        self.inner.replicas = replicas;
     }
 }
 

@@ -545,6 +545,8 @@ pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_
 
 // this has dependency over the "no request message to external not owned by the controller",
 // which will be completed in another PR on controller state machine
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -916,12 +918,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
 
     // Prove termination is stable.
     let term_closure = |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key));
-    assert forall |key: ObjectRef| #[trigger] valid(stable(true_pred().leads_to(term_closure(key)))) by {
-        p_leads_to_q_is_stable(
-            true_pred(),
-            lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-        );
-    };
     tla_forall_a_p_leads_to_q_a_is_stable(
         true_pred(),
         |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)),

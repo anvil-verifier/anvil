@@ -119,7 +119,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                                 // idea: sidestep an explicit proof that the message we send is owned by triggering_cr
                                 // by applying the invariant `vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd`
                                 // to s_prime.
-                                if new_vrs is Some && !match_replicas(triggering_cr, new_vrs->0) {
+                                if new_vrs is Some && mismatch_replicas(triggering_cr, new_vrs->0) {
                                     let state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                                     // we need this to trigger the invariant on the post-state.
                                     assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));

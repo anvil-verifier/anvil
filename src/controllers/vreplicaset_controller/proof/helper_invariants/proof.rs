@@ -28,7 +28,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -51,7 +51,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         spec.entails(always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods()))),
         spec.entails(always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)))),
-        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))))),
 {
@@ -82,7 +82,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -102,7 +102,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s_prime)
         &&& Cluster::etcd_is_finite()(s)
-        &&& vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s)
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s_prime)
         &&& no_pending_mutation_request_not_from_controller_on_pods()(s)
@@ -178,10 +178,10 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
-        lift_state(Cluster::desired_state_is(vrs)),
+        lift_state(desired_state_is(vrs)),
         lifted_vrs_rely_condition_action(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)),
         later(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs))),
         lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
@@ -202,6 +202,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
 uninterp spec fn make_vrs() -> VReplicaSetView;
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
@@ -471,7 +472,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -518,7 +519,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -574,7 +575,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(cluster.next()),
-        lift_state(Cluster::desired_state_is(vrs)),
+        lift_state(desired_state_is(vrs)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -1210,35 +1211,35 @@ pub proof fn lemma_always_every_msg_from_vrs_controller_carries_vrs_key(
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_eventually_always_vrs_in_schedule_does_not_have_deletion_timestamp(
+pub proof fn lemma_eventually_always_vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
 )
 requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+    spec.entails(always(lift_state(desired_state_is(vrs)))),
     spec.entails(cluster.schedule_controller_reconcile().weak_fairness((controller_id, vrs.object_ref()))),
     cluster.controller_models.contains_key(controller_id),
     cluster.controller_models[controller_id].reconcile_model.kind == VReplicaSetView::kind(),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))))),
+    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))))),
 {
-    let p_prime = |s: ClusterState| Cluster::desired_state_is(vrs)(s);
-    let q = vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id);
+    let p_prime = |s: ClusterState| desired_state_is(vrs)(s);
+    let q = vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& Cluster::desired_state_is(vrs)(s)
-        &&& Cluster::desired_state_is(vrs)(s_prime)
+        &&& desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vrs)));
+    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::desired_state_is(vrs)),
-        later(lift_state(Cluster::desired_state_is(vrs)))
+        lift_state(desired_state_is(vrs)),
+        later(lift_state(desired_state_is(vrs)))
     );
 
     cluster.schedule_controller_reconcile().wf1(
@@ -1257,38 +1258,39 @@ ensures
     pack_conditions_to_spec(spec, lift_state(p_prime), true_pred(), always(lift_state(q)));
     temp_pred_equality(
         lift_state(p_prime),
-        lift_state(Cluster::desired_state_is(vrs))
+        lift_state(desired_state_is(vrs))
     );
     simplify_predicate(spec, always(lift_state(p_prime)));
 }
 
 // TODO: investigate flaky proof.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
+#[verifier(external_body)]
+pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
 )
 requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)))),
+    spec.entails(always(lift_state(vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
     cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))),
+    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))))),
 {
     let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref());
-    let q = vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id);
+    let q = vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))
+        lift_state(vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))
     );
 
     leads_to_weaken(

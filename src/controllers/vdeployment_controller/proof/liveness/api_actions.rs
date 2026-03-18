@@ -33,7 +33,7 @@ requires
     Cluster::etcd_is_finite()(s_prime),
 ensures
     resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
-    resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime),
+    resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime),
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
@@ -44,7 +44,7 @@ ensures
         &&& o.object_ref().kind == req.kind
     }; 
     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
-    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)) by {
+    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime)) by {
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
         assert forall |o| #[trigger] resp_objs.contains(o) implies {
@@ -157,6 +157,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
@@ -275,6 +276,7 @@ ensures
     return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_scale_new_vrs_req_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat

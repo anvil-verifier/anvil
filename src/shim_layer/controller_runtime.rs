@@ -9,7 +9,7 @@ use core::fmt::Debug;
 use core::hash::Hash;
 use deps_hack::anyhow::Result;
 use deps_hack::futures::StreamExt;
-use deps_hack::k8s_openapi::api::core::v1::{PersistentVolumeClaim, Pod};
+use deps_hack::k8s_openapi::api::core::v1::Pod;
 use deps_hack::kube::{
     api::{Api, DeleteParams, ListParams, PostParams, Resource},
     runtime::{
@@ -77,7 +77,7 @@ where
     Ok(())
 }
 
-pub async fn run_controller_watching_owned<K, R, E>(fault_injection: bool) -> Result<()>
+pub async fn run_controller_watching_owned<K, R, E, O>(fault_injection: bool) -> Result<()>
 where
     K: Clone
         + Resource<Scope = NamespaceResourceScope>
@@ -96,6 +96,13 @@ where
     R::EReq: Send,
     R::EResp: Send,
     E: ExternalShimLayer<R::EReq, R::EResp>,
+    O: Clone
+        + Resource<Scope = NamespaceResourceScope, DynamicType = ()>
+        + DeserializeOwned
+        + Debug
+        + Send
+        + Sync
+        + 'static,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
@@ -108,10 +115,7 @@ where
     info!("starting controller");
     Controller::new(crs, watcher::Config::default()) // The controller's reconcile is triggered when a CR is created/updated
         .owns(Api::<Pod>::all(client.clone()), watcher::Config::default()) // Watch owned Pods
-        .owns(
-            Api::<PersistentVolumeClaim>::all(client.clone()),
-            watcher::Config::default(),
-        ) // Watch owned PersistentVolumeClaims
+        .owns(Api::<O>::all(client.clone()), watcher::Config::default()) // Watch owned CRs of type O
         .shutdown_on_signal()
         .run(reconcile, error_policy, Arc::new(Data { client })) // The reconcile function is registered
         .for_each(|res| async move {

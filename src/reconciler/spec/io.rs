@@ -87,6 +87,11 @@ pub open spec fn is_some_k_get_then_delete_resp_view(resp_o: DefaultResp) -> boo
     resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetThenDeleteResponse
 }
 
+#[verifier(inline)]
+pub open spec fn is_some_k_get_then_update_status_resp_view(resp_o: DefaultResp) -> bool {
+    resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetThenUpdateStatusResponse
+}
+
 // should be called only when is_some_k_get_resp_view holds
 #[verifier(inline)]
 pub open spec fn extract_some_k_get_resp_view(resp_o: DefaultResp) -> Result<DynamicObjectView, APIError> {
@@ -133,6 +138,11 @@ pub open spec fn extract_some_k_get_then_update_resp_view(resp_o: DefaultResp) -
 #[verifier(inline)]
 pub open spec fn extract_some_k_get_then_delete_resp_view(resp_o: DefaultResp) -> Result<(), APIError> {
     resp_o->0->KResponse_0->GetThenDeleteResponse_0.res
+}
+
+#[verifier(inline)]
+pub open spec fn extract_some_k_get_then_update_status_resp_view(resp_o: DefaultResp) -> Result<DynamicObjectView, APIError> {
+    resp_o->0->KResponse_0->GetThenUpdateStatusResponse_0.res
 }
 
 }

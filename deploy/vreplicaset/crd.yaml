@@ -4736,11 +4736,21 @@ spec:
             required:
             - selector
             type: object
+          status:
+            nullable: true
+            properties:
+              replicas:
+                format: int32
+                type: integer
+            required:
+            - replicas
+            type: object
         required:
         - spec
         title: VReplicaSet
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
 

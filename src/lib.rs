@@ -17,6 +17,7 @@ pub mod vstd_ext;
 pub mod vstatefulset_controller;
 pub mod rabbitmq_controller;
 pub mod vreplicaset_controller;
+pub mod vdeployment_controller;
 
 pub mod esr_composition;
 

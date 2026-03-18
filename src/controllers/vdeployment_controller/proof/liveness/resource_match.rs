@@ -31,7 +31,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
@@ -87,7 +87,7 @@ ensures
             let resp_msg = choose |resp_msg| {
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
+                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
             };
             assert((|msg| list_resp_msg(msg))(resp_msg).satisfied_by(ex));
         }
@@ -511,6 +511,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -595,7 +596,7 @@ ensures
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)
+                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime)
                     });
                 }
             },
@@ -611,7 +612,7 @@ ensures
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime)
         });
     }
     cluster.lemma_pre_leads_to_post_by_api_server(
@@ -621,6 +622,7 @@ ensures
 
 // this lemma specifies how VD controller construct the internal cache from list response
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
@@ -749,6 +751,7 @@ ensures
     }
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
@@ -759,7 +762,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     nv_uid_key_replicas is Some,
     (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()),
@@ -801,7 +804,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -869,7 +872,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
@@ -908,7 +911,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -969,7 +972,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
@@ -1008,7 +1011,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1070,7 +1073,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
@@ -1111,7 +1114,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1156,7 +1159,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     nv_uid_key_replicas.2 != vd.spec.replicas.unwrap_or(int1!()),
 ensures
@@ -1196,7 +1199,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1260,7 +1263,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     nv_uid_key_replicas.2 != vd.spec.replicas.unwrap_or(int1!()),
 ensures
@@ -1303,7 +1306,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1364,6 +1367,7 @@ ensures
 
 // same as lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1375,7 +1379,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
@@ -1415,7 +1419,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1458,7 +1462,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     n > 0
 ensures
     spec.entails(lift_state(and!(
@@ -1499,7 +1503,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1560,7 +1564,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     n > 0
 ensures
     spec.entails(lift_state(and!(
@@ -1601,7 +1605,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1666,7 +1670,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
     n > 0,
 ensures
@@ -1708,7 +1712,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
@@ -1780,7 +1784,7 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     n > 0
 ensures
     spec.entails(lift_state(and!(
@@ -1873,6 +1877,7 @@ ensures
 
 #[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef)
 )
@@ -1883,7 +1888,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
@@ -1922,7 +1927,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
         later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
@@ -1975,7 +1980,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
@@ -2014,7 +2019,7 @@ ensures
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
         later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))

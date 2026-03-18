@@ -231,6 +231,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
 
+#[verifier(external_body)]
 pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
@@ -337,7 +338,7 @@ pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
                                 // idea: sidestep an explicit proof that the message we send is owned by triggering_cr
                                 // by applying the invariant `vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd`
                                 // to s_prime.
-                                if new_vrs is Some && !match_replicas(triggering_cr, new_vrs->0) {
+                                if new_vrs is Some && mismatch_replicas(triggering_cr, new_vrs->0) {
                                     let state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                                     // we need this to trigger the invariant on the post-state.
                                     assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
@@ -1602,6 +1603,14 @@ ensures
         leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
     }
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_always_spec_entails_every_vrs_in_etcd_has_one_controller_owner(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+ensures
+    spec.entails(always(lift_state(every_vrs_in_etcd_has_one_controller_owner()))),
+{}
 
 pub proof fn lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int

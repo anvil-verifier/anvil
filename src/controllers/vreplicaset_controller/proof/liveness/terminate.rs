@@ -70,6 +70,12 @@ pub proof fn reconcile_eventually_terminates(
                     |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             ))))),
+        spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vrs.object_ref(),
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
+            ))))),
     ensures
         spec.entails(tla_forall(|key: ObjectRef| 
             true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
@@ -174,6 +180,25 @@ pub proof fn reconcile_eventually_terminates(
                     unwrap_local_state_closure(
                         |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                     )
+                )),
+                vrs
+            );
+        }
+
+        assert forall |vrs: VReplicaSetView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vrs.object_ref(),
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VReplicaSetView>(
+                spec,
+                |vrs: VReplicaSetView| 
+                lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                    controller_id,
+                    vrs.object_ref(),
+                    at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
                 )),
                 vrs
             );
@@ -294,6 +319,12 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
                     |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
                 )
             )))),
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vrs.object_ref(),
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
+            )))),
     ensures
         spec.entails(true_pred().leads_to(
             lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))
@@ -310,9 +341,12 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that after_create_pod_rank(0) \/ after_delete_pod_rank(0) ~> reconcile_idle.
+    lemma_from_after_update_vrs_status_to_reconcile_idle(spec, vrs, cluster, controller_id);
+
+    // Third, prove that after_create_pod_rank(0) \/ after_delete_pod_rank(0) ~> reconcile_idle.
     lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(spec, vrs, cluster, controller_id);
 
-    // Third, prove for all n that AfterCreatePod(n) ~> reconcile_idle.
+    // Fourth, prove for all n that AfterCreatePod(n) ~> reconcile_idle.
     assert forall |n: nat| #![auto]
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))
                     .leads_to(lift_state(reconcile_idle))) by {
@@ -366,7 +400,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         );
     }
 
-    // Fourth, prove that after_list_pods | done ~> reconcile_idle.
+    // Fifth, prove that after_list_pods | done ~> reconcile_idle.
     lemma_from_after_list_pods_to_reconcile_idle(spec, vrs, cluster, controller_id);
     assert(spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
         .leads_to(lift_state(reconcile_idle))));
@@ -387,7 +421,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     // Need some extra statements to prove the lemma.
     VReplicaSetReconcileState::marshal_preserves_integrity();
 
-    // Fifth, prove that reconcile init state can reach AfterListPods.
+    // Sixth, prove that reconcile init state can reach AfterListPods.
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
         spec, controller_id, vrs.object_ref(), 
         at_step_closure(VReplicaSetRecStepView::Init), 
@@ -427,6 +461,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
         tla_exists(at_after_create_pod),
         tla_exists(at_after_delete_pod),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
         lift_state(reconcile_idle)
@@ -457,6 +492,74 @@ pub open spec fn after_delete_pod_rank(controller_id: int, vrs: VReplicaSetView,
         // There may have been an error as well.
         ||| at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)(s)
     }
+}
+
+pub proof fn lemma_from_after_update_vrs_status_to_reconcile_idle(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
+        spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        // Makes sure there is a message in flight, so we can progress to the next state.
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vrs.object_ref(),
+                at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)
+            )))),
+        // The next state will lead to reconcile_idle
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+    ensures
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+{
+    VReplicaSetView::marshal_preserves_integrity();
+    VReplicaSetReconcileState::marshal_preserves_integrity();
+
+    let state_after_update_status = |s_marshalled: ReconcileLocalState| {
+        let s = VReplicaSetReconcileState::unmarshal(s_marshalled).unwrap();
+        ||| s.reconcile_step == VReplicaSetRecStepView::Done
+        ||| s.reconcile_step == VReplicaSetRecStepView::Error
+    };
+
+    temp_pred_equality(
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
+        lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)))
+    );
+    cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus), state_after_update_status);
+    or_leads_to_combine_and_equality!(
+        spec, lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_update_status)),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
+        lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
+    );
+
+    leads_to_trans_n!(
+        spec,
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
+        lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_update_status)),
+        lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
+    );
 }
 
 pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
@@ -500,6 +603,8 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
                 )
             )))),
         // The next state will lead to reconcile_idle
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
             .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error))
@@ -515,11 +620,13 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
 
     let state_after_create_or_delete = |s_marshalled: ReconcileLocalState| {
         let s = VReplicaSetReconcileState::unmarshal(s_marshalled).unwrap();
-        s.reconcile_step == VReplicaSetRecStepView::Done
-        || s.reconcile_step == VReplicaSetRecStepView::Error
+        ||| s.reconcile_step == VReplicaSetRecStepView::AfterUpdateVRSStatus
+        ||| s.reconcile_step == VReplicaSetRecStepView::Done
+        ||| s.reconcile_step == VReplicaSetRecStepView::Error
     };
     or_leads_to_combine_and_equality!(
         spec, lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_create_or_delete)),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
         lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
@@ -773,6 +880,8 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         forall |n: nat| #![auto]
             spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))
                 .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+        spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus))
+            .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
             .leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error))
@@ -786,6 +895,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
 
     let state_after_list_pods = |s_marshalled: ReconcileLocalState| {
         let s = VReplicaSetReconcileState::unmarshal(s_marshalled).unwrap();
+        ||| s.reconcile_step == VReplicaSetRecStepView::AfterUpdateVRSStatus
         ||| exists |n: nat| s.reconcile_step == VReplicaSetRecStepView::AfterCreatePod(n)
         ||| exists |n: nat| s.reconcile_step == VReplicaSetRecStepView::AfterDeletePod(n)
         ||| s.reconcile_step == VReplicaSetRecStepView::Done
@@ -868,6 +978,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         spec, lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_list_pods)),
         tla_exists(at_after_create_pod),
         tla_exists(at_after_delete_pod),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error));
         lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
@@ -894,6 +1005,7 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
                     .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)))
                     .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))))
                     .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))))
+                    .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)))
                     .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
                     .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)))
 {
@@ -902,6 +1014,7 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
         .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)))
         .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))))
         .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))))
+        .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)))
         .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
         .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)));
     
@@ -933,6 +1046,7 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
             .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)))
             .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))))
             .or(tla_exists(|n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n)))))
+            .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterUpdateVRSStatus)))
             .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
             .or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)))
     );

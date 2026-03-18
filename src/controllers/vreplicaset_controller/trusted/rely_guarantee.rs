@@ -145,9 +145,9 @@ pub open spec fn vrs_rely_get_then_delete_req(req: GetThenDeleteRequest) -> Stat
 // owner_ref.controller can be relaxed as if it's None the req will not pass admission check
 pub open spec fn vrs_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==>
-            req.owner_ref.kind != VReplicaSetView::kind()
-            && !has_vrs_prefix(req.key().name)
+        &&& req.obj.kind == Kind::PodKind ==> 
+            req.owner_ref.kind != VReplicaSetView::kind() && !has_vrs_prefix(req.key().name)
+        &&& req.obj.kind != VReplicaSetView::kind()
     }
 }
 

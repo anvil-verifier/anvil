@@ -281,21 +281,20 @@ pub struct FluentBitConfigSpec {
 }
 
 #[derive(
-    kube::CustomResource,
-    Default,
-    Debug,
-    Clone,
-    serde::Deserialize,
-    serde::Serialize,
-    schemars::JsonSchema,
-    PartialEq,
+    kube::CustomResource, Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema, PartialEq,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
 #[kube(shortname = "vrs", namespaced)]
+#[kube(status = "VReplicaSetStatus")]
 pub struct VReplicaSetSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
     pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
+}
+
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct VReplicaSetStatus {
+    pub replicas: i32,    
 }
 
 impl Default for VReplicaSet {
@@ -303,6 +302,7 @@ impl Default for VReplicaSet {
         Self {
             metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
             spec: VReplicaSetSpec::default(),
+            status: None,
         }
     }
 }
