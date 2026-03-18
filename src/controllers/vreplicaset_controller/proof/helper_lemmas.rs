@@ -208,6 +208,7 @@ pub proof fn matching_pods_equal_to_matching_pod_entries_values(vrs: VReplicaSet
     }
 }
 
+#[verifier(external_body)] // prove with all_pods_owned_by_vrs_in_etcd_have_vrs_prefix
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
