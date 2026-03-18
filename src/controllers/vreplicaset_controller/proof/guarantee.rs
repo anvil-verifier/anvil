@@ -15,7 +15,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -71,6 +70,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
                     APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
+                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -88,18 +88,24 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
                     APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
+                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
 
                     if id == controller_id {
                         let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        if new_msgs.contains(msg) && msg.content.is_get_then_delete_request() {
-                            let req = msg.content.get_get_then_delete_request();
-                            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                            let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();    
-                            
-                            assert(req.owner_ref == triggering_cr.controller_owner_ref());
+                        if new_msgs.contains(msg) {
+                            if msg.content.is_get_then_delete_request() {
+                                let req = msg.content.get_get_then_delete_request();
+                                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                                let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                                assert(req.obj == make_pod(triggering_cr).marshal());
+                                assert(req.owner_ref == triggering_cr.controller_owner_ref());
+                            } else if msg.content.is_get_then_update_status_request() {
+                                let req = msg.content.get_get_then_update_status_request();
+                                assert(req.obj.kind == VReplicaSetView::kind());
+                            }
                         }
                     }
                 }
@@ -115,6 +121,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
                     APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
+                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.

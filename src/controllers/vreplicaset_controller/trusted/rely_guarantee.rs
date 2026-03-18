@@ -173,6 +173,7 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
 // VRS Guarantee Condition
 
 // VRS only creates pods owned by a VReplicaSet.
+// FIXME: use generate_name
 pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let owner_references = req.obj.metadata.owner_references->0;
@@ -196,6 +197,10 @@ pub open spec fn vrs_guarantee_get_then_delete_req(req: GetThenDeleteRequest) ->
     }
 }
 
+pub open spec fn vrs_guarantee_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> bool {
+    req.obj.kind == VReplicaSetView::kind()
+}
+
 pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
@@ -206,6 +211,7 @@ pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
             _ => false, // vrs doesn't send other requests (yet).
         }
     }
