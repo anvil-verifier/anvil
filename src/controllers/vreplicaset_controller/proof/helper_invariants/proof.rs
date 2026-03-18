@@ -201,8 +201,6 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
 // Havoc function for VReplicaSetView.
 uninterp spec fn make_vrs() -> VReplicaSetView;
 
-#[verifier(rlimit(100))]
-#[verifier(external_body)]
 pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
@@ -266,6 +264,7 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s_prime),
                     APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s_prime),
+                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(req, vrs),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -283,6 +282,7 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s_prime),
                     APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s_prime),
+                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(req, vrs),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -311,6 +311,7 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s_prime),
                     APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s_prime),
+                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(req, vrs),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -1263,8 +1264,6 @@ ensures
     simplify_predicate(spec, always(lift_state(p_prime)));
 }
 
-// TODO: investigate flaky proof.
-#[verifier(spinoff_prover)]
 #[verifier(external_body)]
 pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int

@@ -231,6 +231,12 @@ pub open spec fn vrs_reconcile_get_then_delete_request_only_interferes_with_itse
     }
 }
 
+pub open spec fn vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(
+    req: GetThenUpdateStatusRequest, vrs: VReplicaSetView
+) -> bool {
+    req.key() == vrs.object_ref()
+}
+
 pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
     controller_id: int,
     vrs: VReplicaSetView
@@ -244,6 +250,7 @@ pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s),
             APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(req, vrs),
             _ => false, // vrs doesn't send other requests (yet).
         }
     }
