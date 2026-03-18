@@ -53,11 +53,11 @@ pub open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<ResponseView<VoidERespView>>, state: VReplicaSetReconcileState) -> (VReplicaSetReconcileState, Option<RequestView<VoidEReqView>>) {
-    let namespace = v_replica_set.metadata.namespace.unwrap();
+pub open spec fn reconcile_core(vrs: VReplicaSetView, resp_o: Option<ResponseView<VoidERespView>>, state: VReplicaSetReconcileState) -> (VReplicaSetReconcileState, Option<RequestView<VoidEReqView>>) {
+    let namespace = vrs.metadata.namespace.unwrap();
     match &state.reconcile_step {
         VReplicaSetRecStepView::Init => {
-            if v_replica_set.metadata.deletion_timestamp.is_some() {
+            if vrs.metadata.deletion_timestamp.is_some() {
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetRecStepView::Done,
                     ..state
@@ -85,21 +85,17 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                     (error_state(state), None)
                 } else {
                     let pods = pods_or_none.unwrap();
-                    let filtered_pods = filter_pods(pods, v_replica_set);
-                    let replicas = v_replica_set.spec.replicas.unwrap_or(1);
+                    let filtered_pods = filter_pods(pods, vrs);
+                    let replicas = vrs.spec.replicas.unwrap_or(1);
                     if replicas < 0 {
                         (error_state(state), None)
                     } else {
                         let desired_replicas = replicas;
                         if filtered_pods.len() == desired_replicas {
-                            let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetRecStepView::AfterUpdateVRSStatus,
-                                ..state
-                            };
-                            (state_prime, Some(RequestView::KRequest(make_get_then_update_status_request(v_replica_set))))
+                            update_vrs_replicas(state, vrs)
                         } else if filtered_pods.len() < desired_replicas {
                             let diff =  desired_replicas - filtered_pods.len();
-                            let pod = make_pod(v_replica_set);
+                            let pod = make_pod(vrs);
                             let req = APIRequest::CreateRequest(CreateRequest {
                                 namespace: namespace,
                                 obj: pod.marshal(),
@@ -121,7 +117,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                                         name: pod_name_or_none.unwrap(),
                                         namespace: namespace,
                                     },
-                                    owner_ref: v_replica_set.controller_owner_ref(),
+                                    owner_ref: vrs.controller_owner_ref(),
                                 });
                                 let state_prime = VReplicaSetReconcileState {
                                     reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
@@ -140,13 +136,9 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
             if !(is_some_k_create_resp_view(resp_o) && extract_some_k_create_resp_view(resp_o) is Ok) {
                 (error_state(state), None)
             } else if diff == 0 {
-                let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetRecStepView::AfterUpdateVRSStatus,
-                    ..state
-                };
-                (state_prime, Some(RequestView::KRequest(make_get_then_update_status_request(v_replica_set))))
+                update_vrs_replicas(state, vrs)
             } else {
-                let pod = make_pod(v_replica_set);
+                let pod = make_pod(vrs);
                 let req = APIRequest::CreateRequest(CreateRequest {
                     namespace: namespace,
                     obj: pod.marshal(),
@@ -163,11 +155,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
             if !(is_some_k_get_then_delete_resp_view(resp_o) && extract_some_k_get_then_delete_resp_view(resp_o) is Ok) {
                 (error_state(state), None)
             } else if diff == 0 {
-                let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetRecStepView::AfterUpdateVRSStatus,
-                    ..state
-                };
-                (state_prime, Some(RequestView::KRequest(make_get_then_update_status_request(v_replica_set))))
+                update_vrs_replicas(state, vrs)
             } else {
                 if state.filtered_pods.is_none() {
                     (error_state(state), None)
@@ -184,7 +172,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                                 name: pod_name_or_none.unwrap(),
                                 namespace: namespace,
                             },
-                            owner_ref: v_replica_set.controller_owner_ref(),
+                            owner_ref: vrs.controller_owner_ref(),
                         });
                         let state_prime = VReplicaSetReconcileState {
                             reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
@@ -228,10 +216,10 @@ pub open spec fn objects_to_pods(objs: Seq<DynamicObjectView>) -> (pods_or_none:
     }
 }
 
-pub open spec fn filter_pods(pods: Seq<PodView>, v_replica_set: VReplicaSetView) -> (filtered_pods: Seq<PodView>) {
+pub open spec fn filter_pods(pods: Seq<PodView>, vrs: VReplicaSetView) -> (filtered_pods: Seq<PodView>) {
     pods.filter(|pod: PodView|
-        pod.metadata.owner_references_contains(v_replica_set.controller_owner_ref())
-        && v_replica_set.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+        pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+        && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         && pod.metadata.deletion_timestamp is None)
 }
 
@@ -239,8 +227,8 @@ pub open spec fn pod_generate_name(vrs: VReplicaSetView) -> StringView {
     VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + vrs.metadata.name.unwrap() + "-"@
 }
 
-pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
-    let template = v_replica_set.spec.template.unwrap();
+pub open spec fn make_pod(vrs: VReplicaSetView) -> (pod: PodView) {
+    let template = vrs.spec.template.unwrap();
     let pod = PodView::default();
     let pod = PodView {
         spec: template.spec,
@@ -254,10 +242,10 @@ pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
                 ..metadata
             };
             let metadata = metadata.with_generate_name(
-                pod_generate_name(v_replica_set)
+                pod_generate_name(vrs)
             );
             let metadata = metadata.with_owner_references(
-                make_owner_references(v_replica_set)
+                make_owner_references(vrs)
             );
             metadata
         },
@@ -266,22 +254,32 @@ pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
     pod
 }
 
-pub open spec fn make_owner_references(v_replica_set: VReplicaSetView) -> Seq<OwnerReferenceView> { seq![v_replica_set.controller_owner_ref()] }
+pub open spec fn make_owner_references(vrs: VReplicaSetView) -> Seq<OwnerReferenceView> { seq![vrs.controller_owner_ref()] }
 
-pub open spec fn make_get_then_update_status_request(vrs: VReplicaSetView) -> (req: APIRequest) {
-    let vrs_with_new_status = VReplicaSetView {
-        status: Some(VReplicaSetStatusView {
-            replicas: vrs.spec.replicas.unwrap_or(1),
-        }),
-        ..vrs
-    };
-    let req = APIRequest::GetThenUpdateStatusRequest(GetThenUpdateStatusRequest {
-        name: vrs.metadata.name.unwrap(),
-        namespace: vrs.metadata.namespace.unwrap(),
-        owner_ref: vrs.metadata.owner_references->0.filter(controller_owner_filter())[0],
-        obj: vrs_with_new_status.marshal(),
-    });
-    req
+pub open spec fn update_vrs_replicas(
+    state: VReplicaSetReconcileState, vrs: VReplicaSetView
+) -> (res: (VReplicaSetReconcileState, Option<RequestView<VoidEReqView>>)) {
+    if vrs.metadata.owner_references is Some && vrs.metadata.owner_references.unwrap().filter(controller_owner_filter()).len() == 1 {
+        let vrs_with_new_status = VReplicaSetView {
+            status: Some(VReplicaSetStatusView {
+                replicas: vrs.spec.replicas.unwrap_or(1),
+            }),
+            ..vrs
+        };
+        let state_prime = VReplicaSetReconcileState {
+            reconcile_step: VReplicaSetRecStepView::AfterUpdateVRSStatus,
+            ..state
+        };
+        let req = APIRequest::GetThenUpdateStatusRequest(GetThenUpdateStatusRequest {
+            name: vrs.metadata.name.unwrap(),
+            namespace: vrs.metadata.namespace.unwrap(),
+            owner_ref: vrs.metadata.owner_references.unwrap().filter(controller_owner_filter())[0],
+            obj: vrs_with_new_status.marshal(),
+        });
+        (state_prime, Some(RequestView::KRequest(req)))
+    } else {
+        (error_state(state), None)
+    }
 }
 
 }
