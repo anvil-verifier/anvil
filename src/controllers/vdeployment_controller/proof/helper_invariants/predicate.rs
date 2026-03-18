@@ -164,17 +164,6 @@ pub open spec fn no_other_pending_get_then_delete_request_interferes_with_vd_rec
     }
 }
 
-pub open spec fn no_other_pending_get_then_update_status_request_interferes_with_vd_reconcile(
-    req: GetThenUpdateStatusRequest,
-    vd: VDeploymentView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        req.obj.kind == VReplicaSetView::kind() ==> {
-            &&& req.owner_ref != vd.controller_owner_ref()
-        }
-    }
-}
-
 // States that no pending request that is not from the specific reconcile
 // associated with `vd` interferes with the reconcile of `vd`.
 pub open spec fn no_other_pending_request_interferes_with_vd_reconcile(
@@ -196,7 +185,6 @@ pub open spec fn no_other_pending_request_interferes_with_vd_reconcile(
                 APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s),
                 APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vd_reconcile(req, vd)(s),
                 APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vd_reconcile(req, vd)(s),
-                APIRequest::GetThenUpdateStatusRequest(req) => no_other_pending_get_then_update_status_request_interferes_with_vd_reconcile(req, vd)(s),
                 _ => true,
             }
         }

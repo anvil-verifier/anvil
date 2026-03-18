@@ -164,8 +164,8 @@ pub open spec fn no_other_pending_get_then_update_status_request_interferes_with
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> 
-            req.owner_ref.kind != VReplicaSetView::kind()
+        &&& req.obj.kind == Kind::PodKind ==> req.owner_ref.kind != VReplicaSetView::kind()
+        &&& req.obj.kind == VReplicaSetView::kind() ==> req.key() != vrs.object_ref()
     }
 }
 
@@ -231,6 +231,12 @@ pub open spec fn vrs_reconcile_get_then_delete_request_only_interferes_with_itse
     }
 }
 
+pub open spec fn vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(
+    req: GetThenUpdateStatusRequest, vrs: VReplicaSetView
+) -> bool {
+    req.key() == vrs.object_ref()
+}
+
 pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
     controller_id: int,
     vrs: VReplicaSetView
@@ -244,6 +250,7 @@ pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s),
             APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(req, vrs),
             _ => false, // vrs doesn't send other requests (yet).
         }
     }
@@ -468,6 +475,59 @@ pub open spec fn vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletio
         &&& cr.metadata.owner_references->0.filter(controller_owner_filter())
             == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
         &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
+    }
+}
+
+// in VSTS, prefix is the first class citizen, so we need a glue invariant saying all pods with prefix have correct owner_reference
+// in VRS, owner_reference is the first class citizen, so we need a glue invariant to convert owner_reference to prefix
+pub open spec fn all_pods_owned_by_vrs_in_etcd_have_vrs_prefix() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |k: ObjectRef| {
+            let obj = s.resources()[k];
+            &&& #[trigger] s.resources().contains_key(k)
+            &&& k.kind == Kind::PodKind
+            &&& obj.metadata.owner_references is Some
+            &&& obj.metadata.owner_references->0.filter(controller_owner_filter()).len() > 0
+            &&& obj.metadata.owner_references->0.filter(controller_owner_filter())[0].kind == VReplicaSetView::kind()
+        } ==> has_vrs_prefix(k.name)
+    }
+}
+pub open spec fn all_pods_has_vrs_prefix_in_vrs_local_state(controller_id: int, vrs_key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs_key].local_state)->Ok_0;
+        &&& local_state.filtered_pods is Some ==>
+            forall |i| #![trigger local_state.filtered_pods->0[i]] 0 <= i < local_state.filtered_pods->0.len() ==> {
+                &&& local_state.filtered_pods->0[i].metadata.name is Some
+                &&& has_vrs_prefix(local_state.filtered_pods->0[i].metadata.name->0)
+            }
+        // message predicate to make it inductive
+        &&& local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods ==> {
+            let req_msg = s.ongoing_reconciles(controller_id)[vrs_key].pending_req_msg->0;
+            &&& s.ongoing_reconciles(controller_id)[vrs_key].pending_req_msg is Some
+            &&& req_msg.dst is APIServer
+            &&& req_msg.content.is_list_request()
+            &&& req_msg.content.get_list_request() == ListRequest {
+                kind: Kind::PodKind,
+                namespace: vrs_key.namespace,
+            }
+            &&& forall |msg| {
+                &&& #[trigger] s.in_flight().contains(msg)
+                &&& msg.src is APIServer
+                &&& resp_msg_matches_req_msg(msg, req_msg)
+                &&& is_ok_resp(msg.content->APIResponse_0)
+            } ==> {
+                let resp_objs = msg.content.get_list_response().res.unwrap();
+                &&& forall |i| #![trigger resp_objs[i]] {
+                    &&& 0 <= i < resp_objs.len()
+                    &&& resp_objs[i].metadata.owner_references is Some
+                    &&& resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter()).len() > 0
+                    &&& resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter())[0].kind == VReplicaSetView::kind()
+                } ==> {
+                    &&& resp_objs[i].metadata.name is Some
+                    &&& has_vrs_prefix(resp_objs[i].metadata.name->0)
+                }
+            }
+        }
     }
 }
 

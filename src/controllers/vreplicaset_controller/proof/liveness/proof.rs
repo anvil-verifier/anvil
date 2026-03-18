@@ -16,7 +16,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -36,36 +35,10 @@ pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>
         eventually_stable_reconciliation_holds_per_cr(spec, vrs, cluster, controller_id);
     };
     spec_entails_tla_forall(spec, |vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs));
-    assert_by(
-        tla_forall(|vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs))
-        == vrs_eventually_stable_reconciliation(), {
-            assert forall |ex: Execution<ClusterState>| 
-                tla_forall(|vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs)).satisfied_by(ex)
-                implies #[trigger] vrs_eventually_stable_reconciliation().satisfied_by(ex) by {
-                assert((|vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs)) 
-                    =~= (|vrs: VReplicaSetView| Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))));
-                assert((|vrs: VReplicaSetView| Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))) 
-                    =~= (|vrs: VReplicaSetView| always(lift_state(desired_state_is(vrs))).leads_to(always(lift_state((|vrs| current_state_matches(vrs))(vrs))))));
-                assert(tla_forall(|vrs: VReplicaSetView| always(lift_state(desired_state_is(vrs))).leads_to(always(lift_state((|vrs| current_state_matches(vrs))(vrs))))).satisfied_by(ex));
-                assert(Cluster::eventually_stable_reconciliation(|vrs| current_state_matches(vrs)).satisfied_by(ex));
-            }
-            assert forall |ex: Execution<ClusterState>| 
-                #[trigger] vrs_eventually_stable_reconciliation().satisfied_by(ex)
-                implies tla_forall(|vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs)).satisfied_by(ex) by {
-                assert(Cluster::eventually_stable_reconciliation(|vrs| current_state_matches(vrs)).satisfied_by(ex));
-                assert(tla_forall(|vrs: VReplicaSetView| always(lift_state(desired_state_is(vrs))).leads_to(always(lift_state((|vrs| current_state_matches(vrs))(vrs))))).satisfied_by(ex));
-                assert((|vrs: VReplicaSetView| Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))) 
-                    =~= (|vrs: VReplicaSetView| always(lift_state(desired_state_is(vrs))).leads_to(always(lift_state((|vrs| current_state_matches(vrs))(vrs))))));
-                assert((|vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs)) 
-                    =~= (|vrs: VReplicaSetView| Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))));
-            }
-
-            temp_pred_equality(
-                tla_forall(|vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs)),
-                vrs_eventually_stable_reconciliation()
-            );
-        }
-    )
+    temp_pred_equality(
+        tla_forall(|vrs| vrs_eventually_stable_reconciliation_per_cr(vrs)),
+        vrs_eventually_stable_reconciliation()
+    );
 }
 
 pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
@@ -93,8 +66,9 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
         stable_spec, cluster, controller_id
     );
     lemma_true_leads_to_always_current_state_matches(stable_spec, vrs, cluster, controller_id);
-    reveal_with_fuel(spec_before_phase_n, 6);
+    reveal_with_fuel(spec_before_phase_n, 7);
 
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(5, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(4, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(3, stable_spec, vrs, cluster, controller_id);
@@ -129,7 +103,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
 
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
-        1 <= i <= 5,
+        1 <= i <= 6,
         valid(stable(spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)))),
         spec.and(spec_before_phase_n(i + 1, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -138,7 +112,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
-    reveal_with_fuel(spec_before_phase_n, 6);
+    reveal_with_fuel(spec_before_phase_n, 7);
     temp_pred_equality(
         spec.and(spec_before_phase_n(i + 1, vrs, cluster, controller_id)),
         spec.and(spec_before_phase_n(i, vrs, cluster, controller_id))

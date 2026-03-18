@@ -306,7 +306,6 @@ impl Composition for RabbitmqReconciler {
                             APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
                             APIRequest::GetThenUpdateRequest(req) => vd_rely_get_then_update_req(req)(s),
                             APIRequest::UpdateStatusRequest(req) => vd_rely_update_status_req(req)(s),
-                            APIRequest::GetThenUpdateStatusRequest(req) => vd_rely_get_then_update_status_req(req)(s),
                             APIRequest::DeleteRequest(req) => vd_rely_delete_req(req)(s),
                             APIRequest::GetThenDeleteRequest(req) => vd_rely_get_then_delete_req(req)(s),
                             _ => true,

@@ -1,17 +1,13 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::{trusted::spec_types::*, model::reconciler::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 verus! {
 
 // VRS Rely Condition
-
-pub open spec fn has_vrs_prefix(name: StringView) -> bool {
-    exists |suffix| name == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
-}
 
 // Other controllers don't create pods owned by a VReplicaSet.
 pub open spec fn vrs_rely_create_req(req: CreateRequest) -> StatePred<ClusterState> {
@@ -173,12 +169,13 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
 // VRS Guarantee Condition
 
 // VRS only creates pods owned by a VReplicaSet.
+// FIXME: use generate_name
 pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let owner_references = req.obj.metadata.owner_references->0;
         &&& req.obj.kind == Kind::PodKind
-        &&& req.obj.metadata.name is Some
-        &&& has_vrs_prefix(req.obj.metadata.name->0)
+        &&& req.obj.metadata.name is None
+        &&& has_vrs_prefix(req.obj.metadata.generate_name->0)
         &&& req.obj.metadata.owner_references is Some
         &&& exists |vrs: VReplicaSetView|
             owner_references == seq![#[trigger] vrs.controller_owner_ref()]
@@ -196,6 +193,10 @@ pub open spec fn vrs_guarantee_get_then_delete_req(req: GetThenDeleteRequest) ->
     }
 }
 
+pub open spec fn vrs_guarantee_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> bool {
+    req.obj.kind == VReplicaSetView::kind()
+}
+
 pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
@@ -206,6 +207,7 @@ pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
             _ => false, // vrs doesn't send other requests (yet).
         }
     }

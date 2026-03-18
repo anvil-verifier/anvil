@@ -5,8 +5,8 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
-use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
+use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView, exec_types::*, step::*};
+use crate::vstd_ext::{seq_lib::*, string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -89,14 +89,14 @@ pub fn reconcile_error(state: &VReplicaSetReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidEResp>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<VoidEReq>>))
-    requires v_replica_set@.well_formed(),
-    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(v_replica_set@, resp_o.deep_view(), state@),
+pub fn reconcile_core(vrs: &VReplicaSet, resp_o: Option<Response<VoidEResp>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<VoidEReq>>))
+    requires vrs@.well_formed(),
+    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vrs@, resp_o.deep_view(), state@),
 {
-    let namespace = v_replica_set.metadata().namespace().unwrap();
+    let namespace = vrs.metadata().namespace().unwrap();
     match &state.reconcile_step {
         VReplicaSetReconcileStep::Init => {
-            if v_replica_set.metadata().has_deletion_timestamp() {
+            if vrs.metadata().has_deletion_timestamp() {
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::Done,
                     ..state
@@ -125,21 +125,17 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 return (error_state(state), None);
             }
             let pods = pods_or_none.unwrap();
-            let filtered_pods = filter_pods(pods, v_replica_set);
-            let replicas = v_replica_set.spec().replicas().unwrap_or(1);
+            let filtered_pods = filter_pods(pods, vrs);
+            let replicas = vrs.spec().replicas().unwrap_or(1);
             if replicas < 0 {
                 return (error_state(state), None);
             }
             let desired_replicas: usize = replicas as usize;
             if filtered_pods.len() == desired_replicas {
-                let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(make_get_then_update_status_request(v_replica_set))));
+                return update_vrs_replicas(state, vrs);
             } else if filtered_pods.len() < desired_replicas {
                 let diff =  desired_replicas - filtered_pods.len();
-                let pod = make_pod(v_replica_set);
+                let pod = make_pod(vrs);
                 let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                     api_resource: Pod::api_resource(),
                     namespace: namespace,
@@ -160,7 +156,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                     api_resource: Pod::api_resource(),
                     name: pod_name_or_none.unwrap(),
                     namespace: namespace,
-                    owner_ref: v_replica_set.controller_owner_ref(),
+                    owner_ref: vrs.controller_owner_ref(),
                 });
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
@@ -176,13 +172,9 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 return (error_state(state), None);
             }
             if diff == 0 {
-                let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(make_get_then_update_status_request(v_replica_set))));
+                return update_vrs_replicas(state, vrs);
             } else {
-                let pod = make_pod(v_replica_set);
+                let pod = make_pod(vrs);
                 let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                     api_resource: Pod::api_resource(),
                     namespace: namespace,
@@ -201,11 +193,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 return (error_state(state), None);
             }
             if diff == 0 {
-                let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(make_get_then_update_status_request(v_replica_set))));
+                return update_vrs_replicas(state, vrs);
             } else {
                 if state.filtered_pods.is_none() {
                     return (error_state(state), None);
@@ -221,7 +209,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                     api_resource: Pod::api_resource(),
                     name: pod_name_or_none.unwrap(),
                     namespace: namespace,
-                    owner_ref: v_replica_set.controller_owner_ref(),
+                    owner_ref: vrs.controller_owner_ref(),
                 });
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
@@ -255,16 +243,16 @@ pub fn error_state(state: VReplicaSetReconcileState) -> (state_prime: VReplicaSe
     }
 }
 
-pub fn make_owner_references(v_replica_set: &VReplicaSet) -> (owner_references: Vec<OwnerReference>)
-    requires v_replica_set@.well_formed(),
-    ensures owner_references.deep_view() ==  model_reconciler::make_owner_references(v_replica_set@),
+pub fn make_owner_references(vrs: &VReplicaSet) -> (owner_references: Vec<OwnerReference>)
+    requires vrs@.well_formed(),
+    ensures owner_references.deep_view() ==  model_reconciler::make_owner_references(vrs@),
 {
     let mut owner_references = Vec::new();
-    owner_references.push(v_replica_set.controller_owner_ref());
+    owner_references.push(vrs.controller_owner_ref());
     proof {
         assert_seqs_equal!(
             owner_references.deep_view(),
-            model_reconciler::make_owner_references(v_replica_set@)
+            model_reconciler::make_owner_references(vrs@)
         );
     }
     owner_references
@@ -354,9 +342,9 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
 
 // TODO: This function can be replaced by a map.
 // Revisit it if Verus supports Vec.map.
-fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
-    requires v_replica_set@.well_formed(),
-    ensures filtered_pods.deep_view() == model_reconciler::filter_pods(pods.deep_view(), v_replica_set@),
+fn filter_pods(pods: Vec<Pod>, vrs: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
+    requires vrs@.well_formed(),
+    ensures filtered_pods.deep_view() == model_reconciler::filter_pods(pods.deep_view(), vrs@),
 {
     let mut filtered_pods = Vec::new();
     let mut idx = 0;
@@ -364,7 +352,7 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
     proof {
         assert_seqs_equal!(
             filtered_pods.deep_view(),
-            model_reconciler::filter_pods(pods.deep_view().take(0), v_replica_set@)
+            model_reconciler::filter_pods(pods.deep_view().take(0), vrs@)
         );
     }
 
@@ -372,25 +360,24 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
         invariant
             idx <= pods.len(),
             filtered_pods.deep_view()
-                == model_reconciler::filter_pods(pods.deep_view().take(idx as int), v_replica_set@),
+                == model_reconciler::filter_pods(pods.deep_view().take(idx as int), vrs@),
     {
         let pod = &pods[idx];
 
         // TODO: check other conditions such as pod status
         // Check the following conditions:
         // (1) the pod's label should match the replica set's selector
-        if pod.metadata().owner_references_contains(&v_replica_set.controller_owner_ref())
-        && v_replica_set.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::new()))
+        if pod.metadata().owner_references_contains(&vrs.controller_owner_ref())
+        && vrs.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::new()))
         // (2) the pod should not be terminating (its deletion timestamp is nil)
-        && !pod.metadata().has_deletion_timestamp() {
+        && !pod.metadata().has_deletion_timestamp()
+        && pod.metadata().name().is_some()
+        && has_vrs_prefix(&pod.metadata().name().unwrap()){
             filtered_pods.push(pod.clone());
         }
 
         proof {
-            let spec_filter = |pod: PodView|
-                pod.metadata.owner_references_contains(v_replica_set@.controller_owner_ref())
-                && v_replica_set@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp is None;
+            let spec_filter = model_reconciler::pod_filter(vrs@);
             let old_filtered = if spec_filter(pod@) {
                 filtered_pods.deep_view().drop_last()
             } else {
@@ -407,19 +394,36 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
     filtered_pods
 }
 
+fn has_vrs_prefix(name: &String) -> (res: bool)
+    ensures res == model_reconciler::has_vrs_prefix(name@),
+{
+    let res = starts_with(&name, "vreplicaset-");
+    proof {
+        assert("vreplicaset-"@ == "vreplicaset"@ + "-"@) by {
+            vrs_prefix_equality();
+        }
+        if res {
+            assert(exists |suffix| name@ == "vreplicaset-"@ + suffix);
+            assert("vreplicaset"@ == VReplicaSetView::kind()->CustomResourceKind_0);
+            assert(exists |suffix| name@ == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        }
+    }
+    return res;
+}
+
 fn pod_generate_name(vrs: &VReplicaSet) -> (name: String) 
     requires vrs@.well_formed(),
     ensures name@ == model_reconciler::pod_generate_name(vrs@) 
 {
-    let prefix = "vreplicaset".to_string().concat("-"); 
+    let prefix = "vreplicaset".to_string().concat("-");
     prefix.concat(vrs.metadata().name().unwrap().concat("-").as_str())
 }
 
-fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
-    requires v_replica_set@.well_formed(),
-    ensures pod@ == model_reconciler::make_pod(v_replica_set@),
+fn make_pod(vrs: &VReplicaSet) -> (pod: Pod)
+    requires vrs@.well_formed(),
+    ensures pod@ == model_reconciler::make_pod(vrs@),
 {
-    let template = v_replica_set.spec().template().unwrap();
+    let template = vrs.spec().template().unwrap();
     let mut pod = Pod::default();
     pod.set_metadata({
         let mut metadata = ObjectMeta::default();
@@ -435,29 +439,91 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
         if finalizers.is_some() {
             metadata.set_finalizers(finalizers.unwrap());
         }
-        metadata.set_generate_name(pod_generate_name(v_replica_set));
-        metadata.set_owner_references(make_owner_references(v_replica_set));
+        metadata.set_generate_name(pod_generate_name(vrs));
+        metadata.set_owner_references(make_owner_references(vrs));
         metadata
     });
     pod.set_spec(template.spec().unwrap());
     pod
 }
 
-#[verifier(external_body)] // FIXME
-fn make_get_then_update_status_request(vrs: &VReplicaSet) -> (req: KubeAPIRequest)
-    requires vrs@.well_formed(),
-    ensures req.deep_view() == model_reconciler::make_get_then_update_status_request(vrs@),
+fn update_vrs_replicas(state: VReplicaSetReconcileState, vrs: &VReplicaSet) -> (res: (VReplicaSetReconcileState, Option<Request<VoidEReq>>))
+    requires
+        vrs@.well_formed(),
+    ensures
+        res.0@ == model_reconciler::update_vrs_replicas(state@, vrs@).0,
+        res.1.deep_view() == model_reconciler::update_vrs_replicas(state@, vrs@).1,
 {
-    let mut new_status = VReplicaSetStatus::default();
-    new_status.set_replicas(vrs.spec().replicas().unwrap_or(1));
-    let mut new_vrs = vrs.clone();
-    new_vrs.set_status(new_status);
-    KubeAPIRequest::GetThenUpdateStatusRequest(KubeGetThenUpdateStatusRequest {
-        api_resource: VReplicaSet::api_resource(),
-        name: vrs.metadata().name().unwrap(),
-        namespace: vrs.metadata().namespace().unwrap(),
-        owner_ref: vrs.metadata().owner_references().unwrap().into_iter().find(|o: &OwnerReference| o.controller().is_some() && o.controller().unwrap()).unwrap(),
-        obj: new_vrs.marshal(),
-    })
+    if vrs.metadata().owner_references().is_some() && filter_by_controller_owner(vrs.metadata().owner_references().unwrap()).len() == 1 {
+        let mut new_status = VReplicaSetStatus::default();
+        new_status.set_replicas(vrs.spec().replicas().unwrap_or(1));
+        let mut new_vrs = vrs.clone();
+        new_vrs.set_status(new_status);
+        let state_prime = VReplicaSetReconcileState {
+            reconcile_step: VReplicaSetReconcileStep::AfterUpdateVRSStatus,
+            ..state
+        };
+        let filtered = filter_by_controller_owner(vrs.metadata().owner_references().unwrap());
+        let owner_ref = filtered[0].clone();
+        let req = KubeAPIRequest::GetThenUpdateStatusRequest(KubeGetThenUpdateStatusRequest {
+            api_resource: VReplicaSet::api_resource(),
+            name: vrs.metadata().name().unwrap(),
+            namespace: vrs.metadata().namespace().unwrap(),
+            owner_ref: owner_ref,
+            obj: new_vrs.marshal(),
+        });
+        return (state_prime, Some(Request::KRequest(req)));
+    } else {
+        return (error_state(state), None);
+    }
 }
+
+fn filter_by_controller_owner(owner_refs: Vec<OwnerReference>) -> (res: Vec<OwnerReference>)
+    ensures
+        res.deep_view() == owner_refs.deep_view().filter(controller_owner_filter()),
+{
+    let mut filtered = Vec::new();
+
+    proof {
+        assert_seqs_equal!(
+            filtered.deep_view(),
+            owner_refs.deep_view().take(0).filter(controller_owner_filter())
+        );
+    }
+
+    for idx in 0..owner_refs.len()
+        invariant
+            idx <= owner_refs.len(),
+            filtered.deep_view()
+                == owner_refs.deep_view().take(idx as int).filter(controller_owner_filter()),
+    {
+        let owner_ref = &owner_refs[idx];
+        if is_controller_owner(owner_ref.clone()) {
+            filtered.push(owner_ref.clone());
+        }
+
+        proof {
+            let pred = controller_owner_filter();
+            let old_filtered = if pred(owner_ref@) {
+                filtered.deep_view().drop_last()
+            } else {
+                filtered.deep_view()
+            };
+            assert(old_filtered == owner_refs.deep_view().take(idx as int).filter(pred));
+            lemma_filter_push(owner_refs.deep_view().take(idx as int), pred, owner_ref@);
+            assert(owner_refs.deep_view().take(idx as int).push(owner_ref@)
+                   == owner_refs.deep_view().take((idx + 1) as int));
+            assert(pred(owner_ref@) ==> filtered.deep_view() == old_filtered.push(owner_ref@));
+        }
+    }
+    assert(owner_refs.deep_view() == owner_refs.deep_view().take(owner_refs.len() as int));
+    filtered
+}
+
+fn is_controller_owner(owner_ref: OwnerReference) -> (res: bool)
+    ensures res == controller_owner_filter()(owner_ref@)
+{
+    return owner_ref.controller().is_some() && owner_ref.controller().unwrap()
+}
+
 }
