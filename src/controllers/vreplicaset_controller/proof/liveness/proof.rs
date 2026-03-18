@@ -68,6 +68,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     lemma_true_leads_to_always_current_state_matches(stable_spec, vrs, cluster, controller_id);
     reveal_with_fuel(spec_before_phase_n, 6);
 
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(5, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(4, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(3, stable_spec, vrs, cluster, controller_id);
