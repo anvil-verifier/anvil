@@ -86,13 +86,6 @@ pub open spec fn vd_rely_update_status_req(req: UpdateStatusRequest) -> StatePre
     }
 }
 
-pub open spec fn vd_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        req.obj.kind == VReplicaSetView::kind() ==>
-            req.owner_ref.kind != VDeploymentView::kind()
-    }
-}
-
 pub open spec fn vd_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.key.kind == VReplicaSetView::kind() ==>
@@ -135,7 +128,6 @@ pub open spec fn vd_rely(other_id: int) -> StatePred<ClusterState> {
             APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_rely_get_then_update_req(req)(s),
             APIRequest::UpdateStatusRequest(req) => vd_rely_update_status_req(req)(s),
-            APIRequest::GetThenUpdateStatusRequest(req) => vd_rely_get_then_update_status_req(req)(s),
             APIRequest::DeleteRequest(req) => vd_rely_delete_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => vd_rely_get_then_delete_req(req)(s),
             _ => true,
