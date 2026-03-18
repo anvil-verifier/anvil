@@ -678,11 +678,14 @@ ensures
         &&& obj.metadata.owner_references is Some
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
     } ==> {
+        let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+        let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s_prime.resources().contains_key(k)
-        // TODO: weaken to allow status update requests
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& VReplicaSetView::unmarshal(s_prime.resources()[k]) is Ok
+        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.spec == vrs_prime.spec
     },
-    forall |k: ObjectRef| { // <==
+    forall |k: ObjectRef| { // <==c
         let obj = s_prime.resources()[k];
         &&& #[trigger] s_prime.resources().contains_key(k)
         &&& VReplicaSetView::unmarshal(obj) is Ok
@@ -690,9 +693,12 @@ ensures
         &&& obj.metadata.owner_references is Some
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
     } ==> {
+        let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+        let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s.resources().contains_key(k)
-        // TODO: weaken to allow status update requests
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& VReplicaSetView::unmarshal(s.resources()[k]) is Ok
+        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.spec == vrs_prime.spec
     },
 {
     assert forall |k: ObjectRef| { // ==>
@@ -703,9 +709,12 @@ ensures
         &&& obj.metadata.owner_references is Some
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
     } implies {
+        let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+        let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s_prime.resources().contains_key(k)
-        // TODO: weaken to allow status update requests
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& VReplicaSetView::unmarshal(s_prime.resources()[k]) is Ok
+        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.spec == vrs_prime.spec
     } by {
         // ==>
         let obj = s.resources()[k];
@@ -789,20 +798,7 @@ ensures
                                     }
                                 }
                             },
-                            APIRequest::GetThenUpdateStatusRequest(req) => {
-                                if req.obj.kind == VReplicaSetView::kind() {
-                                    // rely condition
-                                    assert(req.owner_ref.kind != VDeploymentView::kind());
-                                    if obj.metadata.owner_references_contains(req.owner_ref) {
-                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                        if req.well_formed() {
-                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        } else {
-                                            assert(s_prime.resources()[k] == s.resources()[k]);
-                                        }
-                                    }
-                                }
-                            }
+                            APIRequest::GetThenUpdateStatusRequest(req) => {} // should not change spec and metadata (except rv)
                             _ => {},
                         }
                     }
@@ -824,9 +820,12 @@ ensures
         &&& obj.metadata.owner_references is Some
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq
     } implies {
+        let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+        let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s.resources().contains_key(k)
-        // TODO: weaken to allow status update requests
-        &&& s.resources()[k] == s_prime.resources()[k]
+        &&& VReplicaSetView::unmarshal(s.resources()[k]) is Ok
+        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.spec == vrs_prime.spec
     } by {
         let obj = s_prime.resources()[k];
         // <==
