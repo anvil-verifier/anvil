@@ -178,8 +178,8 @@ pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<Clust
     |s: ClusterState| {
         let owner_references = req.obj.metadata.owner_references->0;
         &&& req.obj.kind == Kind::PodKind
-        &&& req.obj.metadata.name is Some
-        &&& has_vrs_prefix(req.obj.metadata.name->0)
+        &&& req.obj.metadata.name is None
+        &&& has_vrs_prefix(req.obj.metadata.generate_name->0)
         &&& req.obj.metadata.owner_references is Some
         &&& exists |vrs: VReplicaSetView|
             owner_references == seq![#[trigger] vrs.controller_owner_ref()]
