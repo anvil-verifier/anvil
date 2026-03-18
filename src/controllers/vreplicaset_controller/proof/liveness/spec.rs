@@ -123,7 +123,7 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView, cluster: Clus
 {
     if n == 1 {
         invariants(vrs, cluster, controller_id).and(always(lift_state(desired_state_is(vrs))))
-    } else if 2 <= n <= 6 {
+    } else if 2 <= n <= 7 {
         spec_before_phase_n((n-1) as nat, vrs, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vrs, cluster, controller_id))
     } else {
         true_pred()

@@ -66,7 +66,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
         stable_spec, cluster, controller_id
     );
     lemma_true_leads_to_always_current_state_matches(stable_spec, vrs, cluster, controller_id);
-    reveal_with_fuel(spec_before_phase_n, 6);
+    reveal_with_fuel(spec_before_phase_n, 7);
 
     spec_before_phase_n_entails_true_leads_to_current_state_matches(6, stable_spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(5, stable_spec, vrs, cluster, controller_id);
@@ -103,7 +103,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
 
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
-        1 <= i <= 5,
+        1 <= i <= 6,
         valid(stable(spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)))),
         spec.and(spec_before_phase_n(i + 1, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -112,7 +112,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
-    reveal_with_fuel(spec_before_phase_n, 6);
+    reveal_with_fuel(spec_before_phase_n, 7);
     temp_pred_equality(
         spec.and(spec_before_phase_n(i + 1, vrs, cluster, controller_id)),
         spec.and(spec_before_phase_n(i, vrs, cluster, controller_id))
