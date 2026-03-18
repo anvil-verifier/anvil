@@ -461,6 +461,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -685,6 +686,7 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
 // TODO: investigate flaky proof.
 #[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
