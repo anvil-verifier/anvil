@@ -130,7 +130,7 @@ pub fn reconcile_core(
             state@,
         ),
 {
-
+    
     match state.reconcile_step {
         VStatefulSetReconcileStep::Init => { handle_init(vsts, resp_o, state) },
         VStatefulSetReconcileStep::AfterListPod => { handle_after_list_pod(vsts, resp_o, state) },
@@ -1489,8 +1489,8 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
         vsts_spec.unset_volumes();
         vsts_spec.unset_hostname();
         vsts_spec.unset_subdomain();
-        
-        return spec.eq_spec(&vsts_spec);
+        let normalized_spec = normalize_pod_spec(&vsts_spec);
+        return spec.eq_spec(&normalized_spec);
     } else {
         return false;
     }
