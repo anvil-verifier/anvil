@@ -31,6 +31,13 @@ pub fn usize_to_string(i: usize) -> (s: String)
     i.to_string()
 }
 
+#[verifier(external_body)]
+pub fn starts_with(s: &String, prefix: &str) -> (res: bool)
+    ensures res == starts_with_spec(s@, prefix@),
+{
+    s.starts_with(prefix)
+}
+
 pub uninterp spec fn int_to_string_view(i: int) -> StringView;
 
 #[verifier(external_body)]
@@ -62,6 +69,10 @@ pub open spec fn opt_string_to_view(s: &Option<String>) -> Option<StringView> {
         Some(s1) => Some(s1@),
         None => None,
     }
+}
+
+pub open spec fn starts_with_spec(s: StringView, prefix: StringView) -> bool {
+    exists |suffix: StringView| s == prefix + suffix
 }
 
 pub open spec fn dash_free(s: Seq<char>) -> bool {
@@ -153,5 +164,11 @@ ensures
         }
     }
 }
+
+// const string assumptions
+#[verifier(external_body)]
+pub proof fn vrs_prefix_equality() 
+    ensures "vreplicaset-"@ == "vreplicaset"@ + "-"@
+{}
 
 }

@@ -217,10 +217,21 @@ pub open spec fn objects_to_pods(objs: Seq<DynamicObjectView>) -> (pods_or_none:
 }
 
 pub open spec fn filter_pods(pods: Seq<PodView>, vrs: VReplicaSetView) -> (filtered_pods: Seq<PodView>) {
-    pods.filter(|pod: PodView|
-        pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-        && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-        && pod.metadata.deletion_timestamp is None)
+    pods.filter(pod_filter(vrs))
+}
+
+pub open spec fn pod_filter(vrs: VReplicaSetView) -> spec_fn(pod: PodView) -> bool {
+    |pod: PodView| {
+        &&& pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+        &&& vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+        &&& pod.metadata.deletion_timestamp is None
+        &&& pod.metadata.name is Some
+        &&& has_vrs_prefix(pod.metadata.name.unwrap())
+    }
+}
+
+pub open spec fn has_vrs_prefix(name: StringView) -> bool {
+    exists |suffix| name == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
 }
 
 pub open spec fn pod_generate_name(vrs: VReplicaSetView) -> StringView {

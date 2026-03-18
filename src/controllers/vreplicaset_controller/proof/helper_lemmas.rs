@@ -233,10 +233,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     let resp_pods = objects_to_pods(resp_objs).unwrap();
     let filtered_objs = resp_objs.filter(|obj| owned_selector_match_is(vrs, obj));
     let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
-    let filter_pods_pred = |pod: PodView| 
-        pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-        && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-        && pod.metadata.deletion_timestamp is None;
+    let filter_pods_pred = pod_filter(vrs);
     assert(filtered_pods.no_duplicates()) by {
         assert(objects_to_pods(resp_objs).unwrap().no_duplicates());
         seq_filter_preserves_no_duplicates(objects_to_pods(resp_objs).unwrap(), filter_pods_pred);

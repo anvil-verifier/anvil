@@ -6,7 +6,7 @@ use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView, exec_types::*, step::*};
-use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
+use crate::vstd_ext::{seq_lib::*, string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -370,15 +370,14 @@ fn filter_pods(pods: Vec<Pod>, vrs: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
         if pod.metadata().owner_references_contains(&vrs.controller_owner_ref())
         && vrs.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::new()))
         // (2) the pod should not be terminating (its deletion timestamp is nil)
-        && !pod.metadata().has_deletion_timestamp() {
+        && !pod.metadata().has_deletion_timestamp()
+        && pod.metadata().name().is_some()
+        && has_vrs_prefix(&pod.metadata().name().unwrap()){
             filtered_pods.push(pod.clone());
         }
 
         proof {
-            let spec_filter = |pod: PodView|
-                pod.metadata.owner_references_contains(vrs@.controller_owner_ref())
-                && vrs@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp is None;
+            let spec_filter = model_reconciler::pod_filter(vrs@);
             let old_filtered = if spec_filter(pod@) {
                 filtered_pods.deep_view().drop_last()
             } else {
@@ -393,6 +392,23 @@ fn filter_pods(pods: Vec<Pod>, vrs: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
     }
     assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
     filtered_pods
+}
+
+fn has_vrs_prefix(name: &String) -> (res: bool)
+    ensures res == model_reconciler::has_vrs_prefix(name@),
+{
+    let res = starts_with(&name, "vreplicaset-");
+    proof {
+        assert("vreplicaset-"@ == "vreplicaset"@ + "-"@) by {
+            vrs_prefix_equality();
+        }
+        if res {
+            assert(exists |suffix| name@ == "vreplicaset-"@ + suffix);
+            assert("vreplicaset"@ == VReplicaSetView::kind()->CustomResourceKind_0);
+            assert(exists |suffix| name@ == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        }
+    }
+    return res;
 }
 
 fn pod_generate_name(vrs: &VReplicaSet) -> (name: String) 

@@ -1,17 +1,13 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::{trusted::spec_types::*, model::reconciler::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 verus! {
 
 // VRS Rely Condition
-
-pub open spec fn has_vrs_prefix(name: StringView) -> bool {
-    exists |suffix| name == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix
-}
 
 // Other controllers don't create pods owned by a VReplicaSet.
 pub open spec fn vrs_rely_create_req(req: CreateRequest) -> StatePred<ClusterState> {
