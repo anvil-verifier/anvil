@@ -44,23 +44,21 @@ pub proof fn lemma_from_init_to_not_desired_state_is(
         spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         // □ q(n) ∧ □ identity(n)
-        spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
-        spec.entails(always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))),
     ensures
         spec.entails(
             lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![Init]),
                 no_pending_req_in_cluster(vd, controller_id)
             )).leads_to(not(
-                lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+                lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
+                    .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
             ))
         ),
 {
     let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     let neg_target = not(
-        lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-            .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+        lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
+            .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
     );
 
     // ===== Step 1: Init ~> list_req =====
@@ -140,7 +138,7 @@ pub proof fn lemma_from_init_to_not_desired_state_is(
         spec.entails(list_resp_msg(msg).leads_to(tla_exists(|nv_uid_key: (Uid, ObjectRef)| scale_req(nv_uid_key)))) by {
         // list_resp_msg(msg) ∧ inv => ∃ nv_uid_key. after_list_with_etcd(msg, nv_uid_key)
         assert(spec.entails(list_resp_msg(msg).leads_to(tla_exists(|nv_uid_key: (Uid, ObjectRef)| after_list_with_etcd(msg, nv_uid_key))))) by {
-            let identity_inv = lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n));
+            let identity_inv = lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n));
             assert forall |ex: Execution<ClusterState>|
                 #[trigger] list_resp_msg(msg).satisfied_by(ex)
                 && inv.satisfied_by(ex)
@@ -148,7 +146,7 @@ pub proof fn lemma_from_init_to_not_desired_state_is(
                 implies
                 tla_exists(|nv_uid_key: (Uid, ObjectRef)| after_list_with_etcd(msg, nv_uid_key)).satisfied_by(ex) by {
                 let s = ex.head();
-                // From current_state_match_vd_applied_to_vrs_set_with_replicas and the list response,
+                // From old_vrs_set_is_owned_by_vd and the list response,
                 // we can extract the nv_uid_key witness
                 assume(tla_exists(|nv_uid_key: (Uid, ObjectRef)| after_list_with_etcd(msg, nv_uid_key)).satisfied_by(ex));
             }
@@ -299,8 +297,8 @@ pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
-        spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
-        spec.entails(always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))),
+        spec.entails(always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)))),
+        spec.entails(always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))),
     ensures
         spec.entails(lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
@@ -322,16 +320,16 @@ pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-        &&& conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)(s)
-        &&& current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s)
+        &&& conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)(s)
+        &&& old_vrs_set_is_owned_by_vd(vrs_set, vd, n)(s)
         &&& inductive_current_state_matches(vd, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-        lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)),
-        lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)),
+        lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)),
+        lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)),
         lift_state(inductive_current_state_matches(vd, controller_id))
     );
     let input = Some(req_msg);
@@ -393,8 +391,8 @@ pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_scale_new_vrs_by_one
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
-        spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
-        spec.entails(always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))),
+        spec.entails(always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)))),
+        spec.entails(always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))),
         exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1,
     ensures
         spec.entails(lift_state(and!(
@@ -543,8 +541,8 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
-        spec.entails(always(lift_state(conjuncted_current_state_matches_vrs_with_replica_diff(vrs_set, vd, n)))),
-        spec.entails(always(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))),
+        spec.entails(always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)))),
+        spec.entails(always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))),
         exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && new_vrs.metadata.uid->0 == nv_uid_key.0 && new_vrs.object_ref() == nv_uid_key.1,
     ensures
         spec.entails(lift_state(and!(
@@ -555,13 +553,13 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
                 ru_local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
             ))
             .leads_to(not(
-                lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-                    .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+                lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
+                    .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
             ))),
 {
     let neg_target = not(
-        lift_state(conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n))
-            .and(lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)))
+        lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
+            .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
     );
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
@@ -581,14 +579,14 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
     //   - When other msg: pre(s_prime) preserved
 
     let not_desired = |s: ClusterState| {
-        !conjuncted_desired_state_is_vrs_with_replica_diff(vrs_set, vd, n)(s)
+        !conjuncted_desired_state_is_old_vrs(vrs_set, vd, n)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(cluster, controller_id)(s)
-        &&& current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n)(s)
+        &&& old_vrs_set_is_owned_by_vd(vrs_set, vd, n)(s)
     };
     let input = Some(req_msg);
     combine_spec_entails_always_n!(spec,
@@ -597,7 +595,7 @@ pub proof fn lemma_from_after_send_scale_new_vrs_by_one_req_to_not_desired_state
         lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-        lift_state(current_state_match_vd_applied_to_vrs_set_with_replicas(vrs_set, vd, n))
+        lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n))
     );
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || not_desired(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
