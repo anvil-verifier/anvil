@@ -2479,13 +2479,55 @@ pub proof fn leads_to_exists_always_combine<T, A>(spec: TempPred<T>, p: TempPred
     tla_exists_and_equality::<T, A>(|a: A| always(a_to_q(a)), always(r));
 }
 
+// Combine the conclusions of two leads_to if the conclusions are stable.
+// pre:
+//     spec |= p ~> \E a []q(a)
+//     spec |= p ~> \E b []r(b)
+// post:
+//     spec |= p ~> \E ab [] (q(a) /\ r(b))
 pub proof fn leads_to_exists_always_combine2<T, A, B>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>, b_to_r: spec_fn(B) -> TempPred<T>)
     requires
         spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))))),
         spec.entails(p.leads_to(tla_exists(|b: B| always(b_to_r(b))))),
     ensures
         spec.entails(p.leads_to(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))))),
-{}
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p.leads_to(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex, spec, p.leads_to(tla_exists(|b: B| always(b_to_r(b)))));
+
+            implies_apply::<T>(ex.suffix(i), p, eventually(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex.suffix(i), p, eventually(tla_exists(|b: B| always(b_to_r(b)))));
+
+            let witness_q_idx = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a))));
+            let witness_r_idx = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|b: B| always(b_to_r(b))));
+
+            // Unwrap the existentials to get concrete witnesses
+            tla_exists_unfold::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+
+            tla_exists_unfold::<T, B>(ex.suffix(i).suffix(witness_r_idx), |b: B| always(b_to_r(b)));
+            let witness_b = tla_exists_choose_witness::<T, B>(ex.suffix(i).suffix(witness_r_idx), |b: B| always(b_to_r(b)));
+
+            if witness_q_idx < witness_r_idx {
+                // Propagate always(a_to_q(witness_a)) forward to witness_r_idx
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_q_idx), a_to_q(witness_a), (witness_r_idx - witness_q_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_r_idx), ex.suffix(i).suffix(witness_q_idx).suffix((witness_r_idx - witness_q_idx) as nat));
+                // At witness_r_idx, both always(a_to_q(witness_a)) and always(b_to_r(witness_b)) hold
+                tla_exists_proved_by_witness::<T, (A, B)>(ex.suffix(i).suffix(witness_r_idx), |ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))), (witness_a, witness_b));
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))), witness_r_idx);
+            } else {
+                // Propagate always(b_to_r(witness_b)) forward to witness_q_idx
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_r_idx), b_to_r(witness_b), (witness_q_idx - witness_r_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_q_idx), ex.suffix(i).suffix(witness_r_idx).suffix((witness_q_idx - witness_r_idx) as nat));
+                // At witness_q_idx, both always(a_to_q(witness_a)) and always(b_to_r(witness_b)) hold
+                tla_exists_proved_by_witness::<T, (A, B)>(ex.suffix(i).suffix(witness_q_idx), |ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))), (witness_a, witness_b));
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))), witness_q_idx);
+            }
+        };
+    };
+}
 
 // Add always(c) to both side of leads_to.
 // pre:
