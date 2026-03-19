@@ -63,6 +63,65 @@ impl Pod {
     }
 }
 
+// we need this function because our model of the API server doesn't 
+// match the real implementation
+// in particular, the API server default tolerations and transforms empty resources
+// so we simulate those changes here
+#[verifier(external_body)]
+pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec) 
+    ensures spec@ == res@
+{
+    let mut inner = spec.inner.clone();
+
+    let tolerations = inner.tolerations.get_or_insert_with(Vec::new);
+
+    let mut tolerates_not_ready = false;
+    let mut tolerates_unreachable = false;
+    for t in tolerations.iter() {
+        let key_matches_not_ready = t.key.as_deref() == Some("node.kubernetes.io/not-ready") || t.key.is_none();
+        let key_matches_unreachable = t.key.as_deref() == Some("node.kubernetes.io/unreachable") || t.key.is_none();
+        let effect_matches = t.effect.as_deref() == Some("NoExecute") || t.effect.is_none();
+
+        if key_matches_not_ready && effect_matches {
+            tolerates_not_ready = true;
+        }
+        if key_matches_unreachable && effect_matches {
+            tolerates_unreachable = true;
+        }
+    }
+
+    if !tolerates_not_ready {
+        tolerations.push(deps_hack::k8s_openapi::api::core::v1::Toleration {
+            key: Some("node.kubernetes.io/not-ready".to_string()),
+            operator: Some("Exists".to_string()),
+            effect: Some("NoExecute".to_string()),
+            toleration_seconds: Some(300),
+            value: None,
+        });
+    }
+    if !tolerates_unreachable {
+        tolerations.push(deps_hack::k8s_openapi::api::core::v1::Toleration {
+            key: Some("node.kubernetes.io/unreachable".to_string()),
+            operator: Some("Exists".to_string()),
+            effect: Some("NoExecute".to_string()),
+            toleration_seconds: Some(300),
+            value: None,
+        });
+    }
+
+    for container in inner.containers.iter_mut() {
+        if container.resources.is_none() {
+            container.resources = Some(deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+                claims: None,
+                limits: None,
+                requests: None,
+            });
+        }
+    }
+
+    PodSpec::from_kube(inner)
+}
+
 impl PodSpec {
     #[verifier(external_body)]
     pub fn set_affinity(&mut self, affinity: Affinity)
@@ -236,11 +295,11 @@ impl PodSpec {
     {
         self.inner.volumes == other.inner.volumes
         && self.inner.containers.len() == other.inner.containers.len()
-        // && self.inner.tolerations == other.inner.tolerations
+        && self.inner.tolerations == other.inner.tolerations
         && self.inner.containers
             .iter()
             .zip(other.inner.containers.iter())
-            .all(|(c1, c2)| c1.image == c2.image /* && c1.resources == c2.resources */)
+            .all(|(c1, c2)| c1.image == c2.image && c1.resources == c2.resources)
     }
 }
 
