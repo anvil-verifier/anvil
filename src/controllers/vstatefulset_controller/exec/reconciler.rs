@@ -1477,9 +1477,9 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-// we have to mask this proof because normalize_pod_spec is a trusted component that does actually change the spec
-// but we pretend that it doesn't since the reason it changes the spec is to give the same behavior as the model 
-#[verifier(external_body)]
+// NOTE: this function calls the trusted normalize_pod_spec function
+// which is a hack to deal with the mismatch between our model of the API server
+// and the real Kubernetes API server
 pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
     ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)

@@ -63,8 +63,14 @@ impl Pod {
     }
 }
 
+// we need this function because our model of the API server doesn't 
+// match the real implementation
+// in particular, the API server default tolerations and transforms empty resources
+// so we simulate those changes here
 #[verifier(external_body)]
-pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec) {
+pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec) 
+    ensures spec@ == res@
+{
     let mut inner = spec.inner.clone();
 
     let tolerations = inner.tolerations.get_or_insert_with(Vec::new);
