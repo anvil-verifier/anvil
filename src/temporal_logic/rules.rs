@@ -2425,6 +2425,54 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: Te
     always_and_equality(q, r);
 }
 
+// Combine the conclusions of two leads_to if the conclusions are stable.
+// pre:
+//     spec |= p ~> \E []q
+//     spec |= p ~> []r
+// post:
+//     spec |= p ~> \E [](q /\ r)
+//     spec |= p ~> \E []q /\ []r
+pub proof fn leads_to_exists_always_combine<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))))),
+        spec.entails(p.leads_to(always(r))),
+    ensures
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a)).and(always(r))))),
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))).and(always(r)))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|a: A| always(a_to_q(a)).and(always(r)))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|a: A| always(a_to_q(a)).and(always(r)))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p.leads_to(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex, spec, p.leads_to(always(r)));
+            implies_apply::<T>(ex.suffix(i), p, eventually(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex.suffix(i), p, eventually(always(r)));
+            let witness_q_idx = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a))));
+            let witness_r_idx = eventually_choose_witness::<T>(ex.suffix(i), always(r));
+            // Unwrap the existential to get a concrete witness_a
+            tla_exists_unfold::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+            if witness_q_idx < witness_r_idx {
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_q_idx), a_to_q(witness_a), (witness_r_idx - witness_q_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_r_idx), ex.suffix(i).suffix(witness_q_idx).suffix((witness_r_idx - witness_q_idx) as nat));
+                tla_exists_proved_by_witness::<T, A>(ex.suffix(i).suffix(witness_r_idx), |a: A| always(a_to_q(a)).and(always(r)), witness_a);
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a)).and(always(r))), witness_r_idx);
+            } else {
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_r_idx), r, (witness_q_idx - witness_r_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_q_idx), ex.suffix(i).suffix(witness_r_idx).suffix((witness_q_idx - witness_r_idx) as nat));
+                tla_exists_proved_by_witness::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)).and(always(r)), witness_a);
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a)).and(always(r))), witness_q_idx);
+            }
+        };
+    };
+    // Second postcondition: use tla_exists_and_equality to rewrite
+    // tla_exists(|a| always(a_to_q(a)).and(always(r))) == tla_exists(|a| always(a_to_q(a))).and(always(r))
+    tla_exists_p_tla_exists_q_equality::<T, A>(
+        |a: A| always(a_to_q(a)).and(always(r)),
+        |a: A| (|a: A| always(a_to_q(a)))(a).and(always(r)),
+    );
+    tla_exists_and_equality::<T, A>(|a: A| always(a_to_q(a)), always(r));
+}
+
 // Add always(c) to both side of leads_to.
 // pre:
 //     spec |= p ~> q
