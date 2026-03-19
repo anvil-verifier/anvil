@@ -39,24 +39,6 @@ pub open spec fn replicas_diff(vd: VDeploymentView, new_vrs: VReplicaSetView) ->
     }
 }
 
-// p(n) for leads_to_by_monotonicity3 (parameterized by fixed vrs_set):
-// All VRS in vrs_set have desired_state_is, and there exists a new VRS in vrs_set
-// whose template matches and whose replicas diff from vd.spec.replicas is n.
-pub open spec fn conjuncted_desired_state_is_old_vrs(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::desired_state_is(vrs)(s)
-    }
-}
-
-// q(n) for leads_to_by_monotonicity3 (parameterized by fixed vrs_set):
-// All VRS in vrs_set have current_state_matches, and there exists a new VRS in vrs_set
-// whose template matches and whose replicas diff from vd.spec.replicas is n.
-pub open spec fn conjuncted_current_state_matches_old_vrs(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::current_state_matches(vrs)(s)
-    }
-}
-
 pub open spec fn desired_state_is_vrs_with_key(vrs: VReplicaSetView, vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& vrs_liveness::desired_state_is(vrs)(s)
@@ -113,20 +95,31 @@ pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: V
 // *** Obligation proofs for leads_to_by_monotonicity3 (per fixed vrs_set) ***
 
 // Obligation 1: ESR for each ranking level
-// forall n. spec |= [] p(n) ~> [] q(n)
+// spec |= [] desired_vrs ~> [] matches_vrs
 pub proof fn esr_for_each_ranking(
-    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, n: nat
+    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, new_vrs_key: ObjectRef
 )
     requires
-        vrs_set.finite(),
-        vrs_set.len() > 0,
         spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
     ensures
         spec.entails(
-            always(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)))
-            .leads_to(always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd))))
-        ),
+            always(lift_state(conjuncted_desired_state_is_vrs(vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))))
+        .leads_to(
+            always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)))))),
 {
+    if !vrs_set.finite() || vrs_set.len() == 0 {
+        // old_vrs_set_is_owned_by_vd requires finite(), so the pre is unsatisfiable
+        temp_pred_equality(
+            lift_state(conjuncted_desired_state_is_vrs(vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))),
+            false_pred::<ClusterState>()
+        );
+        false_is_stable::<ClusterState>();
+        stable_to_always::<ClusterState>(false_pred());
+        false_leads_to_anything(spec,
+            always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))))
+        );
+        return;
+    }
     // Instantiate VRS ESR for each vrs in the set
     assert forall |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs) implies
         spec.entails(always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))) by {
@@ -137,38 +130,24 @@ pub proof fn esr_for_each_ranking(
         use_tla_forall(spec, |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
     }
     // Compose individual VRS ESRs into the conjuncted form
-    // [] (forall vrs in set, desired_state_is(vrs)) ~> [] (forall vrs in set, current_state_matches(vrs))
-    assert(spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(vrs_set))).leads_to(always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)))))) by {
-        // prove predicate equality for Verus
-        let desired_state_is_vrs = |vrs| vrs_liveness::desired_state_is(vrs);
-        let current_state_matches_vrs = |vrs| vrs_liveness::current_state_matches(vrs);
-        assert(conjuncted_desired_state_is_vrs(vrs_set)
-            == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs(vrs)(s)));
-        assert(conjuncted_current_state_matches_vrs(vrs_set)
-            == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs(vrs)(s)));
-        spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
-            spec, desired_state_is_vrs, current_state_matches_vrs, vrs_set,
-            conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
-        );
-    }
-    if exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && match_template_without_hash(vd.spec.template)(new_vrs) && replicas_diff(vd, new_vrs) == n {
-        temp_pred_equality(
-            lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)),
-            lift_state(conjuncted_desired_state_is_vrs(vrs_set))
-        );
-        temp_pred_equality(
-            lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd)),
-            lift_state(conjuncted_current_state_matches_vrs(vrs_set))
-        );
-    } else {
-        temp_pred_equality(
-            lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)),
-            false_pred()
-        );
-        false_is_stable::<ClusterState>();
-        stable_to_always::<ClusterState>(false_pred());
-        false_leads_to_anything(spec, always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd))));
-    }
+    let desired_state_is_vrs = |vrs| vrs_liveness::desired_state_is(vrs);
+    let current_state_matches_vrs = |vrs| vrs_liveness::current_state_matches(vrs);
+    assert(conjuncted_desired_state_is_vrs(vrs_set)
+        == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs(vrs)(s)));
+    assert(conjuncted_current_state_matches_vrs(vrs_set)
+        == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs(vrs)(s)));
+    spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
+        spec, desired_state_is_vrs, current_state_matches_vrs, vrs_set,
+        conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
+    );
+    // Combine with self-leads-to for owned
+    leads_to_self_temp(always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))));
+    always_leads_to_always_combine(spec,
+        lift_state(conjuncted_desired_state_is_vrs(vrs_set)),
+        lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)),
+        lift_state(conjuncted_current_state_matches_vrs(vrs_set)),
+        lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))
+    );
 }
 
 // Obligation 2: Monotonicity (ranking never increases)
@@ -450,7 +429,7 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
         current_state_matches(vd)(s),
     ensures
         old_vrs_set_is_owned_by_vd(res.0, vd, k)(s),
-        conjuncted_desired_state_is_old_vrs(res.0, vd)(s),
+        conjuncted_desired_state_is_vrs(res.0)(s),
         // for spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain
         res.0.finite(),
         res.0.len() > 0,
@@ -558,7 +537,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-        conjuncted_current_state_matches_old_vrs(vrs_set, vd)(s),
+        conjuncted_current_state_matches_vrs(vrs_set)(s),
         inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
         current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0)(s),
         old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s),
@@ -654,10 +633,10 @@ pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
         inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
         inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
         old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s),
-        conjuncted_desired_state_is_old_vrs(vrs_set, vd)(s),
+        conjuncted_desired_state_is_vrs(vrs_set)(s),
     ensures
         old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s_prime),
-        conjuncted_desired_state_is_old_vrs(vrs_set, vd)(s_prime),
+        conjuncted_desired_state_is_vrs(vrs_set)(s_prime),
 {}
 
 // *** Top-level rolling update ESR composition theorem ***
@@ -685,6 +664,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     entails_trans(spec, provided_spec, always(lift_action(cluster.next())));
     entails_trans(spec, provided_spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
+    entails_trans(spec, provided_spec, vrs_liveness::vrs_eventually_stable_reconciliation());
     // Prove: 1. vrs_eventually_stable_reconciliation == \A vrs, [] desired_state_is(vrs) ~> [] current_state_matches(vrs)
     // 2. valid(stable(vrs_eventually_stable_reconciliation))
     assert(vrs_liveness::vrs_eventually_stable_reconciliation() ==
@@ -731,34 +711,33 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         // spec |= [] inductive_current_state_matches |= \E vrs_set []
         let p = always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
         let all_vrs_post = |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)|
-            always(lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
+            always(lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)).and(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
             .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))));
         let composed_vd_post = always(lift_state(composed_current_state_matches(vd)));
         assert(spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
-            .leads_to(tla_exists(|old_vrs_set| always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))))) by {
+            .leads_to(tla_exists(|old_vrs_set| always(lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))))) by {
             assert(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).entails(
-                    tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))))) by {
+                    tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))))) by {
                 // 1. inductive_current_state_matches |= \E vrs_set []
                 // 2. valid(stable) vrs_set
                 assume(false);
             }
             entails_implies_leads_to(spec,
                 always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
-                tla_exists(|old_vrs_set|always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))
+                tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))
             );
-            assert forall |old_vrs_set| spec.entails(always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(#[trigger] old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))
-                .leads_to(always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))) by {
-                // use esr_for_each_ranking
-                assume(false);
+            assert forall |old_vrs_set| spec.entails(always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(#[trigger] old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))
+                .leads_to(always(lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))) by {
+                esr_for_each_ranking(spec, old_vrs_set, vd, new_vrs_key);
             }
             leads_to_exists_intro2(spec,
-                |old_vrs_set| always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))),
-                |old_vrs_set| always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))
+                |old_vrs_set| always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))),
+                |old_vrs_set| always(lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))
             );
             leads_to_trans(spec,
                 always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
-                tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))),
-                tla_exists(|old_vrs_set| always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))
+                tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))),
+                tla_exists(|old_vrs_set| always(lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))
             );
         }
         // new vrs track
@@ -878,11 +857,11 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         }
         // \E vrs_set [] /\ \E new_vrs [] ~> \E (vrs_set and new_vrs) []
         assert(spec.entails(p.leads_to(tla_exists(all_vrs_post)))) by {
-            let old_vrs_post = |old_vrs_set| lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)));
+            let old_vrs_post = |old_vrs_set| lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)));
             let new_vrs_post = |new_vrs| lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
             tla_exists_p_tla_exists_q_equality(
                 |old_vrs_set| always(old_vrs_post(old_vrs_set)),
-                |old_vrs_set| always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))
+                |old_vrs_set| always(lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))
             );
             tla_exists_p_tla_exists_q_equality(
                 |new_vrs| always(new_vrs_post(new_vrs)),
@@ -904,7 +883,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         // \A [] old_vrs_set and [] new_vrs ~> [] composed_current_state_matches
         assert forall |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| #![trigger all_vrs_post(ov_set_nv)] spec.entails(all_vrs_post(ov_set_nv).leads_to(composed_vd_post)) by {
             always_and_equality(
-                lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)),
+                lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)),
                 lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))
             );
             always_and_equality(
@@ -912,7 +891,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))
             );
             assert forall |s: ClusterState| {
-                &&& conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)(s)
+                &&& conjuncted_current_state_matches_vrs(ov_set_nv.0)(s)
                 &&& #[trigger] old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key)(s)
                 &&& current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)(s)
                 &&& inductive_current_state_matches(vd, controller_id, new_vrs_key)(s)
@@ -921,7 +900,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 conjuncted_current_state_matches_old_vrs_0_implies_composed(vd, cluster, controller_id, ov_set_nv.0, ov_set_nv.1, new_vrs_key, s);
             }
             entails_preserved_by_always(
-                lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd))
+                lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0))
                     .and(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key)))
                     .and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)))
                     .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
@@ -929,14 +908,14 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 lift_state(composed_current_state_matches(vd))
             );
             always_and_equality_n!(
-                lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)),
+                lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)),
                 lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key)),
                 lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)),
                 lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)),
                 lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
             );
             entails_implies_leads_to(spec,
-                always(lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)))
+                always(lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)))
                     .and(always(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
                     .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0))))
                     .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
@@ -945,7 +924,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             );
             always_double_equality(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
             leads_to_by_borrowing_inv(spec,
-                always(lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)))
+                always(lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)))
                     .and(always(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
                     .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0))))
                     .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))),
@@ -953,7 +932,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
             );
             always_and_equality(
-                lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)),
+                lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)),
                 lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))
             );
             always_and_equality(
@@ -962,7 +941,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             );
             temp_pred_equality(
                 all_vrs_post(ov_set_nv),
-                always(lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)))
+                always(lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)))
                     .and(always(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
                     .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0))))
                     .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
