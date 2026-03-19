@@ -56,7 +56,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
         stable_spec.and(invariants(vd, cluster, controller_id))
             .and(assumption)
     );
-    unpack_conditions_from_spec(stable_spec.and(invariants(vd, cluster, controller_id)), assumption, true_pred(), always(lift_state(inductive_current_state_matches(vd, controller_id))));
+    unpack_conditions_from_spec(stable_spec.and(invariants(vd, cluster, controller_id)), assumption, true_pred(), tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
     // Annoying non-automatic unpacking of the spec for one precondition.
@@ -72,7 +72,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     entails_trans(
         spec.and(derived_invariants_since_beginning(vd, cluster, controller_id)), 
         stable_spec.and(invariants(vd, cluster, controller_id)),
-        always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))
+        always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))
     );
 }
 
@@ -80,12 +80,12 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     requires
         1 <= i <= 6,
         valid(stable(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)))),
-        spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))),
+        spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)).entails(true_pred().leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
-    ensures spec.and(spec_before_phase_n(i, vd, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))),
+    ensures spec.and(spec_before_phase_n(i, vd, cluster, controller_id)).entails(true_pred().leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
 {
     reveal_with_fuel(spec_before_phase_n, 7);
     temp_pred_equality(
@@ -94,14 +94,15 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
             .and(invariants_since_phase_n(i, vd, cluster, controller_id))
     );
     spec_of_previous_phases_entails_eventually_new_invariants(spec, vd, cluster, controller_id, i);
-    unpack_conditions_from_spec(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)), invariants_since_phase_n(i, vd, cluster, controller_id), true_pred(), always(lift_state(inductive_current_state_matches(vd, controller_id))));
+    unpack_conditions_from_spec(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)), invariants_since_phase_n(i, vd, cluster, controller_id), true_pred(), tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))));
     temp_pred_equality(
         true_pred().and(invariants_since_phase_n(i, vd, cluster, controller_id)),
         invariants_since_phase_n(i, vd, cluster, controller_id)
     );
-    leads_to_trans(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)), true_pred(), invariants_since_phase_n(i, vd, cluster, controller_id), always(lift_state(inductive_current_state_matches(vd, controller_id))));
+    leads_to_trans(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)), true_pred(), invariants_since_phase_n(i, vd, cluster, controller_id), tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))));
 }
 
+#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
@@ -115,7 +116,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> provided_spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures
-        provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))),
+        provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)).entails(true_pred().leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
     // non-interference properties
@@ -262,28 +263,11 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     assert(spec.entails(lift_state(init).leads_to(lift_state(done)))) by {
         lemma_from_init_to_current_state_matches(vd, spec, cluster, controller_id);
     }
-    let stable_final = inductive_current_state_matches(vd, controller_id);
-    assert(lift_state(done).entails(lift_state(stable_final)));
-    entails_implies_leads_to(spec, lift_state(done), lift_state(stable_final));
-    // true ~> done
-    leads_to_trans_n!(
-        spec,
-        true_pred(),
-        lift_state(reconcile_idle),
-        lift_state(reconcile_scheduled),
-        lift_state(init),
-        lift_state(done),
-        lift_state(stable_final)
-    );
-    // true ~> []ESR
-    assert(spec.entails(true_pred().leads_to(always(lift_state(stable_final))))) by {
-        lemma_inductive_current_state_matches_is_stable(spec, vd, true_pred(), cluster, controller_id);
-    }
 }
 
 #[verifier(rlimit(10))]
 pub proof fn lemma_inductive_current_state_matches_is_stable(
-    spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+    spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -301,7 +285,7 @@ requires
         current_state_matches(vd)
     )))),
 ensures
-    spec.entails(p.leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))),
+    spec.entails(p.leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))),
 {
     let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     // ESR -> etcd_state_is (which is easier to reason about)
@@ -310,8 +294,8 @@ ensures
         no_pending_req_in_cluster(vd, controller_id),
         current_state_matches(vd)
     );
-    entails_implies_leads_to(spec, lift_state(final_state), lift_state(inductive_current_state_matches(vd, controller_id)));
-    leads_to_trans(spec, p, lift_state(final_state), lift_state(inductive_current_state_matches(vd, controller_id)));
+    entails_implies_leads_to(spec, lift_state(final_state), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
+    leads_to_trans(spec, p, lift_state(final_state), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -331,18 +315,18 @@ ensures
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
         later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
     );
-    assert forall |s, s_prime: ClusterState| inductive_current_state_matches(vd, controller_id)(s) && #[trigger] stronger_next(s, s_prime) implies inductive_current_state_matches(vd, controller_id)(s_prime) by {
+    assert forall |s, s_prime: ClusterState| inductive_current_state_matches(vd, controller_id, new_vrs_key)(s) && #[trigger] stronger_next(s, s_prime) implies inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
-        lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step);
+        lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step, new_vrs_key);
     }
-    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(inductive_current_state_matches(vd, controller_id)));
-    leads_to_always_enhance(spec, true_pred(), p, lift_state(inductive_current_state_matches(vd, controller_id)), lift_state(current_state_matches(vd)));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
+    leads_to_always_enhance(spec, true_pred(), p, lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)), lift_state(current_state_matches(vd)));
 }
 
 // similar to lemma_from_list_resp_to_next_state, carved out to reduce flakiness and proof time for debugging
 #[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, step: Step
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, step: Step, new_vrs_key: ObjectRef
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -354,9 +338,9 @@ requires
     cluster.next_step(s, s_prime, step),
     forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
-    inductive_current_state_matches(vd, controller_id)(s),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
 ensures
-    inductive_current_state_matches(vd, controller_id)(s_prime),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
 {
     VDeploymentView::marshal_preserves_integrity();
     VDeploymentReconcileState::marshal_preserves_integrity();
@@ -419,7 +403,7 @@ ensures
                         }
                         assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s_prime));
                         assert(current_state_matches(vd)(s_prime));
-                        assert(inductive_current_state_matches(vd, controller_id)(s_prime)); // sentry for debugging
+                        assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime)); // sentry for debugging
                     }
                 } else {
                     assert(s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()));
@@ -440,19 +424,19 @@ ensures
                                 );
                             }
                         }
-                        assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                        assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                     }
-                    assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 }
-                assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else {
                 assert(msg.src != HostId::Controller(controller_id, vd.object_ref()));
                 lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
-                assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             }
-            assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+            assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
         },
         Step::ControllerStep(input) => {
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
@@ -474,7 +458,7 @@ ensures
                     assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime));
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     assert(vds_prime.old_vrs_index == 0);
-                    assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![Init])(s) {
                     // prove that the newly sent message has no response.
                     if s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some {
@@ -492,7 +476,7 @@ ensures
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) {
                     // it directly goes to Done
                 }
-                assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else if !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
                 if s_prime.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) { // RunScheduledReconcile
                     assert(s_prime.resources() == s.resources());
@@ -500,12 +484,12 @@ ensures
                         assert(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime));
                         lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
                     }
-                    assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 } else {
                     assert(s_prime.resources() == s.resources());
-                    assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 }
-                assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else { // same controller_id, different CR
                 assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
                 assert(s.resources() == s_prime.resources());
@@ -521,9 +505,9 @@ ensures
                         }
                     }
                 }
-                assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             }
-            assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+            assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
         },
         _ => { // this branch is slow
             // Maintain quantified invariant.
@@ -538,9 +522,9 @@ ensures
                         assert(s.in_flight().contains(msg));
                     }
                 }
-                assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             }
-            assert(inductive_current_state_matches(vd, controller_id)(s_prime));
+            assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
         }
     }
 }

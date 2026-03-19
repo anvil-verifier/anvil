@@ -59,14 +59,14 @@ pub open spec fn conjuncted_current_state_matches_old_vrs(vrs_set: Set<VReplicaS
 
 pub open spec fn desired_state_is_vrs_with_key(vrs: VReplicaSetView, vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& vrs_liveness::desired_state_is(vrs)
+        &&& vrs_liveness::desired_state_is(vrs)(s)
         &&& vrs.object_ref() == vrs_key
     }
 }
 
-pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
+pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& vrs_liveness::desired_state_is(vrs)
+        &&& vrs_liveness::desired_state_is(vrs)(s)
         &&& replicas_diff(vd, vrs) == diff
         &&& vrs.object_ref() == vrs_key
     }
@@ -74,14 +74,14 @@ pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vrs: VReplicaSe
 
 pub open spec fn current_state_matches_vrs_with_key(vrs: VReplicaSetView, vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& vrs_liveness::current_state_matches(vrs)
+        &&& vrs_liveness::current_state_matches(vrs)(s)
         &&& vrs.object_ref() == vrs_key
     }
 }
 
-pub open spec fn current_state_matches_vrs_with_replicas_diff_and_key(vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
+pub open spec fn current_state_matches_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& vrs_liveness::current_state_matches(vrs)
+        &&& vrs_liveness::current_state_matches(vrs)(s)
         &&& replicas_diff(vd, vrs) == diff
         &&& vrs.object_ref() == vrs_key
     }
@@ -153,21 +153,21 @@ pub proof fn esr_for_each_ranking(
     }
     if exists |new_vrs: VReplicaSetView| #[trigger] vrs_set.contains(new_vrs) && match_template_without_hash(vd.spec.template)(new_vrs) && replicas_diff(vd, new_vrs) == n {
         temp_pred_equality(
-            lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n)),
+            lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)),
             lift_state(conjuncted_desired_state_is_vrs(vrs_set))
         );
         temp_pred_equality(
-            lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)),
+            lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd)),
             lift_state(conjuncted_current_state_matches_vrs(vrs_set))
         );
     } else {
         temp_pred_equality(
-            lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n)),
+            lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)),
             false_pred()
         );
         false_is_stable::<ClusterState>();
         stable_to_always::<ClusterState>(false_pred());
-        false_leads_to_anything(spec, always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n))));
+        false_leads_to_anything(spec, always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd))));
     }
 }
 
@@ -176,7 +176,7 @@ pub proof fn esr_for_each_ranking(
 #[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn ranking_never_increases(
-    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, new_vrs_key: ObjectRef, vd: VDeploymentView, controller_id: int, cluster: Cluster
+    spec: TempPred<ClusterState>, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, vd: VDeploymentView, controller_id: int, cluster: Cluster
 )
     requires
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -186,19 +186,18 @@ pub proof fn ranking_never_increases(
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-        spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
     ensures
-        forall |n| spec.entails(always(lift_state(#[trigger] conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
-            .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
+        forall |n| spec.entails(always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n))
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
         .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n)
-            .and(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, m))
-            .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, m))))
-        ))))),
+            .and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)))
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
+        )))),
 {
     // use next_monotonic_to_always_exists
     let p = |n: nat| and!(
-        conjuncted_desired_state_is_old_vrs(vrs_set, vd, n),
-        old_vrs_set_is_owned_by_vd(vrs_set, vd, n)
+        desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n),
+        inductive_current_state_matches(vd, controller_id, new_vrs_key)
     );
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
@@ -208,13 +207,10 @@ pub proof fn ranking_never_increases(
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
         &&& vd_rely_condition(cluster, controller_id)(s)
         &&& vd_rely_condition(cluster, controller_id)(s_prime)
-        &&& inductive_current_state_matches(vd, controller_id)(s)
-        &&& inductive_current_state_matches(vd, controller_id)(s_prime)
     };
     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     always_to_always_later(spec, lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
     always_to_always_later(spec, lifted_vd_rely_condition(cluster, controller_id));
-    always_to_always_later(spec, lift_state(inductive_current_state_matches(vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -223,13 +219,11 @@ pub proof fn ranking_never_increases(
         lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         later(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
         lifted_vd_rely_condition(cluster, controller_id),
-        later(lifted_vd_rely_condition(cluster, controller_id)),
-        lift_state(inductive_current_state_matches(vd, controller_id)),
-        later(lift_state(inductive_current_state_matches(vd, controller_id)))
+        later(lifted_vd_rely_condition(cluster, controller_id))
     );
-    assert forall |n: nat| lift_state(p(n)) == lift_state(#[trigger] conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
-        .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n))) by {
-        and_eq(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n), old_vrs_set_is_owned_by_vd(vrs_set, vd, n));
+    assert forall |n: nat| lift_state(p(n)) == lift_state(#[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n))
+        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))) by {
+        and_eq(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n), inductive_current_state_matches(vd, controller_id, new_vrs_key));
     }
     // pre, inv is preserved
     assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && #[trigger] p(m)(s_prime) by {
@@ -240,9 +234,8 @@ pub proof fn ranking_never_increases(
                 Step::APIServerStep(input) => {
                     let msg = input->0;
                     if msg.src == HostId::Controller(controller_id, vd.object_ref()) {
-                        let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s) {
-                            ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, vrs_set, n, msg);
+                        if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (new_vrs.metadata.uid->0, new_vrs_key))(s) {
+                            ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, new_vrs, new_vrs_key, n, msg);
                         } else {
                             assert(req_msg_is_list_vrs_req(vd, controller_id, msg, s)); // read-only
                             assert(s_prime.resources() == s.resources());
@@ -262,23 +255,24 @@ pub proof fn ranking_never_increases(
     assert forall |n: nat| spec.entails(always(lift_state(#[trigger] p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(lift_state(p(m)))))))) by {
         next_monotonic_to_always_exists(spec, stronger_next, p);
     }
-    assert forall |n| spec.entails(always(lift_state(#[trigger] conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
-        .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
+    assert forall |n| spec.entails(always(lift_state(#[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n))
+        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
     .implies(always(tla_exists(|m: nat| lift_state(|s| m <= n)
-        .and(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, m))
-        .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, m))))
+        .and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m))
+        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
     ))))) by {
         tla_exists_p_tla_exists_q_equality(
             |m: nat| lift_state(|s| m <= n).and(lift_state(p(m))),
             |m: nat| lift_state(|s| m <= n)
-                .and(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, m))
-                .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, m))))
+                .and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m))
+                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
         );
     }
 }
 
+#[verifier(external_body)]
 proof fn ranking_never_increases_from_s_to_s_prime(
-    vd: VDeploymentView, controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, vrs_set: Set<VReplicaSetView>, n: nat, req_msg: Message
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, n: nat, req_msg: Message
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -291,29 +285,25 @@ requires
     forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime),
     vd_rely_condition(cluster, controller_id)(s),
     vd_rely_condition(cluster, controller_id)(s_prime),
-    inductive_current_state_matches(vd, controller_id)(s),
-    inductive_current_state_matches(vd, controller_id)(s_prime),
-    conjuncted_desired_state_is_old_vrs(vrs_set, vd, n)(s),
-    old_vrs_set_is_owned_by_vd(vrs_set, vd, n)(s),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
+    desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s),
     req_msg.src == HostId::Controller(controller_id, vd.object_ref()),
-    ({
-        let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s)
-    }),
+    req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (new_vrs.metadata.uid->0, new_vrs_key))(s)
 ensures
-    exists |m: nat| #![trigger old_vrs_set_is_owned_by_vd(vrs_set, vd, m)] m <= n
-        && conjuncted_desired_state_is_old_vrs(vrs_set, vd, m)(s_prime)
-        && old_vrs_set_is_owned_by_vd(vrs_set, vd, m)(s_prime),
+    exists |m: nat| #![trigger desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)] m <= n
+        && desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
+        && inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
 {}
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
 // Prove with a specialized version of ESR proof with spec |= [] current_state_matches
+#[verifier(external_body)]
 pub proof fn ranking_decreases_after_vrs_esr(
-    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, controller_id: int, cluster: Cluster, n: nat
+    spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, diff: nat
 )
     requires
-        n > 0,
+        diff > 0,
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
@@ -321,7 +311,6 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-        spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id)))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
@@ -329,12 +318,8 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         valid(stable(spec)),
     ensures
-        spec.entails(
-            always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n))
-                .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
-            ).leads_to(not(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
-                .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)))
-            ))),
+        spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))))
+            .leads_to(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))))),
 {
     // 0. unpack invariants from cluster_invariants_since_reconciliation
     entails_always_unpack_n!(spec,
@@ -424,10 +409,8 @@ pub proof fn ranking_decreases_after_vrs_esr(
         );
     }
     // 3. init ~> after_list ~> after_scale_new_vrs ~> !desired_state_is
-    let pre = lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n))
-        .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)));
-    let post = not(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd, n))
-        .and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n))));
+    let pre = lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)));
+    let post = lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)));
     assert(spec.entails(always(pre).leads_to(lift_state(init).and(always(pre))))) by {
         leads_to_trans_n!(
             spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init)
@@ -441,17 +424,14 @@ pub proof fn ranking_decreases_after_vrs_esr(
         entails_trans(spec.and(always(pre)), spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
         entails_trans(spec.and(always(pre)), spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
         entails_trans(spec.and(always(pre)), spec, always(lifted_vd_rely_condition(cluster, controller_id)));
-        entails_trans(spec.and(always(pre)), spec, always(lift_state(inductive_current_state_matches(vd, controller_id))));
+        entails_trans(spec.and(always(pre)), spec, always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
         entails_trans(spec.and(always(pre)), spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
         entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
         entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)));
         entails_trans(spec.and(always(pre)), spec, tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))));
         entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
-        entails_preserved_by_always(pre, lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n)));
-        entails_preserved_by_always(pre, lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n)));
-        entails_trans(spec.and(always(pre)), always(pre), always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd, n))));
-        entails_trans(spec.and(always(pre)), always(pre), always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, n))));
-        lemma_from_init_to_not_desired_state_is(vd, spec.and(always(pre)), cluster, controller_id, vrs_set, n);
+        // lemma_from_init_to_not_desired_state_is(vd, spec.and(always(pre)), cluster, controller_id, diff);
+
         always_p_is_stable(pre);
         unpack_conditions_from_spec(spec, always(pre), lift_state(init), post);
     }
@@ -463,14 +443,14 @@ pub proof fn ranking_decreases_after_vrs_esr(
 // From inductive_current_state_matches, extract (vrs_set, n) witness
 pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
     vd: VDeploymentView, k: ObjectRef, cluster: Cluster, controller_id: int, s: ClusterState
-) -> (res: (Set<VReplicaSetView>, VReplicaSetView, n)) // vrs_set, new_vrs, replicas_diff
+) -> (res: (Set<VReplicaSetView>, VReplicaSetView, int)) // vrs_set, new_vrs, replicas_diff
     requires
         vd.spec.replicas.unwrap_or(1) > 0,
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-        current_state_matches(vd, k)(s),
+        current_state_matches(vd)(s),
     ensures
-        old_vrs_set_is_owned_by_vd(res.0, vd)(s),
+        old_vrs_set_is_owned_by_vd(res.0, vd, k)(s),
         conjuncted_desired_state_is_old_vrs(res.0, vd)(s),
         // for spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain
         res.0.finite(),
@@ -569,18 +549,20 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
         }
         assert(false);
     }
-    return (vrs_set, new_vrs, replicas_diff(vd, new_etcd_vrs));
+    return (vrs_set, new_vrs, replicas_diff(vd, new_etcd_vrs) as int);
 }
 
 // q(0) with vrs_set identity implies composed_current_state_matches
 pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
-    vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, s: ClusterState
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, s: ClusterState
 )
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-        conjuncted_current_state_matches_old_vrs(vrs_set, vd, 0)(s),
-        old_vrs_set_is_owned_by_vd(vrs_set, vd, 0)(s),
+        conjuncted_current_state_matches_old_vrs(vrs_set, vd)(s),
+        inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
+        current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0)(s),
+        old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s),
     ensures
         composed_current_state_matches(vd)(s),
 {
@@ -658,7 +640,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
 // TODO: deprecate this
 #[verifier(external_body)] // trivial
 pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
-    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, n: nat, s: ClusterState, s_prime: ClusterState
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, new_vrs_key: ObjectRef, n: nat, s: ClusterState, s_prime: ClusterState
 )
     requires
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -670,13 +652,13 @@ pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
         vd_reconcile_request_only_interferes_with_itself_condition(controller_id)(s),
         vd_rely_condition(cluster, controller_id)(s),
         cluster.next()(s, s_prime),
-        inductive_current_state_matches(vd, controller_id)(s),
-        inductive_current_state_matches(vd, controller_id)(s_prime),
-        old_vrs_set_is_owned_by_vd(vrs_set, vd, n)(s),
-        conjuncted_desired_state_is_old_vrs(vrs_set, vd, n)(s),
+        inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
+        inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
+        old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s),
+        conjuncted_desired_state_is_old_vrs(vrs_set, vd)(s),
     ensures
-        old_vrs_set_is_owned_by_vd(vrs_set, vd, n)(s_prime),
-        conjuncted_desired_state_is_old_vrs(vrs_set, vd, n)(s_prime),
+        old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s_prime),
+        conjuncted_desired_state_is_old_vrs(vrs_set, vd)(s_prime),
 {}
 
 // *** Top-level rolling update ESR composition theorem ***
@@ -757,37 +739,99 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
 
     assert forall |new_vrs_key: ObjectRef| spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).leads_to(always(lift_state(composed_current_state_matches(vd))))) by {
         // old vrs track
-        assume(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).entails(
-                tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))));
-        assert forall |old_vrs_set| always(lift_state(conjuncted_desired_state_is_old_vrs(vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))).leads_to(
-            always(lift_state(conjuncted_current_state_matches_old_vrs(vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))) by {
-            // use esr_for_each_ranking
-            assume(false);
+        // spec |= [] inductive_current_state_matches |= \E vrs_set []
+        assert(spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
+            .leads_to(tla_exists(|old_vrs_set| always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))))) by {
+            assert(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).entails(
+                    tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))))) by {
+                // 1. inductive_current_state_matches |= \E vrs_set []
+                // 2. valid(stable) vrs_set
+                assume(false);
+            }
+            assert forall |old_vrs_set| spec.entails(always(lift_state(conjuncted_desired_state_is_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))).leads_to(
+                always(lift_state(conjuncted_current_state_matches_old_vrs(old_vrs_set, vd)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))) by {
+                // use esr_for_each_ranking
+                assume(false);
+            }
         }
         // new vrs track
-        assume(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).entails(
-            tla_exists(|new_vrs: VReplicaSetView| desired_state_is_vrs_with_key(new_vrs, new_vrs_key))));
-        assert forall |new_vrs: VReplicaSetView| spec.entails(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key))))
-            .leads_to(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(new_vrs, new_vrs_key, 0)))) by {
-            let p = |diff: nat| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(new_vrs, new_vrs_key, diff)));
-            let q = |diff: nat| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(new_vrs, new_vrs_key, diff)));
-            // by leads_to_by_monotonicity3
-            // we need inductive_current_state_matches with the key here
-            // 1. forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
-            assert forall |n: nat| spec.entails(always(p(n)).leads_to(always(q(n)))) by {
+        // spec |= [] inductive_current_state_matches ~> \E new_vrs []
+        assert(spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
+            .leads_to(tla_exists(|new_vrs: VReplicaSetView| always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0))).and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))))) by {
+            // inductive_current_state_matches |= \E new_vrs desired(new_vrs)
+            assert(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).entails(tla_exists(|new_vrs: VReplicaSetView| lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key))))) by {
                 assume(false);
             }
-            // 2. forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
-            assert forall |n: nat| spec.entails(always(p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m)))))) by {
-                ranking_never_increases(spec, vrs_set, new_vrs_key, vd, controller_id, cluster);
+            simplify_predicate(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)), tla_exists(|new_vrs: VReplicaSetView| lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key))));
+            temp_pred_equality(
+                lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(tla_exists(|new_vrs: VReplicaSetView| lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key)))),
+                tla_exists(|new_vrs: VReplicaSetView| lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key))).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
+            );
+            tla_exists_and_equality(|new_vrs: VReplicaSetView| lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key)), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
+            // inductive_current_state_matches == (\E new_vrs desired(new_vrs)) /\ inductive_current_state_matches == \E new_vrs (desired(new_vrs) /\ inductive_current_state_matches)
+            // \A new_vrs inductive_current_state_matches /\ desired(new_vrs) ~> [] match(new_vrs)
+            assert forall |new_vrs: VReplicaSetView| spec.entails(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key)))
+                .leads_to(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0))))) by {
+                let p = |diff: nat| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)));
+                let q = |diff: nat| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)));
+                // by leads_to_by_monotonicity3
+                // we need inductive_current_state_matches with the key here
+                // 1. forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
+                assert forall |n: nat| spec.entails(always(#[trigger] p(n)).leads_to(always(q(n)))) by {
+                    assume(false);
+                }
+                // 2. forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
+                assert forall |n: nat| spec.entails(always(#[trigger] p(n)).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m)))))) by {
+                    ranking_never_increases(spec, new_vrs, new_vrs_key, vd, controller_id, cluster);
+                }
+                // 3. forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))),
+                assert forall |n: nat| #![trigger p(n)] n > 0 implies spec.entails(always(q(n)).leads_to(not(p(n)))) by {
+                    assume(false);
+                }
+                leads_to_by_monotonicity3(spec, p, q);
             }
-            // 3. forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))),
-            assert forall |n: nat| #![trigger p(n)] n > 0 implies spec.entails(always(q(n)).leads_to(not(p(n)))) by {
-                assume(false);
-            }
-            leads_to_by_monotonicity3(spec, p, q);
+            leads_to_exists_intro2(spec,
+                |new_vrs: VReplicaSetView| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key))),
+                |new_vrs: VReplicaSetView| always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0)))
+            );
+            always_entails_current(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
+            entails_implies_leads_to(spec, always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
+            leads_to_trans(spec,
+                always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
+                lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)),
+                tla_exists(|new_vrs: VReplicaSetView| always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0))))
+            );
         }
-        // [] q(0) /\ [] set |= [] composed_current_state_matches
+        // \E vrs_set [] /\ \E new_vrs [] ~> \E (vrs_set and new_vrs) []
+        assert(spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).leads_to(
+            tla_exists(|ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)|
+            always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)))
+            .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
+            .and(always(lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd))))
+            .and(always(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
+        )))) by {
+            // a new tla lemma
+        }
+        assert forall |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)))
+            .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
+            .and(always(lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd))))
+            .and(always(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
+            .entails(always(lift_state(composed_current_state_matches(vd)))) by {
+            assert forall |s: ClusterState| {
+                &&& current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)(s)
+                &&& inductive_current_state_matches(vd, controller_id, new_vrs_key)(s)
+                &&& conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)(s)
+                &&& old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key)(s)
+            } implies #[trigger] composed_current_state_matches(vd)(s) by {
+                conjuncted_current_state_matches_old_vrs_0_implies_composed(vd, cluster, controller_id, ov_set_nv.0, ov_set_nv.1, new_vrs_key, s);
+            }
+            always_and_equality_n!(
+                lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)),
+                lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)),
+                lift_state(conjuncted_current_state_matches_old_vrs(ov_set_nv.0, vd)),
+                lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))
+            );
+        }
     }
 }
 
