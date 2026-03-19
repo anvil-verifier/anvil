@@ -2437,6 +2437,7 @@ pub proof fn leads_to_exists_always_combine<T, A>(spec: TempPred<T>, p: TempPred
         spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))))),
         spec.entails(p.leads_to(always(r))),
     ensures
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a).and(r))))),
         spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a)).and(always(r))))),
         spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))).and(always(r)))),
 {
@@ -2464,14 +2465,27 @@ pub proof fn leads_to_exists_always_combine<T, A>(spec: TempPred<T>, p: TempPred
             }
         };
     };
-    // Second postcondition: use tla_exists_and_equality to rewrite
-    // tla_exists(|a| always(a_to_q(a)).and(always(r))) == tla_exists(|a| always(a_to_q(a))).and(always(r))
+    assert forall |a: A| #![trigger a_to_q(a)] always(a_to_q(a)).and(always(r)) == always(a_to_q(a).and(r)) by {
+        always_and_equality::<T>(a_to_q(a), r);
+    }
+    tla_exists_p_tla_exists_q_equality::<T, A>(
+        |a: A| always(a_to_q(a)).and(always(r)),
+        |a: A| always(a_to_q(a).and(r)),
+    );
     tla_exists_p_tla_exists_q_equality::<T, A>(
         |a: A| always(a_to_q(a)).and(always(r)),
         |a: A| (|a: A| always(a_to_q(a)))(a).and(always(r)),
     );
     tla_exists_and_equality::<T, A>(|a: A| always(a_to_q(a)), always(r));
 }
+
+pub proof fn leads_to_exists_always_combine2<T, A, B>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>, b_to_r: spec_fn(B) -> TempPred<T>)
+    requires
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))))),
+        spec.entails(p.leads_to(tla_exists(|b: B| always(b_to_r(b))))),
+    ensures
+        spec.entails(p.leads_to(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))))),
+{}
 
 // Add always(c) to both side of leads_to.
 // pre:
