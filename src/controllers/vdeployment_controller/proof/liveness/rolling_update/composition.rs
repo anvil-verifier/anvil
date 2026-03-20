@@ -596,10 +596,71 @@ pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
-                    // Non-controller message: the valid_owned_vrs set is preserved
                     lemma_api_request_other_than_pending_req_msg_maintains_vrs_set_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
+                    // The lemma gives us:
+                    //   base_s == base_s_prime
+                    // where base = values().filter(kind).map(unmarshal).filter(valid_owned_vrs).map(vrs_with_no_rv_status)
+                    let base_s = s.resources().values()
+                        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+                        .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
+                    let base_s_prime = s_prime.resources().values()
+                        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
+                        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+                        .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
+                    assert(base_s == base_s_prime);
+
+                    // For each state, rewrite:
+                    //   values().filter(kind).map(unmarshal).filter(is_old_vrs_of).map(vrs_with_no_rv_status)
+                    // Step 1: Split filter(is_old_vrs_of) = filter(valid_owned_vrs).filter(|vrs| object_ref() != key)
+                    let unmarshal_s = s.resources().values()
+                        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0);
+                    let unmarshal_s_prime = s_prime.resources().values()
+                        .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                        .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0);
+
+                    let key_filter = |vrs: VReplicaSetView| vrs.object_ref() != new_vrs_key;
+
+                    set_filter_conj_is_filter_filter(
+                        unmarshal_s,
+                        |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd),
+                        key_filter,
+                        |vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key),
+                    );
+                    set_filter_conj_is_filter_filter(
+                        unmarshal_s_prime,
+                        |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd),
+                        key_filter,
+                        |vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key),
+                    );
+                    // Now: .filter(is_old_vrs_of) == .filter(valid_owned_vrs).filter(key_filter)
+
+                    // Step 2: Swap filter(key_filter) and map(vrs_with_no_rv_status) using commutativity
+                    // since vrs_with_no_rv_status preserves object_ref()
+                    let owned_s = unmarshal_s.filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+                    let owned_s_prime = unmarshal_s_prime.filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
+                    commutativity_of_set_map_and_filter(
+                        owned_s,
+                        key_filter,
+                        key_filter,
+                        |vrs: VReplicaSetView| vrs_with_no_rv_status(vrs),
+                    );
+                    commutativity_of_set_map_and_filter(
+                        owned_s_prime,
+                        key_filter,
+                        key_filter,
+                        |vrs: VReplicaSetView| vrs_with_no_rv_status(vrs),
+                    );
+                    // Now: .filter(valid_owned_vrs).filter(key_filter).map(no_rv)
+                    //    == .filter(valid_owned_vrs).map(no_rv).filter(key_filter)
+                    //    == base.filter(key_filter)
+
+                    // Step 3: base_s == base_s_prime, so base_s.filter(key_filter) == base_s_prime.filter(key_filter)
                 } else {
                     // Controller message branch: left for user to prove
                     assume(false);
