@@ -386,14 +386,14 @@ ensures
                                 &&& s_prime.resources().contains_key(key)
                                 &&& VReplicaSetView::unmarshal(s_prime.resources()[key]) is Ok
                                 &&& valid_owned_obj_key(vd, s_prime)(key)
-                                &&& vrs_weakly_eq(etcd_vrs, vrs)
+                                &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
                                 &&& etcd_vrs.spec == vrs.spec
                             } by {
                                 let key = vrs.object_ref();
                                 let etcd_obj = s.resources()[key];
                                 let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
                                 assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
-                                    assert(vrs_weakly_eq(etcd_vrs, vrs));
+                                    assert(etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version());
                                     VReplicaSetView::marshal_preserves_integrity();
                                 }
                                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(

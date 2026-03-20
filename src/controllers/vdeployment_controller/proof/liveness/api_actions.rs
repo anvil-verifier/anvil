@@ -92,7 +92,7 @@ ensures
             &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
             // weakly equal to etcd object
             &&& valid_owned_obj_key(vd, s)(key)
-            &&& vrs_weakly_eq(etcd_vrs, vrs)
+            &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
             &&& etcd_vrs.spec == vrs.spec
         } by {
             VReplicaSetView::marshal_preserves_metadata();
@@ -686,7 +686,7 @@ ensures
         let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s_prime.resources().contains_key(k)
         &&& VReplicaSetView::unmarshal(s_prime.resources()[k]) is Ok
-        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.metadata.without_resource_version() == vrs_prime.metadata.without_resource_version()
         &&& vrs.spec == vrs_prime.spec
         // convenient post condition
         &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
@@ -703,7 +703,7 @@ ensures
         let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s.resources().contains_key(k)
         &&& VReplicaSetView::unmarshal(s.resources()[k]) is Ok
-        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.metadata.without_resource_version() == vrs_prime.metadata.without_resource_version()
         &&& vrs.spec == vrs_prime.spec
         &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     },
@@ -720,7 +720,7 @@ ensures
         let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s_prime.resources().contains_key(k)
         &&& VReplicaSetView::unmarshal(s_prime.resources()[k]) is Ok
-        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.metadata.without_resource_version() == vrs_prime.metadata.without_resource_version()
         &&& vrs.spec == vrs_prime.spec
         &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     } by {
@@ -832,7 +832,7 @@ ensures
         let vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[k])->Ok_0;
         &&& s.resources().contains_key(k)
         &&& VReplicaSetView::unmarshal(s.resources()[k]) is Ok
-        &&& vrs_weakly_eq(vrs, vrs_prime)
+        &&& vrs.metadata.without_resource_version() == vrs_prime.metadata.without_resource_version()
         &&& vrs.spec == vrs_prime.spec
         &&& valid_owned_obj_key(vd, s_prime)(k) == valid_owned_obj_key(vd, s)(k)
     } by {

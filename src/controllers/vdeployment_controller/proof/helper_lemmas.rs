@@ -337,7 +337,7 @@ requires
         &&& s.resources().contains_key(key)
         &&& etcd_obj.kind == VReplicaSetView::kind()
         &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
-        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
     },
     managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()

@@ -834,7 +834,7 @@ ensures
                             let etcd_vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
                             assert(VReplicaSetView::unmarshal(obj) is Ok);
                             VReplicaSetView::marshal_preserves_integrity();
-                            assert(vrs_weakly_eq(etcd_vrs, vrs));
+                            assert(etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version());
                         }
                         lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                             s, s_prime, vd, cluster, controller_id, msg
@@ -939,7 +939,7 @@ ensures
                     &&& s_prime.resources().contains_key(key)
                     &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
                     &&& valid_owned_obj_key(vd, s_prime)(key)
-                    &&& vrs_weakly_eq(etcd_vrs, vrs)
+                    &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
                     &&& etcd_vrs.spec == vrs.spec
                 } by {
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
@@ -1227,7 +1227,7 @@ ensures
                     &&& s_prime.resources().contains_key(key)
                     &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
                     &&& valid_owned_obj_key(vd, s_prime)(key)
-                    &&& vrs_weakly_eq(etcd_vrs, vrs)
+                    &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
                     &&& etcd_vrs.spec == vrs.spec
                 } by {
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(

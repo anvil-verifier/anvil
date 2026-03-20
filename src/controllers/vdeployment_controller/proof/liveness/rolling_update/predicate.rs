@@ -47,7 +47,7 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
         // weakly equal to etcd object
         &&& valid_owned_obj_key(vd, s)(key)
-        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
         // additional conditions
         &&& vrs.status is Some
@@ -113,7 +113,7 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         //// Q: do we really need this?
         // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
-        &&& vrs_weakly_eq(etcd_vrs, req_vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == req_vrs.metadata.without_resource_version()
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
@@ -152,7 +152,7 @@ pub open spec fn ru_local_state_is_valid_and_coherent_with_etcd(vd: VDeploymentV
         &&& valid_owned_obj_key(vd, s)(key)
         &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         &&& vrs.object_ref() == key
-        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
         // status matches spec replicas (from current_state_matches invariant)
         &&& vrs.status is Some

@@ -42,17 +42,6 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
     }
 }
 
-pub open spec fn vrs_weakly_eq(lhs: VReplicaSetView, rhs: VReplicaSetView) -> bool {
-    &&& lhs.metadata.uid is Some
-    &&& lhs.metadata.name is Some
-    &&& lhs.metadata.namespace is Some
-    &&& lhs.metadata.uid == rhs.metadata.uid
-    &&& lhs.metadata.namespace == rhs.metadata.namespace
-    &&& lhs.metadata.name == rhs.metadata.name
-    &&& lhs.metadata.labels == rhs.metadata.labels
-    &&& lhs.metadata.owner_references == rhs.metadata.owner_references
-}
-
 // ---- message predicates ----
 // we have 2 versions of each predicate because we need to instantiate msg for wf lemmas
 // and another exists |msg| is also required as post condition
@@ -169,7 +158,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
         // weakly equal to etcd object
         &&& valid_owned_obj_key(vd, s)(key)
-        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
     }
 }
@@ -295,7 +284,7 @@ pub open spec fn resp_msg_is_ok_create_resp_containing_new_vrs(
     // weakly equal to etcd object
     &&& valid_owned_obj_key(vd, s)(key)
     &&& filter_new_vrs_keys(vd.spec.template, s)(key)
-    &&& vrs_weakly_eq(etcd_vrs, vrs)
+    &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
     &&& etcd_vrs.spec == vrs.spec
     // new_vrs uid does not match any old_vrs uid. TODO: find a better way to not talk about local state
     &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_list.len() ==>
@@ -328,7 +317,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         &&& s.resources().contains_key(key)
         &&& valid_owned_obj_key(vd, s)(key)
         // the scaled down vrs can previously pass old vrs filter
-        &&& vrs_weakly_eq(etcd_vrs, req_vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == req_vrs.metadata.without_resource_version()
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
@@ -337,7 +326,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         // stronger than local_state_is_valid_and_coherent_with_etcd
         &&& state.old_vrs_index < state.old_vrs_list.len()
         // of course, replica isn't updated locally
-        &&& vrs_weakly_eq(req_vrs, local_vrs)
+        &&& req_vrs.metadata.without_resource_version() == local_vrs.metadata.without_resource_version()
         // this is important, then we know etcd_vrs can pass old_vrs_filter from the coherence predicate
         &&& pre_update ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
         // derive from no_duplicates(), coherence isn't affected
@@ -380,7 +369,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         //// Q: do we really need this?
         // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
-        &&& vrs_weakly_eq(etcd_vrs, req_vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == req_vrs.metadata.without_resource_version()
         &&& req_vrs.spec == VReplicaSetSpecView { // eq w/o replicas
             replicas: Some(req_vrs_replicas),
             ..etcd_vrs.spec
@@ -584,7 +573,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vd: VDeploymentView, controll
             let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
             &&& s.resources().contains_key(vrs.object_ref())
             &&& valid_owned_obj_key(vd, s)(vrs.object_ref())
-            &&& vrs_weakly_eq(etcd_vrs, vrs)
+            &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         }
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
@@ -600,7 +589,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vd: VDeploymentView, controll
             &&& valid_owned_obj_key(vd, s)(key)
             &&& filter_new_vrs_keys(vd.spec.template, s)(key)
             &&& vrs.object_ref() == key
-            &&& vrs_weakly_eq(etcd_vrs, vrs)
+            &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
             // we don't need to check unless MaxSurge | MaxUnavailable is supported
             // &&& etcd_vrs.spec == new_vrs.spec
         }
