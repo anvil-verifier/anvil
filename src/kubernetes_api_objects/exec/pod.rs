@@ -126,7 +126,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
 
 #[verifier::external]
 fn normalized_resources_equal(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
-    let parse_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
+    let normalize_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
         m.as_ref().map(|map| {
             map.iter()
                 .map(|(k, v)| (k.clone(), kube_quantity::ParsedQuantity::try_from(v).ok()))
@@ -134,8 +134,8 @@ fn normalized_resources_equal(r1: &k8s_types::ResourceRequirements, r2: &k8s_typ
         })
     };
     r1.claims == r2.claims 
-    && parse_map(&r1.limits) == parse_map(&r2.limits)
-    && parse_map(&r1.requests) == parse_map(&r2.requests)
+    && normalize_map(&r1.limits) == normalize_map(&r2.limits)
+    && normalize_map(&r1.requests) == normalize_map(&r2.requests)
 }
 
 impl PodSpec {
