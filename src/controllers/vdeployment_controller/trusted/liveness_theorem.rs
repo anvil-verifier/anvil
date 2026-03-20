@@ -80,10 +80,13 @@ pub open spec fn current_state_matches_with_new_vrs_key(vd: VDeploymentView, new
 pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let etcd_obj = s.resources()[new_vrs_key];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         &&& current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
             // if vd has 0 replicas, local new vrs can have 0 replicas or not
-            &&& local_state.new_vrs is Some && vd.spec.replicas.unwrap_or(1) > 0 ==> {
+            // if the new_vrs in etcd has > 0 replicas, it will be chosen at after list step
+            &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 {
                 &&& local_state.new_vrs->0.object_ref() == new_vrs_key
                 &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) > 0
             }
