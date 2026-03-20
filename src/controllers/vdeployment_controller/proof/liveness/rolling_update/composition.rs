@@ -410,7 +410,6 @@ pub proof fn ranking_decreases_after_vrs_esr(
 }
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
-#[verifier(spinoff_prover)]
 pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef, s: ClusterState
 ) -> (vrs_set: Set<VReplicaSetView>) // vrs_set, new_vrs, replicas_diff
@@ -445,7 +444,7 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
     VReplicaSetView::marshal_preserves_integrity();
-    assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies vrs_liveness::desired_state_is(vrs)(s) by {
+    assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies vrs_liveness::desired_state_is(vrs)(s) && vrs.spec.replicas.unwrap_or(1) == 0 by {
         VReplicaSetView::marshal_preserves_integrity();
         let etcd_obj = choose |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj) && obj.object_ref() == vrs.object_ref();
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -471,6 +470,13 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
         assert(etcd_obj2.object_ref() == vrs.object_ref());
         assert(etcd_obj2 == etcd_obj);
         assert(vrs_liveness::desired_state_is(etcd_vrs)(s));
+        if vrs.spec.replicas.unwrap_or(1) > 0 {
+            let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
+            assert(vrs_with_rv_status.spec.replicas.unwrap_or(1) > 0);
+            assert(valid_owned_obj_key(vd, s)(vrs.object_ref()));
+            assert(filter_old_vrs_keys(Some(etcd_new_vrs.metadata.uid->0), s)(vrs.object_ref()));
+            assert(false);
+        }
     }
     assert({
         &&& vrs_set == s.resources().values()

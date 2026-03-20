@@ -86,7 +86,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
             // if vd has 0 replicas, local new vrs can have 0 replicas or not
             // if the new_vrs in etcd has > 0 replicas, it will be chosen at after list step
-            &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 {
+            &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
                 &&& local_state.new_vrs->0.object_ref() == new_vrs_key
                 &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) > 0
             }
