@@ -880,7 +880,62 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 // we need inductive_current_state_matches with the key here
                 // 1. forall |n| #![trigger new_vrs_pre(n)] spec.entails(always(new_vrs_pre(n)).leads_to(always(new_vrs_post(n)))),
                 assert forall |n: nat| #![trigger new_vrs_pre(n)] spec.entails(always(new_vrs_pre(n)).leads_to(always(new_vrs_post(n)))) by {
-                    assume(false);
+                    if replicas_diff(vd, new_vrs) != n || new_vrs.object_ref() != new_vrs_key {
+                        // new_vrs_pre(n) is unsatisfiable, so always(false) ~> anything
+                        temp_pred_equality(new_vrs_pre(n), false_pred());
+                        false_is_stable::<ClusterState>();
+                        stable_to_always::<ClusterState>(false_pred());
+                        false_leads_to_anything(spec, always(new_vrs_post(n)));
+                    } else {
+                        use_tla_forall(spec,
+                            |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))),
+                            new_vrs
+                        );
+                        entails_preserved_by_always(
+                            new_vrs_pre(n),
+                            lift_state(vrs_liveness::desired_state_is(new_vrs))
+                        );
+                        leads_to_weaken(spec,
+                            always(lift_state(vrs_liveness::desired_state_is(new_vrs))),
+                            always(lift_state(vrs_liveness::current_state_matches(new_vrs))),
+                            always(new_vrs_pre(n)),
+                            always(lift_state(vrs_liveness::current_state_matches(new_vrs)))
+                        );
+                        entails_preserved_by_always(
+                            new_vrs_pre(n),
+                            lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))
+                        );
+                        entails_implies_leads_to(spec,
+                            always(new_vrs_pre(n)),
+                            always_vd_post
+                        );
+                        leads_to_always_combine(spec,
+                            always(new_vrs_pre(n)),
+                            lift_state(vrs_liveness::current_state_matches(new_vrs)),
+                            lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))
+                        );
+                        temp_pred_equality(
+                            lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n))
+                                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
+                            new_vrs_post(n)
+                        );
+                        entails_preserved_by_always(
+                            lift_state(vrs_liveness::current_state_matches(new_vrs))
+                                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
+                            new_vrs_post(n)
+                        );
+                        entails_implies_leads_to(spec,
+                            always(lift_state(vrs_liveness::current_state_matches(new_vrs))
+                                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))),
+                            always(new_vrs_post(n))
+                        );
+                        leads_to_trans(spec,
+                            always(new_vrs_pre(n)),
+                            always(lift_state(vrs_liveness::current_state_matches(new_vrs))
+                                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))),
+                            always(new_vrs_post(n))
+                        );
+                    }
                 }
                 // 2. forall |n| #![trigger new_vrs_pre(n)] spec.entails(always(new_vrs_pre(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(new_vrs_pre(m))))))),
                 assert forall |n: nat| #![trigger new_vrs_pre(n)] spec.entails(always(new_vrs_pre(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(new_vrs_pre(m))))))) by {
