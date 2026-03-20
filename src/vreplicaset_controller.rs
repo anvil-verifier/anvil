@@ -21,7 +21,8 @@ use deps_hack::serde_yaml;
 use deps_hack::tokio;
 use deps_hack::tracing::{error, info};
 use deps_hack::tracing_subscriber;
-use shim_layer::controller_runtime::run_controller;
+use deps_hack::k8s_openapi::api::core::v1::Pod;
+use shim_layer::controller_runtime::run_controller_watching_owned;
 use std::env;
 
 #[tokio::main]
@@ -34,13 +35,13 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::VReplicaSet::crd())?);
     } else if cmd == String::from("run") {
         info!("running vreplicaset-controller");
-        run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler, VoidExternalShimLayer>(
+        run_controller_watching_owned::<deps_hack::VReplicaSet, VReplicaSetReconciler, VoidExternalShimLayer, Pod>(
             false,
         )
         .await?;
     } else if cmd == String::from("crash") {
         info!("running vreplicaset-controller in crash-testing mode");
-        run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler, VoidExternalShimLayer>(
+        run_controller_watching_owned::<deps_hack::VReplicaSet, VReplicaSetReconciler, VoidExternalShimLayer, Pod>(
             true,
         )
         .await?;
