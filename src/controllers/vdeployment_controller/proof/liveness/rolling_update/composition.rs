@@ -81,14 +81,18 @@ pub open spec fn vrs_with_no_rv_status(vrs: VReplicaSetView) -> VReplicaSetView 
     }
 }
 
+pub open spec fn is_old_vrs_of(vrs: VReplicaSetView, vd: VDeploymentView, new_vrs_key: ObjectRef) -> bool {
+    valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key
+}
+
 pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& vrs_set == s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
             .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
-            .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs)) // strim updated RV/status
-        &&& vrs_set.finite() && vrs_set.len() > 0
+            .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
+        &&& vrs_set.finite()
     }
 }
 
@@ -107,7 +111,7 @@ pub proof fn esr_for_each_ranking(
         .leads_to(
             always(lift_state(conjuncted_current_state_matches_vrs(vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)))))),
 {
-    if !vrs_set.finite() || vrs_set.len() == 0 {
+    if !vrs_set.finite() {
         // old_vrs_set_is_owned_by_vd requires finite(), so the pre is unsatisfiable
         temp_pred_equality(
             lift_state(conjuncted_desired_state_is_vrs(vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))),
@@ -416,32 +420,23 @@ pub proof fn ranking_decreases_after_vrs_esr(
     leads_to_trans(spec, always(pre), lift_state(init).and(always(pre)), post);
 }
 
-// *** Helper lemmas and predicates ***
-
 // From inductive_current_state_matches, extract (vrs_set, n) witness
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
-    vd: VDeploymentView, k: ObjectRef, cluster: Cluster, controller_id: int, s: ClusterState
-) -> (res: (Set<VReplicaSetView>, VReplicaSetView, int)) // vrs_set, new_vrs, replicas_diff
+#[verifier(spinoff_prover)]
+pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef, s: ClusterState
+) -> (vrs_set: Set<VReplicaSetView>) // vrs_set, new_vrs, replicas_diff
     requires
-        vd.spec.replicas.unwrap_or(1) > 0,
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-        current_state_matches(vd)(s),
+        current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s),
     ensures
-        old_vrs_set_is_owned_by_vd(res.0, vd, k)(s),
-        conjuncted_desired_state_is_vrs(res.0)(s),
-        // for spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain
-        res.0.finite(),
-        res.0.len() > 0,
-        VReplicaSetView::unmarshal(s.resources()[k]) is Ok,
-        res.1 == vrs_with_no_rv_status(VReplicaSetView::unmarshal(s.resources()[k])->Ok_0),
-        res.1.object_ref() == k,
-        res.2 == replicas_diff(vd, res.1),
+        old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s),
+        conjuncted_desired_state_is_vrs(vrs_set)(s),
 {
     let vrs_set = s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
         .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
         .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     assert(vrs_set.finite()) by {
         lemma_values_finite(s.resources());
@@ -451,12 +446,12 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
         finite_set_to_finite_filtered_set(
             s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
                 .map(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0),
-            |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)
+            |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key
         );
         s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
             .lemma_map_finite(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
@@ -469,12 +464,12 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
             && s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(vrs_with_rv_status));
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key).contains(vrs_with_rv_status));
         let vrs_with_rv_status = choose |vrs_with_rv_status| vrs_with_no_rv_status(vrs_with_rv_status) == vrs
             && s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(vrs_with_rv_status);
+            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key).contains(vrs_with_rv_status);
         assert(s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs_with_rv_status));
@@ -488,46 +483,15 @@ pub proof fn current_state_match_vd_implies_exists_vrs_set_with_replica_diff(
         assert(etcd_obj2 == etcd_obj);
         assert(vrs_liveness::desired_state_is(etcd_vrs)(s));
     }
-    // from current_state_matches
-    let new_obj = s.resources()[k];
-    let new_etcd_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
-    let new_vrs = vrs_with_no_rv_status(new_etcd_vrs);
-    assert(vrs_set.contains(new_vrs)) by {
-        assert(s.resources().values().contains(new_obj));
-        assert(s.resources().values()
-            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(new_obj));
-        assert(s.resources().values()
-            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(new_etcd_vrs));
-        assert(s.resources().values()
+    assert({
+        &&& vrs_set == s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).contains(new_etcd_vrs));
-    }
-    assert(match_template_without_hash(vd.spec.template)(new_etcd_vrs));
-    if exists |old_vrs: VReplicaSetView| {
-        &&& #[trigger] vrs_set.contains(old_vrs)
-        &&& old_vrs != new_vrs
-        &&& old_vrs.spec.replicas.unwrap_or(1) > 0
-    } {
-        let old_vrs = choose |old_vrs: VReplicaSetView| {
-            &&& #[trigger] vrs_set.contains(old_vrs)
-            &&& old_vrs != new_vrs
-            &&& old_vrs.spec.replicas.unwrap_or(1) > 0
-        };
-        let old_k = old_vrs.object_ref();
-        assert(s.resources().contains_key(old_k)); // trigger
-        assert(old_vrs.metadata.uid->0 != new_vrs.metadata.uid->0) by {
-            let old_etcd_vrs = VReplicaSetView::unmarshal(s.resources()[old_k])->Ok_0;
-            assert(old_vrs == vrs_with_no_rv_status(old_etcd_vrs));
-            if old_vrs.object_ref() == k { // so they points to different obj with different uid
-                assert(old_vrs == new_vrs);
-                assert(false);
-            }
-        }
-        assert(false);
-    }
-    return (vrs_set, new_vrs, replicas_diff(vd, new_etcd_vrs) as int);
+            .filter(|vrs: VReplicaSetView|  valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
+            .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
+        &&& vrs_set.finite()
+    });
+    return vrs_set;
 }
 
 // q(0) with vrs_set identity implies composed_current_state_matches
@@ -717,7 +681,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         assert(spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
             .leads_to(tla_exists(|old_vrs_set| always(lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))))))) by {
             assert(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).entails(
-                    tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))))) by {
+                tla_exists(|old_vrs_set| always(lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key))))))) by {
                 // 1. inductive_current_state_matches |= \E vrs_set []
                 // 2. valid(stable) vrs_set
                 assume(false);

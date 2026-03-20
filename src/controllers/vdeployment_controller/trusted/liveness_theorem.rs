@@ -57,7 +57,7 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
 }
 
 // ~> \E k [] current_state_matches(vd, k)
-pub open spec fn current_state_matches_with_new_vrs_key(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
+pub open spec fn current_state_matches_with_new_vrs_key(vd: VDeploymentView, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // new vrs exists and only one exists
         // at most one exists is enforced by filter_old_vrs_keys
@@ -80,7 +80,7 @@ pub open spec fn current_state_matches_with_new_vrs_key(vd: VDeploymentView, con
 pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        &&& current_state_matches_with_new_vrs_key(vd, controller_id, new_vrs_key)(s)
+        &&& current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
             &&& local_state.new_vrs is Some ==> {
                 if vd.spec.replicas.unwrap_or(1) > 0 {
