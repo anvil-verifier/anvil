@@ -579,8 +579,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
 }
 
 // Stability of vrs_set identity (modulo rv/status/replicas) and conjuncted p(n)
-// TODO: deprecate this
-#[verifier(external_body)] // trivial
+#[verifier(spinoff_prover)]
 pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, new_vrs_key: ObjectRef, n: nat, s: ClusterState, s_prime: ClusterState
 )
@@ -601,7 +600,27 @@ pub proof fn rolling_update_desired_state_preserves_from_s_to_s_prime(
     ensures
         old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s_prime),
         conjuncted_desired_state_is_vrs(vrs_set)(s_prime),
-{}
+{
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    let vrs_set_prime = current_state_match_vd_implies_exists_old_vrs_set(vd, cluster, controller_id, new_vrs_key, s_prime);
+    assert(vrs_set == vrs_set_prime) by {
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
+                    // Non-controller message: the valid_owned_vrs set is preserved
+                    lemma_api_request_other_than_pending_req_msg_maintains_vrs_set_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
+                } else {
+                    // Controller message branch: left for user to prove
+                    assume(false);
+                }
+            },
+            _ => {}
+        }
+    }
+}
 
 // *** Top-level rolling update ESR composition theorem ***
 pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
