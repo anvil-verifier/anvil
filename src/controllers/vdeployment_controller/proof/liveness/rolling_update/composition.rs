@@ -904,7 +904,12 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 // leads_to_transitivity
                 leads_to_exists_intro(spec, new_vrs_pre, always(new_vrs_post(0)));
                 assert(lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).entails(tla_exists(new_vrs_pre))) by {
-                    assume(false);
+                    assert forall |ex: Execution<ClusterState>|
+                        lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))).satisfied_by(ex)
+                    implies #[trigger] tla_exists(new_vrs_pre).satisfied_by(ex) by {
+                        let diff = replicas_diff(vd, new_vrs);
+                        assert(new_vrs_pre(diff).satisfied_by(ex));
+                    }
                 }
                 entails_implies_leads_to(spec,
                     lift_state(desired_state_is_vrs_with_key(new_vrs, new_vrs_key)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
