@@ -156,10 +156,4 @@ pub proof fn set_filter_conj_is_filter_filter<A>(s: Set<A>, p: spec_fn(A) -> boo
     }
 }
 
-// Applying the same filter to equal sets gives equal sets
-pub proof fn equal_sets_equal_filter<A>(s1: Set<A>, s2: Set<A>, f: spec_fn(A) -> bool)
-    requires s1 == s2,
-    ensures s1.filter(f) == s2.filter(f),
-{}
-
 }
