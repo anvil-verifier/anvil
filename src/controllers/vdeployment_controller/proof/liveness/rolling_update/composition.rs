@@ -90,7 +90,7 @@ pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: V
         &&& vrs_set == s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
+            .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
             .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
         &&& vrs_set.finite()
     }
@@ -436,7 +436,7 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
     let vrs_set = s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
         .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-        .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
+        .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
         .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     assert(vrs_set.finite()) by {
         lemma_values_finite(s.resources());
@@ -446,12 +446,12 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
         finite_set_to_finite_filtered_set(
             s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
                 .map(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0),
-            |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key
+            |vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key)
         );
         s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
+            .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
             .lemma_map_finite(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
@@ -464,12 +464,12 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
             && s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key).contains(vrs_with_rv_status));
+            .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key)).contains(vrs_with_rv_status));
         let vrs_with_rv_status = choose |vrs_with_rv_status| vrs_with_no_rv_status(vrs_with_rv_status) == vrs
             && s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key).contains(vrs_with_rv_status);
+            .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key)).contains(vrs_with_rv_status);
         assert(s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0).contains(vrs_with_rv_status));
@@ -487,7 +487,7 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
         &&& vrs_set == s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-            .filter(|vrs: VReplicaSetView|  valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key)
+            .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
             .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
         &&& vrs_set.finite()
     });
