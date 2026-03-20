@@ -46,6 +46,7 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& valid_owned_obj_key(vd, s)(new_vrs_key)
             &&& filter_new_vrs_keys(vd.spec.template, s)(new_vrs_key)
             &&& etcd_vrs.metadata.uid is Some
+            &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |old_k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(old_k)
