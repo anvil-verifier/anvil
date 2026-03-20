@@ -309,10 +309,6 @@ impl PodSpec {
     pub fn eq_spec(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
-
-        info!("this: {:?}", self.inner);
-        info!("other: {:?}", other.inner);
-
         let container_comp = |c1: &k8s_types::Container, c2: &k8s_types::Container| {
             let images_match = c1.image == c2.image;
             let resources_match = match (&c1.resources, &c2.resources) {
