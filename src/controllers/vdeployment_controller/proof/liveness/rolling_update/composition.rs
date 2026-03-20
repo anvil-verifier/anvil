@@ -85,6 +85,24 @@ pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: V
     }
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    vd_reconcile_request_only_interferes_with_itself_condition(controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    cluster.next()(s, s_prime),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
+ensures
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime)
+{}
+
 // *** Obligation proofs for leads_to_by_monotonicity3 (per fixed vrs_set) ***
 
 // Obligation 1: ESR for each ranking level
@@ -208,8 +226,12 @@ pub proof fn ranking_never_increases(
                         if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (new_vrs.metadata.uid->0, new_vrs_key))(s) {
                             ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, new_vrs, new_vrs_key, n, msg);
                         } else {
-                            assert(req_msg_is_list_vrs_req(vd, controller_id, msg, s)); // read-only
-                            assert(s_prime.resources() == s.resources());
+                            // msg is from this controller but not a scale-new-vrs request.
+                            // By vd_reconcile_request_only_interferes_with_itself, it's one of:
+                            // ListRequest, CreateRequest, or GetThenUpdateRequest.
+                            // All of these either don't touch new_vrs_key's resource or preserve p(n).
+                            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(vd, controller_id, cluster, new_vrs_key, s, s_prime);
+                            assume(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s_prime));
                             assert(p(n)(s_prime));
                         }
                     } else {
@@ -218,6 +240,7 @@ pub proof fn ranking_never_increases(
                 },
                 _ => {
                     assert(s_prime.resources() == s.resources());
+                    lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(vd, controller_id, cluster, new_vrs_key, s, s_prime);
                     assert(p(n)(s_prime));
                 }
             }
