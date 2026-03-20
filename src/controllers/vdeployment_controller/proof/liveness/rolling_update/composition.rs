@@ -69,18 +69,6 @@ pub open spec fn current_state_matches_vrs_with_replicas_diff_and_key(vd: VDeplo
     }
 }
 
-// Strip resource_version AND status for vrs_set identity stability.
-// When VD controller changes replicas via GetThenUpdate, or VRS controller changes status,
-// the mapped set remains the same.
-// spec.replicas is passed as argument in higher level predicates
-pub open spec fn vrs_with_no_rv_status(vrs: VReplicaSetView) -> VReplicaSetView {
-    VReplicaSetView {
-        metadata: vrs.metadata.without_resource_version(),
-        status: None,
-        ..vrs
-    }
-}
-
 pub open spec fn is_old_vrs_of(vrs: VReplicaSetView, vd: VDeploymentView, new_vrs_key: ObjectRef) -> bool {
     valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key
 }
