@@ -9,6 +9,8 @@ use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use deps_hack::tracing::{error, info, warn};
+use deps_hack::k8s_openapi::api::core::v1 as k8s_types;
+use deps_hack::kube_quantity;
 
 verus! {
 
@@ -100,7 +102,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
         });
     }
     if !tolerates_unreachable {
-        tolerations.push(deps_hack::k8s_openapi::api::core::v1::Toleration {
+        tolerations.push(k8s_types::Toleration {
             key: Some("node.kubernetes.io/unreachable".to_string()),
             operator: Some("Exists".to_string()),
             effect: Some("NoExecute".to_string()),
@@ -111,7 +113,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
 
     for container in inner.containers.iter_mut() {
         if container.resources.is_none() {
-            container.resources = Some(deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+            container.resources = Some(k8s_types::ResourceRequirements {
                 claims: None,
                 limits: None,
                 requests: None,
@@ -120,6 +122,20 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
     }
 
     PodSpec::from_kube(inner)
+}
+
+#[verifier::external]
+fn normalized_resources_equal(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
+    let parse_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
+        m.as_ref().map(|map| {
+            map.iter()
+                .map(|(k, v)| (k.clone(), kube_quantity::ParsedQuantity::try_from(v).ok()))
+                .collect::<std::collections::BTreeMap<_, _>>()
+        })
+    };
+    r1.claims == r2.claims 
+    && parse_map(&r1.limits) == parse_map(&r2.limits)
+    && parse_map(&r1.requests) == parse_map(&r2.requests)
 }
 
 impl PodSpec {
@@ -293,13 +309,27 @@ impl PodSpec {
     pub fn eq_spec(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
+
+        info!("this: {:?}", self.inner);
+        info!("other: {:?}", other.inner);
+
+        let container_comp = |c1: &k8s_types::Container, c2: &k8s_types::Container| {
+            let images_match = c1.image == c2.image;
+            let resources_match = match (&c1.resources, &c2.resources) {
+                (None, None) => true,
+                (Some(r1), Some(r2)) => normalized_resources_equal(r1, r2),
+                _ => false
+            };
+            images_match && resources_match
+        };
+
         self.inner.volumes == other.inner.volumes
         && self.inner.containers.len() == other.inner.containers.len()
         && self.inner.tolerations == other.inner.tolerations
         && self.inner.containers
             .iter()
             .zip(other.inner.containers.iter())
-            .all(|(c1, c2)| c1.image == c2.image && c1.resources == c2.resources)
+            .all(|(c1, c2)| container_comp(c1, c2))
     }
 }
 
