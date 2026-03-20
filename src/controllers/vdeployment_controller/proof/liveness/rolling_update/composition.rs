@@ -81,6 +81,7 @@ pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: V
             .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
             .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
         &&& vrs_set.finite()
+        &&& forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs.spec.replicas.unwrap_or(1) == 0
     }
 }
 
