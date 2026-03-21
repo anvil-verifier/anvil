@@ -512,10 +512,20 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_k
     }
 }
 
+// TODO: deprecate
 pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs(vd: VDeploymentView, controller_id: int)
 -> StatePred<ClusterState> {
     |s: ClusterState| exists |nv_uid_key: (Uid, ObjectRef)| {
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
+    }
+}
+
+pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef)
+-> StatePred<ClusterState> {
+    |s: ClusterState| exists |nv_uid_replicas: (Uid, int)| {
+        // holds after state is stable
+        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
+        &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)
     }
 }
 
