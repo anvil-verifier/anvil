@@ -1,3 +1,5 @@
+use std::collections::btree_map::Keys;
+
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
@@ -65,6 +67,25 @@ impl Pod {
     }
 }
 
+#[verifier::external]
+pub fn normalize_resources(r: &k8s_types::ResourceRequirements) -> k8s_types::ResourceRequirements {
+    let limits = r.limits.clone().unwrap_or_default();
+    let mut requests = r.requests.clone().unwrap_or_default();
+    for (k, v) in limits {
+        requests.entry(k).or_insert(v);
+    }
+    let requests_option = if requests.is_empty() {
+        None
+    } else {
+        Some(requests)
+    };
+    k8s_types::ResourceRequirements {
+        claims: r.claims.clone(),
+        requests: requests_option,
+        limits: r.limits.clone()
+    }
+}
+
 // we need this function because our model of the API server doesn't 
 // match the real implementation
 // in particular, the API server default tolerations and transforms empty resources
@@ -119,6 +140,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
                 requests: None,
             });
         }
+        container.resources = container.resources.clone().map(|r| normalize_resources(&r));
     }
 
     PodSpec::from_kube(inner)
@@ -126,12 +148,14 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
 
 #[verifier::external]
 fn normalized_resources_equal(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
+    
     let normalize_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
-        m.as_ref().map(|map| {
-            map.iter()
-                .map(|(k, v)| (k.clone(), kube_quantity::ParsedQuantity::try_from(v).ok()))
-                .collect::<std::collections::BTreeMap<_, _>>()
-        })
+        m
+        .clone()
+        .unwrap_or_default()
+        .iter()
+        .map(|(k, v)| (k.clone(), kube_quantity::ParsedQuantity::try_from(v).ok()))
+        .collect::<std::collections::BTreeMap<_, _>>()
     };
     r1.claims == r2.claims 
     && normalize_map(&r1.limits) == normalize_map(&r2.limits)
