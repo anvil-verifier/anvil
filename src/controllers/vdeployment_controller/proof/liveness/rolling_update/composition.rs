@@ -306,14 +306,14 @@ requires
     req_msg.src == HostId::Controller(controller_id, vd.object_ref()),
     req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (new_vrs.metadata.uid->0, new_vrs_key))(s)
 ensures
-    exists |m: nat| m <= n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
+    exists |m: nat| m < n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
 {
     let new_vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[new_vrs_key])->Ok_0;
     let replicas = new_vrs_prime.spec.replicas.unwrap();
     assert(new_vrs_prime.spec == new_vrs.spec.with_replicas(replicas));
     let m = replicas_diff(vd, new_vrs_prime);
     assert(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime));
-    assert(m == n || m == n - 1);
+    assert(m == n - 1);
 }
 
 // Obligation 3: Ranking decrease
