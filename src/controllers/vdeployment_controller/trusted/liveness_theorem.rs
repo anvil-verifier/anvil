@@ -92,6 +92,10 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                 &&& local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
                 &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) > 0
             }
+            &&& local_state.new_vrs is Some && local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
+                &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
+                &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+            }
             &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
             &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
                 ==> local_state.old_vrs_index == 0
