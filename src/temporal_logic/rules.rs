@@ -3187,11 +3187,10 @@ pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> 
         forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
         forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))),
     ensures
-        forall |n| #![trigger p(n)] spec.entails(p(n).leads_to(always(q(0)))),
+        forall |n| #![trigger p(n)] spec.entails(p(n).leads_to(always(p(0)))),
 {
-    assert forall |n| #[trigger] spec.entails(p(n).leads_to(always(q(0)))) by {
+    assert forall |n| #[trigger] spec.entails(p(n).leads_to(always(p(0)))) by {
         leads_to_by_monotonicity3_rec(spec, p, q, n);
-        leads_to_trans(spec, p(n), always(p(0)), always(q(0)));
     }
 }
 
