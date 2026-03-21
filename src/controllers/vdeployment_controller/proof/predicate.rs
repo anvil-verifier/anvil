@@ -381,7 +381,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& get_replicas(vd.spec.replicas) > get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
         &&& get_replicas(vd.spec.replicas) < get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
         // unreachable
-        &&& get_replicas(vd.spec.replicas) == get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas))
+        &&& get_replicas(vd.spec.replicas) == get_replicas(etcd_vrs.spec.replicas) ==> false
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
