@@ -102,7 +102,6 @@ pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: V
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
@@ -134,8 +133,8 @@ ensures
             let msg = input->0;
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
                 if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
-                    lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
-                        s, s_prime, vd, cluster, controller_id, msg
+                    lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
+                        s, s_prime, vd, cluster, controller_id, msg, new_vrs_key
                     );
                     if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                         assert(s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
@@ -209,8 +208,8 @@ ensures
                 assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else {
                 assert(msg.src != HostId::Controller(controller_id, vd.object_ref()));
-                lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
-                    s, s_prime, vd, cluster, controller_id, msg
+                lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
+                    s, s_prime, vd, cluster, controller_id, msg, new_vrs_key
                 );
                 assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             }
