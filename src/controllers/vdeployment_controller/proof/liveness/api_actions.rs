@@ -471,6 +471,7 @@ ensures
 }
 
 // equal to etcd_state_is maintained by lemma_esr_equiv_to_instantiated_etcd_state_is
+// TODO: deprecate all functions related to current_state_matches
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -497,6 +498,37 @@ ensures
     );
     assert(current_state_matches(vd)(s_prime)) by {
         lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
+    }
+}
+
+
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message, new_vrs_key: ObjectRef
+)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s),
+ensures
+    current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s_prime),
+{
+    assert(instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s)) by {
+        lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(vd, cluster, controller_id, new_vrs_key, s);
+    }
+    let nv_uid_replicas = choose |nv_uid_replicas: (Uid, int)| {
+        &&&vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
+        &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)
+    };
+    lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), nat0!()
+    );
+    assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s_prime)) by {
+        lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(vd, cluster, controller_id, new_vrs_key, s_prime);
     }
 }
 
