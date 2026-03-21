@@ -231,7 +231,13 @@ pub proof fn ranking_never_increases(
                             assert(p(n)(s_prime));
                         }
                     } else {
-                        assume(false); // api_action::other_requests_maintains_vrs_set_and_conjuncted_desired_state_is_vrs
+                        let obj = s.resources()[new_vrs_key];
+                        assert(s.resources().contains_key(new_vrs_key)); // trigger
+                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+                            // each_object_in_etcd_has_at_most_one_controller_owner
+                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+                        }
+                        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(s, s_prime, vd, cluster, controller_id, msg);
                     }
                 },
                 _ => {
@@ -275,13 +281,12 @@ requires
     vd_rely_condition(cluster, controller_id)(s),
     vd_rely_condition(cluster, controller_id)(s_prime),
     inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
     desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s),
     req_msg.src == HostId::Controller(controller_id, vd.object_ref()),
     req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (new_vrs.metadata.uid->0, new_vrs_key))(s)
 ensures
-    exists |m: nat| #![trigger desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)] m <= n
-        && desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
-        && inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
+    exists |m: nat| m <= n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
 {}
 
 // Obligation 3: Ranking decrease
