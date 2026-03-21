@@ -692,8 +692,11 @@ pub proof fn composed_old_vrs_set_pre_preserves_from_s_to_s_prime(
                         |vrs: VReplicaSetView| vrs_with_no_rv_status(vrs),
                     );
                 } else {
-                    // Controller message branch: left for user to prove
-                    assume(false);
+                    assert(msg == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0);
+                    let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s) {
+                        assert(local_state.new_vrs->0.object_ref() == new_vrs_key);
+                    }
                 }
             },
             _ => {}
