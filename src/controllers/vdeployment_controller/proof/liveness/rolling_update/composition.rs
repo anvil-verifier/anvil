@@ -48,8 +48,14 @@ pub open spec fn desired_state_is_vrs_with_key(vrs: VReplicaSetView, vrs_key: Ob
 
 pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& vrs_liveness::desired_state_is(vrs)(s)
-        &&& replicas_diff(vd, vrs) == diff
+        let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(
+            if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
+                vd.spec.replicas.unwrap_or(1) - diff
+            } else {
+                vd.spec.replicas.unwrap_or(1) + diff
+            }
+        ));
+        &&& vrs_liveness::desired_state_is(vrs_with_replicas)(s)
         &&& vrs.object_ref() == vrs_key
     }
 }
@@ -63,8 +69,14 @@ pub open spec fn current_state_matches_vrs_with_key(vrs: VReplicaSetView, vrs_ke
 
 pub open spec fn current_state_matches_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& vrs_liveness::current_state_matches(vrs)(s)
-        &&& replicas_diff(vd, vrs) == diff
+        let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(
+            if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
+                vd.spec.replicas.unwrap_or(1) - diff
+            } else {
+                vd.spec.replicas.unwrap_or(1) + diff
+            }
+        ));
+        &&& vrs_liveness::current_state_matches(vrs_with_replicas)(s)
         &&& vrs.object_ref() == vrs_key
     }
 }
@@ -265,7 +277,6 @@ pub proof fn ranking_never_increases(
     }
 }
 
-#[verifier(external_body)]
 proof fn ranking_never_increases_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, n: nat, req_msg: Message
 )
@@ -287,7 +298,14 @@ requires
     req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (new_vrs.metadata.uid->0, new_vrs_key))(s)
 ensures
     exists |m: nat| m <= n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
-{}
+{
+    let new_vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[new_vrs_key])->Ok_0;
+    let replicas = new_vrs_prime.spec.replicas.unwrap();
+    assert(new_vrs_prime.spec == new_vrs.spec.with_replicas(replicas));
+    let m = replicas_diff(vd, new_vrs_prime);
+    assert(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime));
+    assert(m == n || m == n - 1);
+}
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
