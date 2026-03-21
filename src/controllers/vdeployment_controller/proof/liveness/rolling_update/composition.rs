@@ -180,6 +180,7 @@ pub proof fn esr_for_each_ranking(
 
 // Obligation 2: Monotonicity (ranking never increases)
 // forall n. spec |= [] (p(n) => [] (exists m <= n. p(m)))
+// flaky
 #[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn ranking_never_increases(
