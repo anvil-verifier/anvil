@@ -408,7 +408,6 @@ ensures
     
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
     msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
