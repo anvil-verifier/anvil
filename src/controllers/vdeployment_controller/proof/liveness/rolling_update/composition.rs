@@ -218,6 +218,7 @@ pub proof fn ranking_never_increases(
     assert forall |n| #![trigger p(n)] forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && #[trigger] p(m)(s_prime) by {
         // #![trigger p(m)] reduce the flakiness here in a strange way
         assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) && p(n)(s) implies exists |m: nat| #![trigger p(m)] m <= n && #[trigger] p(m)(s_prime) by {
+            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(vd, controller_id, cluster, new_vrs_key, s, s_prime);
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
@@ -226,12 +227,7 @@ pub proof fn ranking_never_increases(
                         if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (new_vrs.metadata.uid->0, new_vrs_key))(s) {
                             ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, new_vrs, new_vrs_key, n, msg);
                         } else {
-                            // msg is from this controller but not a scale-new-vrs request.
-                            // By vd_reconcile_request_only_interferes_with_itself, it's one of:
-                            // ListRequest, CreateRequest, or GetThenUpdateRequest.
-                            // All of these either don't touch new_vrs_key's resource or preserve p(n).
-                            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(vd, controller_id, cluster, new_vrs_key, s, s_prime);
-                            assume(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s_prime));
+                            assert(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s_prime));
                             assert(p(n)(s_prime));
                         }
                     } else {
@@ -240,7 +236,6 @@ pub proof fn ranking_never_increases(
                 },
                 _ => {
                     assert(s_prime.resources() == s.resources());
-                    lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(vd, controller_id, cluster, new_vrs_key, s, s_prime);
                     assert(p(n)(s_prime));
                 }
             }
