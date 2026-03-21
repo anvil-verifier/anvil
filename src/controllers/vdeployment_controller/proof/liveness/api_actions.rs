@@ -502,7 +502,6 @@ ensures
 }
 
 // filter_obj_keys_managed_by_vd is maintained
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     msg: Message, nv_uid: Option<Uid>
