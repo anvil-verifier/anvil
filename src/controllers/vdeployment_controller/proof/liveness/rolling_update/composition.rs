@@ -540,6 +540,9 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
 }
 
 // q(0) with vrs_set identity implies composed_current_state_matches
+// TODO: one new invariant (or composed into inductive_csm):
+// new vrs's spec.without_replicas() and metadata.without_rv/owner_ref stays the same
+// so it will always pass valid_owned_vrs
 pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, s: ClusterState
 )
