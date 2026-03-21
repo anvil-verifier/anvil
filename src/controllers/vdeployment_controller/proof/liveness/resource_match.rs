@@ -623,6 +623,7 @@ ensures
 // this lemma specifies how VD controller construct the internal cache from list response
 #[verifier(rlimit(100))]
 #[verifier(external_body)]
+// TODO: strengthen new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs to include new_vrs_status
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
