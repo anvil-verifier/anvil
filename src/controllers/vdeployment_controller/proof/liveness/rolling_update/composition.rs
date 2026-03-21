@@ -540,7 +540,6 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
 // TODO: one new invariant (or composed into inductive_csm):
 // new vrs's spec.without_replicas() and metadata.without_rv/owner_ref stays the same
 // so it will always pass valid_owned_vrs
-#[verifier(external_body)]
 pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, s: ClusterState
 )
@@ -556,6 +555,12 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
         composed_current_state_matches(vd)(s),
 {
     VReplicaSetView::marshal_preserves_integrity();
+    // new_vrs replicas might be updated during reconciliation
+    let new_vrs = if new_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1) {
+        new_vrs
+    } else {
+        new_vrs.with_spec(new_vrs.spec.with_replicas(vd.spec.replicas.unwrap_or(1)))
+    };
     assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
         assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
             implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(new_vrs, obj) by {
@@ -578,7 +583,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
                         assert(s.resources().values()
                             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
                             .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-                            .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+                            .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
                             .contains(etcd_vrs));
                         assert(vrs_with_no_rv_status(havoc_vrs) == vrs_with_no_rv_status(etcd_vrs));
                     }
@@ -599,21 +604,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
                 }
             }
             if vrs_liveness::owned_selector_match_is(new_vrs, obj) && !valid_owned_pods(vd, s)(obj) {
-                assert(vrs_set.map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs)).contains(vrs_with_no_rv_status(new_vrs)));
-                let mapped_vrs_set_in_etcd = s.resources().values()
-                    .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-                    .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-                    .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
-                    .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
-                assert(exists |vrs: VReplicaSetView| #[trigger] mapped_vrs_set_in_etcd.contains(vrs) && vrs == vrs_with_no_rv_status(new_vrs));
-                let mapped_new_vrs_in_etcd = choose |vrs: VReplicaSetView| #[trigger] mapped_vrs_set_in_etcd.contains(vrs) && vrs == vrs_with_no_rv_status(new_vrs);
-                let vrs_set_in_etcd = s.resources().values()
-                    .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-                    .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
-                    .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
-                assert(exists |vrs: VReplicaSetView| #[trigger] vrs_set_in_etcd.contains(vrs) && vrs_with_no_rv_status(vrs) == mapped_new_vrs_in_etcd);
-                let new_vrs_in_etcd = choose |vrs: VReplicaSetView| #[trigger] vrs_set_in_etcd.contains(vrs) && vrs_with_no_rv_status(vrs) == mapped_new_vrs_in_etcd;
-                assert(vrs_with_no_rv_status(new_vrs_in_etcd) == vrs_with_no_rv_status(new_vrs));
+                let new_vrs_in_etcd = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
                 assert({
                     &&& #[trigger] vrs_liveness::owned_selector_match_is(new_vrs_in_etcd, obj)
                     &&& valid_owned_vrs(new_vrs_in_etcd, vd)
