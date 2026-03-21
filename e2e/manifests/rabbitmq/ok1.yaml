@@ -1,0 +1,16 @@
+apiVersion: anvil.dev/v1
+kind: RabbitmqCluster
+metadata:
+  name: test-cluster
+  namespace: default
+spec:
+  image: rabbitmq:3.11.9-management
+  persistence:
+    storage: 10Gi
+    storageClassName: null
+  rabbitmqConfig:
+    additionalConfig: 'log.console.level = debug'
+  replicas: 4
+  resources:
+    limits:
+      cpu: "1000m"

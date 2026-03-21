@@ -147,7 +147,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
 }
 
 #[verifier::external]
-fn normalized_resources_equal(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
+fn normalize_and_compare_resources(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
     
     let normalize_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
         m
@@ -337,7 +337,7 @@ impl PodSpec {
             let images_match = c1.image == c2.image;
             let resources_match = match (&c1.resources, &c2.resources) {
                 (None, None) => true,
-                (Some(r1), Some(r2)) => normalized_resources_equal(r1, r2),
+                (Some(r1), Some(r2)) => normalize_and_compare_resources(r1, r2),
                 _ => false
             };
             images_match && resources_match
