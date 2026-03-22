@@ -504,7 +504,6 @@ ensures
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
 // Prove with a specialized version of ESR proof with spec |= [] current_state_matches
-#[verifier(external_body)]
 pub proof fn ranking_decreases_after_vrs_esr(
     spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, diff: nat
 )
@@ -524,8 +523,8 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         valid(stable(spec)),
     ensures
-        spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))))
-            .leads_to(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))))),
+        spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
+            .leads_to(not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
 {
     // 0. unpack invariants from cluster_invariants_since_reconciliation
     entails_always_unpack_n!(spec,
@@ -613,8 +612,8 @@ pub proof fn ranking_decreases_after_vrs_esr(
         );
     }
     // 3. init ~> after_list ~> after_scale_new_vrs ~> !desired_state_is
-    let pre = lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)));
-    let post = lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)));
+    let pre = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
+    let post = not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
     assert(spec.entails(always(pre).leads_to(lift_state(init).and(always(pre))))) by {
         leads_to_trans_n!(
             spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init)
@@ -634,8 +633,9 @@ pub proof fn ranking_decreases_after_vrs_esr(
         entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)));
         entails_trans(spec.and(always(pre)), spec, tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))));
         entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
-        // lemma_from_init_to_not_desired_state_is(vd, spec.and(always(pre)), cluster, controller_id, diff);
-
+        lemma_from_init_to_not_desired_state_is(vd, spec.and(always(pre)), cluster, controller_id, diff);
+        entails_implies_leads_to(spec.and(always(pre)), not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))), post);
+        leads_to_trans(spec.and(always(pre)), lift_state(init), not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))), post);
         always_p_is_stable(pre);
         unpack_conditions_from_spec(spec, always(pre), lift_state(init), post);
     }
@@ -1234,7 +1234,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 }
                 // 3. forall |n: nat| #![trigger new_vrs_pre_with_diff(n)] n > 0 ==> spec.entails(always(new_vrs_post_with_diff(n)).leads_to(not(new_vrs_pre_with_diff(n)))),
                 assert forall |n: nat| #![trigger new_vrs_pre_with_diff(n)] n > 0 implies spec.entails(always(new_vrs_post_with_diff(n)).leads_to(not(new_vrs_pre_with_diff(n)))) by {
-                    assume(false);
+                    ranking_decreases_after_vrs_esr(spec, vd, controller_id, cluster, new_vrs, new_vrs_key, n);
                 }
                 leads_to_by_monotonicity3(spec, new_vrs_pre_with_diff, new_vrs_post_with_diff);
                 leads_to_exists_intro(spec, new_vrs_pre_with_diff, always(new_vrs_pre_with_diff(0)));

@@ -23,6 +23,28 @@ use vstd::prelude::*;
 
 verus !{
 
+pub proof lemma_from_init_to_not_desired_state_is(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: nat)
+requires
+    diff > 0,
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
+    spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
+    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vd, controller_id)
+    )).leads_to(not(
+        lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))
+    ))),
+{}
+
 pub proof fn lemma_from_list_resp_with_nv_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>), new_vrs_key: ObjectRef
 )
