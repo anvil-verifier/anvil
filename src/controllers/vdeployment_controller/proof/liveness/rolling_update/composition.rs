@@ -5,7 +5,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*, rolling_update::resource_match::*}, predicate::*},
-    proof::liveness::rolling_update::predicate as ru_predicate,
+    proof::liveness::rolling_update::{predicate::*, helper_lemmas::*},
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*}
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
@@ -223,7 +223,6 @@ ensures
                 let resp_msg = input.1->0;
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
-                    
                     let nv_uid_key_replicas = inductive_current_state_matches_implies_filter_old_and_new_vrs_from_resp_objs(
                         vd, cluster, controller_id, resp_msg, new_vrs_key, s
                     );
