@@ -162,14 +162,16 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> req_vrs.spec.replicas.unwrap_or(1) > 0
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& if get_replicas(etcd_vrs.spec.replicas) > get_replicas(vd.spec.replicas) {
-                req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
-            } else if get_replicas(etcd_vrs.spec.replicas) < get_replicas(vd.spec.replicas) {
-                req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
-            } else {
-                false
-            }
+        // TODO: move to local state pred
+        // &&& if get_replicas(etcd_vrs.spec.replicas) > get_replicas(vd.spec.replicas) {
+        //         req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
+        //     } else if get_replicas(etcd_vrs.spec.replicas) < get_replicas(vd.spec.replicas) {
+        //         req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
+        //     } else {
+        //         false
+        //     }
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }

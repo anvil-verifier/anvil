@@ -208,7 +208,8 @@ ensures
                         assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                     }
                     if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
-                        assume(false);
+                        assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s_prime));
+                        assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
                     }
                     assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 }
