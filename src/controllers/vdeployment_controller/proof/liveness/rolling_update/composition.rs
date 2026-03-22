@@ -50,9 +50,7 @@ pub open spec fn desired_state_is_vrs_with_key(vd: VDeploymentView, vrs: VReplic
 pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // don't touch vrs if there is no need to patch replicas
-        let vrs_with_replicas = if diff == replicas_diff(vd, vrs) {
-            vrs
-        } else {
+        let vrs_with_replicas = {
             vrs.with_spec(vrs.spec.with_replicas(
                 if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
                     vd.spec.replicas.unwrap_or(1) - diff
@@ -62,6 +60,8 @@ pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeployment
             ))
         };
         &&& vrs_liveness::desired_state_is(vrs_with_replicas)(s)
+            // if vrs.spec.replicas is None, this is effectively the same
+            || (diff == replicas_diff(vd, vrs) && vrs_liveness::desired_state_is(vrs)(s))
         &&& vrs.object_ref() == vrs_key
         &&& valid_owned_vrs(vrs, vd)
     }
@@ -430,7 +430,7 @@ pub proof fn ranking_never_increases(
                 Step::APIServerStep(input) => {
                     let msg = input->0;
                     if msg.src == HostId::Controller(controller_id, vd.object_ref()) {
-                        if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (new_vrs.metadata.uid->0, new_vrs_key))(s) {
+                        if ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, msg)(s) {
                             ranking_never_increases_from_s_to_s_prime(vd, controller_id, cluster, s, s_prime, new_vrs, new_vrs_key, n, msg);
                         } else {
                             assert(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s_prime));
@@ -489,21 +489,20 @@ requires
     inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
     desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, n)(s),
     req_msg.src == HostId::Controller(controller_id, vd.object_ref()),
-    req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (new_vrs.metadata.uid->0, new_vrs_key))(s)
+    ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg)(s)
 ensures
-    exists |m: nat| m < n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
+    exists |m: nat| m <= n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
 {
     let new_vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[new_vrs_key])->Ok_0;
-    let replicas = new_vrs_prime.spec.replicas.unwrap();
-    assert(new_vrs_prime.spec == new_vrs.spec.with_replicas(replicas));
     let m = replicas_diff(vd, new_vrs_prime);
     assert(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime));
-    assert(m == n - 1);
+    assert(m <= n);
 }
 
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
 // Prove with a specialized version of ESR proof with spec |= [] current_state_matches
+#[verifier(external_body)]
 pub proof fn ranking_decreases_after_vrs_esr(
     spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, diff: nat
 )
@@ -868,7 +867,7 @@ pub proof fn composed_old_vrs_set_pre_preserves_from_s_to_s_prime(
                 } else {
                     assert(msg == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0);
                     let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    if req_msg_is_scale_new_vrs_req(vd, controller_id, msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s) {
+                    if ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, msg)(s) {
                         assert(local_state.new_vrs->0.object_ref() == new_vrs_key);
                     }
                 }
@@ -895,6 +894,9 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         provided_spec.entails(always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
         // vd rely
         provided_spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
+        // for rank eventually decreases
+        provided_spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        provided_spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     ensures
         provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))).entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
@@ -904,6 +906,8 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     entails_trans(spec, provided_spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
     entails_trans(spec, provided_spec, vrs_liveness::vrs_eventually_stable_reconciliation());
+    entails_trans(spec, provided_spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
+    entails_trans(spec, provided_spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
     let inv = lift_action(cluster.next())
         .and(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
         .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))

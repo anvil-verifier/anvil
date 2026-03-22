@@ -140,9 +140,7 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         &&& VReplicaSetView::unmarshal(req.obj) is Ok
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
-        // so old vrs will not get affected, used as barrier for lemma_scale_new_vrs_req_returns_ok
-        &&& req_vrs.metadata.uid->0 == state.new_vrs->0.metadata.uid->0
-        &&& req_vrs.object_ref() == state.new_vrs->0.object_ref()
+        &&& req_vrs == state.new_vrs->0
         // updated vrs is valid and owned by vd
         &&& valid_owned_vrs(req_vrs, vd)
         // and can pass new vrs filter
@@ -163,8 +161,22 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         &&& vd.spec.replicas.unwrap_or(1) > 0 ==> req_vrs.spec.replicas.unwrap_or(1) > 0
-        &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
+        // required by rank_never_increases
+        // before the request is applied, it's < or >
+        // after it's applied, it's ==
+        &&& get_replicas(vd.spec.replicas) > get_replicas(etcd_vrs.spec.replicas) ==> {
+            ||| req_vrs_replicas == get_replicas(etcd_vrs.spec.replicas) + 1
+            ||| req_vrs_replicas == get_replicas(etcd_vrs.spec.replicas)
+        }
+        &&& get_replicas(vd.spec.replicas) < get_replicas(etcd_vrs.spec.replicas) ==> {
+            ||| req_vrs_replicas == get_replicas(etcd_vrs.spec.replicas) - 1
+            ||| req_vrs_replicas == get_replicas(etcd_vrs.spec.replicas)
+        }
+        // this is unreachable, but necessary for rank_never_increases
+        // we need it to prove when n=0 the request won't change replicas
+        &&& get_replicas(vd.spec.replicas) == get_replicas(etcd_vrs.spec.replicas)
+            ==> req_vrs_replicas == get_replicas(etcd_vrs.spec.replicas)
     }
 }
 
