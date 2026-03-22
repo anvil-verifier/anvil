@@ -207,38 +207,6 @@ pub open spec fn ru_local_state_is_valid_and_coherent_with_etcd(vd: VDeploymentV
     }
 }
 
-// ---- Rolling update pending list resp predicates ----
-// These use the rolling-update version of resp_msg_is_ok_list_resp_containing_matched_vrs
-// which includes vrs.status is Some && vrs.spec.replicas.unwrap_or(1) == vrs.status->0.replicas
-
-pub open spec fn ru_exists_pending_list_resp_in_flight_and_match_req(
-    vd: VDeploymentView, controller_id: int
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
-        &&& exists |resp_msg| {
-            &&& #[trigger] s.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
-        }
-    }
-}
-
-pub open spec fn ru_resp_msg_is_pending_list_resp_in_flight_and_match_req(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
-        &&& s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
-    }
-}
-
 // ---- Scale-new-vrs-by-one pending/resp predicates ----
 
 pub open spec fn ru_pending_scale_new_vrs_by_one_req_in_flight(

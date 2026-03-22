@@ -11,9 +11,8 @@ use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::api_actions::*, helper_lemmas::*, helper_invariants},
-    proof::liveness::rolling_update::predicate::*,
-    proof::liveness::rolling_update::composition::*,
+    proof::{predicate::*, liveness::{api_actions::*, resource_match::*}, helper_lemmas::*, helper_invariants},
+    proof::liveness::rolling_update::{predicate::*, composition::*, helper_lemmas::*}
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -23,10 +22,12 @@ use vstd::prelude::*;
 
 verus !{
 
-#[verifier(external_body)]
 pub proof fn lemma_from_init_to_not_desired_state_is(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, diff: nat)
 requires
     diff > 0,
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
@@ -42,67 +43,105 @@ ensures
         no_pending_req_in_cluster(vd, controller_id)
     )).and(
         always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
-    .leads_to(not(
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))))
+    ).leads_to(not(
         lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
     ))),
-{}
-
-pub proof fn lemma_from_init_to_after_list_request(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, diff: nat)
-requires
-    diff > 0,
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
-    spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-ensures
-    spec.entails(lift_state(and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
-        no_pending_req_in_cluster(vd, controller_id)
-    )).and(
-        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
-    .leads_to(lift_state(and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
-        pending_list_req_in_flight(vd, controller_id)
-    )).and(
-        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
-    )),
 {
-    VDeploymentReconcileState::marshal_preserves_integrity();
-    let pre = and!(
+    let c = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())));
+    let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
+    let init = lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Init]),
         no_pending_req_in_cluster(vd, controller_id)
-    );
-    let post = and!(
+    ));
+    let list_req = lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         pending_list_req_in_flight(vd, controller_id)
-    );
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    ));
+    assert(spec.entails(init.leads_to(list_req))) by {
+        lemma_from_init_step_to_send_list_vrs_req(vd, spec, cluster, controller_id);
+    }
+    let list_req_msg = |msg| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        req_msg_is_pending_list_req_in_flight(vd, controller_id, msg)
+    ));
+    // list_req == \E |msg| list_req_msg(msg)
+    assert(list_req == tla_exists(list_req_msg)) by {
+        assert forall |ex| #[trigger] list_req.satisfied_by(ex) implies tla_exists(list_req_msg).satisfied_by(ex) by {
+            let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+            assert((|msg| list_req_msg(msg))(req_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(list_req, tla_exists(list_req_msg));
+    }
+    let list_resp = lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
+    ));
+    // \A |msg| (list_req_msg(msg) ~> list_resp)
+    assert forall |req_msg: Message| #[trigger] spec.entails(list_req_msg(req_msg).leads_to(list_resp)) by {
+        lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(vd, spec, cluster, controller_id, req_msg);
     };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    // \A |msg| (list_req_msg(msg) ~> list_resp) |= (\E |msg| list_resp_msg(msg)) ~> list_resp
+    leads_to_exists_intro(spec, list_req_msg, list_resp);
+    let list_resp_msg = |msg| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)
+    ));
+    // list_resp == \E |msg| list_resp_msg(msg)
+    assert(list_resp == tla_exists(list_resp_msg)) by {
+        // list_resp |= \E |msg| list_resp_msg(msg)
+        assert forall |ex| #[trigger] list_resp.satisfied_by(ex) implies tla_exists(list_resp_msg).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+            let resp_msg = choose |resp_msg| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
+            };
+            assert((list_resp_msg)(resp_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(list_resp, tla_exists(list_resp_msg));
+    };
+    // since here, the path diverges from the proof of ESR
+    // because we have stronger cluster environment assumption
+    leads_to_trans(spec,
+        init,
+        list_req,
+        list_resp
     );
-    let input = (None::<Message>, Some(vd.object_ref()));
-    // this assertion makes proof 86% faster
-    assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
-    cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
-    );
-    leads_to_with_always(spec,
-        lift_state(pre),
-        lift_state(post),
-        lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))
-    );
+    let after_list_with_nv = |i: (Message, Uid, ObjectRef, int, Option<int>)| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, i.0),
+        new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, i.0, (i.1, i.2, i.3, i.4), new_vrs.object_ref())
+    ));
+    let post = not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)));
+    assert(spec.entails(init.and(always(c)).leads_to(tla_exists(after_list_with_nv)))) by {
+        leads_to_with_always(spec, init, list_resp, c);
+        tla_exists_and_equality(list_req_msg, always(c));
+        assert forall |msg| #![trigger list_resp_msg(msg)] spec.entails(list_resp_msg(msg).and(always(c)).and(always(inv))
+            .leads_to(tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4))))) by {
+            assert forall |ex| list_resp_msg(msg).satisfied_by(ex) && always(c).satisfied_by(ex) && always(inv).satisfied_by(ex)
+                implies tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4))).satisfied_by(ex) by {
+                always_to_current(ex, c);
+                always_to_current(ex, inv);
+                let s = ex.head();
+                let nv = inductive_current_state_matches_implies_filter_old_and_new_vrs_from_resp_objs(vd, cluster, controller_id, msg, new_vrs.object_ref(), s);
+                assert((|i: (Message, Uid, ObjectRef, int, Option<int>)| new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, i.0, (i.1, i.2, i.3, i.4), new_vrs.object_ref()))((msg, nv.0, nv.1, nv.2, nv.3))(s));
+            }
+            entails_implies_leads_to(spec,
+                list_resp_msg(msg).and(always(c)).and(always(inv)),
+                tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4)))
+            );
+            always_double_equality(inv);
+            leads_to_by_borrowing_inv(spec,
+                list_resp_msg(msg).and(always(c)),
+                tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4))),
+                always(inv)
+            );
+        }
+    }
+    assume(false);
 }
 
 pub proof fn lemma_from_list_resp_with_nv_to_next_state(
