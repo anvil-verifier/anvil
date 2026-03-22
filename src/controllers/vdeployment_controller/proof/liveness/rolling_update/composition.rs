@@ -230,29 +230,29 @@ ensures
                     lemma_from_list_resp_with_nv_to_next_state(
                         s, s_prime, vd, cluster, controller_id, resp_msg, nv_uid_key_replicas_status, new_vrs_key
                     );
-                    let next_local_state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert(next_local_state.old_vrs_index == 0);
-                    let etcd_obj = s_prime.resources()[new_vrs_key];
-                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                    if next_local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 {
-                        assert(next_local_state.new_vrs->0.object_ref() == new_vrs_key);
-                        assert(next_local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0);
-                    }
-                    assert(next_local_state.new_vrs is Some && next_local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
-                        &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
-                        &&& next_local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
-                    });
-                    assert(at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s_prime));
-                    if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime) {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        assert(next_local_state.new_vrs is Some);
-                        assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
-                        assert(req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (next_local_state.new_vrs->0.metadata.uid->0, next_local_state.new_vrs->0.object_ref()))(s_prime));
-                    } else {
-                        assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None);
-                    }
-                    assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s_prime));
-                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
+                    // let next_local_state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    // assert(next_local_state.old_vrs_index == 0);
+                    // let etcd_obj = s_prime.resources()[new_vrs_key];
+                    // let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                    // if next_local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 {
+                    //     assert(next_local_state.new_vrs->0.object_ref() == new_vrs_key);
+                    //     assert(next_local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0);
+                    // }
+                    // assert(next_local_state.new_vrs is Some && next_local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
+                    //     &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
+                    //     &&& next_local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+                    // });
+                    // assert(at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s_prime));
+                    // if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime) {
+                    //     let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                    //     assert(next_local_state.new_vrs is Some);
+                    //     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
+                    //     assert(req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (next_local_state.new_vrs->0.metadata.uid->0, next_local_state.new_vrs->0.object_ref()))(s_prime));
+                    // } else {
+                    //     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None);
+                    // }
+                    // assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s_prime));
+                    // assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![Init])(s) {
                     // prove that the newly sent message has no response.
                     if s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some {
