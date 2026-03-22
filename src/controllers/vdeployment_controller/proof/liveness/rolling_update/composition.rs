@@ -132,14 +132,15 @@ ensures
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     match step {
         Step::APIServerStep(input) => {
-            assume(false);
             let msg = input->0;
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
                 if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
+                    assume(false);
                     lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
                         s, s_prime, vd, cluster, controller_id, msg, new_vrs_key
                     );
                     if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
+                        assume(false);
                         assert(s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
                         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                         assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s));
@@ -206,10 +207,14 @@ ensures
                         }
                         assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                     }
+                    if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
+                        assume(false);
+                    }
                     assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
                 }
                 assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else {
+                assume(false);
                 assert(msg.src != HostId::Controller(controller_id, vd.object_ref()));
                 lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
                     s, s_prime, vd, cluster, controller_id, msg, new_vrs_key
@@ -219,6 +224,7 @@ ensures
             assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
         },
         Step::ControllerStep(input) => {
+            assume(false);
             if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
                 && input.0 == controller_id && input.2 == Some(vd.object_ref()) {
                 let resp_msg = input.1->0;
@@ -270,11 +276,9 @@ ensures
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) {
                     // it directly goes to Done
                 } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
-                    assume(false);
                 }
                 assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else if !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
-                assume(false);
                 if s_prime.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) { // RunScheduledReconcile
                     assert(s_prime.resources() == s.resources());
                     assert(at_vd_step_with_vd(vd, controller_id, at_step![Init])(s_prime)) by {
@@ -288,7 +292,6 @@ ensures
                 }
                 assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
             } else { // same controller_id, different CR
-                assume(false);
                 assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
                 assert(s.resources() == s_prime.resources());
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
