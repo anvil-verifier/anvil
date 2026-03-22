@@ -24,7 +24,7 @@ use vstd::prelude::*;
 verus !{
 
 pub proof fn lemma_from_list_resp_with_nv_to_next_state(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>)
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>), new_vrs_key: ObjectRef
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -33,7 +33,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s),
-    new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas_status)(s),
+    new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas_status, new_vrs_key)(s),
 ensures
     etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas_status.0, nv_uid_key_replicas_status.1, nv_uid_key_replicas_status.2)), 0)(s) ==> local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime),
     if nv_uid_key_replicas_status.3 is Some && (nv_uid_key_replicas_status.3->0 == nv_uid_key_replicas_status.2) && nv_uid_key_replicas_status.2 != vd.spec.replicas.unwrap_or(int1!()) { // mismatch_replicas
@@ -46,7 +46,7 @@ ensures
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, Some((nv_uid_key_replicas_status.0, nv_uid_key_replicas_status.1, nv_uid_key_replicas_status.2)), 0)(s_prime)
         &&& no_pending_req_in_cluster(vd, controller_id)(s_prime)
-    }
+    },
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
     VReplicaSetView::marshal_preserves_integrity();

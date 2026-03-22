@@ -35,7 +35,7 @@ ensures
     vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_key_replicas_status.2 > 0,
     // nv_uid_key_replicas.1 (controller's choice) can be different from new_vrs_key when both vd and new_vrs have 0 replicas
     nv_uid_key_replicas_status.1 != new_vrs_key ==> nv_uid_key_replicas_status.2 == 0 && vd.spec.replicas.unwrap_or(1) == 0,
-    new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas_status)(s),
+    new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas_status, new_vrs_key)(s),
 {
     lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
         vd, cluster, controller_id, new_vrs_key, s
@@ -137,24 +137,25 @@ ensures
         assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(uid_of_vrs_with_nv_key), s)).contains(new_vrs.object_ref()));
         assert(false);
     }
-    if vd.spec.replicas != Some(int0!()) {
-        if new_vrs.object_ref() != new_vrs_key && new_vrs.spec.replicas == Some(int0!()) {
-            // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
-            assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
-            assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
-            assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs_key));
-            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(new_vrs_key));
-            let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == new_vrs_key;
-            let vrs = managed_vrs_list[i];
-            assert(vrs.object_ref() == new_vrs_key);
-            assert(managed_vrs_list.contains(vrs)); // trigger
-            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
-                assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
-            }
-            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
-            assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
-            assert(false);
+    if new_vrs.object_ref() != new_vrs_key && vrs_with_nv_key.spec.replicas.unwrap_or(1) > 0 {
+        // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
+        assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
+        assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
+        assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs_key));
+        assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(new_vrs_key));
+        let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == new_vrs_key;
+        let vrs = managed_vrs_list[i];
+        assert(vrs.object_ref() == new_vrs_key);
+        assert(managed_vrs_list.contains(vrs)); // trigger
+        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
+            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
         }
+        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
+        assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
+        assert(false);
+    }
+    if vd.spec.replicas != Some(int0!()) {
+        assert(vrs_with_nv_key.spec.replicas.unwrap_or(1) > 0);
     } else if new_vrs.spec.replicas == Some(int0!()) && new_vrs.object_ref() != new_vrs_key { // new_vrs can pass nonempty_vrs_filter and old_vrs_filter
         assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() == 0);
         // vrs with new_vrs_key must has 0 replicas

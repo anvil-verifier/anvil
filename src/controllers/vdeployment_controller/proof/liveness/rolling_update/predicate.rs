@@ -57,12 +57,13 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
 
 // glue predicate that connects (new_vrs, n) and resp_objs
 pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>)
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>), new_vrs_key: ObjectRef
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         let vrs_list = objects_to_vrs_list(resp_objs)->0;
         let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+        let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
         &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         &&& {
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
@@ -80,6 +81,13 @@ pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
                 &&& nv_uid_key_replicas_status.3 is None
             }
             &&& old_vrs_list.len() == 0
+            // reasoning on nondeterminism in new vrs choice
+            &&& etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
+                &&& new_vrs->0.object_ref() == new_vrs_key
+                &&& new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
+                &&& new_vrs->0.spec.replicas.unwrap_or(1) > 0
+            }
+            &&& new_vrs->0.object_ref() != new_vrs_key ==> new_vrs->0.spec.replicas.unwrap_or(1) == 0
         }
     }
 }

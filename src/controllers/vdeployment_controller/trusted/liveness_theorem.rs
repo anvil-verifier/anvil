@@ -97,7 +97,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                 &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
             }
             &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
+            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleNewVRS, AfterEnsureNewVRS])(s)
                 ==> local_state.old_vrs_index == 0
             &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
