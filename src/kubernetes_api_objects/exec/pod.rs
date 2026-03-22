@@ -344,6 +344,7 @@ impl PodSpec {
         };
 
         self.inner.volumes == other.inner.volumes
+        && self.inner.affinity == other.inner.affinity
         && self.inner.containers.len() == other.inner.containers.len()
         && self.inner.tolerations == other.inner.tolerations
         && self.inner.containers
