@@ -141,7 +141,12 @@ ensures
             );
         }
     }
-    assume(false);
+    assert forall |i: (Message, Uid, ObjectRef, int, Option<int>)| spec.entails(after_list_with_nv(i).leads_to(post)) by {
+        // prove AfterScaleNewVRS is always reached
+        assume(false);
+    }
+    leads_to_exists_intro(spec, after_list_with_nv, pod);
+    leads_to_trans(spec, init.and(always(c)), tla_exists(after_list_with_nv), post);
 }
 
 pub proof fn lemma_from_list_resp_with_nv_to_next_state(
