@@ -511,7 +511,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
