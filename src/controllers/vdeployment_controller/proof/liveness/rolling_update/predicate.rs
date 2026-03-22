@@ -11,7 +11,7 @@ use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::predicate::*,
 };
-use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use vstd::prelude::*;
 
@@ -57,7 +57,7 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
 
 // glue predicate that connects (new_vrs, n) and resp_objs
 pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: Option<(Uid, ObjectRef, int, Option<int>)>
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
@@ -66,20 +66,18 @@ pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
         &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         &&& {
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
-            &&& new_vrs is Some == nv_uid_key_replicas_status is Some
-            &&& new_vrs is Some ==> {
-                &&& new_vrs->0.metadata.uid is Some
-                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key_replicas_status->0).0
-                &&& new_vrs->0.metadata.name is Some
-                &&& new_vrs->0.metadata.namespace is Some
-                &&& new_vrs->0.object_ref() == (nv_uid_key_replicas_status->0).1
-                &&& get_replicas(new_vrs->0.spec.replicas) == (nv_uid_key_replicas_status->0).2
-                &&& if new_vrs->0.status is Some {
-                    &&& (nv_uid_key_replicas_status->0).3 is Some
-                    &&& new_vrs->0.status->0.replicas == (nv_uid_key_replicas_status->0).3->0
-                } else {
-                    &&& (nv_uid_key_replicas_status->0).3 is None
-                }
+            &&& new_vrs is Some
+            &&& new_vrs->0.metadata.uid is Some
+            &&& new_vrs->0.metadata.uid->0 == nv_uid_key_replicas_status.0
+            &&& new_vrs->0.metadata.name is Some
+            &&& new_vrs->0.metadata.namespace is Some
+            &&& new_vrs->0.object_ref() == nv_uid_key_replicas_status.1
+            &&& get_replicas(new_vrs->0.spec.replicas) == nv_uid_key_replicas_status.2
+            &&& if new_vrs->0.status is Some {
+                &&& nv_uid_key_replicas_status.3 is Some
+                &&& new_vrs->0.status->0.replicas == nv_uid_key_replicas_status.3->0
+            } else {
+                &&& nv_uid_key_replicas_status.3 is None
             }
             &&& old_vrs_list.len() == 0
         }
@@ -123,6 +121,7 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let req_vrs_replicas = get_replicas(req_vrs.spec.replicas);
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content is APIRequest
@@ -145,17 +144,21 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
         &&& etcd_vrs.metadata.without_resource_version() == req_vrs.metadata.without_resource_version()
+        &&& req_vrs.spec == VReplicaSetSpecView { // eq w/o replicas
+            replicas: Some(req_vrs_replicas),
+            ..etcd_vrs.spec
+        }
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& req_vrs.spec.replicas == Some(if get_replicas(etcd_vrs.spec.replicas) > get_replicas(vd.spec.replicas) {
-                get_replicas(etcd_vrs.spec.replicas) - 1 
+        &&& if get_replicas(etcd_vrs.spec.replicas) > get_replicas(vd.spec.replicas) {
+                req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
             } else if get_replicas(etcd_vrs.spec.replicas) < get_replicas(vd.spec.replicas) {
-                get_replicas(etcd_vrs.spec.replicas) + 1
+                req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
             } else {
-                get_replicas(etcd_vrs.spec.replicas)
-            })
+                false
+            }
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
