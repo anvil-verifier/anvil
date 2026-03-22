@@ -42,6 +42,7 @@ ensures
                 if nv_uid_key_replicas_status.2 > vd.spec.replicas.unwrap_or(1) {nv_uid_key_replicas_status.2 + 1} else {nv_uid_key_replicas_status.2 - 1}
             )), 0)(s_prime)
         &&& ru_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id, (nv_uid_key_replicas_status.0, nv_uid_key_replicas_status.1))(s_prime)
+        &&& nv_uid_key_replicas_status.1 == new_vrs_key
     } else {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, Some((nv_uid_key_replicas_status.0, nv_uid_key_replicas_status.1, nv_uid_key_replicas_status.2)), 0)(s_prime)
