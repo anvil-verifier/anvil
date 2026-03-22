@@ -23,14 +23,14 @@ use vstd::prelude::*;
 
 verus !{
 
-pub proof lemma_from_init_to_not_desired_state_is(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: nat)
+#[verifier(external_body)]
+pub proof fn lemma_from_init_to_not_desired_state_is(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, diff: nat)
 requires
     diff > 0,
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
@@ -40,10 +40,70 @@ ensures
     spec.entails(lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Init]),
         no_pending_req_in_cluster(vd, controller_id)
-    )).leads_to(not(
-        lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))
+    )).and(
+        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
+    .leads_to(not(
+        lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
     ))),
 {}
+
+pub proof fn lemma_from_init_to_after_list_request(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, diff: nat)
+requires
+    diff > 0,
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vd, controller_id)
+    )).and(
+        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
+    .leads_to(lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        pending_list_req_in_flight(vd, controller_id)
+    )).and(
+        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
+    )),
+{
+    VDeploymentReconcileState::marshal_preserves_integrity();
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
+        no_pending_req_in_cluster(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        pending_list_req_in_flight(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = (None::<Message>, Some(vd.object_ref()));
+    // this assertion makes proof 86% faster
+    assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
+    leads_to_with_always(spec,
+        lift_state(pre),
+        lift_state(post),
+        lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))
+    );
+}
 
 pub proof fn lemma_from_list_resp_with_nv_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>), new_vrs_key: ObjectRef

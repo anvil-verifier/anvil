@@ -622,22 +622,8 @@ pub proof fn ranking_decreases_after_vrs_esr(
         temp_pred_equality(true_pred().and(always(pre)), always(pre));
     }
     assert(spec.entails(lift_state(init).and(always(pre)).leads_to(post))) by {
-        // convert preconditions
-        entails_trans(spec.and(always(pre)), spec, always(lift_action(cluster.next())));
-        entails_trans(spec.and(always(pre)), spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
-        entails_trans(spec.and(always(pre)), spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
-        entails_trans(spec.and(always(pre)), spec, always(lifted_vd_rely_condition(cluster, controller_id)));
-        entails_trans(spec.and(always(pre)), spec, always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
-        entails_trans(spec.and(always(pre)), spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
-        entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
-        entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)));
-        entails_trans(spec.and(always(pre)), spec, tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))));
-        entails_trans(spec.and(always(pre)), spec, tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
-        lemma_from_init_to_not_desired_state_is(vd, spec.and(always(pre)), cluster, controller_id, diff);
-        entails_implies_leads_to(spec.and(always(pre)), not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))), post);
-        leads_to_trans(spec.and(always(pre)), lift_state(init), not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))), post);
-        always_p_is_stable(pre);
-        unpack_conditions_from_spec(spec, always(pre), lift_state(init), post);
+        lemma_from_init_to_not_desired_state_is(vd, spec, cluster, controller_id, new_vrs, diff);
+        // TODO: temp_pred_equality on new_vrs.object_ref()
     }
     leads_to_trans(spec, always(pre), lift_state(init).and(always(pre)), post);
 }
