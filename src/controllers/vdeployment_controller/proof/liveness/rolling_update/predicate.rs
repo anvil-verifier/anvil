@@ -87,7 +87,10 @@ pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
                 &&& new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
                 &&& new_vrs->0.spec.replicas.unwrap_or(1) > 0
             }
-            &&& new_vrs->0.object_ref() != new_vrs_key ==> new_vrs->0.spec.replicas.unwrap_or(1) == 0
+            &&& new_vrs->0.object_ref() != new_vrs_key ==> {
+                &&& new_vrs->0.spec.replicas.unwrap_or(1) == 0
+                &&& vd.spec.replicas.unwrap_or(1) == 0
+            }
         }
     }
 }

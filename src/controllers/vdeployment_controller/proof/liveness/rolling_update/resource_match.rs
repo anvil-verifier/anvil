@@ -47,6 +47,18 @@ ensures
         &&& local_state_is(vd, controller_id, Some((nv_uid_key_replicas_status.0, nv_uid_key_replicas_status.1, nv_uid_key_replicas_status.2)), 0)(s_prime)
         &&& no_pending_req_in_cluster(vd, controller_id)(s_prime)
     },
+    ({ // for additional requirements in inductive csm
+        let local_state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
+        &&& local_state_prime.new_vrs is Some
+        &&& etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
+            &&& local_state_prime.new_vrs->0.object_ref() == new_vrs_key
+            &&& local_state_prime.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
+        }
+        &&& local_state_prime.new_vrs->0.object_ref() != new_vrs_key ==> {
+            &&& local_state_prime.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+        }
+    }),
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
     VReplicaSetView::marshal_preserves_integrity();

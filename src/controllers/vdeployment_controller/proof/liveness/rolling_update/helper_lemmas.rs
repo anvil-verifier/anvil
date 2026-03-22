@@ -156,7 +156,7 @@ ensures
             assert(false);
         }
     }
-    if vd.spec.replicas == Some(int0!())&& new_vrs.spec.replicas == Some(int0!()) && new_vrs.object_ref() != new_vrs_key { // new_vrs can pass nonempty_vrs_filter and old_vrs_filter
+    if vd.spec.replicas == Some(int0!()) && new_vrs.spec.replicas == Some(int0!()) && new_vrs.object_ref() != new_vrs_key { // new_vrs can pass nonempty_vrs_filter and old_vrs_filter
         assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() == 0);
         // vrs with new_vrs_key must has 0 replicas
         if old_vrs_list.len() > 0 {
