@@ -223,11 +223,11 @@ ensures
                 let resp_msg = input.1->0;
                 if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                     // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
-                    let nv_uid_key_replicas = inductive_current_state_matches_implies_filter_old_and_new_vrs_from_resp_objs(
+                    let nv_uid_key_replicas_status = inductive_current_state_matches_implies_filter_old_and_new_vrs_from_resp_objs(
                         vd, cluster, controller_id, resp_msg, new_vrs_key, s
                     );
-                    lemma_from_list_resp_to_next_state(
-                        s, s_prime, vd, cluster, controller_id, resp_msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, nv_uid_key_replicas.2)), 0
+                    lemma_from_list_resp_with_nv_to_next_state(
+                        s, s_prime, vd, cluster, controller_id, resp_msg, nv_uid_key_replicas_status
                     );
                     assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime));
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
