@@ -239,7 +239,7 @@ ensures
                     //     assert(next_local_state.new_vrs is Some);
                     //     assert(next_local_state.new_vrs->0.object_ref() == new_vrs_key);
                     //     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
-                    //     assert(ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg, (next_local_state.new_vrs->0.metadata.uid->0, next_local_state.new_vrs->0.object_ref()))(s_prime));
+                    //     assert(ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg)(s_prime));
                     // } else {
                     //     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None);
                     // }

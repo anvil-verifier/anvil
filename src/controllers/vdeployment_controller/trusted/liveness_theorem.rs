@@ -114,7 +114,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
                 // but then AfterScaleNewVRS is not reachable
                 &&& local_state.new_vrs->0.object_ref() == new_vrs_key
                 &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-                &&& ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s)
+                &&& ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg)(s)
             } else {
                 s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }
