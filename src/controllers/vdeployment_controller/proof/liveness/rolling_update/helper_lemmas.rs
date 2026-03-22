@@ -124,39 +124,39 @@ ensures
             lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
             assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == 0);
         }
-    } else if new_vrs.spec.replicas.unwrap_or(1) > 0 {
-        assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
-        assert(managed_vrs_list.contains(new_vrs)); // trigger
-        assert(managed_vrs_list.filter(|vrs: VReplicaSetView| {
-            &&& Some(uid_of_vrs_with_nv_key) is None || vrs.metadata.uid->0 != Some(uid_of_vrs_with_nv_key)->0
-            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
-        }).contains(new_vrs));
-        lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, Some(uid_of_vrs_with_nv_key), s);
-        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(uid_of_vrs_with_nv_key), s)).len() == 0);
-        // thus contradict with etcd_state_is(.., 0)
-        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(uid_of_vrs_with_nv_key), s)).contains(new_vrs.object_ref()));
-        assert(false);
-    }
-    if new_vrs.object_ref() != new_vrs_key && vrs_with_nv_key.spec.replicas.unwrap_or(1) > 0 {
-        // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
-        assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
-        assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
-        assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs_key));
-        assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(new_vrs_key));
-        let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == new_vrs_key;
-        let vrs = managed_vrs_list[i];
-        assert(vrs.object_ref() == new_vrs_key);
-        assert(managed_vrs_list.contains(vrs)); // trigger
-        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
-            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
+    } else {
+        if new_vrs.spec.replicas.unwrap_or(1) > 0 {
+            assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
+            assert(managed_vrs_list.contains(new_vrs)); // trigger
+            assert(managed_vrs_list.filter(|vrs: VReplicaSetView| {
+                &&& Some(uid_of_vrs_with_nv_key) is None || vrs.metadata.uid->0 != Some(uid_of_vrs_with_nv_key)->0
+                &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+            }).contains(new_vrs));
+            lemma_old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, Some(uid_of_vrs_with_nv_key), s);
+            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(uid_of_vrs_with_nv_key), s)).len() == 0);
+            // thus contradict with etcd_state_is(.., 0)
+            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(uid_of_vrs_with_nv_key), s)).contains(new_vrs.object_ref()));
+            assert(false);
         }
-        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
-        assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
-        assert(false);
+        if vrs_with_nv_key.spec.replicas.unwrap_or(1) > 0 {
+            // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
+            assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
+            assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
+            assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs_key));
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(new_vrs_key));
+            let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == new_vrs_key;
+            let vrs = managed_vrs_list[i];
+            assert(vrs.object_ref() == new_vrs_key);
+            assert(managed_vrs_list.contains(vrs)); // trigger
+            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
+                assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
+            }
+            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
+            assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
+            assert(false);
+        }
     }
-    if vd.spec.replicas != Some(int0!()) {
-        assert(vrs_with_nv_key.spec.replicas.unwrap_or(1) > 0);
-    } else if new_vrs.spec.replicas == Some(int0!()) && new_vrs.object_ref() != new_vrs_key { // new_vrs can pass nonempty_vrs_filter and old_vrs_filter
+    if vd.spec.replicas == Some(int0!())&& new_vrs.spec.replicas == Some(int0!()) && new_vrs.object_ref() != new_vrs_key { // new_vrs can pass nonempty_vrs_filter and old_vrs_filter
         assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() == 0);
         // vrs with new_vrs_key must has 0 replicas
         if old_vrs_list.len() > 0 {
