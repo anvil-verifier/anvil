@@ -18,7 +18,7 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
-    vd: VDeploymentView, resp_msg: Message, s: ClusterState
+    vd: VDeploymentView, resp_msg: Message, s: ClusterState, new_vrs_key: ObjectRef
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
@@ -49,9 +49,10 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& valid_owned_obj_key(vd, s)(key)
         &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
-        // additional conditions
-        &&& vrs.status is Some
-        &&& vrs.spec.replicas.unwrap_or(1) == vrs.status->0.replicas
+        &&& vrs.object_ref() == new_vrs_key ==> {
+            &&& vrs.status is Some
+            &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+        }
     }
 }
 

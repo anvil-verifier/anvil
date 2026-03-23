@@ -10,7 +10,7 @@ use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, helper_invariants, helper_lemmas::*},
+    proof::{predicate::*, helper_invariants, helper_lemmas::*, liveness::rolling_update::{predicate::*, composition::*}},
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -105,6 +105,156 @@ ensures
             assert(VReplicaSetView::unmarshal(resp_objs[i])->Ok_0 == vrs);
             assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
                 assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+            }
+        }
+        // expand to 
+        // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
+        assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
+            let valid_obj_filter = |o: DynamicObjectView| {
+                &&& o.kind == VReplicaSetView::kind()
+                &&& VReplicaSetView::unmarshal(o) is Ok
+                &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
+            };
+            let weakened_obj_filter = |o: DynamicObjectView| {
+                &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
+            };
+            assert(filter_obj_keys_managed_by_vd(vd, s_prime) == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
+                assert(forall |k: ObjectRef| #[trigger] s_prime.resources().contains_key(k) ==>
+                    valid_owned_obj_key(vd, s_prime)(k) == valid_obj_filter(s_prime.resources()[k]));
+                lemma_equiv_filters_on_keys_and_values_implies_equiv_results(s_prime.resources(), valid_owned_obj_key(vd, s_prime), valid_obj_filter, |o: DynamicObjectView| o.object_ref());
+            }
+            assert(managed_vrs_list == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0)) by {
+                commutativity_of_seq_map_and_filter(resp_objs, weakened_obj_filter, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0);
+            }
+            // map_values(unmarshal).map_values(object_ref) ==> map_values(object_ref)
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()) == resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref())) by {
+                assert forall |o: DynamicObjectView| #[trigger] resp_objs.filter(weakened_obj_filter).contains(o) implies
+                    o.kind == VReplicaSetView::kind() && VReplicaSetView::unmarshal(o) is Ok by {
+                    seq_filter_contains_implies_seq_contains(resp_objs, weakened_obj_filter, o);
+                }
+                lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
+            }
+            // s.to_seq().to_set() ==> s
+            assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_set()
+                == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
+                // s.r().v().finite()
+                injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
+                // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
+                // .m().to_set() == .to_set().m() to get rid of the map
+                resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
+                // .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
+                lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
+                lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
+                // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
+                assert(s_prime.resources().values().filter(list_req_filter).filter(weakened_obj_filter) == s_prime.resources().values().filter(valid_obj_filter));
+            }
+            // .values().map(val_to_key) ==> .dom() (keys)
+            assert(s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
+                == s_prime.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
+        }
+    }
+    return resp_msg;
+}
+
+#[verifier(rlimit(10))]
+pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd_with_nv_status_matching_replicas(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, req_msg: Message, diff: nat
+) -> (resp_msg: Message)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    req_msg_is_list_vrs_req(vd, controller_id, req_msg, s),
+    at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    Cluster::etcd_is_finite()(s_prime),
+    current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s),
+ensures
+    resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
+    ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime, new_vrs.object_ref()),
+{
+    broadcast use group_seq_properties;
+    VReplicaSetView::marshal_preserves_integrity();
+    let req = req_msg.content.get_list_request();
+    let list_req_filter = |o: DynamicObjectView| {
+        // changing the order of fields makes a difference
+        &&& o.object_ref().namespace == req.namespace
+        &&& o.object_ref().kind == req.kind
+    }; 
+    let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
+    assert(ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime, new_vrs.object_ref())) by {
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
+        assert forall |o| #[trigger] resp_objs.contains(o) implies {
+            &&& o.kind == VReplicaSetView::kind()
+            &&& VReplicaSetView::unmarshal(o) is Ok
+            &&& s_prime.resources().contains_key(o.object_ref())
+            &&& s_prime.resources()[o.object_ref()] == o
+            &&& o.metadata.namespace is Some
+            &&& o.metadata.name is Some
+            &&& o.metadata.uid is Some
+        } by {
+            assert(s.resources().values().filter(list_req_filter).contains(o)) by {
+                lemma_values_finite(s.resources());
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+            }
+        }
+        assert(objects_to_vrs_list(resp_objs) is Some) by {
+            seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
+        }
+        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
+            lemma_values_finite(s.resources());
+            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
+            // now we know resp_objs has no duplicates, prove keys are unique by contradiction
+            assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
+                if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
+                    // trigger of s.resources()[o.object_ref()] == o
+                    assert(resp_objs.contains(resp_objs[i]));
+                    assert(resp_objs.contains(resp_objs[j]));
+                    assert(resp_objs[i] == resp_objs[j]);
+                }
+            }
+        }
+        let vrs_list = objects_to_vrs_list(resp_objs)->0;
+        assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0));
+        let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+        assert forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) implies  {
+            let key = vrs.object_ref();
+            let etcd_obj = s.resources()[key];
+            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            // strengthen valid_owned_vrs, as only one controller owner is allowed
+            &&& vrs.metadata.owner_references is Some
+            &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+            &&& valid_owned_vrs(vrs, vd)
+            &&& s.resources().contains_key(key)
+            &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
+            // weakly equal to etcd object
+            &&& valid_owned_obj_key(vd, s)(key)
+            &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
+            &&& etcd_vrs.spec == vrs.spec
+            &&& vrs.object_ref() == new_vrs.object_ref() ==> {
+                &&& vrs.status is Some
+                &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+            }
+        } by {
+            VReplicaSetView::marshal_preserves_metadata();
+            let key = vrs.object_ref();
+            let etcd_obj = s.resources()[key];
+            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            seq_filter_contains_implies_seq_contains(vrs_list, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), vrs);
+            let i = choose |i| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
+            assert(resp_objs.contains(resp_objs[i])); // trigger
+            assert(VReplicaSetView::unmarshal(resp_objs[i])->Ok_0 == vrs);
+            assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+                assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+            }
+            // For vrs at new_vrs_key, current_state_matches gives status == spec.replicas
+            if vrs.object_ref() == new_vrs.object_ref() {
+                // vrs == etcd_vrs (from list response, objects match etcd)
+                // current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, ...)(s)
+                // gives etcd_vrs.status is Some && etcd_vrs.status->0.replicas == vrs_with_replicas.spec.replicas
+                // Since etcd_vrs == vrs (list returns etcd objects), vrs.status == etcd_vrs.status
+                assert(vrs == etcd_vrs);
             }
         }
         // expand to 
