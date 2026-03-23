@@ -857,9 +857,53 @@ pub proof fn composed_old_vrs_set_pre_preserves_from_s_to_s_prime(
                     );
                 } else {
                     assert(msg == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0);
-                    let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     if ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, msg)(s) {
-                        assert(local_state.new_vrs->0.object_ref() == new_vrs_key);
+                        let req = msg.content->APIRequest_0->GetThenUpdateRequest_0;
+                        assert(req.key() == new_vrs_key);
+                        // Only new_vrs_key is modified; old VRS objects have key != new_vrs_key
+                        VReplicaSetView::marshal_preserves_integrity();
+                        let unmarshal_s = s.resources().values()
+                            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0);
+                        let unmarshal_s_prime = s_prime.resources().values()
+                            .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
+                            .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0);
+                        let old_filtered_s = unmarshal_s.filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key));
+                        let old_filtered_s_prime = unmarshal_s_prime.filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key));
+                        // Step 1: show old_filtered_s == old_filtered_s_prime
+                        assert forall |vrs: VReplicaSetView| #[trigger] old_filtered_s.contains(vrs)
+                            implies old_filtered_s_prime.contains(vrs) by {
+                            assert(unmarshal_s.contains(vrs) && is_old_vrs_of(vrs, vd, new_vrs_key));
+                            let etcd_obj = choose |obj: DynamicObjectView| #![trigger s.resources().values().contains(obj)] {
+                                &&& s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj)
+                                &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
+                            };
+                            let k = vrs.object_ref();
+                            assert(k != new_vrs_key);
+                            assert(s_prime.resources().contains_key(k));
+                            assert(s_prime.resources()[k] == s.resources()[k]);
+                            assert(s_prime.resources().values().contains(etcd_obj));
+                            assert(s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj));
+                            assert(unmarshal_s_prime.contains(vrs));
+                        }
+                        assert forall |vrs: VReplicaSetView| #[trigger] old_filtered_s_prime.contains(vrs)
+                            implies old_filtered_s.contains(vrs) by {
+                            assert(unmarshal_s_prime.contains(vrs) && is_old_vrs_of(vrs, vd, new_vrs_key));
+                            let etcd_obj = choose |obj: DynamicObjectView| #![trigger s_prime.resources().values().contains(obj)] {
+                                &&& s_prime.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(obj)
+                                &&& VReplicaSetView::unmarshal(obj)->Ok_0 == vrs
+                            };
+                            let k = vrs.object_ref();
+                            assert(k != new_vrs_key);
+                            assert(s.resources().contains_key(k));
+                            assert(s.resources()[k] == s_prime.resources()[k]);
+                            assert(s.resources().values().contains(etcd_obj));
+                            assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj));
+                            assert(unmarshal_s.contains(vrs));
+                        }
+                        // Step 2: old_filtered_s == old_filtered_s_prime implies mapped sets are equal
+                        assert(old_filtered_s.map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
+                            == old_filtered_s_prime.map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs)));
                     }
                 }
             },
