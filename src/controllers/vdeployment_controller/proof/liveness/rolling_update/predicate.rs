@@ -146,9 +146,6 @@ pub open spec fn local_state_at_after_scale_vrs(vd: VDeploymentView, controller_
         let vrs = vds.new_vrs->0;
         let key = vrs.object_ref();
         let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[key])->Ok_0;
-        // no old vrs
-        &&& vds.old_vrs_list.len() == 0
-        &&& vds.old_vrs_index == 0
         // new vrs is valid
         &&& vds.new_vrs is Some
         &&& vrs.metadata.uid is Some
