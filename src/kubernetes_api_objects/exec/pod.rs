@@ -1,3 +1,5 @@
+use std::collections::btree_map::Keys;
+
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
@@ -9,6 +11,8 @@ use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use deps_hack::tracing::{error, info, warn};
+use deps_hack::k8s_openapi::api::core::v1 as k8s_types;
+use deps_hack::kube_quantity;
 
 verus! {
 
@@ -63,6 +67,25 @@ impl Pod {
     }
 }
 
+#[verifier::external]
+pub fn normalize_resources(r: &k8s_types::ResourceRequirements) -> k8s_types::ResourceRequirements {
+    let limits = r.limits.clone().unwrap_or_default();
+    let mut requests = r.requests.clone().unwrap_or_default();
+    for (k, v) in limits {
+        requests.entry(k).or_insert(v);
+    }
+    let requests_option = if requests.is_empty() {
+        None
+    } else {
+        Some(requests)
+    };
+    k8s_types::ResourceRequirements {
+        claims: r.claims.clone(),
+        requests: requests_option,
+        limits: r.limits.clone()
+    }
+}
+
 // we need this function because our model of the API server doesn't 
 // match the real implementation
 // in particular, the API server default tolerations and transforms empty resources
@@ -100,7 +123,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
         });
     }
     if !tolerates_unreachable {
-        tolerations.push(deps_hack::k8s_openapi::api::core::v1::Toleration {
+        tolerations.push(k8s_types::Toleration {
             key: Some("node.kubernetes.io/unreachable".to_string()),
             operator: Some("Exists".to_string()),
             effect: Some("NoExecute".to_string()),
@@ -111,15 +134,32 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
 
     for container in inner.containers.iter_mut() {
         if container.resources.is_none() {
-            container.resources = Some(deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+            container.resources = Some(k8s_types::ResourceRequirements {
                 claims: None,
                 limits: None,
                 requests: None,
             });
         }
+        container.resources = container.resources.clone().map(|r| normalize_resources(&r));
     }
 
     PodSpec::from_kube(inner)
+}
+
+#[verifier::external]
+fn normalize_and_compare_resources(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
+    
+    let normalize_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
+        m
+        .clone()
+        .unwrap_or_default()
+        .iter()
+        .map(|(k, v)| (k.clone(), kube_quantity::ParsedQuantity::try_from(v).ok()))
+        .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    r1.claims == r2.claims 
+    && normalize_map(&r1.limits) == normalize_map(&r2.limits)
+    && normalize_map(&r1.requests) == normalize_map(&r2.requests)
 }
 
 impl PodSpec {
@@ -293,13 +333,24 @@ impl PodSpec {
     pub fn eq_spec(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
+        let container_comp = |c1: &k8s_types::Container, c2: &k8s_types::Container| {
+            let images_match = c1.image == c2.image;
+            let resources_match = match (&c1.resources, &c2.resources) {
+                (None, None) => true,
+                (Some(r1), Some(r2)) => normalize_and_compare_resources(r1, r2),
+                _ => false
+            };
+            images_match && resources_match
+        };
+
         self.inner.volumes == other.inner.volumes
+        && self.inner.affinity == other.inner.affinity
         && self.inner.containers.len() == other.inner.containers.len()
         && self.inner.tolerations == other.inner.tolerations
         && self.inner.containers
             .iter()
             .zip(other.inner.containers.iter())
-            .all(|(c1, c2)| c1.image == c2.image && c1.resources == c2.resources)
+            .all(|(c1, c2)| container_comp(c1, c2))
     }
 }
 

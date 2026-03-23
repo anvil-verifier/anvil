@@ -19,6 +19,7 @@ pub use tracing;
 pub use tracing_subscriber;
 pub use warp;
 pub use zookeeper;
+pub use kube_quantity;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
