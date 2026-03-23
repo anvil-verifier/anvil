@@ -30,7 +30,6 @@ requires
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)(s),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    Cluster::etcd_objects_have_unique_uids()(s),
 ensures
     vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_key_replicas_status.2 > 0,
     // nv_uid_key_replicas.1 (controller's choice) can be different from new_vrs_key when both vd and new_vrs have 0 replicas
