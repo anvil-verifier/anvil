@@ -1254,6 +1254,17 @@ pub proof fn false_is_stable<T>()
     }
 }
 
+// True is stable.
+// post:
+//     |= stable(true)
+pub proof fn true_is_stable<T>()
+    ensures valid(stable(true_pred::<T>())),
+{
+    assert forall |ex| #[trigger] true_pred::<T>().satisfied_by(ex) implies always(true_pred::<T>()).satisfied_by(ex) by {
+        assert(true);
+    }
+}
+
 // An always predicate is stable.
 // post:
 //     |= stable(always(p))
@@ -1270,7 +1281,7 @@ pub proof fn always_p_is_stable<T>(p: TempPred<T>)
 // A leads-to predicate is stable.
 // post:
 //     |= stable(p ~> q)
-pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
         valid(stable(p.leads_to(q))),
 {
@@ -1285,7 +1296,7 @@ pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(p: TempPred<T>, a_to_q:
 {
     let target = tla_forall(|a: A| p.leads_to(a_to_q(a)));
     assert forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a)))) by {
-        p_leads_to_q_is_stable(p, a_to_q(a));
+        leads_to_is_stable(p, a_to_q(a));
     }
     assert forall |ex| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
         assert forall |i| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) && target.satisfied_by(ex)
@@ -1310,7 +1321,7 @@ pub proof fn tla_forall_a_p_a_leads_to_q_a_is_stable<T, A>(a_to_p: spec_fn(A) ->
 {
     let target = tla_forall(|a: A| a_to_p(a).leads_to(a_to_q(a)));
     assert forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a)))) by {
-        p_leads_to_q_is_stable(a_to_p(a), a_to_q(a));
+        leads_to_is_stable(a_to_p(a), a_to_q(a));
     }
     assert forall |ex| (forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
         assert forall |i| (forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a))))) && target.satisfied_by(ex)
@@ -2700,7 +2711,7 @@ pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: s
             let witness_n = choose |n: nat| n <= max && #[trigger] p_n(n).satisfied_by(ex.suffix(i));
             leads_to_greater_until_rec(spec, p_n, witness_n, max);
             entails_apply::<T>(ex, spec, p_n(witness_n).leads_to(p_n(max)));
-            p_leads_to_q_is_stable(p_n(witness_n), p_n(max));
+            leads_to_is_stable(p_n(witness_n), p_n(max));
             stable_unfold::<T>(ex, p_n(witness_n).leads_to(p_n(max)));
             leads_to_unfold::<T>(ex.suffix(i), p_n(witness_n), p_n(max));
             execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));

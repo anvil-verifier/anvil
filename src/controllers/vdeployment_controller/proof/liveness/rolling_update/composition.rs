@@ -997,16 +997,19 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         // vd rely
         provided_spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         provided_spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
+        provided_spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))),
+        provided_spec.entails(always(lift_state(desired_state_is(vd))).leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
     ensures
-        provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))).and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)).entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
+        provided_spec.entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
-    let spec = provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))).and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
-    entails_trans(spec, provided_spec, always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))));
-    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_action(cluster.next())));
-    entails_trans(spec, provided_spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
-    entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
-    entails_trans(spec, provided_spec, vrs_liveness::vrs_eventually_stable_reconciliation());
+    let spec = always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+        .and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))
+        .and(always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))))
+        .and(vrs_liveness::vrs_eventually_stable_reconciliation())
+        .and(always(lifted_vd_rely_condition(cluster, controller_id)))
+        .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), next_with_wf(cluster, controller_id));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_action(cluster.next())));
     let inv = lift_action(cluster.next())
         .and(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
         .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
@@ -1444,6 +1447,66 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))),
         always(lift_state(composed_current_state_matches(vd)))
     );
+    leads_to_always_combine(provided_spec,
+        always(lift_state(desired_state_is(vd))),
+        always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
+        always(lift_state(composed_current_state_matches(vd)))
+    );
+    let inv = always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))
+        .and(vrs_liveness::vrs_eventually_stable_reconciliation())
+        .and(always(lifted_vd_rely_condition(cluster, controller_id)))
+        .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
+    assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
+    always_p_is_stable(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
+    always_p_is_stable(lifted_vd_rely_condition (cluster, controller_id));
+    always_p_is_stable(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
+    leads_to_is_stable(always(lift_state(desired_state_is(vd))), always(lift_state(composed_current_state_matches(vd))));
+    assert(valid(stable(vrs_liveness::vrs_eventually_stable_reconciliation()))) by {
+        let p = |vrs: VReplicaSetView| always(lift_state(vrs_liveness::desired_state_is(vrs)));
+        let q = |vrs: VReplicaSetView| always(lift_state(vrs_liveness::current_state_matches(vrs)));
+        tla_forall_a_p_a_leads_to_q_a_is_stable(p, q);
+        tla_forall_p_tla_forall_q_equality(|vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs), |vrs| p(vrs).leads_to(q(vrs)));
+        temp_pred_equality(
+            vrs_liveness::vrs_eventually_stable_reconciliation(),
+            tla_forall(|vrs| p(vrs).leads_to(q(vrs)))
+        );
+    };
+    assert(valid(stable(inv))) by {
+        stable_and_n!(
+            always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))),
+            vrs_liveness::vrs_eventually_stable_reconciliation(),
+            lifted_vd_rely_condition(cluster, controller_id),
+            lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)
+        );
+    }
+    assert(valid(stable(spec))) by {
+        stable_and_n!(
+            always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
+            assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
+            always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))),
+            vrs_liveness::vrs_eventually_stable_reconciliation(),
+            lifted_vd_rely_condition(cluster, controller_id),
+            lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)
+        );
+    }
+    assert(spec.entails(true_pred().leads_to(always(lift_state(composed_current_state_matches(vd)))))) by {
+        temp_pred_equality(true_pred().and(always(lift_state(desired_state_is(vd)))), always(lift_state(desired_state_is(vd))));
+        pack_conditions_to_spec(spec, always(lift_state(desired_state_is(vd))), true_pred(), always(lift_state(composed_current_state_matches(vd))));
+        simplify_predicate(spec, always(lift_state(desired_state_is(vd))));
+    }
+    assert(provided_spec.entails(spec.leads_to(always(lift_state(composed_current_state_matches(vd)))))) by {
+        temp_pred_equality(true_pred().and(spec), spec);
+        // T |= spec ~> [] q
+        true_is_stable::<ClusterState>();
+        unpack_conditions_from_spec(provided_spec, spec, true_pred(), always(lift_state(composed_current_state_matches(vd))));
+    }
+    // inv == [] inv
+    stable_to_always(inv);
+    // provided_spec |= pre /\ inv ~> spec
+    leads_to_with_always(provided_spec, always(lift_state(desired_state_is(vd))), spec, inv);
+    // provided_spec |= pre ~> spec
+    leads_to_by_borrowing_inv(provided_spec, always(lift_state(desired_state_is(vd))), spec, inv);
+    leads_to_trans(provided_spec, always(lift_state(desired_state_is(vd))), spec, always(lift_state(composed_current_state_matches(vd))));
 }
 
 }
