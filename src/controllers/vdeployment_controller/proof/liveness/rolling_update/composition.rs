@@ -50,18 +50,14 @@ pub open spec fn desired_state_is_vrs_with_key(vd: VDeploymentView, vrs: VReplic
 pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // don't touch vrs if there is no need to patch replicas
-        let vrs_with_replicas = {
-            vrs.with_spec(vrs.spec.with_replicas(
-                if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
-                    vd.spec.replicas.unwrap_or(1) - diff
-                } else {
-                    vd.spec.replicas.unwrap_or(1) + diff
-                }
-            ))
-        };
+        let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(
+            if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
+                vd.spec.replicas.unwrap_or(1) - diff
+            } else {
+                vd.spec.replicas.unwrap_or(1) + diff
+            }
+        ));
         &&& vrs_liveness::desired_state_is(vrs_with_replicas)(s)
-            // if vrs.spec.replicas is None, this is effectively the same
-            || (diff == replicas_diff(vd, vrs) && vrs_liveness::desired_state_is(vrs)(s))
         &&& vrs.object_ref() == vrs_key
         &&& valid_owned_vrs(vrs, vd)
     }
@@ -69,17 +65,13 @@ pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeployment
 
 pub open spec fn current_state_matches_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let vrs_with_replicas = if diff == replicas_diff(vd, vrs) {
-            vrs
-        } else {
-            vrs.with_spec(vrs.spec.with_replicas(
-                if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
-                    vd.spec.replicas.unwrap_or(1) - diff
-                } else {
-                    vd.spec.replicas.unwrap_or(1) + diff
-                }
-            ))
-        };
+        let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(
+            if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
+                vd.spec.replicas.unwrap_or(1) - diff
+            } else {
+                vd.spec.replicas.unwrap_or(1) + diff
+            }
+        ));
         &&& vrs_liveness::current_state_matches(vrs_with_replicas)(s)
         &&& vrs.object_ref() == vrs_key
         &&& valid_owned_vrs(vrs, vd)
@@ -1147,17 +1139,13 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                         stable_to_always::<ClusterState>(false_pred());
                         false_leads_to_anything(spec, always(new_vrs_post_with_diff(n)));
                     } else {
-                        let vrs_with_replicas = if n == replicas_diff(vd, new_vrs) {
-                            new_vrs
-                        } else {
-                            new_vrs.with_spec(new_vrs.spec.with_replicas(
-                                if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
-                                    vd.spec.replicas.unwrap_or(1) - n
-                                } else {
-                                    vd.spec.replicas.unwrap_or(1) + n
-                                }
-                            ))
-                        };
+                        let vrs_with_replicas = new_vrs.with_spec(new_vrs.spec.with_replicas(
+                            if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
+                                vd.spec.replicas.unwrap_or(1) - n
+                            } else {
+                                vd.spec.replicas.unwrap_or(1) + n
+                            }
+                        ));
                         use_tla_forall(spec,
                             |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))),
                             vrs_with_replicas

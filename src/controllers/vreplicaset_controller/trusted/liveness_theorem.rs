@@ -28,8 +28,15 @@ pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<Cluste
 
 pub open spec fn desired_state_is(vrs: VReplicaSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& Cluster::desired_state_is(vrs)(s)
-        // has one and only one vd controller owner
+        // same as Cluster::desired_state_is, but allow replicas: None == replicas: Some(1)
+        &&& vrs.metadata.namespace is Some
+        &&& s.resources().contains_key(vrs.object_ref())
+        &&& s.resources()[vrs.object_ref()].metadata.uid == vrs.metadata.uid
+        &&& s.resources()[vrs.object_ref()].metadata.deletion_timestamp is None
+        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]) is Ok
+        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0.spec.with_replicas(vrs.spec.replicas.unwrap_or(1))
+            == vrs.spec.with_replicas(vrs.spec.replicas.unwrap_or(1))
+        // required by get_then_update
         &&& vrs.metadata.owner_references->0.filter(controller_owner_filter())
             == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
         &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
