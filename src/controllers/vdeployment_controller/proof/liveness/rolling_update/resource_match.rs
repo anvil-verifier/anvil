@@ -48,6 +48,7 @@ ensures
         lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
     ))),
 {
+    // TODO: use stable spec
     let c = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
         .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())));
     let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
@@ -258,6 +259,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     ru_resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg, new_vrs_key)(s),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
 ensures
     at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime),
     local_state_at_after_scale_vrs(vd, controller_id, new_vrs_key)(s_prime),
@@ -268,14 +270,79 @@ ensures
     broadcast use group_seq_properties;
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let etcd_obj = s.resources()[new_vrs_key];
+    let etcd_new_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
     assert(objects_to_vrs_list(resp_objs) is Some);
+    let key_map = |vrs: VReplicaSetView| vrs.object_ref();
     let vrs_list = objects_to_vrs_list(resp_objs)->0;
     let managed_vrs_list = objects_to_vrs_list(resp_objs)->0.filter(|vrs| valid_owned_vrs(vrs, vd));
     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
-    let new_vrs_uid = Some(etcd_obj.metadata.uid->0);
+    let new_vrs_uid = Some(etcd_new_vrs.metadata.uid->0);
     let valid_owned_vrs_filter = |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd);
     let managed_vrs_list = vrs_list.filter(valid_owned_vrs_filter);
+    let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+    assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+        &&& vrs.metadata.name is Some
+        &&& vrs.metadata.uid is Some
+        &&& vrs.metadata.namespace is Some
+    } by {
+        seq_filter_is_a_subset_of_original_seq(vrs_list, |vrs| valid_owned_vrs(vrs, vd));
+        assert(exists |i| 0 <= i < vrs_list.len() && #[trigger] vrs_list[i] == vrs);
+        let i = choose |i| 0 <= i < vrs_list.len() && #[trigger] vrs_list[i] == vrs;
+        assert(resp_objs.contains(resp_objs[i])); // trigger
+        assert(vrs_list == resp_objs.map_values(|o| VReplicaSetView::unmarshal(o)->Ok_0));
+        assert(vrs_list[i] == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
+        VReplicaSetView::marshal_preserves_metadata();
+    }
+    if new_vrs_or_none is None { // prove contradiction
+        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).len() == 0);
+        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(managed_vrs_list, match_template_without_hash(vd.spec.template));
+        if exists |k: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(k)
+            &&& valid_owned_obj_key(vd, s)(k)
+            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+        }{
+            let k = choose |k: ObjectRef| {
+                &&& #[trigger] s.resources().contains_key(k)
+                &&& valid_owned_obj_key(vd, s)(k)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+            };
+            assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
+            let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == k;
+            let vrs = managed_vrs_list[i];
+            assert(vrs.object_ref() == k);
+            assert(managed_vrs_list.contains(vrs)); // trigger
+            assert(false) by {
+                assert(!match_template_without_hash(vd.spec.template)(vrs));
+                assert(match_template_without_hash(vd.spec.template)(vrs)) by {
+                    let etcd_obj = s.resources()[k];
+                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                    assert(match_template_without_hash(vd.spec.template)(etcd_vrs));
+                    assert(etcd_vrs.spec == vrs.spec);
+                }
+            }
+        }
+    }
     assert(new_vrs_or_none is Some);
+    let new_vrs = new_vrs_or_none->0;
+    if new_vrs.object_ref() != new_vrs_key {
+        assert(etcd_new_vrs.spec.replicas.unwrap_or(1) > 0);
+        // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
+        assert(new_vrs.metadata.uid->0 != etcd_new_vrs.metadata.uid->0);
+        assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
+        assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs_key));
+        assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(new_vrs_key));
+        let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == new_vrs_key;
+        let vrs = managed_vrs_list[i];
+        assert(vrs.object_ref() == new_vrs_key);
+        assert(managed_vrs_list.contains(vrs)); // trigger
+        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
+            assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
+        }
+        assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0);
+        assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
+        assert(false);
+    }
     let new_vrs = new_vrs_or_none->0;
     assert forall |vrs| #[trigger] vrs_list.contains(vrs) implies vrs.metadata.uid is Some by {
         let i = choose |i: int| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
