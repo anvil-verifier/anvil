@@ -1552,6 +1552,14 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
                 assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
             );
+            temp_pred_equality(
+                always(lift_state(desired_state_is(vd)))
+                    .and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+                    .and(always(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))),
+                always(lift_state(desired_state_is(vd)))
+                    .and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))
+                    .and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))
+            );
         }
         leads_to_trans(provided_spec,
             always(lift_state(desired_state_is(vd))),
