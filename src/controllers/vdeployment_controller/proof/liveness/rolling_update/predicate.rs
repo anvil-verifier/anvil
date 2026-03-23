@@ -17,6 +17,23 @@ use vstd::prelude::*;
 
 verus! {
 
+pub open spec fn ru_exists_pending_list_resp_in_flight_and_match_req(
+    vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
+        // predicate on resp_msg
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s, new_vrs_key)
+        }
+    }
+}
+
 pub open spec fn ru_resp_msg_is_pending_list_resp_in_flight_and_match_req(
     vd: VDeploymentView, controller_id: int, resp_msg: Message, new_vrs_key: ObjectRef
 ) -> StatePred<ClusterState> {

@@ -159,7 +159,7 @@ ensures
 
 #[verifier(rlimit(10))]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd_with_nv_status_matching_replicas(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, req_msg: Message, diff: nat
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),

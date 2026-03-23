@@ -137,6 +137,83 @@ ensures
     leads_to_trans(spec, init, tla_exists(after_list_with_nv), post);
 }
 
+// same as lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp with stronger post
+pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp_with_nv(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
+)
+requires
+    diff > 0,
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
+    spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))),
+ensures
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), ru_exists_pending_list_resp_in_flight_and_match_req(vd, controller_id, new_vrs.object_ref()))))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        ru_exists_pending_list_resp_in_flight_and_match_req(vd, controller_id, new_vrs.object_ref())
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s)
+        &&& inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
+        lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))
+    );
+    let input = Some(req_msg);
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                if msg == req_msg {
+                    let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd_with_nv_status_matching_replicas(
+                        s, s_prime, vd, cluster, controller_id, msg, new_vrs, diff
+                    );
+                    // instantiate existential quantifier.
+                    assert({
+                        &&& s_prime.in_flight().contains(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime, new_vrs.object_ref())
+                    });
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+        let msg = input->0;
+        let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd_with_nv_status_matching_replicas(
+            s, s_prime, vd, cluster, controller_id, msg, new_vrs, diff
+        );
+        // instantiate existential quantifier.
+        assert({
+            &&& s_prime.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, msg)
+            &&& ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime, new_vrs.object_ref())
+        });
+    }
+    cluster.lemma_pre_leads_to_post_by_api_server(
+        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
+    );
+}
+
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(50))]
 pub proof fn lemma_from_after_receive_list_resp_to_after_scale_new_vrs_with_nv(
