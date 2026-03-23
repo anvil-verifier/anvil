@@ -499,8 +499,6 @@ ensures
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
 // Prove with a specialized version of ESR proof with spec |= [] current_state_matches
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(50))]
 pub proof fn ranking_decreases_after_vrs_esr(
     spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, diff: nat
 )
@@ -519,6 +517,22 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
             .leads_to(not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
 {
+    let post = not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
+    if new_vrs.object_ref() != new_vrs_key { // trivial
+        temp_pred_equality(
+            lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)),
+            false_pred()
+        );
+        temp_pred_equality(
+            lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))
+                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
+            false_pred()
+        );
+        false_is_stable::<ClusterState>();
+        stable_to_always(false_pred::<ClusterState>());
+        false_leads_to_anything::<ClusterState>(spec, post);
+        return;
+    }
     let stable_spec = next_with_wf(cluster, controller_id)
         .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
         .and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))
@@ -634,24 +648,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
         );
     }
     // 3. init ~> after_list ~> after_scale_new_vrs ~> !desired_state_is
-    let post = not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
     assert(composed_spec.entails(lift_state(init).leads_to(post))) by {
-        // extract individual preconditions from composed_spec
-        // composed_spec ⊇ stable_spec ⊇ next_with_wf(...)
-        entails_trans(composed_spec, stable_spec, next_with_wf(cluster, controller_id));
-        entails_trans(composed_spec, stable_spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
-        entails_trans(composed_spec, stable_spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
-        entails_trans(composed_spec, stable_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
-        // from next_with_wf
-        entails_trans(composed_spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
-        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
-        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
-        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)));
-        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))));
-        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
-        // from composed_spec directly
-        assert(composed_spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))));
-        assert(composed_spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))));
         lemma_from_init_to_not_desired_state_is(vd, composed_spec, cluster, controller_id, new_vrs, diff);
     }
     leads_to_trans_n!(
@@ -666,6 +663,10 @@ pub proof fn ranking_decreases_after_vrs_esr(
         always_and_equality(
             lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)),
             lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)),
+        );
+        temp_pred_equality(
+            composed_spec,
+            stable_spec.and(c)
         );
         unpack_conditions_from_spec(stable_spec, c, true_pred(), post);
     }

@@ -45,6 +45,7 @@ ensures
         no_pending_req_in_cluster(vd, controller_id)
     )).leads_to(not(
         lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))
     ))),
 {
     let c = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
