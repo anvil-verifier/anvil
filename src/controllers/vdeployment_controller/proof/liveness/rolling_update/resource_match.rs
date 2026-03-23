@@ -37,6 +37,7 @@ requires
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
     spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
     spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    spec.entails(always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
     spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
     spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))),
 ensures

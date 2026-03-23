@@ -528,8 +528,9 @@ pub proof fn ranking_decreases_after_vrs_esr(
             false_pred()
         );
         temp_pred_equality(
-            lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))
-                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
+            lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))
+                .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
+                .and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))),
             false_pred()
         );
         false_is_stable::<ClusterState>();
@@ -660,9 +661,10 @@ pub proof fn ranking_decreases_after_vrs_esr(
     leads_to_trans_n!(
         composed_spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init), post
     );
-    assert(stable_spec.entails(
-        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
-            .leads_to(post))) by {
+    assert(stable_spec.entails(always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))
+        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))
+        .and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff))))
+        .leads_to(post))) by {
         let c = always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)))
             .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))))
             .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))));
