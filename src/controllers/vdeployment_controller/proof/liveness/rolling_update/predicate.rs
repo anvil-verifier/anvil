@@ -64,10 +64,11 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& valid_owned_obj_key(vd, s)(key)
         &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
-        &&& vrs.object_ref() == new_vrs_key ==> {
-            &&& vrs.status is Some
-            &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
-        }
+    }
+    &&& exists |vrs| #[trigger] managed_vrs_list.contains(vrs) ==> {
+        &&& vrs.object_ref() == new_vrs_key
+        &&& vrs.status is Some
+        &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
     }
 }
 

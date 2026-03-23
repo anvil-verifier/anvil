@@ -232,10 +232,6 @@ ensures
             &&& valid_owned_obj_key(vd, s)(key)
             &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
             &&& etcd_vrs.spec == vrs.spec
-            &&& vrs.object_ref() == new_vrs.object_ref() ==> {
-                &&& vrs.status is Some
-                &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
-            }
         } by {
             VReplicaSetView::marshal_preserves_metadata();
             seq_filter_contains_implies_seq_contains(vrs_list, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), vrs);
@@ -244,10 +240,6 @@ ensures
             assert(VReplicaSetView::unmarshal(resp_objs[i])->Ok_0 == vrs);
             assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
                 assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
-            }
-            // For vrs at new_vrs_key, current_state_matches gives status == spec.replicas
-            if vrs.object_ref() == new_vrs.object_ref() {
-                VReplicaSetView::marshal_preserves_integrity();
             }
         }
         // expand to 
@@ -295,6 +287,19 @@ ensures
             // .values().map(val_to_key) ==> .dom() (keys)
             assert(s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
                 == s_prime.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
+        }
+        assert(exists |vrs| #[trigger] managed_vrs_list.contains(vrs) ==> {
+            &&& vrs.object_ref() == new_vrs.object_ref()
+            &&& vrs.status is Some
+            &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+        }) by {
+            VReplicaSetView::marshal_preserves_integrity();
+            assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs.object_ref()));
+            assert(exists |vrs| #[trigger] managed_vrs_list.contains(vrs) && vrs.object_ref() == new_vrs.object_ref());
+            let vrs = choose |vrs| #[trigger] managed_vrs_list.contains(vrs) && vrs.object_ref() == new_vrs.object_ref();
+            assert(exists |i| #[trigger] managed_vrs_list[i] == vrs);
+            let i = choose |i| #[trigger] managed_vrs_list[i] == vrs;
+            assert(vrs == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
         }
     }
     return resp_msg;
