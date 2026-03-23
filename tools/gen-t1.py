@@ -7,9 +7,10 @@ indent = "|---"
 print_anvil = False
 
 cap_controllers = {
-    "zookeeper": "ZooKeeper controller",
+    "vdeployment": "VDeployment controller",
+    "vreplicaset": "VReplicaSet controller",
+    "vstatefulset": "VStatefulSet controller",
     "rabbitmq": "RabbitMQ controller",
-    "fluent": "Fluent controller",
 }
 
 
@@ -125,30 +126,17 @@ def gen_for_controller(controller):
         total["Trusted"] += loc_data["safety_theorem"]["Trusted"]
         total["Proof"] += loc_data["safety_proof"]["Proof"]
 
-    if controller == "fluent":
-        table.append(
-            [
-                indent + "Conformance",
-                str(10),
-                "--",
-                str(loc_data["reconcile_impl"]["Proof"] - 10),
-                str(time_data["Impl"] / 1000),
-            ]
-        )
-        total["Trusted"] += 10
-        total["Proof"] += loc_data["reconcile_impl"]["Proof"] - 10
-    else:
-        table.append(
-            [
-                indent + "Conformance",
-                str(5),
-                "--",
-                str(loc_data["reconcile_impl"]["Proof"] - 5),
-                str(time_data["Impl"] / 1000),
-            ]
-        )
-        total["Trusted"] += 5
-        total["Proof"] += loc_data["reconcile_impl"]["Proof"] - 5
+    table.append(
+        [
+            indent + "Conformance",
+            str(5),
+            "--",
+            str(loc_data["reconcile_impl"]["Proof"] - 5),
+            str(time_data["Impl"] / 1000),
+        ]
+    )
+    total["Trusted"] += 5
+    total["Proof"] += loc_data["reconcile_impl"]["Proof"] - 5
 
     table.append(
         [
@@ -187,17 +175,7 @@ def gen_for_controller(controller):
     )
     total["Trusted"] += loc_data["wrapper"]["Trusted"]
 
-    if controller == "zookeeper":
-        table.append(
-            [
-                indent + "Trusted ZooKeeper API",
-                str(loc_data["external_model"]["Trusted"]),
-                "--",
-                "--",
-                "--",
-            ]
-        )
-        total["Trusted"] += loc_data["external_model"]["Trusted"]
+
 
     table.append(
         [
@@ -227,41 +205,20 @@ def gen_for_controller(controller):
 
 def main():
     table = []
-    zookeeper_total, zookeeper_table = gen_for_controller("zookeeper")
-    rabbitmq_total, rabbitmq_table = gen_for_controller("rabbitmq")
-    fluent_total, fluent_table = gen_for_controller("fluent")
-    table += zookeeper_table
-    table += rabbitmq_table
-    table += fluent_table
+    controllers = ["vdeployment", "vreplicaset", "vstatefulset", "rabbitmq"]
+    totals = {}
+    for controller in controllers:
+        totals[controller], controller_table = gen_for_controller(controller)
+        table += controller_table
     table.append(
         [
             "Total(all)",
-            str(
-                zookeeper_total["Trusted"]
-                + rabbitmq_total["Trusted"]
-                + fluent_total["Trusted"]
-            ),
-            str(
-                zookeeper_total["Exec"] + rabbitmq_total["Exec"] + fluent_total["Exec"]
-            ),
-            str(
-                zookeeper_total["Proof"]
-                + rabbitmq_total["Proof"]
-                + fluent_total["Proof"]
-            ),
+            str(sum(totals[c]["Trusted"] for c in controllers)),
+            str(sum(totals[c]["Exec"] for c in controllers)),
+            str(sum(totals[c]["Proof"] for c in controllers)),
             "{} ({})".format(
-                (
-                    zookeeper_total["Time"]
-                    + rabbitmq_total["Time"]
-                    + fluent_total["Time"]
-                )
-                / 1000,
-                (
-                    zookeeper_total["TimeParallel"]
-                    + rabbitmq_total["TimeParallel"]
-                    + fluent_total["TimeParallel"]
-                )
-                / 1000,
+                sum(totals[c]["Time"] for c in controllers) / 1000,
+                sum(totals[c]["TimeParallel"] for c in controllers) / 1000,
             ),
         ]
     )

@@ -84,17 +84,6 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 safety_proof_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 safety_proof_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 safety_proof_lines["Proof"] += int(stripped_cols[SPEC_COL])
-            elif controller_name == "zookeeper" and (
-                "/trusted/zookeeper_api_spec.rs" in stripped_cols[FILE_COL]
-                or "/trusted/zookeeper_api_exec.rs" in stripped_cols[FILE_COL]
-                or "/trusted/config_map.rs" in stripped_cols[FILE_COL]
-            ):
-                external_model_lines["Trusted"] += int(stripped_cols[EXEC_COL])
-                external_model_lines["Trusted"] += int(stripped_cols[PROOF_COL])
-                external_model_lines["Trusted"] += int(
-                    stripped_cols[PROOF_AND_EXEC_COL]
-                )
-                external_model_lines["Trusted"] += int(stripped_cols[SPEC_COL])
             elif (
                 "/trusted/spec_types.rs" in stripped_cols[FILE_COL]
                 or "/trusted/exec_types.rs" in stripped_cols[FILE_COL]
