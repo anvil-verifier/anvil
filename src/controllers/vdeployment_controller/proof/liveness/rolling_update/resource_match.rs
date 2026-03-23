@@ -152,6 +152,7 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
+    spec.entails(always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
     spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
     spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))),
 ensures
@@ -178,6 +179,7 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(cluster, controller_id)(s)
+        &&& desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s)
         &&& current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s)
         &&& inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())(s)
     };
@@ -187,6 +189,7 @@ ensures
         lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
         lifted_vd_rely_condition(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
         lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
         lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))
     );
@@ -228,7 +231,7 @@ ensures
                         assert(false); // diff > 0
                     }
                     if etcd_vrs.spec.replicas.unwrap_or(1) == 0 {
-                        assume(vd.spec.replicas.unwrap_or(1) >= 0);
+                        assert(vd.spec.replicas.unwrap_or(1) >= 0);
                         if vd.spec.replicas.unwrap_or(1) != 0 {
                             assert(false); // diff > 0
                         } else {
