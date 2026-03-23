@@ -499,7 +499,8 @@ ensures
 // Obligation 3: Ranking decrease
 // forall n > 0. spec |= [] q(n) ~> !p(n)
 // Prove with a specialized version of ESR proof with spec |= [] current_state_matches
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(50))]
 pub proof fn ranking_decreases_after_vrs_esr(
     spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, diff: nat
 )
@@ -508,67 +509,46 @@ pub proof fn ranking_decreases_after_vrs_esr(
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(next_with_wf(cluster, controller_id)),
         spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+        // spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases
+        spec.entails(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)),
     ensures
         spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
             .leads_to(not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
 {
-    let stable_spec = always(lift_action(cluster.next()))
+    let stable_spec = next_with_wf(cluster, controller_id)
         .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
         .and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))
         .and(always(lifted_vd_rely_condition(cluster, controller_id)))
-        .and(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
-        .and(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))
-        .and(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)))
-        .and(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))))
-        .and(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
-    let composed_spec = stable_spec
-        .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))))
-        .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))));
-    always_and_equality(
-        lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
-        lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))
-    );
-    always_p_is_stable(lift_action(cluster.next()));
+        .and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
+    next_with_wf_is_stable(cluster, controller_id);
     always_p_is_stable(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
     always_p_is_stable(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     always_p_is_stable(lifted_vd_rely_condition(cluster, controller_id));
-    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.api_server_next());
-    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.builtin_controllers_next());
-    cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
-    cluster.tla_forall_schedule_controller_reconcile_weak_fairness_is_stable(controller_id);
-    cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
+    assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
     stable_and_n!(
-        always(lift_action(cluster.next())),
+        next_with_wf(cluster, controller_id),
         always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
         always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
         always(lifted_vd_rely_condition(cluster, controller_id)),
-        tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
-        tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
-        tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
-        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input)))
-        tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
+        assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
     );
-    combine_spec_entails_always_n!(spec,
+    combine_spec_entails_n!(spec,
         stable_spec,
-        always(lift_action(cluster.next())),
+        next_with_wf(cluster, controller_id),
         always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
         always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
         always(lifted_vd_rely_condition(cluster, controller_id)),
-        tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
-        tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
-        tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
-        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input)))
-        tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
+        assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
     );
+    let composed_spec = stable_spec.and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))))
+        .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))));
     // 0. unpack invariants from cluster_invariants_since_reconciliation
-    entails_always_unpack_n!(spec,
+    entails_trans(composed_spec, stable_spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
+    entails_always_unpack_n!(composed_spec,
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
         lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
@@ -576,22 +556,23 @@ pub proof fn ranking_decreases_after_vrs_esr(
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(desired_state_is(vd))
     );
-    always_to_always_later(spec, lift_state(desired_state_is(vd)));
+    entails_trans(composed_spec, stable_spec, next_with_wf(cluster, controller_id));
+    always_to_always_later(composed_spec, lift_state(desired_state_is(vd)));
     // 1. termination, true ~> reconcile_idle
     // same as lemma_true_leads_to_always_current_state_matches
     let reconcile_idle = |s: ClusterState| {
         &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
     };
-    assert(spec.entails(true_pred().leads_to(lift_state(reconcile_idle)))) by {
-        terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        use_tla_forall(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
+    assert(composed_spec.entails(true_pred().leads_to(lift_state(reconcile_idle)))) by {
+        terminate::reconcile_eventually_terminates(composed_spec, cluster, controller_id);
+        use_tla_forall(composed_spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
     }
     // reconcile_idle ~> reconcile_scheduled
     let reconcile_scheduled = |s: ClusterState| {
         &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
         &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
     };
-    assert(spec.entails(lift_state(reconcile_idle).leads_to(lift_state(reconcile_scheduled)))) by {
+    assert(composed_spec.entails(lift_state(reconcile_idle).leads_to(lift_state(reconcile_scheduled)))) by {
         let input = vd.object_ref();
         let stronger_reconcile_idle = |s: ClusterState| {
             &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
@@ -603,21 +584,21 @@ pub proof fn ranking_decreases_after_vrs_esr(
             &&& desired_state_is(vd)(s_prime)
         };
         combine_spec_entails_always_n!(
-            spec, lift_action(stronger_next),
+            composed_spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(desired_state_is(vd)),
             later(lift_state(desired_state_is(vd)))
         );
         cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(
-            spec, controller_id, input, stronger_next, and!(stronger_reconcile_idle, desired_state_is(vd)), reconcile_scheduled
+            composed_spec, controller_id, input, stronger_next, and!(stronger_reconcile_idle, desired_state_is(vd)), reconcile_scheduled
         );
         temp_pred_equality(
             lift_state(stronger_reconcile_idle).and(lift_state(desired_state_is(vd))),
             lift_state(and!(stronger_reconcile_idle, desired_state_is(vd)))
         );
-        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
-        entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
-        or_leads_to_combine(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        leads_to_by_borrowing_inv(composed_spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
+        entails_implies_leads_to(composed_spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        or_leads_to_combine(composed_spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
     }
     let init = and!(
@@ -625,7 +606,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
         no_pending_req_in_cluster(vd, controller_id)
     );
     // 2. reconcile_idle ~> init
-    assert(spec.entails(lift_state(reconcile_scheduled).leads_to(lift_state(init)))) by {
+    assert(composed_spec.entails(lift_state(reconcile_scheduled).leads_to(lift_state(init)))) by {
         let input = (None, Some(vd.object_ref()));
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime) 
@@ -634,10 +615,10 @@ pub proof fn ranking_decreases_after_vrs_esr(
             &&& helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime) 
             &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
         };
-        always_to_always_later(spec, lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-        always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
+        always_to_always_later(composed_spec, lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
+        always_to_always_later(composed_spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
         combine_spec_entails_always_n!(
-            spec, lift_action(stronger_next),
+            composed_spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
@@ -649,24 +630,52 @@ pub proof fn ranking_decreases_after_vrs_esr(
             lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
         }
         cluster.lemma_pre_leads_to_post_by_controller(
-            spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, reconcile_scheduled, init
+            composed_spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, reconcile_scheduled, init
         );
     }
     // 3. init ~> after_list ~> after_scale_new_vrs ~> !desired_state_is
-    let pre = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
     let post = not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
-    assert(spec.entails(always(pre).leads_to(lift_state(init).and(always(pre))))) by {
-        leads_to_trans_n!(
-            spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init)
+    assert(composed_spec.entails(lift_state(init).leads_to(post))) by {
+        // extract individual preconditions from composed_spec
+        // composed_spec ⊇ stable_spec ⊇ next_with_wf(...)
+        entails_trans(composed_spec, stable_spec, next_with_wf(cluster, controller_id));
+        entails_trans(composed_spec, stable_spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
+        entails_trans(composed_spec, stable_spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
+        entails_trans(composed_spec, stable_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
+        // from next_with_wf
+        entails_trans(composed_spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
+        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
+        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
+        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)));
+        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))));
+        entails_trans(composed_spec, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
+        // from composed_spec directly
+        assert(composed_spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))));
+        assert(composed_spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))));
+        lemma_from_init_to_not_desired_state_is(vd, composed_spec, cluster, controller_id, new_vrs, diff);
+    }
+    leads_to_trans_n!(
+        composed_spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init), post
+    );
+    assert(stable_spec.entails(
+        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
+            .leads_to(post))) by {
+        let c = always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)))
+            .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
+        temp_pred_equality(true_pred().and(c), c);
+        always_and_equality(
+            lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)),
+            lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)),
         );
-        leads_to_with_always(spec, true_pred(), lift_state(init), pre);
-        temp_pred_equality(true_pred().and(always(pre)), always(pre));
+        unpack_conditions_from_spec(stable_spec, c, true_pred(), post);
     }
-    assert(spec.entails(lift_state(init).and(always(pre)).leads_to(post))) by {
-        lemma_from_init_to_not_desired_state_is(vd, spec, cluster, controller_id, new_vrs, diff);
-        // TODO: temp_pred_equality on new_vrs.object_ref()
-    }
-    leads_to_trans(spec, always(pre), lift_state(init).and(always(pre)), post);
+    // spec |= always(stable_spec) == stable_spec (since stable_spec is stable)
+    entails_trans(
+        spec,
+        stable_spec,
+        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
+            .leads_to(post)
+    );
 }
 
 // From inductive_current_state_matches, extract (vrs_set, n) witness
@@ -968,30 +977,23 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-        provided_spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
-        provided_spec.entails(always(lift_action(cluster.next()))),
         // ESR for vrs
         provided_spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
         // ESR for vd (with rolling update behavior)
         provided_spec.entails(always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
         // vd rely
         provided_spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-        // for rank eventually decreases
-        provided_spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        provided_spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        provided_spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+        provided_spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     ensures
         provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))).entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
-    let spec = provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))));
+    let spec = provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))).and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
     entails_trans(spec, provided_spec, always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))));
-    entails_trans(spec, provided_spec, always(lift_action(cluster.next())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_action(cluster.next())));
     entails_trans(spec, provided_spec, always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
     entails_trans(spec, provided_spec, vrs_liveness::vrs_eventually_stable_reconciliation());
-    entails_trans(spec, provided_spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
-    entails_trans(spec, provided_spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
-    entails_trans(spec, provided_spec, tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), next_with_wf(cluster, controller_id));
     let inv = lift_action(cluster.next())
         .and(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
         .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
