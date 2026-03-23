@@ -288,7 +288,8 @@ ensures
             assert(s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())
                 == s_prime.resources().dom().filter(valid_owned_obj_key(vd, s_prime)));
         }
-        assert(exists |vrs| #[trigger] managed_vrs_list.contains(vrs) ==> {
+        assert(exists |vrs| {
+            &&& #[trigger] managed_vrs_list.contains(vrs)
             &&& vrs.object_ref() == new_vrs.object_ref()
             &&& vrs.status is Some
             &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
