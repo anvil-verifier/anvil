@@ -28,7 +28,7 @@ pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetVi
 }
 
 // Compute the absolute difference between desired replicas and new VRS replicas
-// This is the ranking function for leads_to_by_monotonicity3
+// This is the ranking function for iterative_esr
 pub open spec fn replicas_diff(vd: VDeploymentView, new_vrs: VReplicaSetView) -> nat {
     let desired = vd.spec.replicas.unwrap_or(1);
     let current = new_vrs.spec.replicas.unwrap_or(1);
@@ -300,7 +300,7 @@ ensures
     }
 }
 
-// *** Obligation proofs for leads_to_by_monotonicity3 (per fixed vrs_set) ***
+// *** Obligation proofs for iterative_esr (per fixed vrs_set) ***
 
 // Obligation 1: ESR for each ranking level
 // spec |= [] desired_vrs ~> [] matches_vrs
@@ -1172,7 +1172,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 .leads_to(always(new_vrs_post(new_vrs)))) by {
                 let new_vrs_pre_with_diff = |diff: nat| lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
                 let new_vrs_post_with_diff = |diff: nat| lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
-                // by leads_to_by_monotonicity3
+                // by iterative_esr
                 // we need inductive_current_state_matches with the key here
                 // 1. forall |n| #![trigger new_vrs_pre_with_diff(n)] spec.entails(always(new_vrs_pre_with_diff(n)).leads_to(always(new_vrs_post_with_diff(n)))),
                 assert forall |n: nat| #![trigger new_vrs_pre_with_diff(n)] spec.entails(always(new_vrs_pre_with_diff(n)).leads_to(always(new_vrs_post_with_diff(n)))) by {
@@ -1258,7 +1258,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                 assert forall |n: nat| #![trigger new_vrs_pre_with_diff(n)] n > 0 implies spec.entails(always(new_vrs_post_with_diff(n)).leads_to(not(new_vrs_pre_with_diff(n)))) by {
                     ranking_decreases_after_vrs_esr(spec, vd, controller_id, cluster, new_vrs, new_vrs_key, n);
                 }
-                leads_to_by_monotonicity3(spec, new_vrs_pre_with_diff, new_vrs_post_with_diff);
+                iterative_esr(spec, new_vrs_pre_with_diff, new_vrs_post_with_diff);
                 leads_to_exists_intro(spec, new_vrs_pre_with_diff, always(new_vrs_pre_with_diff(0)));
                 leads_to_trans(spec, tla_exists(new_vrs_pre_with_diff), always(new_vrs_pre_with_diff(0)), always(new_vrs_post_with_diff(0)));
                 // \E new_vrs_pre_with_diff ~> [] new_vrs_pre_with_diff(0) /\ [] new_vrs_post_with_diff(0)

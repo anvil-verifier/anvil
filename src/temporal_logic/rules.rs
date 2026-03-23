@@ -2819,7 +2819,7 @@ proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usiz
 }
 
 // Prove monotinicity holds
-// This lemma help to prove precondition of leads_to_by_monotonicity3
+// This lemma help to prove precondition of iterative_esr
 // pre:
 //     spec |= []next
 //     forall |s: T, s_prime: T| #[trigger] next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && p(m)(s_prime)
@@ -3119,7 +3119,7 @@ pub proof fn leads_to_by_monotonicity2<T>(spec: TempPred<T>, next: TempPred<T>, 
     }
 }
 
-pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>, n: nat)
+pub proof fn iterative_esr_rec<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>, n: nat)
     requires
         forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
         forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
@@ -3161,7 +3161,7 @@ pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat)
                 assert(eventually(p(m)).satisfied_by(ex.suffix(i)));
                 let j = eventually_choose_witness(ex.suffix(i), p(m));
                 execution_equality(ex.suffix(i).suffix(j), ex.suffix(i+j));
-                leads_to_by_monotonicity3_rec(spec, p, q, m);
+                iterative_esr_rec(spec, p, q, m);
                 implies_apply(ex, spec, p(m).leads_to(always(p(0))));
                 implies_apply(ex.suffix(i+j), p(m), eventually(always(p(0))));
                 let k = eventually_choose_witness(ex.suffix(i+j), always(p(0)));
@@ -3183,7 +3183,7 @@ pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat)
 // The first premise is ESR, the second premise says that the ranking for p never increases, and the third premise says
 // that if the ranking has not reached 0 and q(n) always holds, then the system eventually invalidates p(n).
 // The second and the third premised combined proves that if q(n) holds stably, then the ranking for p eventually decreases.
-pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>)
+pub proof fn iterative_esr<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>)
     requires
         forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
         forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
@@ -3192,7 +3192,7 @@ pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> 
         forall |n| #![trigger p(n)] spec.entails(p(n).leads_to(always(p(0)))),
 {
     assert forall |n| #[trigger] spec.entails(p(n).leads_to(always(p(0)))) by {
-        leads_to_by_monotonicity3_rec(spec, p, q, n);
+        iterative_esr_rec(spec, p, q, n);
     }
 }
 
