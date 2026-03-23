@@ -331,6 +331,92 @@ ensures
     );
 }
 
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_from_after_send_scale_new_vrs_req_to_invalidate_post(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
+)
+requires
+    diff > 0,
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
+    spec.entails(always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
+    spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
+    spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
+        local_state_at_after_scale_vrs(vd, controller_id, new_vrs.object_ref()),
+        ru_req_msg_is_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id, req_msg)
+    )).leads_to(not(
+        lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
+    ))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
+        local_state_at_after_scale_vrs(vd, controller_id, new_vrs.object_ref()),
+        ru_req_msg_is_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id, req_msg)
+    );
+    let post = |s: ClusterState| {
+        !desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s)
+    };
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& vd_rely_condition(cluster, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s)
+        &&& current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s)
+        &&& inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lifted_vd_rely_condition(cluster, controller_id),
+        lifted_vd_reconcile_request_only_interferes_with_itself(controller_id),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
+        lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
+        lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))
+    );
+    let input = Some(req_msg);
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                if msg == req_msg {
+                    let req = req_msg.content.get_get_then_update_request();
+                    let etcd_obj = s.resources()[new_vrs.object_ref()];
+                    assert(etcd_obj.metadata.owner_references_contains(req.owner_ref));
+                    assert(req.owner_ref == vd.controller_owner_ref());
+                    assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
+                } else {
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    ); // new_vrs in etcd is not updated
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+    }
+    cluster.lemma_pre_leads_to_post_by_api_server(
+        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
+    );
+    temp_pred_equality(
+        lift_state(post),
+        not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))
+    );
+}
+
 
 pub proof fn lemma_from_list_resp_with_nv_status_matching_spec_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, new_vrs_key: ObjectRef
