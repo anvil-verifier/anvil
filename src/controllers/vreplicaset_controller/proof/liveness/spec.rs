@@ -215,6 +215,7 @@ pub proof fn invariants_since_phase_vi_is_stable(vrs: VReplicaSetView, cluster: 
     always_p_is_stable(lift_state(vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)));
 }
 
+#[verifier(external_body)] // broke by the change in desired_state_is
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, i: nat)
     requires 
         1 <= i <= 6,
