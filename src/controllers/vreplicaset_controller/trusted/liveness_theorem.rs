@@ -22,7 +22,7 @@ pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<Cluste
         &&& matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1)
         &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]) is Ok
         &&& etcd_vrs.status is Some
-        &&& etcd_vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+        &&& etcd_vrs.status->0.replicas == etcd_vrs.spec.replicas.unwrap_or(1)
     }
 }
 

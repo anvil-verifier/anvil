@@ -6,7 +6,7 @@ use crate::kubernetes_cluster::spec::{
     cluster::*, 
     message::*
 };
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::trusted::{spec_types::*, liveness_theorem as vrs_liveness};
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
@@ -238,9 +238,6 @@ ensures
             }
         } by {
             VReplicaSetView::marshal_preserves_metadata();
-            let key = vrs.object_ref();
-            let etcd_obj = s.resources()[key];
-            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
             seq_filter_contains_implies_seq_contains(vrs_list, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), vrs);
             let i = choose |i| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
             assert(resp_objs.contains(resp_objs[i])); // trigger
@@ -250,11 +247,7 @@ ensures
             }
             // For vrs at new_vrs_key, current_state_matches gives status == spec.replicas
             if vrs.object_ref() == new_vrs.object_ref() {
-                // vrs == etcd_vrs (from list response, objects match etcd)
-                // current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, ...)(s)
-                // gives etcd_vrs.status is Some && etcd_vrs.status->0.replicas == vrs_with_replicas.spec.replicas
-                // Since etcd_vrs == vrs (list returns etcd objects), vrs.status == etcd_vrs.status
-                assert(vrs == etcd_vrs);
+                VReplicaSetView::marshal_preserves_integrity();
             }
         }
         // expand to 
