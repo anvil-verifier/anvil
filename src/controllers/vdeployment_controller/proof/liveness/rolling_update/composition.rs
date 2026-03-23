@@ -485,7 +485,12 @@ requires
 ensures
     exists |m: nat| m <= n && #[trigger] desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime)
 {
+    let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
+    let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
+    let req_vrs_replicas = get_replicas(req_vrs.spec.replicas);
+    assert(req.key() == new_vrs_key);
     let new_vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[new_vrs_key])->Ok_0;
+    assert(get_replicas(new_vrs_prime.spec.replicas) == req_vrs_replicas);
     let m = replicas_diff(vd, new_vrs_prime);
     assert(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, m)(s_prime));
     assert(m <= n);
