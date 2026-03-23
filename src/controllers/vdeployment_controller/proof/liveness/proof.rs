@@ -266,6 +266,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 }
 
 #[verifier(rlimit(10))]
+#[verifier(external)] // deprecated
 pub proof fn lemma_inductive_current_state_matches_is_stable(
     spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef
 )
