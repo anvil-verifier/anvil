@@ -169,6 +169,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     Cluster::etcd_is_finite()(s_prime),
     current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s),
+    inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())(s),
 ensures
     resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
     ru_resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime, new_vrs.object_ref()),
@@ -230,8 +231,7 @@ ensures
             &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
             // weakly equal to etcd object
             &&& valid_owned_obj_key(vd, s)(key)
-            &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
-            &&& etcd_vrs.spec == vrs.spec
+            &&& etcd_vrs == vrs
         } by {
             VReplicaSetView::marshal_preserves_metadata();
             seq_filter_contains_implies_seq_contains(vrs_list, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd), vrs);
@@ -295,11 +295,14 @@ ensures
         }) by {
             VReplicaSetView::marshal_preserves_integrity();
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs.object_ref()));
-            assert(exists |vrs| #[trigger] managed_vrs_list.contains(vrs) && vrs.object_ref() == new_vrs.object_ref());
-            let vrs = choose |vrs| #[trigger] managed_vrs_list.contains(vrs) && vrs.object_ref() == new_vrs.object_ref();
-            assert(exists |i| #[trigger] managed_vrs_list[i] == vrs);
-            let i = choose |i| #[trigger] managed_vrs_list[i] == vrs;
-            assert(vrs == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
+            assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set().contains(new_vrs.object_ref()));
+            assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).contains(new_vrs.object_ref()));
+            assert(exists |i| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).len()
+                && managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref()))[i] == new_vrs.object_ref());
+            let i = choose |i| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).len()
+                && managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref()))[i] == new_vrs.object_ref();
+            assert(managed_vrs_list[i].object_ref() == new_vrs.object_ref());
+            assert(managed_vrs_list.contains(managed_vrs_list[i]));
         }
     }
     return resp_msg;
