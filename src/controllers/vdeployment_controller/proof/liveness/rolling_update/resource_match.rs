@@ -48,9 +48,6 @@ ensures
         .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))
     ))),
 {
-    let c = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-        .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())));
-    let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     let init = lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Init]),
         no_pending_req_in_cluster(vd, controller_id)
@@ -116,28 +113,18 @@ ensures
         new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, i.0, (i.1, i.2, i.3, i.4), new_vrs.object_ref())
     ));
     let post = not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)));
-    assert(spec.entails(init.and(always(c)).leads_to(tla_exists(after_list_with_nv)))) by {
-        leads_to_with_always(spec, init, list_resp, c);
-        tla_exists_and_equality(list_req_msg, always(c));
-        assert forall |msg| #![trigger list_resp_msg(msg)] spec.entails(list_resp_msg(msg).and(always(c)).and(always(inv))
+    assert(spec.entails(init.leads_to(tla_exists(after_list_with_nv)))) by {
+        assert forall |msg| #![trigger list_resp_msg(msg)] spec.entails(list_resp_msg(msg)
             .leads_to(tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4))))) by {
-            assert forall |ex| list_resp_msg(msg).satisfied_by(ex) && always(c).satisfied_by(ex) && always(inv).satisfied_by(ex)
+            assert forall |ex| #[trigger] list_resp_msg(msg).satisfied_by(ex)
                 implies tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4))).satisfied_by(ex) by {
-                always_to_current(ex, c);
-                always_to_current(ex, inv);
                 let s = ex.head();
                 let nv = inductive_current_state_matches_implies_filter_old_and_new_vrs_from_resp_objs(vd, cluster, controller_id, msg, new_vrs.object_ref(), s);
                 assert((|i: (Message, Uid, ObjectRef, int, Option<int>)| new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, i.0, (i.1, i.2, i.3, i.4), new_vrs.object_ref()))((msg, nv.0, nv.1, nv.2, nv.3))(s));
             }
             entails_implies_leads_to(spec,
-                list_resp_msg(msg).and(always(c)).and(always(inv)),
+                list_resp_msg(msg),
                 tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4)))
-            );
-            always_double_equality(inv);
-            leads_to_by_borrowing_inv(spec,
-                list_resp_msg(msg).and(always(c)),
-                tla_exists(|i: (Message, Uid, ObjectRef, int, Option<int>)| after_list_with_nv((i.0, i.1, i.2, i.3, i.4))),
-                always(inv)
             );
         }
     }
@@ -146,10 +133,9 @@ ensures
         assume(false);
     }
     leads_to_exists_intro(spec, after_list_with_nv, post);
-    leads_to_trans(spec, init.and(always(c)), tla_exists(after_list_with_nv), post);
+    leads_to_trans(spec, init, tla_exists(after_list_with_nv), post);
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_resp_to_after_scale_new_vrs_with_nv(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, new_vrs: VReplicaSetView, diff: nat
 )
@@ -163,13 +149,13 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
+    spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
+    spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))),
 ensures
     spec.entails(lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)
-    )).and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))))
-    .leads_to(lift_state(and!(
+    )).leads_to(lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
         ru_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id)
