@@ -19,6 +19,7 @@ pub open spec fn vrs_eventually_stable_reconciliation_per_cr(vrs: VReplicaSetVie
 pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
+        &&& s.resources().contains_key(vrs.object_ref())
         &&& matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(1)
         &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]) is Ok
         &&& etcd_vrs.status is Some
