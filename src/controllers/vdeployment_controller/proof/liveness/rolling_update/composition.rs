@@ -519,6 +519,54 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
             .leads_to(not(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, diff)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
 {
+    let stable_spec = always(lift_action(cluster.next()))
+        .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
+        .and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))
+        .and(always(lifted_vd_rely_condition(cluster, controller_id)))
+        .and(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
+        .and(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))
+        .and(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)))
+        .and(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i)))))
+        .and(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
+    let composed_spec = stable_spec
+        .and(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))))
+        .and(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))));
+    always_and_equality(
+        lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)),
+        lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))
+    );
+    always_p_is_stable(lift_action(cluster.next()));
+    always_p_is_stable(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
+    always_p_is_stable(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
+    always_p_is_stable(lifted_vd_rely_condition(cluster, controller_id));
+    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.api_server_next());
+    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.builtin_controllers_next());
+    cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
+    cluster.tla_forall_schedule_controller_reconcile_weak_fairness_is_stable(controller_id);
+    cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
+    stable_and_n!(
+        always(lift_action(cluster.next())),
+        always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
+        always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
+        always(lifted_vd_rely_condition(cluster, controller_id)),
+        tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
+        tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
+        tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
+        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input)))
+        tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
+    );
+    combine_spec_entails_always_n!(spec,
+        stable_spec,
+        always(lift_action(cluster.next())),
+        always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
+        always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
+        always(lifted_vd_rely_condition(cluster, controller_id)),
+        tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
+        tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
+        tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
+        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input)))
+        tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
+    );
     // 0. unpack invariants from cluster_invariants_since_reconciliation
     entails_always_unpack_n!(spec,
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),

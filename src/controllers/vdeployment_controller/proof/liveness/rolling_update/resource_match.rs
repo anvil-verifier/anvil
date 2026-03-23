@@ -37,18 +37,16 @@ requires
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
     spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
     spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    spec.entails(always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)))),
+    spec.entails(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())))),
 ensures
     spec.entails(lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Init]),
         no_pending_req_in_cluster(vd, controller_id)
-    )).and(
-        always(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
-            .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref()))))
-    ).leads_to(not(
+    )).leads_to(not(
         lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
     ))),
 {
-    // TODO: use stable spec
     let c = lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff))
         .and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())));
     let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
