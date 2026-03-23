@@ -888,6 +888,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         // for rank eventually decreases
         provided_spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         provided_spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        provided_spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
     ensures
         provided_spec.and(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))).entails(always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))),
 {
@@ -899,6 +900,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
     entails_trans(spec, provided_spec, vrs_liveness::vrs_eventually_stable_reconciliation());
     entails_trans(spec, provided_spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
     entails_trans(spec, provided_spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
+    entails_trans(spec, provided_spec, tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
     let inv = lift_action(cluster.next())
         .and(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
         .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
