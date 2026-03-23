@@ -245,6 +245,7 @@ pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_refere
 }
 
 #[verifier(external_body)]
+// TODO: deprecate
 pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState
 )
@@ -294,7 +295,7 @@ ensures
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s) {
         let nv_uid_key = choose |nv_uid_key: (Uid, ObjectRef)|
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s);
-        let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[nv_uid_key.1])->Ok_0;
+        let vrs_with_nv_key = VReplicaSetView::unmarshal(s.resources()[nv_uid_key.1])->Ok_0;
         assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies
         !({
             &&& valid_owned_obj_key(vd, s)(k)
@@ -325,6 +326,75 @@ ensures
     }
 }
 
+pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef, s: ClusterState
+)
+requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+ensures
+    current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s) == instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s),
+{
+    // ==>
+    if current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s) {
+        let new_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
+        let nv_uid = new_vrs.metadata.uid->0;
+        assert(etcd_state_is(vd, controller_id, Some((nv_uid, new_vrs_key, new_vrs.spec.replicas.unwrap_or(1))), 0)(s)) by {
+            let filtered_old_vrs_keys = filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid), s));
+            if exists |k: ObjectRef| filtered_old_vrs_keys.contains(k) {
+                let k = choose |k: ObjectRef| filtered_old_vrs_keys.contains(k);
+                assert(filter_old_vrs_keys(Some(nv_uid), s)(k));
+                assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
+                assert(false);
+            } else {
+                if filtered_old_vrs_keys.len() != 0 {
+                    lemma_set_empty_equivalency_len(filtered_old_vrs_keys);
+                }
+            }
+        }
+        assert(exists |nv_uid_replicas: (Uid, int)| vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0 &&
+            #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)) by {
+            assert((|nv_uid_replicas: (Uid, int)| vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
+                && etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s))((nv_uid, new_vrs.spec.replicas.unwrap_or(1))));
+        }
+    }
+    // <==
+    if instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s) {
+        let vrs_with_nv_key = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
+        let nv_uid_replicas = choose |nv_uid_replicas: (Uid, int)| {
+            &&&vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
+            &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)
+        };
+        assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies !({
+            &&& valid_owned_obj_key(vd, s)(k)
+            &&& filter_old_vrs_keys(Some(nv_uid_replicas.0), s)(k)
+        }) by {
+            if valid_owned_obj_key(vd, s)(k) && filter_old_vrs_keys(Some(nv_uid_replicas.0), s)(k) {
+                assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
+                assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_replicas.0), s)).contains(k));
+                assert(false);
+            }
+        }
+        let esr_pred = |k: ObjectRef| {
+            let etcd_obj = s.resources()[k];
+            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            &&& s.resources().contains_key(k)
+            &&& valid_owned_obj_key(vd, s)(k)
+            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+            &&& etcd_vrs.metadata.uid is Some
+            &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
+            &&& !exists |k: ObjectRef| {
+                &&& s.resources().contains_key(k)
+                &&& valid_owned_obj_key(vd, s)(k)
+                &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
+            }
+        };
+        assert(exists |k: ObjectRef| #[trigger] esr_pred(k)) by {
+            assert(esr_pred(new_vrs_key));
+        }
+    }
+}
+
 pub proof fn lemma_old_vrs_filter_on_objs_eq_filter_on_keys(
     vd: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
 )
@@ -337,7 +407,7 @@ requires
         &&& s.resources().contains_key(key)
         &&& etcd_obj.kind == VReplicaSetView::kind()
         &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
-        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
     },
     managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
@@ -452,6 +522,7 @@ ensures
 // inverse of lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is
 // if vd has zero replicas, the new vrs picked by controller may differ from the one in etcd_state_is
 // so we can only prove the weakened form with quantifier, and that is still strong enough to prove the stability of ESR
+// TODO: deprecate
 pub proof fn lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef), msg: Message, s: ClusterState
 )

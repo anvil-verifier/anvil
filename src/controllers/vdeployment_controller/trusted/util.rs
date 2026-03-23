@@ -74,6 +74,17 @@ pub open spec fn match_template_without_hash(template: PodTemplateSpecView) -> s
     }
 }
 
+// Strip resource_version AND status for vrs_set identity stability.
+// When VD controller changes replicas via GetThenUpdate, or VRS controller changes status,
+// the mapped set remains the same.
+pub open spec fn vrs_with_no_rv_status(vrs: VReplicaSetView) -> VReplicaSetView {
+    VReplicaSetView {
+        metadata: vrs.metadata.without_resource_version(),
+        status: None,
+        ..vrs
+    }
+}
+
 pub open spec fn mismatch_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
     &&& vrs.status is Some
     &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)

@@ -595,6 +595,8 @@ proof fn tla_forall_or_equality<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, q: Temp
     temp_pred_equality::<T>(tla_forall(|a: A| a_to_p(a).or(q)), tla_forall(a_to_p).or(q));
 }
 
+// because Verus is bad at reasoning over closures,
+// use tla_exists_p_tla_exists_q_equality if this doesn't help
 pub proof fn tla_exists_and_equality<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, q: TempPred<T>)
     ensures tla_exists(|a: A| a_to_p(a).and(q)) == tla_exists(a_to_p).and(q),
 {
@@ -1252,6 +1254,17 @@ pub proof fn false_is_stable<T>()
     }
 }
 
+// True is stable.
+// post:
+//     |= stable(true)
+pub proof fn true_is_stable<T>()
+    ensures valid(stable(true_pred::<T>())),
+{
+    assert forall |ex| #[trigger] true_pred::<T>().satisfied_by(ex) implies always(true_pred::<T>()).satisfied_by(ex) by {
+        assert(true);
+    }
+}
+
 // An always predicate is stable.
 // post:
 //     |= stable(always(p))
@@ -1268,7 +1281,7 @@ pub proof fn always_p_is_stable<T>(p: TempPred<T>)
 // A leads-to predicate is stable.
 // post:
 //     |= stable(p ~> q)
-pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
         valid(stable(p.leads_to(q))),
 {
@@ -1283,7 +1296,7 @@ pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(p: TempPred<T>, a_to_q:
 {
     let target = tla_forall(|a: A| p.leads_to(a_to_q(a)));
     assert forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a)))) by {
-        p_leads_to_q_is_stable(p, a_to_q(a));
+        leads_to_is_stable(p, a_to_q(a));
     }
     assert forall |ex| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
         assert forall |i| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) && target.satisfied_by(ex)
@@ -1308,7 +1321,7 @@ pub proof fn tla_forall_a_p_a_leads_to_q_a_is_stable<T, A>(a_to_p: spec_fn(A) ->
 {
     let target = tla_forall(|a: A| a_to_p(a).leads_to(a_to_q(a)));
     assert forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a)))) by {
-        p_leads_to_q_is_stable(a_to_p(a), a_to_q(a));
+        leads_to_is_stable(a_to_p(a), a_to_q(a));
     }
     assert forall |ex| (forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
         assert forall |i| (forall |a: A| #[trigger] valid(stable(a_to_p(a).leads_to(a_to_q(a))))) && target.satisfied_by(ex)
@@ -2243,54 +2256,67 @@ pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_do
     requires
         forall |a: A| #[trigger] domain.contains(a) ==> spec.entails(always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a))))),
         domain.finite(),
-        domain.len() > 0,
         scoped_a_to_p == (|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_p(a)(t))),
         scoped_a_to_q == (|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t))),
     ensures spec.entails(always(lift_state(|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_p(a)(t))))
         .leads_to(always(lift_state(|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t)))))),
 {
-    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies always(lift_state(scoped_a_to_p))
-        .leads_to(always(lift_state(scoped_a_to_q))).satisfied_by(ex) by {
-        assert forall |i: nat| always(lift_state(scoped_a_to_p)).satisfied_by(#[trigger] ex.suffix(i))
-            implies eventually(always(lift_state(scoped_a_to_q))).satisfied_by(ex.suffix(i)) by {
-            assert forall |a: A| #[trigger] domain.contains(a) implies eventually(always(lift_state(a_to_q(a)))).satisfied_by(ex.suffix(i)) by {
-                entails_apply::<T>(ex, spec, always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))));
-                leads_to_unfold::<T>(ex, always(lift_state(a_to_p(a))), always(lift_state(a_to_q(a))));
-                assert(always(lift_state(a_to_p(a))).satisfied_by(ex.suffix(i))) by {
-                    assert forall |j: nat| lift_state(a_to_p(a)).satisfied_by(ex.suffix(i).suffix(j)) by {
-                        always_unfold::<T>(ex.suffix(i), lift_state(scoped_a_to_p));
-                        assert(a_to_p(a)(ex.suffix(i).suffix(j).head()));
+    // vacuously true
+    if domain.len() == 0 {
+        assert(forall |a: A| !domain.contains(a));
+        temp_pred_equality(
+            lift_state(|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_p(a)(t))),
+            true_pred::<T>()
+        );
+        temp_pred_equality(
+            lift_state(|t: T| (forall |a: A| #[trigger] domain.contains(a) ==> a_to_q(a)(t))),
+            true_pred::<T>()
+        );
+        leads_to_self_temp(always(true_pred::<T>()));
+    } else {
+        assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies always(lift_state(scoped_a_to_p))
+            .leads_to(always(lift_state(scoped_a_to_q))).satisfied_by(ex) by {
+            assert forall |i: nat| always(lift_state(scoped_a_to_p)).satisfied_by(#[trigger] ex.suffix(i))
+                implies eventually(always(lift_state(scoped_a_to_q))).satisfied_by(ex.suffix(i)) by {
+                assert forall |a: A| #[trigger] domain.contains(a) implies eventually(always(lift_state(a_to_q(a)))).satisfied_by(ex.suffix(i)) by {
+                    entails_apply::<T>(ex, spec, always(lift_state(a_to_p(a))).leads_to(always(lift_state(a_to_q(a)))));
+                    leads_to_unfold::<T>(ex, always(lift_state(a_to_p(a))), always(lift_state(a_to_q(a))));
+                    assert(always(lift_state(a_to_p(a))).satisfied_by(ex.suffix(i))) by {
+                        assert forall |j: nat| lift_state(a_to_p(a)).satisfied_by(ex.suffix(i).suffix(j)) by {
+                            always_unfold::<T>(ex.suffix(i), lift_state(scoped_a_to_p));
+                            assert(a_to_p(a)(ex.suffix(i).suffix(j).head()));
+                        }
+                    }
+                };
+                let a_to_witness = Map::new(|a: A| domain.contains(a), |a: A| eventually_choose_witness::<T>(ex.suffix(i), always(lift_state(a_to_q(a)))));
+                let leq = |a1: nat, a2: nat| a1 <= a2;
+                let values = a_to_witness.values();
+                assert(a_to_witness.dom() =~= domain);
+                lemma_values_finite(a_to_witness);
+                assert(values.len() > 0) by {
+                    let x = a_to_witness.dom().choose();
+                    assert(domain.contains(x));
+                    assert(values.contains(a_to_witness[x]));
+                };
+                let max_witness = values.find_unique_maximal(leq);
+                values.find_unique_maximal_ensures(leq);
+                values.lemma_maximal_equivalent_greatest(leq, max_witness);
+                assert(always(lift_state(scoped_a_to_q)).satisfied_by(ex.suffix(i).suffix(max_witness))) by {
+                    assert(vstd::relations::is_greatest(leq, max_witness, values));
+                    assert forall |a: A| #[trigger] domain.contains(a) implies always(lift_state(a_to_q(a))).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
+                        let witness = a_to_witness[a];
+                        assert(leq(witness, max_witness));
+                        always_propagate_forwards::<T>(ex.suffix(i).suffix(witness), lift_state(a_to_q(a)), (max_witness - witness) as nat);
+                        execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
+                    }
+                    assert forall |j: nat| #[trigger] lift_state(scoped_a_to_q).satisfied_by(ex.suffix(i).suffix(max_witness).suffix(j)) by {
+                        assert forall |a: A| #[trigger] domain.contains(a) implies lift_state(a_to_q(a)).satisfied_by(ex.suffix(i).suffix(max_witness).suffix(j)) by {
+                            always_propagate_forwards::<T>(ex.suffix(i).suffix(max_witness), lift_state(a_to_q(a)), j);
+                        }
                     }
                 }
-            };
-            let a_to_witness = Map::new(|a: A| domain.contains(a), |a: A| eventually_choose_witness::<T>(ex.suffix(i), always(lift_state(a_to_q(a)))));
-            let leq = |a1: nat, a2: nat| a1 <= a2;
-            let values = a_to_witness.values();
-            assert(a_to_witness.dom() =~= domain);
-            lemma_values_finite(a_to_witness);
-            assert(values.len() > 0) by {
-                let x = a_to_witness.dom().choose();
-                assert(domain.contains(x));
-                assert(values.contains(a_to_witness[x]));
-            };
-            let max_witness = values.find_unique_maximal(leq);
-            values.find_unique_maximal_ensures(leq);
-            values.lemma_maximal_equivalent_greatest(leq, max_witness);
-            assert(always(lift_state(scoped_a_to_q)).satisfied_by(ex.suffix(i).suffix(max_witness))) by {
-                assert(vstd::relations::is_greatest(leq, max_witness, values));
-                assert forall |a: A| #[trigger] domain.contains(a) implies always(lift_state(a_to_q(a))).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
-                    let witness = a_to_witness[a];
-                    assert(leq(witness, max_witness));
-                    always_propagate_forwards::<T>(ex.suffix(i).suffix(witness), lift_state(a_to_q(a)), (max_witness - witness) as nat);
-                    execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
-                }
-                assert forall |j: nat| #[trigger] lift_state(scoped_a_to_q).satisfied_by(ex.suffix(i).suffix(max_witness).suffix(j)) by {
-                    assert forall |a: A| #[trigger] domain.contains(a) implies lift_state(a_to_q(a)).satisfied_by(ex.suffix(i).suffix(max_witness).suffix(j)) by {
-                        always_propagate_forwards::<T>(ex.suffix(i).suffix(max_witness), lift_state(a_to_q(a)), j);
-                    }
-                }
+                eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(scoped_a_to_q)), max_witness);
             }
-            eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(scoped_a_to_q)), max_witness);
         }
     }
 }
@@ -2416,6 +2442,110 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: Te
         };
     };
     always_and_equality(q, r);
+}
+
+// Combine the conclusions of two leads_to if the conclusions are stable.
+// pre:
+//     spec |= p ~> \E []q
+//     spec |= p ~> []r
+// post:
+//     spec |= p ~> \E [](q /\ r)
+//     spec |= p ~> \E []q /\ []r
+pub proof fn leads_to_exists_always_combine<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))))),
+        spec.entails(p.leads_to(always(r))),
+    ensures
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a).and(r))))),
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a)).and(always(r))))),
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))).and(always(r)))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|a: A| always(a_to_q(a)).and(always(r)))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|a: A| always(a_to_q(a)).and(always(r)))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p.leads_to(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex, spec, p.leads_to(always(r)));
+            implies_apply::<T>(ex.suffix(i), p, eventually(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex.suffix(i), p, eventually(always(r)));
+            let witness_q_idx = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a))));
+            let witness_r_idx = eventually_choose_witness::<T>(ex.suffix(i), always(r));
+            // Unwrap the existential to get a concrete witness_a
+            tla_exists_unfold::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+            if witness_q_idx < witness_r_idx {
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_q_idx), a_to_q(witness_a), (witness_r_idx - witness_q_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_r_idx), ex.suffix(i).suffix(witness_q_idx).suffix((witness_r_idx - witness_q_idx) as nat));
+                tla_exists_proved_by_witness::<T, A>(ex.suffix(i).suffix(witness_r_idx), |a: A| always(a_to_q(a)).and(always(r)), witness_a);
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a)).and(always(r))), witness_r_idx);
+            } else {
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_r_idx), r, (witness_q_idx - witness_r_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_q_idx), ex.suffix(i).suffix(witness_r_idx).suffix((witness_q_idx - witness_r_idx) as nat));
+                tla_exists_proved_by_witness::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)).and(always(r)), witness_a);
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a)).and(always(r))), witness_q_idx);
+            }
+        };
+    };
+    assert forall |a: A| #![trigger a_to_q(a)] always(a_to_q(a)).and(always(r)) == always(a_to_q(a).and(r)) by {
+        always_and_equality::<T>(a_to_q(a), r);
+    }
+    tla_exists_p_tla_exists_q_equality::<T, A>(
+        |a: A| always(a_to_q(a)).and(always(r)),
+        |a: A| always(a_to_q(a).and(r)),
+    );
+    tla_exists_p_tla_exists_q_equality::<T, A>(
+        |a: A| always(a_to_q(a)).and(always(r)),
+        |a: A| (|a: A| always(a_to_q(a)))(a).and(always(r)),
+    );
+    tla_exists_and_equality::<T, A>(|a: A| always(a_to_q(a)), always(r));
+}
+
+// Combine the conclusions of two leads_to if the conclusions are stable.
+// pre:
+//     spec |= p ~> \E a []q(a)
+//     spec |= p ~> \E b []r(b)
+// post:
+//     spec |= p ~> \E ab [] (q(a) /\ r(b))
+pub proof fn leads_to_exists_always_combine2<T, A, B>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>, b_to_r: spec_fn(B) -> TempPred<T>)
+    requires
+        spec.entails(p.leads_to(tla_exists(|a: A| always(a_to_q(a))))),
+        spec.entails(p.leads_to(tla_exists(|b: B| always(b_to_r(b))))),
+    ensures
+        spec.entails(p.leads_to(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p.leads_to(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex, spec, p.leads_to(tla_exists(|b: B| always(b_to_r(b)))));
+
+            implies_apply::<T>(ex.suffix(i), p, eventually(tla_exists(|a: A| always(a_to_q(a)))));
+            implies_apply::<T>(ex.suffix(i), p, eventually(tla_exists(|b: B| always(b_to_r(b)))));
+
+            let witness_q_idx = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|a: A| always(a_to_q(a))));
+            let witness_r_idx = eventually_choose_witness::<T>(ex.suffix(i), tla_exists(|b: B| always(b_to_r(b))));
+
+            // Unwrap the existentials to get concrete witnesses
+            tla_exists_unfold::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+            let witness_a = tla_exists_choose_witness::<T, A>(ex.suffix(i).suffix(witness_q_idx), |a: A| always(a_to_q(a)));
+
+            tla_exists_unfold::<T, B>(ex.suffix(i).suffix(witness_r_idx), |b: B| always(b_to_r(b)));
+            let witness_b = tla_exists_choose_witness::<T, B>(ex.suffix(i).suffix(witness_r_idx), |b: B| always(b_to_r(b)));
+
+            if witness_q_idx < witness_r_idx {
+                // Propagate always(a_to_q(witness_a)) forward to witness_r_idx
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_q_idx), a_to_q(witness_a), (witness_r_idx - witness_q_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_r_idx), ex.suffix(i).suffix(witness_q_idx).suffix((witness_r_idx - witness_q_idx) as nat));
+                // At witness_r_idx, both always(a_to_q(witness_a)) and always(b_to_r(witness_b)) hold
+                tla_exists_proved_by_witness::<T, (A, B)>(ex.suffix(i).suffix(witness_r_idx), |ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))), (witness_a, witness_b));
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))), witness_r_idx);
+            } else {
+                // Propagate always(b_to_r(witness_b)) forward to witness_q_idx
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_r_idx), b_to_r(witness_b), (witness_q_idx - witness_r_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_q_idx), ex.suffix(i).suffix(witness_r_idx).suffix((witness_q_idx - witness_r_idx) as nat));
+                // At witness_q_idx, both always(a_to_q(witness_a)) and always(b_to_r(witness_b)) hold
+                tla_exists_proved_by_witness::<T, (A, B)>(ex.suffix(i).suffix(witness_q_idx), |ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1))), (witness_a, witness_b));
+                eventually_proved_by_witness(ex.suffix(i), tla_exists(|ab: (A, B)| always(a_to_q(ab.0)).and(always(b_to_r(ab.1)))), witness_q_idx);
+            }
+        };
+    };
 }
 
 // Add always(c) to both side of leads_to.
@@ -2581,7 +2711,7 @@ pub proof fn leads_to_greater_until<T>(spec: TempPred<T>, p: TempPred<T>, p_n: s
             let witness_n = choose |n: nat| n <= max && #[trigger] p_n(n).satisfied_by(ex.suffix(i));
             leads_to_greater_until_rec(spec, p_n, witness_n, max);
             entails_apply::<T>(ex, spec, p_n(witness_n).leads_to(p_n(max)));
-            p_leads_to_q_is_stable(p_n(witness_n), p_n(max));
+            leads_to_is_stable(p_n(witness_n), p_n(max));
             stable_unfold::<T>(ex, p_n(witness_n).leads_to(p_n(max)));
             leads_to_unfold::<T>(ex.suffix(i), p_n(witness_n), p_n(max));
             execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
@@ -2700,7 +2830,7 @@ proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usiz
 }
 
 // Prove monotinicity holds
-// This lemma help to prove precondition of leads_to_by_monotonicity3
+// This lemma help to prove precondition of iterative_esr
 // pre:
 //     spec |= []next
 //     forall |s: T, s_prime: T| #[trigger] next(s, s_prime) && p(n)(s) ==> exists |m: nat| m <= n && p(m)(s_prime)
@@ -3000,7 +3130,7 @@ pub proof fn leads_to_by_monotonicity2<T>(spec: TempPred<T>, next: TempPred<T>, 
     }
 }
 
-pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>, n: nat)
+pub proof fn iterative_esr_rec<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>, n: nat)
     requires
         forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
         forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
@@ -3042,7 +3172,7 @@ pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat)
                 assert(eventually(p(m)).satisfied_by(ex.suffix(i)));
                 let j = eventually_choose_witness(ex.suffix(i), p(m));
                 execution_equality(ex.suffix(i).suffix(j), ex.suffix(i+j));
-                leads_to_by_monotonicity3_rec(spec, p, q, m);
+                iterative_esr_rec(spec, p, q, m);
                 implies_apply(ex, spec, p(m).leads_to(always(p(0))));
                 implies_apply(ex.suffix(i+j), p(m), eventually(always(p(0))));
                 let k = eventually_choose_witness(ex.suffix(i+j), always(p(0)));
@@ -3064,17 +3194,16 @@ pub proof fn leads_to_by_monotonicity3_rec<T>(spec: TempPred<T>, p: spec_fn(nat)
 // The first premise is ESR, the second premise says that the ranking for p never increases, and the third premise says
 // that if the ranking has not reached 0 and q(n) always holds, then the system eventually invalidates p(n).
 // The second and the third premised combined proves that if q(n) holds stably, then the ranking for p eventually decreases.
-pub proof fn leads_to_by_monotonicity3<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>)
+pub proof fn iterative_esr<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, q: spec_fn(nat) -> TempPred<T>)
     requires
         forall |n| #![trigger p(n)] spec.entails(always(p(n)).leads_to(always(q(n)))),
         forall |n| #![trigger p(n)] spec.entails(always(p(n).implies(always(tla_exists(|m: nat| lift_state(|s| m <= n).and(p(m))))))),
         forall |n: nat| #![trigger p(n)] n > 0 ==> spec.entails(always(q(n)).leads_to(not(p(n)))),
     ensures
-        forall |n| #![trigger p(n)] spec.entails(p(n).leads_to(always(q(0)))),
+        forall |n| #![trigger p(n)] spec.entails(p(n).leads_to(always(p(0)))),
 {
-    assert forall |n| #[trigger] spec.entails(p(n).leads_to(always(q(0)))) by {
-        leads_to_by_monotonicity3_rec(spec, p, q, n);
-        leads_to_trans(spec, p(n), always(p(0)), always(q(0)));
+    assert forall |n| #[trigger] spec.entails(p(n).leads_to(always(p(0)))) by {
+        iterative_esr_rec(spec, p, q, n);
     }
 }
 

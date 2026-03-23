@@ -121,6 +121,13 @@ impl VReplicaSetSpecView {
         }
     }
 
+    pub open spec fn without_replicas(self) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            replicas: None,
+            ..self
+        }
+    }
+
     pub open spec fn with_selector(self, selector: LabelSelectorView) -> VReplicaSetSpecView {
         VReplicaSetSpecView {
             selector: selector,

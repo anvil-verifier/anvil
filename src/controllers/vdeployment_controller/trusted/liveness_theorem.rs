@@ -5,7 +5,7 @@ use crate::vreplicaset_controller::trusted::{spec_types::*, liveness_theorem as 
 use crate::vdeployment_controller::{
     model::reconciler::VDeploymentReconcileState,
     trusted::{spec_types::*, util::*, step::VDeploymentReconcileStepView::*},
-    proof::predicate::*
+    proof::{predicate::*, liveness::rolling_update::predicate::*},
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -22,7 +22,7 @@ pub open spec fn composed_vd_eventually_stable_reconciliation_per_cr() -> spec_f
 }
 
 pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView, controller_id: int) -> TempPred<ClusterState> {
-    always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id))))
+    always(lift_state(desired_state_is(vd))).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))
 }
 
 pub open spec fn desired_state_is(vd: VDeploymentView) -> StatePred<ClusterState> {
@@ -39,14 +39,14 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     |s: ClusterState| {
         // new vrs exists and only one exists
         // at most one exists is enforced by filter_old_vrs_keys
-        exists |k: ObjectRef| {
-            let etcd_obj = s.resources()[k];
+        exists |new_vrs_key: ObjectRef| {
+            let etcd_obj = s.resources()[new_vrs_key];
             let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            &&& #[trigger] s.resources().contains_key(k)
-            &&& valid_owned_obj_key(vd, s)(k)
-            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+            &&& #[trigger] s.resources().contains_key(new_vrs_key)
+            &&& valid_owned_obj_key(vd, s)(new_vrs_key)
+            &&& filter_new_vrs_keys(vd.spec.template, s)(new_vrs_key)
             &&& etcd_vrs.metadata.uid is Some
-            // &&& etcd_vrs_spec.replicas == 0
+            &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |old_k: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(old_k)
@@ -57,15 +57,46 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     }
 }
 
-// TODO: strengthen a bit to make it inductive:
-// whenever local new vrs is chosen, it match the new_vrs in current_state_matches
-pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+// ~> \E k [] current_state_matches(vd, k)
+pub open spec fn current_state_matches_with_new_vrs_key(vd: VDeploymentView, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        // new vrs exists and only one exists
+        // at most one exists is enforced by filter_old_vrs_keys
+        let etcd_obj = s.resources()[new_vrs_key];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& s.resources().contains_key(new_vrs_key)
+        &&& valid_owned_obj_key(vd, s)(new_vrs_key)
+        &&& filter_new_vrs_keys(vd.spec.template, s)(new_vrs_key)
+        &&& etcd_vrs.metadata.uid is Some
+        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
+        // no old vrs, including the 2nd new vrs (if any)
+        &&& !exists |old_k: ObjectRef| {
+            &&& #[trigger] s.resources().contains_key(old_k)
+            &&& valid_owned_obj_key(vd, s)(old_k)
+            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
+        }
+    }
+}
+
+pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        &&& current_state_matches(vd)(s)
+        let etcd_obj = s.resources()[new_vrs_key];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
+            // if vd has 0 replicas, local new vrs can have 0 replicas or not
+            // if the new_vrs in etcd has > 0 replicas, it will be chosen at after list step
+            &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
+                &&& local_state.new_vrs->0.object_ref() == new_vrs_key
+                &&& local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
+            }
+            &&& local_state.new_vrs is Some && local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
+                &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
+                &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+            }
             &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s)
+            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleNewVRS, AfterEnsureNewVRS])(s)
                 ==> local_state.old_vrs_index == 0
             &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
@@ -79,8 +110,11 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
             } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                 &&& local_state.new_vrs is Some
+                // only when vd.replicas = 0 and both new_vrs_with_key and local.new_vrs have 0 replicas their key can differ
+                // but then AfterScaleNewVRS is not reachable
+                &&& local_state.new_vrs->0.object_ref() == new_vrs_key
                 &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-                &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, (local_state.new_vrs->0.metadata.uid->0, local_state.new_vrs->0.object_ref()))(s)
+                &&& ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg)(s)
             } else {
                 s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
             }

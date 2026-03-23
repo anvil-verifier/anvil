@@ -115,4 +115,45 @@ pub proof fn lemma_to_seq_to_set_equal<A>(s: Set<A>)
 {
     finite_set_to_seq_contains_all_set_elements(s);
 }
+
+// If pred(x) == pred_on_mapped(f(x)) for all x in s, then s.filter(pred).map(f) == s.map(f).filter(pred_on_mapped)
+pub proof fn commutativity_of_set_map_and_filter<A, B>(s: Set<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, f: spec_fn(A) -> B)
+    requires
+        forall |x: A| s.contains(x) ==> pred(x) == pred_on_mapped(#[trigger] f(x)),
+    ensures
+        s.filter(pred).map(f) == s.map(f).filter(pred_on_mapped),
+{
+    // ==>
+    assert forall |b: B| #[trigger] s.filter(pred).map(f).contains(b) implies s.map(f).filter(pred_on_mapped).contains(b) by {
+        let a = choose |a: A| s.filter(pred).contains(a) && f(a) == b;
+        assert(s.contains(a));
+        assert(pred(a));
+        assert(s.map(f).contains(b));
+        assert(pred_on_mapped(b));
+    }
+    // <==
+    assert forall |b: B| #[trigger] s.map(f).filter(pred_on_mapped).contains(b) implies s.filter(pred).map(f).contains(b) by {
+        assert(s.map(f).contains(b));
+        assert(pred_on_mapped(b));
+        let a = choose |a: A| s.contains(a) && f(a) == b;
+        assert(pred(a));
+        assert(s.filter(pred).contains(a));
+    }
+}
+
+// s.filter(|x| p(x) && q(x)) == s.filter(p).filter(q)
+pub proof fn set_filter_conj_is_filter_filter<A>(s: Set<A>, p: spec_fn(A) -> bool, q: spec_fn(A) -> bool, pq: spec_fn(A) -> bool)
+    requires forall |x: A| #[trigger] pq(x) == (p(x) && q(x)),
+    ensures s.filter(pq) == s.filter(p).filter(q),
+{
+    assert forall |x: A| #[trigger] s.filter(pq).contains(x) implies s.filter(p).filter(q).contains(x) by {
+        assert(s.contains(x) && pq(x));
+        assert(p(x) && q(x));
+    }
+    assert forall |x: A| #[trigger] s.filter(p).filter(q).contains(x) implies s.filter(pq).contains(x) by {
+        assert(s.contains(x) && p(x) && q(x));
+        assert(pq(x));
+    }
+}
+
 }
