@@ -509,8 +509,6 @@ pub proof fn ranking_decreases_after_vrs_esr(
         spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-        spec.entails(tla_forall((|i| cluster.external_next().weak_fairness((controller_id, i))))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         valid(stable(spec)),
     ensures
@@ -716,11 +714,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
 {
     VReplicaSetView::marshal_preserves_integrity();
     // new_vrs replicas might be updated during reconciliation
-    let new_vrs = if new_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1) {
-        new_vrs
-    } else {
-        new_vrs.with_spec(new_vrs.spec.with_replicas(vd.spec.replicas.unwrap_or(1)))
-    };
+    let new_vrs = new_vrs.with_spec(new_vrs.spec.with_replicas(vd.spec.replicas.unwrap_or(1)));
     assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
         assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
             implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(new_vrs, obj) by {
