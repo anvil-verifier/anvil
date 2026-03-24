@@ -20,6 +20,7 @@ use crate::rabbitmq_controller::{
     trusted::{spec_types::*, step::*},
 };
 use crate::reconciler::spec::{reconciler::*, resource_builder::*};
+use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
@@ -62,6 +63,8 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
     let inv = object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq);

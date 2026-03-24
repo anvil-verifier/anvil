@@ -21,6 +21,7 @@ use crate::rabbitmq_controller::{
     trusted::{spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::rabbitmq_controller::model::install::*;
 use vstd::prelude::*;
 
 verus! {
@@ -59,6 +60,8 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)))),
 {
     let inv = object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq);

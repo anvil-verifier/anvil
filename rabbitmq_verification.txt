@@ -1,0 +1,1909 @@
+warning: unused macro definition: `not`
+   --> src/controllers/vstatefulset_controller/proof/predicate.rs:229:14
+    |
+229 | macro_rules! not {
+    |              ^^^
+    |
+    = note: `#[warn(unused_macros)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused macro definition: `int0`
+   --> src/controllers/vstatefulset_controller/proof/predicate.rs:256:14
+    |
+256 | macro_rules! int0 {
+    |              ^^^^
+
+warning: unused macro definition: `int1`
+   --> src/controllers/vstatefulset_controller/proof/predicate.rs:262:14
+    |
+262 | macro_rules! int1 {
+    |              ^^^^
+
+note: verifying module rabbitmq_controller
+
+note: verifying module rabbitmq_controller::exec::reconciler
+
+note: verifying module rabbitmq_controller::exec::resource::common
+
+note: verifying module rabbitmq_controller::exec::resource::config_map
+
+note: verifying module rabbitmq_controller::exec::resource::default_user_secret
+
+note: verifying module rabbitmq_controller::exec::resource::erlang_cookie
+
+note: verifying module rabbitmq_controller::exec::resource::headless_service
+
+note: verifying module rabbitmq_controller::exec::resource::rabbitmq_plugins
+
+note: verifying module rabbitmq_controller::exec::resource::role
+
+note: verifying module rabbitmq_controller::exec::resource::role_binding
+
+note: verifying module rabbitmq_controller::exec::resource::service
+
+note: verifying module rabbitmq_controller::exec::resource::service_account
+
+note: verifying module rabbitmq_controller::exec::resource::stateful_set
+
+note: verifying module rabbitmq_controller::model::install
+
+note: verifying module rabbitmq_controller::model::reconciler
+
+note: verifying module rabbitmq_controller::model::resource::common
+
+note: verifying module rabbitmq_controller::model::resource::config_map
+
+note: verifying module rabbitmq_controller::model::resource::default_user_secret
+
+note: verifying module rabbitmq_controller::model::resource::erlang_cookie
+
+note: verifying module rabbitmq_controller::model::resource::headless_service
+
+note: verifying module rabbitmq_controller::model::resource::rabbitmq_plugins
+
+note: verifying module rabbitmq_controller::model::resource::role
+
+note: verifying module rabbitmq_controller::model::resource::role_binding
+
+note: verifying module rabbitmq_controller::model::resource::service
+
+note: verifying module rabbitmq_controller::model::resource::service_account
+
+note: verifying module rabbitmq_controller::model::resource::stateful_set
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::owner_ref
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::predicate
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::unchangeable
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::validation
+
+note: verifying module rabbitmq_controller::proof::liveness::proof
+
+note: verifying module rabbitmq_controller::proof::liveness::resource_match
+
+note: verifying module rabbitmq_controller::proof::liveness::spec
+
+note: verifying module rabbitmq_controller::proof::liveness::terminate
+
+note: verifying module rabbitmq_controller::proof::predicate
+
+note: verifying module rabbitmq_controller::proof::resource
+
+note: verifying module rabbitmq_controller::proof::safety::proof
+
+note: verifying module rabbitmq_controller::trusted::exec_types
+
+note: verifying module rabbitmq_controller::trusted::liveness_theorem
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:144:1
+    |
+144 | pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:162:5
+    |
+162 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:165:5
+    |
+165 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+note: verifying module rabbitmq_controller::trusted::maker
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:61:7
+   |
+61 | proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:72:5
+    |
+ 72 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:73:5
+   |
+73 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+   |
+75 |         self.controller_models.contains_key(controller_id),
+   |         -------------------------------------------------- failed precondition
+
+note: verifying module rabbitmq_controller::trusted::rely_guarantee
+
+note: verifying module rabbitmq_controller::trusted::safety_theorem
+
+note: verifying module rabbitmq_controller::trusted::spec_types
+
+note: verifying module rabbitmq_controller::trusted::step
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::owner_ref, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::owner_ref::object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_always_cm_rv_stays_unchanged
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_always_request_at_after_get_request_step_is_resource_get_request
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_always_response_at_after_get_resource_step_is_resource_get_response
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_no_delete_resource_request_msg_in_flight
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_resource_create_request_msg_implies_key_in_reconcile_equals
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::lemma_resource_update_request_msg_implies_key_in_reconcile_equals
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::proof, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::proof::object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::validation, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::validation::lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::validation, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::validation::lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable
+
+note: verifying module rabbitmq_controller::proof::helper_invariants::validation, function rabbitmq_controller::rabbitmq_controller::proof::helper_invariants::validation::lemma_always_stateful_set_in_etcd_satisfies_unchangeable
+
+note: verifying module rabbitmq_controller::proof::liveness::resource_match, function rabbitmq_controller::rabbitmq_controller::proof::liveness::resource_match::lemma_from_after_get_resource_step_to_after_create_resource_step
+
+note: verifying module rabbitmq_controller::proof::liveness::resource_match, function rabbitmq_controller::rabbitmq_controller::proof::liveness::resource_match::lemma_from_after_get_resource_step_to_after_update_resource_step
+
+note: verifying module rabbitmq_controller::proof::liveness::resource_match, function rabbitmq_controller::rabbitmq_controller::proof::liveness::resource_match::lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step
+
+note: verifying module rabbitmq_controller::proof::safety::proof, function rabbitmq_controller::rabbitmq_controller::proof::safety::proof::lemma_always_replicas_of_etcd_stateful_set_satisfies_order
+
+error: postcondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:167:13
+    |
+167 |       ensures object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s_prime),
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+...
+170 | /     if s_prime.resources().contains_key(resource_key) {
+171 | |         match sub_resource {
+172 | |             SubResource::ErlangCookieSecret => {
+173 | |                 SecretView::marshal_preserves_integrity();
+...   |
+199 | |     }
+    | |_____- at the end of the function body
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:217:13
+    |
+217 |     implies unchangeable(sub_resource, msg.content.get_update_request().obj, rabbitmq) by {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:107:1
+    |
+107 | pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:129:5
+    |
+129 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/unchangeable.rs:130:5
+    |
+130 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:71:5
+   |
+71 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+   |
+75 |         self.controller_models.contains_key(controller_id),
+   |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:70:5
+   |
+70 |     cluster.lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec, controller_id);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: src/kubernetes_cluster/proof/controller_runtime_safety.rs:59:9
+   |
+59 |         self.controller_models.contains_key(controller_id),
+   |         -------------------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:55:1
+   |
+55 | / pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(
+56 | |     controller_id: int,
+57 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+58 | | )
+   | |_^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:164:78
+    |
+164 |     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+    |                                                                              ^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1802:32
+     |
+1802 |                         assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
+     |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+    --> src/temporal_logic/rules.rs:1189:9
+     |
+1172 | / macro_rules! invariant_n {
+1173 | |     [$($tail:tt)*] => {
+1174 | |         verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_n_internal!($($tail)*))
+     | |                                  --------------------------------------------------------------- in this macro invocation (#2)
+1175 | |     }
+1176 | | }
+     | |_- in this expansion of `invariant_n!` (#1)
+...
+1179 | / macro_rules! invariant_n_internal {
+1180 | |     ($spec:expr, $partial_spec:expr, $inv:expr, $($tail:tt)*) => {
+1181 | |         assert_by(
+1182 | |             valid($spec.implies(always(combine_with_next!($($tail)*)))),
+...    |
+1189 | |         entails_preserved_by_always($partial_spec, $inv);
+     | |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1190 | |         entails_trans($spec, always($partial_spec), always($inv));
+1191 | |     };
+1192 | | }
+     | |_- in this expansion of `$crate::temporal_logic::rules::invariant_n_internal!` (#2)
+...
+1701 |       requires p.entails(q),
+     |                ------------ failed precondition
+     |
+    ::: src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:37:5
+     |
+  37 | /     invariant_n!(
+  38 | |         spec, lift_state(stronger_inv),
+  39 | |         lift_state(rabbitmq_is_well_formed(rabbitmq)),
+  40 | |         lift_state(Cluster::desired_state_is(rabbitmq)),
+  41 | |         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())
+  42 | |     );
+     | |_____- in this macro invocation (#1)
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:53:5
+     |
+  53 |     init_invariant(spec, cluster.init(), cluster.next(), inv);
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1545:9
+     |
+1545 |         forall |s, s_prime: T| inv(s) && #[trigger] next(s, s_prime) ==> inv(s_prime),
+     |         ----------------------------------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:73:5
+     |
+  73 |     init_invariant(spec, cluster.init(), stronger_next, inv);
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1544:9
+     |
+1544 |         forall |s: T| #[trigger] init(s) ==> inv(s),
+     |         ------------------------------------------- failed precondition
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:93:5
+     |
+  93 |     init_invariant(spec, cluster.init(), stronger_next, inv);
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1544:9
+     |
+1544 |         forall |s: T| #[trigger] init(s) ==> inv(s),
+     |         ------------------------------------------- failed precondition
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1124:87
+     |
+1124 |     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+     |                                                                                       ^^^^^^^^^^^^ assertion failed
+
+error: postcondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1714:13
+     |
+1698 | pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+     | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- at the end of the function body
+...
+1714 |     ensures spec.entails(true_pred().leads_to(always(lift_state(stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq))))),
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:307:5
+    |
+307 |     cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, input, stronger_next, stronger_pre, post);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/wf1_helpers.rs:88:9
+    |
+ 88 |         spec.entails(tla_forall(|i| self.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    |         ---------------------------------------------------------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:347:5
+    |
+347 |     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/wf1_helpers.rs:64:9
+    |
+ 64 |         forall |s| #[trigger] pre(s) ==> self.controller_action_pre(step, (controller_id, input.0, input.1))(s),
+    |         ------------------------------------------------------------------------------------------------------- failed precondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:376:28
+    |
+376 |                     assert(post(s_prime));
+    |                            ^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:384:5
+    |
+384 |     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/wf1_helpers.rs:66:9
+    |
+ 66 | ...   spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    |       ----------------------------------------------------------------------------------------------------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:350:7
+    |
+350 | proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:106:7
+    |
+106 | proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:118:5
+    |
+118 |     terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/controllers/rabbitmq_controller/proof/liveness/terminate.rs:120:9
+    |
+120 |         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    |         ------------------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:122:5
+    |
+122 |     lemma_from_reconcile_idle_to_scheduled(controller_id, cluster, spec, rabbitmq);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+275 |         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness(i))),
+    |         -------------------------------------------------------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:186:7
+    |
+186 | proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:220:9
+    |
+220 |         terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/controllers/rabbitmq_controller/proof/liveness/terminate.rs:120:9
+    |
+120 |         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    |         ------------------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:221:9
+    |
+221 |         lemma_from_reconcile_idle_to_scheduled(controller_id, cluster, spec, rabbitmq);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+275 |         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness(i))),
+    |         -------------------------------------------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:55:5
+     |
+  55 | /     entails_trans(
+  56 | |         spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)), invariants(controller_id, cluster, rabbitmq),
+  57 | |         always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
+  58 | |     );
+     | |_____^
+     |
+    ::: src/temporal_logic/rules.rs:1663:9
+     |
+1663 |           p.entails(q),
+     |           ------------ failed precondition
+
+error: postcondition not satisfied
+  --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:38:13
+   |
+37 | proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+   |       -------------------------------------------------------------------------------------------------------------------- at the end of the function body
+38 |     ensures spec.entails(always(lift_state(current_state_matches(rabbitmq)))),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/liveness/proof.rs:37:7
+   |
+37 | proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:70:1
+   |
+70 | pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+  --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:77:9
+   |
+77 |         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: src/kubernetes_cluster/proof/failures_liveness.rs:16:9
+   |
+16 |         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+   |         ------------------------------------------------------------------------------------ failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:88:9
+    |
+ 88 |         terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/controllers/rabbitmq_controller/proof/liveness/terminate.rs:120:9
+    |
+120 |         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    |         ------------------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:90:13
+    |
+ 90 |             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, rabbitmq);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/controller_runtime_liveness.rs:727:9
+    |
+727 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:380:13
+    |
+380 | / ...   cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, rabbitmq.object_ref(), at_s...
+381 | | ...   );
+    | |_______^
+    |
+   ::: src/kubernetes_cluster/proof/controller_runtime_safety.rs:98:9
+    |
+ 98 |           self.controller_models.contains_key(controller_id),
+    |           -------------------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:387:1
+    |
+387 | pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:392:12
+    |
+392 |     assert(spec.entails(lift_state(cluster.init())));
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/spec.rs:393:12
+    |
+393 |     assert(spec.entails(always(lift_action(cluster.next()))));
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: postcondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:332:13
+    |
+332 |     ensures replicas_satisfies_order(controller_id, msg.content.get_create_request().obj, rabbitmq)(s_prime),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+...
+338 |         Step::APIServerStep(input) => {
+    |         -------------------------- at the end of the function body
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:348:28
+    |
+348 |                     assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:343:28
+    |
+343 |                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:318:7
+    |
+318 |   proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
+    |  _______^
+319 | |     controller_id: int,
+320 | |     cluster: Cluster, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
+321 | | )
+    | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:332:13
+    |
+167 |         obj.kind is StatefulSetKind,
+    |         --------------------------- recommendation not met
+...
+332 |     ensures replicas_satisfies_order(controller_id, msg.content.get_create_request().obj, rabbitmq)(s_prime),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:343:28
+    |
+186 |         obj.kind is CustomResourceKind,
+    |         ------------------------------ recommendation not met
+...
+343 |                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: postcondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:385:13
+    |
+385 |     ensures replicas_satisfies_order(controller_id, msg.content.get_update_request().obj, rabbitmq)(s_prime),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+...
+391 |         Step::APIServerStep(input) => {
+    |         -------------------------- at the end of the function body
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:396:28
+    |
+396 |                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:370:7
+    |
+370 |   proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
+    |  _______^
+371 | |     controller_id: int,
+372 | |     cluster: Cluster, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
+373 | | )
+    | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:385:13
+    |
+167 |         obj.kind is StatefulSetKind,
+    |         --------------------------- recommendation not met
+...
+385 |     ensures replicas_satisfies_order(controller_id, msg.content.get_update_request().obj, rabbitmq)(s_prime),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:396:28
+    |
+186 |         obj.kind is CustomResourceKind,
+    |         ------------------------------ recommendation not met
+...
+396 |                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:273:7
+    |
+273 | proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:289:5
+    |
+289 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:291:5
+    |
+291 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:292:5
+    |
+292 |     cluster.lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec, controller_id, rabbitmq);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/transition_validation.rs:247:9
+    |
+247 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:305:13
+    |
+167 | ...   obj.kind is StatefulSetKind,
+    |       --------------------------- recommendation not met
+...
+305 | ...   ==> replicas_satisfies_order(controller_id, msg.content.get_create_request().obj, rabbitmq)(s_prime)) && (resource_update_request_...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:306:13
+    |
+167 |         obj.kind is StatefulSetKind,
+    |         --------------------------- recommendation not met
+...
+306 |         ==> replicas_satisfies_order(controller_id, msg.content.get_update_request().obj, rabbitmq)(s_prime)) by {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:98:7
+   |
+98 | proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:117:5
+    |
+117 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:122:5
+    |
+122 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:59:5
+    |
+ 59 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: assertion failed
+  --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:72:28
+   |
+72 | ...sert(replicas_of_stateful_set(s_prime.resources()[sts_key]) == replicas_of_stateful_set(input.content.get_update_request().obj));
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:43:7
+   |
+43 | proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+  --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:72:28
+   |
+72 | ...   assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) == replicas_of_stateful_set(input.content.get_update_request().obj));
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: src/controllers/rabbitmq_controller/trusted/safety_theorem.rs:44:16
+   |
+44 |     recommends obj.kind is CustomResourceKind,
+   |                ------------------------------ recommendation not met
+
+note: recommendation not met
+  --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:73:28
+   |
+73 |                     assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) >= replicas_of_stateful_set(s.resources()[sts_key]));
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: src/controllers/rabbitmq_controller/trusted/safety_theorem.rs:44:16
+   |
+44 |     recommends obj.kind is CustomResourceKind,
+   |                ------------------------------ recommendation not met
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/trusted/liveness_theorem.rs:21:1
+   |
+21 | pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: postcondition not satisfied
+  --> src/controllers/rabbitmq_controller/trusted/liveness_theorem.rs:36:9
+   |
+21 | pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int)
+   | ------------------------------------------------------------------------------------------------------------------------------- at the end of the function body
+...
+36 |         spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)),
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+
+error: postcondition not satisfied
+  --> src/controllers/rabbitmq_controller/trusted/liveness_theorem.rs:37:9
+   |
+21 | pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int)
+   | ------------------------------------------------------------------------------------------------------------------------------- at the end of the function body
+...
+37 |         exists |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv)
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+
+error: postcondition not satisfied
+   --> src/controllers/rabbitmq_controller/trusted/rely_guarantee.rs:144:9
+    |
+137 | pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    | ---------------------------------------------------------------------------------------------------------- at the end of the function body
+...
+144 |         spec.entails(always(lift_state(rmq_guarantee(controller_id))))
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:118:16
+    |
+118 |         assert(owner_refs == Some(seq![cr.controller_owner_ref()]));
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:121:16
+    |
+121 |         assert(owner_refs->0[0].uid < s.api_server.uid_counter);
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:96:7
+   |
+96 |   proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
+   |  _______^
+97 | |     controller_id: int,
+98 | |     cluster: Cluster, s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message
+99 | | )
+   | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:113:22
+    |
+113 |     let cr_dynamic = s.ongoing_reconciles(controller_id)[input.2->0].triggering_cr;
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/owner_ref.rs:114:14
+    |
+114 |     let cr = RabbitmqClusterView::unmarshal(cr_dynamic).unwrap();
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+    |
+168 |         result is Ok,
+    |         ------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:994:36
+    |
+994 | ...                   assert(!resource_update_status_request_msg(resource_key)(msg));
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:974:43
+    |
+974 | ...   match RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+    |
+168 |         result is Ok,
+    |         ------------ recommendation not met
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1063:32
+     |
+1063 |                         assert(!(msg.content.is_update_status_request()));
+     |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1080:32
+     |
+1080 |                         assert(!s_prime.in_flight().contains(msg));
+     |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1018:5
+     |
+1018 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+     |
+ 280 |         self.type_is_installed_in_cluster::<T>(),
+     |         ---------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1012:1
+     |
+1012 | pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1043:39
+     |
+1043 | ...   match RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step {
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+     |
+ 168 |         result is Ok,
+     |         ------------ recommendation not met
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:550:7
+    |
+550 | proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:567:5
+    |
+567 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:580:36
+    |
+580 | ...                   assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:581:36
+    |
+581 | ...                   assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1163:7
+     |
+1163 |   proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
+     |  _______^
+1164 | |     controller_id: int,
+1165 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+1166 | | )
+     | |_^
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1179:5
+     |
+1179 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+     |
+  75 |         self.controller_models.contains_key(controller_id),
+     |         -------------------------------------------------- failed precondition
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1209:28
+     |
+1209 |                     assert(msg.content.get_create_request().obj == make(sub_resource, cr, local_state)->Ok_0);
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1205:57
+     |
+1205 |                 let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+     |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+     |
+  72 |             self.dom().contains(key),
+     |             ------------------------ recommendation not met
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1205:26
+     |
+1205 |                 let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+     |
+ 168 |         result is Ok,
+     |         ------------ recommendation not met
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:616:5
+    |
+616 |     cluster.lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, controller_id, key);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/req_resp.rs:159:9
+    |
+159 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:144:5
+     |
+ 144 |     always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()), lift_state(resource_well_formed));
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1748:9
+     |
+1748 |         p.entails(q),
+     |         ------------ failed precondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:159:78
+    |
+159 |     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+    |                                                                              ^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:117:7
+    |
+117 | proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:161:19
+    |
+161 |             match RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap().reconcile_step {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+    |
+168 |         result is Ok,
+    |         ------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:928:28
+    |
+928 |                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:921:17
+    |
+921 |         implies requirements(msg, s_prime) by {
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:882:7
+    |
+882 |   proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
+    |  _______^
+883 | |     controller_id: int,
+884 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+885 | | )
+    | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:928:72
+    |
+928 |                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+    |                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:742:28
+    |
+742 |                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: function body check: Resource limit (rlimit) exceeded; consider rerunning with --profile for more details
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:661:7
+    |
+661 |   proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
+    |  _______^
+662 | |     controller_id: int,
+663 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+664 | | )
+    | |_^
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1542:7
+     |
+1542 | proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1568:5
+     |
+1568 |     always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()), lift_state(resource_well_formed));
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1748:9
+     |
+1748 |         p.entails(q),
+     |         ------------ failed precondition
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1589:28
+     |
+1589 |                         if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+     |
+  72 |             self.dom().contains(key),
+     |             ------------------------ recommendation not met
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1590:36
+     |
+1590 | ...                   assert(msg == s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0);
+     |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1590:43
+     |
+1590 | ...                   assert(msg == s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0);
+     |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+     |
+  72 |             self.dom().contains(key),
+     |             ------------------------ recommendation not met
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1591:36
+     |
+1591 | ...                   assert(!s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0.content.is_delete_request());
+     |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:795:7
+    |
+795 |   proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
+    |  _______^
+796 | |     controller_id: int,
+797 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+798 | | )
+    | |_^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:831:17
+    |
+831 |         implies requirements(msg, s_prime) by {
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:838:28
+    |
+838 |                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:838:72
+    |
+838 |                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+    |                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:213:7
+    |
+213 |   proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
+    |  _______^
+214 | |     controller_id: int,
+215 | |     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+216 | | )
+    | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:266:27
+    |
+266 |         let pending_req = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:277:40
+    |
+277 | ...                   assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:284:36
+    |
+284 | ...                   assert(false);
+    |                              ^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:396:7
+    |
+396 |   proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
+    |  _______^
+397 | |     controller_id: int,
+398 | |     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+399 | | )
+    | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:452:27
+    |
+452 |         let pending_req = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:463:40
+    |
+463 | ...                   assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:470:36
+    |
+470 | ...                   assert(false);
+    |                              ^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1646:7
+     |
+1646 |   proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
+     |  _______^
+1647 | |     controller_id: int,
+1648 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+1649 | | )
+     | |_^
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1664:5
+     |
+1664 |     always_weaken(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1748:9
+     |
+1748 |         p.entails(q),
+     |         ------------ failed precondition
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1677:5
+     |
+1677 |     cluster.lemma_eventually_objects_owner_references_satisfies(spec, key, eventual_owner_ref);
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/kubernetes_cluster/proof/garbage_collector.rs:157:9
+     |
+ 157 | ...   spec.entails(always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)))),
+     |       ----------------------------------------------------------------------------------------------------------------------------------------- failed precondition
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1398:12
+     |
+1398 |     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1401:12
+     |
+1401 |     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1377:1
+     |
+1377 | pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1399:22
+     |
+1399 |     let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+     |
+ 168 |         result is Ok,
+     |         ------------ recommendation not met
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1400:28
+     |
+1400 |     let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().re...
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+     |
+ 168 |         result is Ok,
+     |         ------------ recommendation not met
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1395:14
+     |
+1395 |     let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+     |
+  72 |             self.dom().contains(key),
+     |             ------------------------ recommendation not met
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1271:12
+     |
+1271 |     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1274:12
+     |
+1274 |     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1245:1
+     |
+1245 | pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1272:22
+     |
+1272 |     let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+     |
+ 168 |         result is Ok,
+     |         ------------ recommendation not met
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1273:28
+     |
+1273 |     let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().re...
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+     |
+ 168 |         result is Ok,
+     |         ------------ recommendation not met
+
+note: recommendation not met
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1268:14
+     |
+1268 |     let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+     |
+  72 |             self.dom().contains(key),
+     |             ------------------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:329:133
+    |
+329 | ...msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:307:94
+    |
+307 | ...::ServerConfigMap, rabbitmq).key)(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0),
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:306:9
+    |
+306 |         s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:522:40
+    |
+522 | ...                   assert(msg.content.get_update_response().res->Ok_0.object_ref() == req_msg.content.get_update_request().key());
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:509:133
+    |
+509 | ...msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:485:7
+    |
+485 | proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:488:94
+    |
+488 | ...::ServerConfigMap, rabbitmq).key)(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0),
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:487:9
+    |
+487 |         s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:210:1
+    |
+210 | pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:230:5
+    |
+230 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:232:5
+     |
+ 232 |     always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()), lift_state(resource_well_formed));
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1748:9
+     |
+1748 |         p.entails(q),
+     |         ------------ failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:234:5
+    |
+234 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:272:7
+    |
+272 | proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:288:5
+    |
+288 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:290:5
+    |
+290 |     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_reconcile.rs:75:9
+    |
+ 75 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:291:5
+    |
+291 |     cluster.lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec, controller_id, rabbitmq);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/transition_validation.rs:247:9
+    |
+247 |         self.controller_models.contains_key(controller_id),
+    |         -------------------------------------------------- failed precondition
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:331:45
+    |
+331 |                         let triggering_cr = RabbitmqClusterView::unmarshal(triggering_cr_dynamic).unwrap();
+    |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+    |
+168 |         result is Ok,
+    |         ------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:104:32
+    |
+104 |                         assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:108:28
+    |
+108 | ...rt(RabbitmqClusterView::unmarshal(s.resources()[key])->Ok_0.controller_owner_ref() == RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:78:5
+    |
+ 78 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/helper_invariants/validation.rs:60:1
+   |
+60 | pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/helper_invariants/proof.rs:1745:76
+     |
+1745 |     assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) implies cm_rv_stays_unchanged(rabbitmq)(s, s_prime) by {
+     |                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:592:5
+    |
+592 | /     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+593 | |     );
+    | |_____^
+    |
+   ::: src/kubernetes_cluster/proof/wf1_helpers.rs:66:9
+    |
+ 66 |   ...   spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    |         ----------------------------------------------------------------------------------------------------------------------------------- failed precondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:581:87
+    |
+581 |     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    |                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:515:7
+    |
+515 |   proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
+    |  _______^
+516 | |     controller_id: int,
+517 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
+518 | | )
+    | |_^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:944:101
+    |
+944 |     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+    --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:928:5
+     |
+ 928 |     always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()), lift_state(resource_well_formed));
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+    ::: src/temporal_logic/rules.rs:1748:9
+     |
+1748 |         p.entails(q),
+     |         ------------ failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:886:7
+    |
+886 |   proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
+    |  _______^
+887 | |     controller_id: int,
+888 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
+889 | | )
+    | |_^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:478:87
+    |
+478 |     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    |                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:214:5
+    |
+214 |     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/kubernetes_cluster/proof/objects_in_store.rs:280:9
+    |
+280 |         self.type_is_installed_in_cluster::<T>(),
+    |         ---------------------------------------- failed precondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:236:32
+    |
+236 |                         assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:199:7
+    |
+199 | proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:240:32
+    |
+186 |         obj.kind is CustomResourceKind,
+    |         ------------------------------ recommendation not met
+...
+240 |                         assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/safety/proof.rs:240:76
+    |
+186 |         obj.kind is CustomResourceKind,
+    |         ------------------------------ recommendation not met
+...
+240 |                         assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+    |                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:677:101
+    |
+677 |     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:659:157
+    |
+659 | ...i_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+    |                                                       ^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:596:7
+    |
+596 |   proof fn lemma_resource_state_matches_at_after_create_resource_step(
+    |  _______^
+597 | |     controller_id: int,
+598 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+599 | | )
+    | |_^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:223:40
+    |
+223 | ...rt(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().reconcile_step == after_get_k_request_step(next_resource));
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:234:17
+    |
+234 | / ...   cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (Some(resp_msg), Some(rabbitmq.object_ref())), stronger_next,...
+235 | | ...   );
+    | |_______^
+    |
+   ::: src/kubernetes_cluster/proof/wf1_helpers.rs:66:9
+    |
+ 66 |   ...   spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    |         ----------------------------------------------------------------------------------------------------------------------------------- failed precondition
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+  --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:86:1
+   |
+86 | / pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
+87 | |     controller_id: int,
+88 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
+89 | | )
+   | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:223:74
+    |
+223 | ...   assert(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().re...
+    |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:223:40
+    |
+223 | ...   assert(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().re...
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+    |
+168 |         result is Ok,
+    |         ------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:742:87
+    |
+742 |     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    |                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:749:24
+    |
+749 |                 assert(!resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(req));
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:698:7
+    |
+698 |   proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
+    |  _______^
+699 | |     controller_id: int,
+700 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+701 | | )
+    | |_^
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:847:157
+    |
+847 | ...i_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+    |                                                       ^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:865:101
+    |
+865 |     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:781:7
+    |
+781 |   proof fn lemma_resource_state_matches_at_after_update_resource_step(
+    |  _______^
+782 | |     controller_id: int,
+783 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+784 | | )
+    | |_^
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:257:7
+    |
+257 |   proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
+    |  _______^
+258 | |     controller_id: int,
+259 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
+260 | | )
+    | |_^
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:388:40
+    |
+388 | ...   assert(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().re...
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/std_specs/result.rs:168:9
+    |
+168 |         result is Ok,
+    |         ------------ recommendation not met
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:388:40
+    |
+388 | ...rt(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().reconcile_step == after_get_k_request_step(next_resource));
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: recommendation not met
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:388:74
+    |
+388 | ...   assert(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().re...
+    |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: /home/ndate/Research/verus/source/target-verus/release/vstd/map.rs:72:13
+    |
+ 72 |             self.dom().contains(key),
+    |             ------------------------ recommendation not met
+
+error: precondition not satisfied
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:399:17
+    |
+399 | / ...   cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (Some(resp_msg), Some(rabbitmq.object_ref())), stronger_next,...
+400 | | ...   );
+    | |_______^
+    |
+   ::: src/kubernetes_cluster/proof/wf1_helpers.rs:66:9
+    |
+ 66 |   ...   spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    |         ----------------------------------------------------------------------------------------------------------------------------------- failed precondition
+
+error: assertion failed
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:997:102
+    |
+997 |     assert forall |s, s_prime: ClusterState| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+    |                                                                                                      ^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+    --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:1003:24
+     |
+1003 |                 assert(!resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(req));
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+note: function body check: not all errors may have been reported; rerun with a higher value for --multiple-errors to find other potential errors in this function
+   --> src/controllers/rabbitmq_controller/proof/liveness/resource_match.rs:962:1
+    |
+962 | / pub proof fn lemma_resource_object_is_stable(
+963 | |     controller_id: int,
+964 | |     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<ClusterState>
+965 | | )
+    | |_^
+
+verification results:: 138 verified, 62 errors (partial verification with `--verify-*`)
+error: aborting due to 114 previous errors; 3 warnings emitted
+
+(use --output-json for machine-readable output)
+verus-build-info
+Verus
+  Version: 0.2025.11.30.840fa61
+  Profile: release
+  Platform: linux_x86_64
+  Toolchain: 1.91.0-x86_64-unknown-linux-gnu
+
+total-time:         1187095 ms    (estimated total cpu time 7118176 ms)
+    rust-time:                3209 ms
+        init-and-types:           3160 ms
+        trait-conflicts:            48 ms
+        compile-time:                0 ms
+    verification-time:     1182593 ms
+        vir-time:                 5129 ms
+            hir-time:                 1406 ms
+            import-time:               110 ms
+            rust-to-vir:              1497 ms
+        verify-crate-time:     1177464 ms
+    unaccounted-time:         1293 ms
+
+verify-crate-time-breakdown
+    total verify-time:        7107727 ms   (11 threads)
+        total air-time:             98063 ms   (11 threads)
+        total smt-time:           6956552 ms   (11 threads)
+            total smt-init:             11902 ms   (11 threads)
+            total smt-run:            6944650 ms, 346423439 rlimit (11 threads)
