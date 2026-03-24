@@ -461,10 +461,6 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceVi
     }
 }
 
-// TODO: investigate flaky proof.
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(50))]
-#[verifier(external_body)]
 pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceView>(
     self, spec: TempPred<ClusterState>,
 )
@@ -478,8 +474,10 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomR
     let stronger_next = |s, s_prime: ClusterState| {
         &&& self.next()(s, s_prime)
         &&& self.each_custom_object_in_etcd_is_well_formed::<T>()(s)
+        &&& self.each_custom_object_in_etcd_is_well_formed::<T>()(s_prime)
     };
     self.lemma_always_each_custom_object_in_etcd_is_well_formed::<T>(spec);
+    always_to_always_later(spec, lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>()));
 
     T::marshal_preserves_integrity();
     T::marshal_spec_preserves_integrity();
@@ -490,8 +488,17 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomR
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
-        lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>())
+        lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>()),
+        later(lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>()))
     );
+
+    assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        assert forall |key| #[trigger] s_prime.resources().contains_key(key) && key.kind is CustomResourceKind && key.kind == T::kind()
+            implies T::unmarshal(s_prime.resources()[key]) is Ok && T::unmarshal(s_prime.resources()[key]).unwrap().state_validation() by {
+            if s.resources().contains_key(key) {}
+        }
+    }
+
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
