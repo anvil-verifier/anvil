@@ -230,7 +230,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
 
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
