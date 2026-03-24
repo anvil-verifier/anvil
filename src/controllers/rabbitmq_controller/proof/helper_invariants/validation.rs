@@ -8,7 +8,6 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -133,7 +132,7 @@ pub open spec fn stateful_set_update_request_msg_does_not_change_owner_reference
     let key = rabbitmq.object_ref();
     let sts_key = StatefulSetBuilder::get_request(rabbitmq).key;
     |s: ClusterState| {
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             s.in_flight().contains(msg)
             && #[trigger] resource_update_request_msg(sts_key)(msg)
             && s.resources().contains_key(sts_key)
@@ -199,7 +198,7 @@ pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
     |s: ClusterState| {
         let resource_key = get_request(sub_resource, rabbitmq).key;
         let etcd_rv = s.resources()[resource_key].metadata.resource_version->0;
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             s.in_flight().contains(msg)
             && #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
             ==> msg.content.get_update_request().obj.metadata.resource_version is Some
@@ -261,7 +260,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
 pub open spec fn stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let key = rabbitmq.object_ref();
     |s: ClusterState| {
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             s.in_flight().contains(msg)
             && s.resources().contains_key(key)
             && #[trigger] resource_create_request_msg(StatefulSetBuilder::get_request(rabbitmq).key)(msg)

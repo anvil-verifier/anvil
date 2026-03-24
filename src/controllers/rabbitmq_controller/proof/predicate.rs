@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::proof::resource::*;
 use crate::rabbitmq_controller::trusted::{
-    spec_types::*, step::*,
+    spec_types::*, step::*, liveness_theorem::*,
 };
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -22,25 +22,25 @@ verus! {
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        resource_state_matches(sub_resource, rabbitmq, s.resources())
+        resource_state_matches(sub_resource, rabbitmq, s)
     }
 }
 
-pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
-    let key = get_request(sub_resource, rabbitmq).key;
-    let obj = resources[key];
-    let made_spec = make(sub_resource, rabbitmq, RabbitmqReconcileState {
-        reconcile_step: RabbitmqReconcileStep::Init,
-        latest_config_map_rv_opt: if resources.contains_key(get_request(SubResource::ServerConfigMap, rabbitmq).key) && resources[get_request(SubResource::ServerConfigMap, rabbitmq).key].metadata.resource_version is Some {
-            Some(int_to_string_view(resources[get_request(SubResource::ServerConfigMap, rabbitmq).key].metadata.resource_version->0))
-        } else {
-            None
-        },
-    });
-    &&& resources.contains_key(key)
-    &&& made_spec is Ok
-    &&& obj.spec == made_spec->Ok_0.spec
-}
+// pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+//     let key = get_request(sub_resource, rabbitmq).key;
+//     let obj = resources[key];
+//     let made_spec = make(sub_resource, rabbitmq, RabbitmqReconcileState {
+//         reconcile_step: RabbitmqReconcileStep::Init,
+//         latest_config_map_rv_opt: if resources.contains_key(get_request(SubResource::ServerConfigMap, rabbitmq).key) && resources[get_request(SubResource::ServerConfigMap, rabbitmq).key].metadata.resource_version is Some {
+//             Some(int_to_string_view(resources[get_request(SubResource::ServerConfigMap, rabbitmq).key].metadata.resource_version->0))
+//         } else {
+//             None
+//         },
+//     });
+//     &&& resources.contains_key(key)
+//     &&& made_spec is Ok
+//     &&& obj.spec == made_spec->Ok_0.spec
+// }
 
 pub open spec fn at_rabbitmq_step(key: ObjectRef, controller_id: int, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
     recommends

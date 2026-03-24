@@ -9,7 +9,6 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -76,10 +75,10 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    let create_valid = |msg: RMQMessage, s: ClusterState| {
+    let create_valid = |msg: Message, s: ClusterState| {
         resource_create_request_msg(resource_key)(msg) ==> owner_references_is_valid(msg.content.get_create_request().obj, s)
     };
-    let update_valid = |msg: RMQMessage, s: ClusterState| {
+    let update_valid = |msg: Message, s: ClusterState| {
         resource_update_request_msg(resource_key)(msg) ==> owner_references_is_valid(msg.content.get_update_request().obj, s)
     };
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -95,7 +94,7 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
 
 #[verifier(spinoff_prover)]
 proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
-    s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: RMQMessage
+    s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message
 )
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),

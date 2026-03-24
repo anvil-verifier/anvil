@@ -1,14 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -194,7 +192,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     // Now prove the system can successfully enter the next state.
     if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
         assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: RMQMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, resp_msg));
+            let known_ok_resp = |resp_msg: Message| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, resp_msg));
             assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
                 let pre = resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, resp_msg);
                 let stronger_next = |s, s_prime: ClusterState| {
@@ -357,7 +355,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     // Now prove the system can successfully enter the next state.
     if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
         assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: RMQMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, resp_msg));
+            let known_ok_resp = |resp_msg: Message| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, resp_msg));
             assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
                 let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, resp_msg);
                 let stronger_next = |s, s_prime: ClusterState| {
@@ -420,7 +418,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
+    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         spec.entails(always(lift_action(Cluster::next()))),
@@ -511,7 +509,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
+    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
         spec.entails(always(lift_action(Cluster::next()))),
@@ -592,7 +590,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
 }
 
 proof fn lemma_resource_state_matches_at_after_create_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
+    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         spec.entails(always(lift_action(Cluster::next()))),
@@ -693,7 +691,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
 }
 
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
+    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         // sub_resource != SubResource::StatefulSet,
@@ -775,7 +773,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
 }
 
 proof fn lemma_resource_state_matches_at_after_update_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
+    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         // sub_resource != SubResource::StatefulSet,
@@ -879,7 +877,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
+    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
         // sub_resource != SubResource::StatefulSet,

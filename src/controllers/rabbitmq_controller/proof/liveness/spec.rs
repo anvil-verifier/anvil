@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
     stateful_set::*,
@@ -9,7 +8,6 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -25,7 +23,7 @@ verus! {
 
 pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     invariants(rabbitmq)
-    .and(always(lift_state(desired_state_is(rabbitmq))))
+    .and(always(lift_state(Cluster::desired_state_is(rabbitmq))))
     .and(invariants_since_phase_i(rabbitmq))
     .and(invariants_since_phase_ii(rabbitmq))
     .and(invariants_since_phase_iii(rabbitmq))
@@ -37,7 +35,7 @@ pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClust
 
 pub open spec fn invariants_since_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     if n == 0 {
-        invariants(rabbitmq).and(always(lift_state(desired_state_is(rabbitmq))))
+        invariants(rabbitmq).and(always(lift_state(Cluster::desired_state_is(rabbitmq))))
     } else if n == 1 {
         invariants_since_phase_i(rabbitmq)
     } else if n == 2 {
@@ -61,7 +59,7 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
     decreases n,
 {
     if n == 1 {
-        invariants(rabbitmq).and(always(lift_state(desired_state_is(rabbitmq))))
+        invariants(rabbitmq).and(always(lift_state(Cluster::desired_state_is(rabbitmq))))
     } else if 2 <= n <= 8 {
         spec_before_phase_n((n-1) as nat, rabbitmq).and(invariants_since_phase_n((n-1) as nat, rabbitmq))
     } else {
@@ -126,7 +124,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     invariants_is_stable(rabbitmq);
-    always_p_is_stable(lift_state(desired_state_is(rabbitmq)));
+    always_p_is_stable(lift_state(Cluster::desired_state_is(rabbitmq)));
     invariants_since_phase_i_is_stable(rabbitmq);
     invariants_since_phase_ii_is_stable(rabbitmq);
     invariants_since_phase_iii_is_stable(rabbitmq);
@@ -135,7 +133,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
     invariants_since_phase_vi_is_stable(rabbitmq);
     invariants_since_phase_vii_is_stable(rabbitmq);
     stable_and_n!(
-        invariants(rabbitmq), always(lift_state(desired_state_is(rabbitmq))),
+        invariants(rabbitmq), always(lift_state(Cluster::desired_state_is(rabbitmq))),
         invariants_since_phase_i(rabbitmq), invariants_since_phase_ii(rabbitmq), invariants_since_phase_iii(rabbitmq),
         invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(rabbitmq),
         invariants_since_phase_vii(rabbitmq)

@@ -1,14 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -96,7 +94,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClus
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
     assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq)).satisfied_by(ex) by {
         let s = ex.head();
-        assert forall |res: SubResource| #[trigger] resource_state_matches::<RabbitmqMaker>(res, rabbitmq, s.resources()) by {
+        assert forall |res: SubResource| #[trigger] resource_state_matches::<RabbitmqMaker>(res, rabbitmq, s) by {
             tla_forall_apply(a_to_p, res);
             assert(a_to_p(res).satisfied_by(ex));
             assert(sub_resource_state_matches(res, rabbitmq)(s));
@@ -310,15 +308,15 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, ra
         &&& Cluster::next()(s, s_prime)
         &&& desired_state_is(rabbitmq)(s_prime)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(rabbitmq)));
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(rabbitmq)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(Cluster::next()),
-        later(lift_state(desired_state_is(rabbitmq)))
+        later(lift_state(Cluster::desired_state_is(rabbitmq)))
     );
     Cluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, stronger_next, stronger_pre, post);
-    temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(rabbitmq))), lift_state(stronger_pre));
-    leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(rabbitmq)));
+    temp_pred_equality(lift_state(pre).and(lift_state(Cluster::desired_state_is(rabbitmq))), lift_state(stronger_pre));
+    leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(Cluster::desired_state_is(rabbitmq)));
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles().contains_key(rabbitmq.object_ref())}));

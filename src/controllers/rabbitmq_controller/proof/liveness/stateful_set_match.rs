@@ -1,14 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -196,7 +194,7 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_step(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         spec.entails(always(lift_action(Cluster::next()))),
@@ -293,7 +291,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_step(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
         spec.entails(always(lift_action(Cluster::next()))),
@@ -384,7 +382,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage)
+proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: Message)
     requires
         spec.entails(always(lift_action(Cluster::next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),

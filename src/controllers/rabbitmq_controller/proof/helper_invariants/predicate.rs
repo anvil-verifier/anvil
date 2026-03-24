@@ -8,7 +8,6 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -76,8 +75,8 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
     }
 }
 
-pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(RMQMessage) -> bool {
-    |msg: RMQMessage|
+pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
+    |msg: Message|
         msg.src is APIServer
         && msg.content.is_get_response()
         && (
@@ -86,8 +85,8 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(RMQMessage
         )
 }
 
-pub open spec fn resource_update_response_msg(key: ObjectRef, s: ClusterState) -> spec_fn(RMQMessage) -> bool {
-    |msg: RMQMessage|
+pub open spec fn resource_update_response_msg(key: ObjectRef, s: ClusterState) -> spec_fn(Message) -> bool {
+    |msg: Message|
         msg.src is APIServer
         && msg.content.is_update_response()
         && (
@@ -99,8 +98,8 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: ClusterState) -
         )
 }
 
-pub open spec fn resource_create_response_msg(key: ObjectRef, s: ClusterState) -> spec_fn(RMQMessage) -> bool {
-    |msg: RMQMessage|
+pub open spec fn resource_create_response_msg(key: ObjectRef, s: ClusterState) -> spec_fn(Message) -> bool {
+    |msg: Message|
         msg.src is APIServer
         && msg.content.is_create_response()
         && (
@@ -128,7 +127,7 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
         ==> s.ongoing_reconciles()[key].pending_req_msg is Some
             && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg->0)
             && (
-                forall |msg: RMQMessage|
+                forall |msg: Message|
                     #[trigger] s.in_flight().contains(msg)
                     && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_get_response_msg(resource_key)(msg)
@@ -160,7 +159,7 @@ pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etc
         ==> s.ongoing_reconciles()[key].pending_req_msg is Some
             && resource_update_request_msg(resource_key)(pending_req)
             && (
-                forall |msg: RMQMessage|
+                forall |msg: Message|
                     s.in_flight().contains(msg)
                     && #[trigger] Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_update_response_msg(resource_key, s)(msg)
@@ -180,7 +179,7 @@ pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etc
         ==> s.ongoing_reconciles()[key].pending_req_msg is Some
             && resource_create_request_msg(resource_key)(pending_req)
             && (
-                forall |msg: RMQMessage|
+                forall |msg: Message|
                     s.in_flight().contains(msg)
                     && #[trigger] Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_create_response_msg(resource_key, s)(msg)
@@ -191,7 +190,7 @@ pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etc
 pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
-        forall |msg: RMQMessage| {
+        forall |msg: Message| {
             &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
@@ -205,7 +204,7 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
 pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
-        forall |msg: RMQMessage| {
+        forall |msg: Message| {
             &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
@@ -221,7 +220,7 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
-        forall |msg: RMQMessage| {
+        forall |msg: Message| {
             &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
@@ -255,7 +254,7 @@ pub open spec fn no_create_resource_request_msg_without_name_in_flight(sub_resou
 
 pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |msg: RMQMessage| !{
+        forall |msg: Message| !{
             &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         }
@@ -266,7 +265,7 @@ pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(s
     |s: ClusterState| {
         sub_resource != SubResource::StatefulSet
         ==> {
-            forall |msg: RMQMessage|
+            forall |msg: Message|
                 s.in_flight().contains(msg)
                 ==> !(#[trigger] resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg))
         }
@@ -275,7 +274,7 @@ pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(s
 
 pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
             && msg.dst is APIServer
             && !msg.src is BuiltinController
@@ -323,18 +322,18 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
     }
 }
 
-// pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-//     |s: ClusterState| {
-//         let sts_key = get_request(SubResource::StatefulSet, rabbitmq).key;
-//         ||| !s.resources().contains_key(sts_key)
-//         ||| sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)(s)
-//         ||| {
-//             &&& forall |msg: RMQMessage|
-//                     s.in_flight().contains(msg)
-//                     ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg))
-//             &&& s.stable_resources().contains(sts_key)
-//         }
-//     }
-// }
+pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let sts_key = get_request(SubResource::StatefulSet, rabbitmq).key;
+        ||| !s.resources().contains_key(sts_key)
+        ||| sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)(s)
+        ||| {
+            &&& forall |msg: Message|
+                    s.in_flight().contains(msg)
+                    ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg))
+            &&& s.stable_resources().contains(sts_key)
+        }
+    }
+}
 
 }

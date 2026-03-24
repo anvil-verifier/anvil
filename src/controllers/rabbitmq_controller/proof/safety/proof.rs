@@ -1,13 +1,11 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -87,7 +85,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<Cluste
 spec fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let sts_key = make_stateful_set_key(rabbitmq);
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
             && resource_update_request_msg(sts_key)(msg)
             && s.resources().contains_key(sts_key)
@@ -259,7 +257,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
 spec fn replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let sts_key = make_stateful_set_key(rabbitmq);
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
             ==> (
                 resource_create_request_msg(sts_key)(msg)
@@ -317,7 +315,7 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
 }
 
 proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
-    rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: RMQMessage
+    rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
 )
     requires
         Cluster::next()(s, s_prime),
@@ -368,7 +366,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
 }
 
 proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
-    rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: RMQMessage
+    rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
 )
     requires
         Cluster::next()(s, s_prime),

@@ -7,7 +7,6 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -39,7 +38,7 @@ verus! {
 pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: ClusterState| {
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
             && resource_create_request_msg(resource_key)(msg)
             ==> unchangeable(sub_resource, msg.content.get_create_request().obj, rabbitmq)
@@ -50,7 +49,7 @@ pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_r
 pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: ClusterState| {
-        forall |msg: RMQMessage|
+        forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
             && resource_update_request_msg(resource_key)(msg)
             && s.resources().contains_key(resource_key)
@@ -79,7 +78,7 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_create_request_msg(resource_key)(msg)
+        assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) && resource_create_request_msg(resource_key)(msg)
         implies unchangeable(sub_resource, msg.content.get_create_request().obj, rabbitmq) by {
             if !s.in_flight().contains(msg) {
                 let step = choose |step| Cluster::next_step(s, s_prime, step);
@@ -213,7 +212,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
     ensures object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s_prime),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(resource_key)(msg)
+    assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(resource_key)(msg)
     && s_prime.resources().contains_key(resource_key) && s_prime.resources()[resource_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
     implies unchangeable(sub_resource, msg.content.get_update_request().obj, rabbitmq) by {
         if s.in_flight().contains(msg) {
