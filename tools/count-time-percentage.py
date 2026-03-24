@@ -20,7 +20,7 @@ def empty_counting_map():
 
 def parse_json_and_collect_time():
     all_times = []
-    for app in ["zookeeper", "rabbitmq", "fluent"]:
+    for app in ["vdeployment", "vreplicaset", "vstatefulset", "rabbitmq"]:
         file_path = "{}.json".format(app)
         json_data = json.load(open(file_path, "r"))
         module_times = json_data["times-ms"]["smt"]["smt-run-module-times"]
