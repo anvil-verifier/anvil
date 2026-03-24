@@ -36,7 +36,6 @@ pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClu
         spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)),
         exists |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv)
 {
-    assume(false);
 }
 
 pub open spec fn rmq_composed_eventually_stable_reconciliation() -> TempPred<ClusterState> {

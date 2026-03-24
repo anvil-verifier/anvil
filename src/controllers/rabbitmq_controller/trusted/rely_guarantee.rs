@@ -143,7 +143,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     ensures
         spec.entails(always(lift_state(rmq_guarantee(controller_id))))
 {
-    assume(false);
 }
 
 }
