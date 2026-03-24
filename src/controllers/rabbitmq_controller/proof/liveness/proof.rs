@@ -34,18 +34,8 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-// We prove init /\ []next /\ []wf |= []Cluster::desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq) holds for each rabbitmq.
-proof fn liveness_proof_forall_rabbitmq()
-    ensures liveness_theorem::<RabbitmqMaker>(),
-{
-    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)) by {
-        liveness_proof(rabbitmq);
-    };
-    spec_entails_tla_forall(cluster_spec(), |rabbitmq: RabbitmqClusterView| liveness::<RabbitmqMaker>(rabbitmq));
-}
-
-proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
-    ensures cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)),
+proof fn liveness_proof(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    ensures spec.entails(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq)))),
 {
     assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
     lemma_true_leads_to_always_current_state_matches(rabbitmq);
@@ -63,11 +53,11 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     temp_pred_equality(true_pred().and(assumption), assumption);
 
     entails_trans(
-        cluster_spec().and(derived_invariants_since_beginning(rabbitmq)), invariants(rabbitmq),
+        spec.and(derived_invariants_since_beginning(rabbitmq)), invariants(rabbitmq),
         always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))
     );
-    sm_spec_entails_all_invariants(rabbitmq);
-    simplify_predicate(cluster_spec(), derived_invariants_since_beginning(rabbitmq));
+    sm_spec_entails_all_invariants(spec, rabbitmq);
+    simplify_predicate(spec, derived_invariants_since_beginning(rabbitmq));
 }
 
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, rabbitmq: RabbitmqClusterView)
@@ -302,11 +292,11 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, ra
     let input = rabbitmq.object_ref();
     let stronger_pre = |s| {
         &&& pre(s)
-        &&& desired_state_is(rabbitmq)(s)
+        &&& Cluster::desired_state_is(rabbitmq)(s)
     };
     let stronger_next = |s, s_prime| {
         &&& Cluster::next()(s, s_prime)
-        &&& desired_state_is(rabbitmq)(s_prime)
+        &&& Cluster::desired_state_is(rabbitmq)(s_prime)
     };
     always_to_always_later(spec, lift_state(Cluster::desired_state_is(rabbitmq)));
     combine_spec_entails_always_n!(

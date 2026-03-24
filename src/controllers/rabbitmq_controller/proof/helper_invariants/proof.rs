@@ -30,7 +30,7 @@ pub proof fn lemma_always_rabbitmq_is_well_formed(spec: TempPred<ClusterState>, 
     ensures spec.entails(always(lift_state(rabbitmq_is_well_formed(rabbitmq)))),
 {
     let stronger_inv = |s: ClusterState| {
-        &&& desired_state_is(rabbitmq)(s)
+        &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& Cluster::each_object_in_etcd_is_well_formed()(s)
     };
 

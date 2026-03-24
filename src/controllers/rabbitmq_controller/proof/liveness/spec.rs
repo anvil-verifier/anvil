@@ -179,7 +179,7 @@ pub proof fn next_with_wf_is_stable()
 // We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
 //
 // The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
-// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
+// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get spec |= []desired_state_is(cr) ~> []current_state_matches(cr).
 pub open spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     next_with_wf().and(derived_invariants_since_beginning(rabbitmq))
 }
@@ -382,10 +382,9 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     });
 }
 
-pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
-    ensures cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
+pub proof fn sm_spec_entails_all_invariants(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    ensures spec.entails(derived_invariants_since_beginning(rabbitmq)),
 {
-    let spec = cluster_spec();
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.
     // And then the verifier doesn't have to infer it every time applying those lemmas.
     assert(spec.entails(lift_state(Cluster::init())));
