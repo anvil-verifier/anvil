@@ -18,6 +18,7 @@ use crate::vstd_ext::{set_lib::*, map_lib::*};
 verus! {
 
 // *** Rolling update ESR composition helpers ***
+// TODO: fix after every_vrs_in_etcd_has_one_controller_owner is removed
 
 pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::desired_state_is(vrs)(s))
