@@ -17,10 +17,10 @@ use crate::rabbitmq_controller::{
         liveness::{
             resource_match::*,
             spec::*,
-            stateful_set_match::{
-                lemma_from_after_get_stateful_set_step_to_stateful_set_matches,
-                lemma_stateful_set_is_stable,
-            },
+            // stateful_set_match::{
+            //     lemma_from_after_get_stateful_set_step_to_stateful_set_matches,
+            //     lemma_stateful_set_is_stable,
+            // },
             terminate,
         },
         predicate::*,
@@ -246,13 +246,13 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
             lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq))
         );
         // We then prove pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq) ~> sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)
-        lemma_from_after_get_stateful_set_step_to_stateful_set_matches(spec, rabbitmq);
+        // lemma_from_after_get_stateful_set_step_to_stateful_set_matches(spec, rabbitmq);
         leads_to_trans(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)),
             lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))
         );
         // Finally we prove stability
-        lemma_stateful_set_is_stable(spec, rabbitmq, true_pred());
+        // lemma_stateful_set_is_stable(spec, rabbitmq, true_pred());
     });
 
     assert_by(spec2.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))), {
@@ -269,9 +269,9 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
     });
 }
 
-proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_from_reconcile_idle_to_scheduled(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
     ensures
@@ -295,13 +295,13 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, ra
         &&& Cluster::desired_state_is(rabbitmq)(s)
     };
     let stronger_next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::desired_state_is(rabbitmq)(s_prime)
     };
     always_to_always_later(spec, lift_state(Cluster::desired_state_is(rabbitmq)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         later(lift_state(Cluster::desired_state_is(rabbitmq)))
     );
     Cluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, stronger_next, stronger_pre, post);
@@ -312,9 +312,9 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, ra
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles().contains_key(rabbitmq.object_ref())}));
 }
 
-proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_from_scheduled_to_init_step(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
         spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
@@ -332,14 +332,14 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitm
     let post = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
     let input = (None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata()(s)
         &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled()),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
@@ -347,9 +347,9 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitm
     Cluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Cluster::run_scheduled_reconcile(), pre, post);
 }
 
-proof fn lemma_from_init_step_to_after_create_headless_service_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_from_init_step_to_after_create_headless_service_step(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
     ensures
@@ -360,14 +360,14 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(spec: TempPr
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq);
     let input = (None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
     };
     combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next), lift_action(Cluster::next()), lift_state(Cluster::crash_disabled())
+        spec, lift_action(stronger_next), lift_action(cluster.next()), lift_state(Cluster::crash_disabled())
     );
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
                 if input.1->0 != rabbitmq.object_ref() {

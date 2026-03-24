@@ -10,12 +10,12 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn safety_theorem<M: Maker>() -> bool {
-    cluster_spec_without_wf().entails(tla_forall(|rabbitmq: RabbitmqClusterView| safety::<M>(rabbitmq)))
+pub open spec fn safety_theorem<M: Maker>(cluster: Cluster) -> bool {
+    cluster_spec_without_wf(cluster).entails(tla_forall(|rabbitmq: RabbitmqClusterView| safety::<M>(rabbitmq)))
 }
 
-pub open spec fn cluster_spec_without_wf() -> TempPred<ClusterState> {
-    lift_state(Cluster::init()).and(always(lift_action(Cluster::next())))
+pub open spec fn cluster_spec_without_wf(cluster: Cluster) -> TempPred<ClusterState> {
+    lift_state(cluster.init()).and(always(lift_action(cluster.next())))
 }
 
 pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {

@@ -30,13 +30,13 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
@@ -75,13 +75,13 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
@@ -197,7 +197,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
@@ -229,7 +229,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::busy_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
@@ -240,7 +240,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled()),
         lift_state(Cluster::busy_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -251,9 +251,9 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ApiServerStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
@@ -294,13 +294,13 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)))),
@@ -331,12 +331,12 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     };
     let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::busy_disabled()(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)(s)
@@ -349,12 +349,12 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled()),
         lift_state(Cluster::busy_disabled()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
         lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),
         lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)),
@@ -366,10 +366,10 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     );
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
         match step {
-            Step::ApiServerStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
@@ -384,12 +384,12 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 #[verifier(spinoff_prover)]
 proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: Message)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
@@ -421,7 +421,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::busy_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
@@ -436,10 +436,10 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
     };
-    always_weaken(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled()),
         lift_state(Cluster::busy_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -464,9 +464,9 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
     }
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ApiServerStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
@@ -483,7 +483,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
 pub proof fn lemma_stateful_set_is_stable(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, p: TempPred<ClusterState>)
     requires
         spec.entails(p.leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)))),
@@ -494,7 +494,7 @@ pub proof fn lemma_stateful_set_is_stable(spec: TempPred<ClusterState>, rabbitmq
     let post = sub_resource_state_matches(SubResource::StatefulSet, rabbitmq);
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)(s)
@@ -503,7 +503,7 @@ pub proof fn lemma_stateful_set_is_stable(spec: TempPred<ClusterState>, rabbitmq
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),
         lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)),
@@ -513,9 +513,9 @@ pub proof fn lemma_stateful_set_is_stable(spec: TempPred<ClusterState>, rabbitmq
 
     assert forall |s, s_prime: ClusterState| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         StatefulSetView::marshal_preserves_integrity();
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ApiServerStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}

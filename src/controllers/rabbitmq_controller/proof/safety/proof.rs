@@ -19,19 +19,19 @@ use vstd::prelude::*;
 
 verus! {
 
-proof fn safety_proof_forall_rabbitmq()
-    ensures safety_theorem::<RabbitmqMaker>(),
+proof fn safety_proof_forall_rabbitmq(cluster: Cluster)
+    ensures safety_theorem::<RabbitmqMaker>(cluster),
 {
-    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)) by {
+    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf(cluster).entails(safety::<RabbitmqMaker>(rabbitmq)) by {
         safety_proof(rabbitmq);
     };
-    spec_entails_tla_forall(cluster_spec_without_wf(), |rabbitmq: RabbitmqClusterView| safety::<RabbitmqMaker>(rabbitmq));
+    spec_entails_tla_forall(cluster_spec_without_wf(cluster), |rabbitmq: RabbitmqClusterView| safety::<RabbitmqMaker>(rabbitmq));
 }
 
-proof fn safety_proof(rabbitmq: RabbitmqClusterView)
-    ensures cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)),
+proof fn safety_proof(cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    ensures cluster_spec_without_wf(cluster).entails(safety::<RabbitmqMaker>(rabbitmq)),
 {
-    lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster_spec_without_wf(), rabbitmq);
+    lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster_spec_without_wf(cluster), rabbitmq);
 }
 
 // This invariant is exactly the high-level property. The proof of this invariant is where we talk about update Message. It requires another two invariants to hold all the time:
@@ -39,29 +39,29 @@ proof fn safety_proof(rabbitmq: RabbitmqClusterView)
 // - object_in_sts_update_request_has_smaller_rv_than_etcd
 //
 // Invariant 2 is to show that every stateful set update request must specify the resource version because stateful set is allowed to update unconditionally. If resource version can be none, we can't rule out invalid update request through resource version. Invariant 3 is quite obvious.
-proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_action(stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)))),
 {
     let inv = stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq);
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)(s)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
     };
     lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(spec, rabbitmq);
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, SubResource::StatefulSet, rabbitmq);
     Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     assert forall |s, s_prime| #[trigger] next(s, s_prime) implies stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)(s, s_prime) by {
         let sts_key = make_stateful_set_key(rabbitmq);
         if s.resources().contains_key(sts_key) && s_prime.resources().contains_key(sts_key) {
             if s.resources()[sts_key].spec != s_prime.resources()[sts_key].spec {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 let input = step->ApiServerStep_0->0;
                 if input.content.is_delete_request() {
                     assert(StatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0.spec == StatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec);
@@ -76,9 +76,9 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<Cluste
     }
     invariant_n!(
         spec, lift_action(next), lift_action(inv),
-        lift_action(Cluster::next()), lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)),
+        lift_action(cluster.next()), lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)),
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()), later(lift_state(Cluster::each_object_in_etcd_is_well_formed()))
+        lift_state(cluster.each_object_in_etcd_is_well_formed()), later(lift_state(cluster.each_object_in_etcd_is_well_formed()))
     );
 }
 
@@ -94,19 +94,19 @@ spec fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabb
     }
 }
 
-proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq);
     // let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq);
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.next()(s, s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
         &&& replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)(s_prime)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
@@ -114,7 +114,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
         &&& response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, rabbitmq)(s)
     };
     Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec, rabbitmq);
     always_to_always_later(spec, lift_state(replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)));
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, SubResource::StatefulSet, rabbitmq);
@@ -122,8 +122,8 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
     Cluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, sts_key);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, SubResource::StatefulSet, rabbitmq);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()), later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        spec, lift_action(next), lift_action(cluster.next()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()), later(lift_state(cluster.each_object_in_etcd_is_well_formed())),
         later(lift_state(replicas_of_etcd_stateful_set_satisfies_order(rabbitmq))),
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
@@ -135,7 +135,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
         && s_prime.resources()[sts_key].metadata.resource_version->0 == msg.content.get_update_request().obj.metadata.resource_version->0
         implies StatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec->0.replicas->0
         <= replicas_of_stateful_set(msg.content.get_update_request().obj) by {
-            let step = choose |step| Cluster::next_step(s, s_prime, step);
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             if s.in_flight().contains(msg) {
                 if !s.resources().contains_key(sts_key) || s.resources()[sts_key] != s_prime.resources()[sts_key] {
                     assert(s_prime.resources()[sts_key].metadata.resource_version->0 == s.kubernetes_api_state.resource_version_counter);
@@ -151,7 +151,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
             }
         }
     }
-    init_invariant(spec, Cluster::init(), next, inv);
+    init_invariant(spec, cluster.init(), next, inv);
 }
 
 // This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object
@@ -195,29 +195,29 @@ spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterV
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)))),
 {
     let inv = replicas_of_etcd_stateful_set_satisfies_order(rabbitmq);
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.next()(s, s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
         &&& every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(SubResource::StatefulSet, rabbitmq)(s)
         &&& replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq)(s)
     };
     Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(spec, SubResource::StatefulSet, rabbitmq);
     lemma_always_replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(spec, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, SubResource::StatefulSet, rabbitmq);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()), lift_state(Cluster::each_object_in_etcd_is_well_formed()),
-        later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        spec, lift_action(next), lift_action(cluster.next()), lift_state(cluster.each_object_in_etcd_is_well_formed()),
+        later(lift_state(cluster.each_object_in_etcd_is_well_formed())),
         lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(SubResource::StatefulSet, rabbitmq)),
         lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq))
@@ -229,9 +229,9 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
             if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
                 if s_prime.resources().contains_key(key) {
                     if !s.resources().contains_key(key) {
-                        assert(s_prime.resources()[key].metadata.uid->0 == s.kubernetes_api_state.uid_counter);
+                        assert(s_prime.resources()[key].metadata.uid->0 == s.api_server.uid_counter);
                         let owner_refs = s.resources()[sts_key].metadata.owner_references;
-                        assert(owner_refs->0[0].uid != s.kubernetes_api_state.uid_counter);
+                        assert(owner_refs->0[0].uid != s.api_server.uid_counter);
                         assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
                     } else if s.resources()[key] != s_prime.resources()[key] {
                         assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
@@ -240,9 +240,9 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
                     }
                 }
             } else {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
-                    Step::ApiServerStep(input) => {
+                    Step::APIServerStep(input) => {
                         let req = input->0;
                         assert(!resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(req));
                     },
@@ -251,7 +251,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
             }
         }
     }
-    init_invariant(spec, Cluster::init(), next, inv);
+    init_invariant(spec, cluster.init(), next, inv);
 }
 
 spec fn replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
@@ -269,34 +269,34 @@ spec fn replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(ra
     }
 }
 
-proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq);
     let sts_key = make_stateful_set_key(rabbitmq);
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.next()(s, s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& Cluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s)
+        &&& cluster.transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(SubResource::StatefulSet, rabbitmq)(s)
     };
     Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     Cluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     Cluster::lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec, rabbitmq);
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(spec, SubResource::StatefulSet, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(next),
-        lift_action(Cluster::next()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
-        later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        lift_action(cluster.next()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
+        later(lift_state(cluster.each_object_in_etcd_is_well_formed())),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(Cluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)),
+        lift_state(cluster.transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(SubResource::StatefulSet, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -311,29 +311,29 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
             }
         }
     }
-    init_invariant(spec, Cluster::init(), next, inv);
+    init_invariant(spec, cluster.init(), next, inv);
 }
 
 proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
-    rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
+    cluster: Cluster, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
 )
     requires
-        Cluster::next()(s, s_prime),
-        Cluster::each_object_in_etcd_is_well_formed()(s),
-        Cluster::each_object_in_etcd_is_well_formed()(s_prime),
+        cluster.next()(s, s_prime),
+        cluster.each_object_in_etcd_is_well_formed()(s),
+        cluster.each_object_in_etcd_is_well_formed()(s_prime),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
-        Cluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
+        cluster.transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
         object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(SubResource::StatefulSet, rabbitmq)(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
         resource_create_request_msg(make_stateful_set_key(rabbitmq))(msg),
     ensures replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime),
 {
-    let step = choose |step| Cluster::next_step(s, s_prime, step);
+    let step = choose |step| cluster.next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq);
     match step {
-        Step::ApiServerStep(input) => {
+        Step::APIServerStep(input) => {
             assert(s.controller_state == s_prime.controller_state);
             assert(s.in_flight().contains(msg));
             if s_prime.resources().contains_key(key) {
@@ -342,7 +342,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
                 } else {
                     let owner_refs = msg.content.get_create_request().obj.metadata.owner_references;
                     assert(owner_refs is Some && owner_refs->0.len() == 1);
-                    assert(owner_refs->0[0].uid < s.kubernetes_api_state.uid_counter);
+                    assert(owner_refs->0[0].uid < s.api_server.uid_counter);
                     assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
                     assert(!msg.content.get_create_request().obj.metadata.owner_references_only_contains(RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref()));
                 }
@@ -366,14 +366,14 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
 }
 
 proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
-    rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
+    cluster: Cluster, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message
 )
     requires
-        Cluster::next()(s, s_prime),
-        Cluster::each_object_in_etcd_is_well_formed()(s),
-        Cluster::each_object_in_etcd_is_well_formed()(s_prime),
+        cluster.next()(s, s_prime),
+        cluster.each_object_in_etcd_is_well_formed()(s),
+        cluster.each_object_in_etcd_is_well_formed()(s_prime),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
-        Cluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
+        cluster.transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
         object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(SubResource::StatefulSet, rabbitmq)(s),
         // no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq)(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
@@ -381,11 +381,11 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         resource_update_request_msg(make_stateful_set_key(rabbitmq))(msg),
     ensures replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime),
 {
-    let step = choose |step| Cluster::next_step(s, s_prime, step);
+    let step = choose |step| cluster.next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq);
     match step {
-        Step::ApiServerStep(input) => {
+        Step::APIServerStep(input) => {
             assert(s.in_flight().contains(msg));
             assert(s.controller_state == s_prime.controller_state);
             if s_prime.resources().contains_key(key) {
@@ -394,7 +394,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
                 } else {
                     let owner_refs = msg.content.get_update_request().obj.metadata.owner_references;
                     assert(owner_refs is Some && owner_refs->0.len() == 1);
-                    assert(owner_refs->0[0].uid < s.kubernetes_api_state.uid_counter);
+                    assert(owner_refs->0[0].uid < s.api_server.uid_counter);
                     assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
                     assert(!msg.content.get_update_request().obj.metadata.owner_references_only_contains(RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref()));
                 }

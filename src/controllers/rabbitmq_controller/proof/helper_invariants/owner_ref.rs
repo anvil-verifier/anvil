@@ -32,7 +32,7 @@ pub open spec fn owner_references_is_valid(obj: DynamicObjectView, s: ClusterSta
 
     &&& obj.metadata.owner_references is Some
     &&& owner_refs.len() == 1
-    &&& owner_refs[0].uid < s.kubernetes_api_state.uid_counter
+    &&& owner_refs[0].uid < s.api_server.uid_counter
 }
 
 pub open spec fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(
@@ -53,23 +53,23 @@ pub open spec fn object_in_every_resource_create_or_update_request_msg_only_has_
 }
 
 pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)))),
 {
     let inv = object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq);
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::triggering_cr_has_lower_uid_than_uid_counter()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
     Cluster::lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec);
     Cluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()),
+        spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::triggering_cr_has_lower_uid_than_uid_counter()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
@@ -82,22 +82,22 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     };
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies create_valid(msg, s_prime) && update_valid(msg, s_prime) by {
-            assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
+            assert(s.api_server.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
             if !s.in_flight().contains(msg) {
                 object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(s, s_prime, sub_resource, rabbitmq, msg);
             }
         }
     }
-    init_invariant(spec, Cluster::init(), next, inv);
+    init_invariant(spec, cluster.init(), next, inv);
 }
 
 #[verifier(spinoff_prover)]
 proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
-    s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message
+    cluster: Cluster, s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message
 )
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        Cluster::next()(s, s_prime),
+        cluster.next()(s, s_prime),
         Cluster::triggering_cr_has_lower_uid_than_uid_counter()(s),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
@@ -105,8 +105,8 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_update_request().obj, s_prime),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
-    let step = choose |step| Cluster::next_step(s, s_prime, step);
+    assert(s.api_server.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
+    let step = choose |step| cluster.next_step(s, s_prime, step);
     let input = step->ControllerStep_0;
     let cr = s.ongoing_reconciles()[input.1->0].triggering_cr;
     if resource_create_request_msg(resource_key)(msg) {
@@ -115,14 +115,14 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
         assert(owner_refs == Some(seq![cr.controller_owner_ref()]));
         assert(owner_refs is Some);
         assert(owner_refs->0.len() == 1);
-        assert(owner_refs->0[0].uid < s.kubernetes_api_state.uid_counter);
+        assert(owner_refs->0[0].uid < s.api_server.uid_counter);
     } else if resource_update_request_msg(resource_key)(msg) {
         lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
         let owner_refs = msg.content.get_update_request().obj.metadata.owner_references;
         assert(owner_refs == Some(seq![cr.controller_owner_ref()]));
         assert(owner_refs is Some);
         assert(owner_refs->0.len() == 1);
-        assert(owner_refs->0[0].uid < s.kubernetes_api_state.uid_counter);
+        assert(owner_refs->0[0].uid < s.api_server.uid_counter);
     }
 }
 
@@ -137,32 +137,32 @@ pub open spec fn every_owner_ref_of_every_object_in_etcd_has_different_uid_from_
 }
 
 pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq)))),
 {
     let inv = every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq);
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, rabbitmq);
-    combine_spec_entails_always_n!(spec, lift_action(next), lift_action(Cluster::next()),
+    combine_spec_entails_always_n!(spec, lift_action(next), lift_action(cluster.next()),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if s_prime.resources().contains_key(resource_key) {
-            assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
-            let step = choose |step| Cluster::next_step(s, s_prime, step);
+            assert(s.api_server.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
-                Step::ApiServerStep(input) => {
+                Step::APIServerStep(input) => {
                     assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
                     if !s.resources().contains_key(resource_key) || s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {} else {}
                 },
@@ -170,7 +170,7 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
             }
         }
     }
-    init_invariant(spec, Cluster::init(), next, inv);
+    init_invariant(spec, cluster.init(), next, inv);
 }
 
 }

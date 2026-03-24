@@ -23,82 +23,82 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-pub proof fn lemma_always_rabbitmq_is_well_formed(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_rabbitmq_is_well_formed(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
     ensures spec.entails(always(lift_state(rabbitmq_is_well_formed(rabbitmq)))),
 {
     let stronger_inv = |s: ClusterState| {
         &&& Cluster::desired_state_is(rabbitmq)(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
     };
 
     invariant_n!(
         spec, lift_state(stronger_inv),
         lift_state(rabbitmq_is_well_formed(rabbitmq)),
         lift_state(Cluster::desired_state_is(rabbitmq)),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed())
+        lift_state(cluster.each_object_in_etcd_is_well_formed())
     );
 }
 
-proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<ClusterState>)
+proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(cluster: Cluster, spec: TempPred<ClusterState>)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
 {
     let inv = cr_objects_in_etcd_satisfy_state_validation();
     RabbitmqClusterView::marshal_status_preserves_integrity();
-    init_invariant(spec, Cluster::init(), Cluster::next(), inv);
+    init_invariant(spec, cluster.init(), cluster.next(), inv);
 }
 
-proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<ClusterState>)
+proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(cluster: Cluster, spec: TempPred<ClusterState>)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
 {
     let inv = the_object_in_schedule_satisfies_state_validation();
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& cr_objects_in_etcd_satisfy_state_validation()(s)
     };
     lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(cr_objects_in_etcd_satisfy_state_validation())
     );
-    init_invariant(spec, Cluster::init(), stronger_next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<ClusterState>, key: ObjectRef)
+pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(cluster: Cluster, spec: TempPred<ClusterState>, key: ObjectRef)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
 {
     let inv = the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& the_object_in_schedule_satisfies_state_validation()(s)
     };
     lemma_always_the_object_in_schedule_satisfies_state_validation(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(the_object_in_schedule_satisfies_state_validation())
     );
-    init_invariant(spec, Cluster::init(), stronger_next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, rabbitmq))))),
@@ -114,10 +114,10 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)))),
@@ -133,7 +133,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         ==> Cluster::etcd_object_is_well_formed(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s)
     };
     let next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& resource_well_formed(s_prime)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s)
@@ -141,10 +141,10 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         &&& object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
     };
-    always_weaken(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     always_to_always_later(spec, lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()),
+        spec, lift_action(next), lift_action(cluster.next()),
         later(lift_state(resource_well_formed)),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)),
@@ -162,9 +162,9 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                 RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
                     match sub_resource {
                         SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
-                            let step = choose |step| Cluster::next_step(s, s_prime, step);
+                            let step = choose |step| cluster.next_step(s, s_prime, step);
                             match step {
-                                Step::ApiServerStep(input) => {
+                                Step::APIServerStep(input) => {
                                     let req = input->0;
                                     assert(!resource_delete_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
                                     assert(!resource_update_status_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
@@ -184,14 +184,14 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
 }
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, rabbitmq))))),
@@ -210,13 +210,13 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
@@ -229,10 +229,10 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
     let key = rabbitmq.object_ref();
     let inv = object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq);
     let next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
         &&& Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
         &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())(s)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
@@ -240,13 +240,13 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
     };
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     always_to_always_later(spec, lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()),
+        spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        later(lift_state(cluster.each_object_in_etcd_is_well_formed())),
         later(lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key))),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
@@ -267,7 +267,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
                 s_prime.ongoing_reconciles()[key].pending_req_msg is Some
                 && resource_create_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0),
                 {
-                    let step = choose |step| Cluster::next_step(s, s_prime, step);
+                    let step = choose |step| cluster.next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
                             let cr_key = input.1->0;
@@ -297,16 +297,16 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
 
 #[verifier(spinoff_prover)]
 proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
-    s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView
 )
     requires
         s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg is Some,
         resource_create_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap))(s_prime),
-        Cluster::next()(s, s_prime),
+        cluster.next()(s, s_prime),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
-        Cluster::each_object_in_etcd_is_well_formed()(s_prime),
+        cluster.each_object_in_etcd_is_well_formed()(s_prime),
         Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())(s_prime),
         Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())(s),
         no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
@@ -328,9 +328,9 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
         assert(msg.content.is_create_response());
         if msg.content.get_create_response().res is Ok {
             assert(Cluster::is_ok_create_response_msg()(msg));
-            let step = choose |step| Cluster::next_step(s, s_prime, step);
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
-                Step::ApiServerStep(input) => {
+                Step::APIServerStep(input) => {
                     let req_msg = input->0;
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_request_msg(resource_key)(req_msg));
@@ -364,14 +364,14 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
 
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd_forall(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, rabbitmq))))),
@@ -390,14 +390,14 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
@@ -410,11 +410,11 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
     let key = rabbitmq.object_ref();
     let inv = object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq);
     let next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
         &&& Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
         &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())(s)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
@@ -422,14 +422,14 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
     };
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     always_to_always_later(spec, lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()),
+        spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        later(lift_state(cluster.each_object_in_etcd_is_well_formed())),
         later(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key))),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref())),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
@@ -450,7 +450,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
                 s_prime.ongoing_reconciles()[key].pending_req_msg is Some
                 && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0),
                 {
-                    let step = choose |step| Cluster::next_step(s, s_prime, step);
+                    let step = choose |step| cluster.next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
                             let cr_key = input.1->0;
@@ -477,14 +477,14 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
 }
 
 #[verifier(spinoff_prover)]
-proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView)
+proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView)
     requires
         s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg is Some,
         resource_update_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime),
-        Cluster::next()(s, s_prime),
+        cluster.next()(s, s_prime),
         Cluster::every_in_flight_msg_has_unique_id()(s),
-        Cluster::each_object_in_etcd_is_well_formed()(s_prime),
+        cluster.each_object_in_etcd_is_well_formed()(s_prime),
         Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
         Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())(s_prime),
         no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
@@ -505,9 +505,9 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
         assert(msg.src is APIServer);
         assert(msg.content.is_update_response());
         if msg.content.get_update_response().res is Ok {
-            let step = choose |step| Cluster::next_step(s, s_prime, step);
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
-                Step::ApiServerStep(input) => {
+                Step::APIServerStep(input) => {
                     let req_msg = input->0;
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
@@ -542,10 +542,10 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)))),
 {
     hide(make_stateful_set);
@@ -556,17 +556,17 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
         s.ongoing_reconciles().contains_key(key) ==> s.ongoing_reconciles()[key].triggering_cr.object_ref() == key
     };
     let next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& consistent_key(s)
     };
     Cluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(Cluster::next()),
+        spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
-            let step = choose |step| Cluster::next_step(s, s_prime, step);
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
                     if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
@@ -588,16 +588,16 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
             }
         }
     }
-    init_invariant(spec, Cluster::init(), next, inv);
+    init_invariant(spec, cluster.init(), next, inv);
 }
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
 {
     let key = rabbitmq.object_ref();
@@ -616,10 +616,10 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
 }
 
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -629,7 +629,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
         spec.entails(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))),
@@ -651,9 +651,11 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -663,7 +665,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
         spec.entails(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)))),
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
@@ -690,15 +692,15 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         }
     };
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::busy_disabled()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
         &&& Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s_prime)
         &&& Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)(s)
@@ -711,7 +713,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
             if resource_update_request_msg(resource_key)(msg) {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                     let resp = step->ControllerStep_0.0->0;
@@ -734,16 +736,16 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
             }
         }
     }
-    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()));
     invariant_n!(
         spec, lift_action(stronger_next), lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(Cluster::next()), lift_state(Cluster::crash_disabled()), lift_state(Cluster::busy_disabled()),
+        lift_action(cluster.next()), lift_state(Cluster::crash_disabled()), lift_state(Cluster::busy_disabled()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)),
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
-        later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
+        later(lift_state(cluster.each_object_in_etcd_is_well_formed())),
         lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
         lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)),
@@ -760,10 +762,10 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
 }
 
 pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -782,10 +784,10 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -806,7 +808,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         }
     };
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::busy_disabled()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
@@ -818,7 +820,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
             if resource_update_request_msg(resource_key)(msg) {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                 } else {
@@ -830,7 +832,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
     }
     invariant_n!(
         spec, lift_action(stronger_next), lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(Cluster::next()), lift_state(Cluster::crash_disabled()), lift_state(Cluster::busy_disabled()),
+        lift_action(cluster.next()), lift_state(Cluster::crash_disabled()), lift_state(Cluster::busy_disabled()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
@@ -844,10 +846,10 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
 }
 
 pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -867,10 +869,10 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
-    spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -893,7 +895,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         }
     };
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled()(s)
         &&& Cluster::busy_disabled()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
@@ -906,7 +908,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
             if resource_create_request_msg(resource_key)(msg) {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                 } else {
@@ -918,7 +920,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
     }
     invariant_n!(
         spec, lift_action(stronger_next), lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(Cluster::next()), lift_state(Cluster::crash_disabled()), lift_state(Cluster::busy_disabled()),
+        lift_action(cluster.next()), lift_state(Cluster::crash_disabled()), lift_state(Cluster::busy_disabled()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)),
@@ -933,22 +935,24 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set(
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rabbitmq)))),
 {
     let inv = no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rabbitmq);
 
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] Cluster::next()(s, s_prime) implies inv(s_prime) by {
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] cluster.next()(s, s_prime) implies inv(s_prime) by {
         if sub_resource != SubResource::StatefulSet {
             assert forall |msg: Message| s_prime.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(resource_key)(msg)) by {
                 if s.in_flight().contains(msg) {
                     assert(!resource_update_status_request_msg(resource_key)(msg));
                 } else {
-                    let step = choose |step: Step| Cluster::next_step(s, s_prime, step);
+                    let step = choose |step: Step| cluster.next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
                             if input.1 is Some {
@@ -988,26 +992,26 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
             }
         }
     }
-    init_invariant(spec, Cluster::init(), Cluster::next(), inv);
+    init_invariant(spec, cluster.init(), cluster.next(), inv);
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq)))),
 {
     Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     let inv = no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq);
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.next()(s, s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed())
+        lift_action(cluster.next()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed())
     );
 
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
@@ -1017,7 +1021,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
             if s.in_flight().contains(msg) {
                 assert(msg.content.get_update_status_request().key() != resource_key);
             } else {
-                let step = choose |step: Step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step: Step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
                         if input.1 is Some {
@@ -1046,7 +1050,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         assert(!msg.content.is_update_status_request());
                         assert(false);
                     },
-                    Step::ApiServerStep(_) => {
+                    Step::APIServerStep(_) => {
                         assert(!msg.content is APIRequest);
                         assert(!msg.content.is_update_status_request());
                         assert(false);
@@ -1072,7 +1076,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
             }
         }
     }
-    init_invariant(spec, Cluster::init(), stronger_next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> OwnerReferenceView {
@@ -1085,38 +1089,40 @@ spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> O
     }
 }
 
-pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
 {
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, rabbitmq);
     let stronger_next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ApiServerStep(input) => {
+            Step::APIServerStep(input) => {
                 let req_msg = input->0;
                 assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req_msg));
             }
             _ => {}
         }
     }
-    init_invariant(spec, Cluster::init(), stronger_next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
@@ -1145,15 +1151,17 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)))),
 {
     let inv = resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq);
     let stronger_next = |s, s_prime| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
     let key = rabbitmq.object_ref();
@@ -1161,7 +1169,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     Cluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
-        lift_action(Cluster::next()),
+        lift_action(cluster.next()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     let create_msg_pred = |msg: Message| {
@@ -1183,7 +1191,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies update_msg_pred(msg) && create_msg_pred(msg) by {
             if !s.in_flight().contains(msg) {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 let cr = s.ongoing_reconciles()[key].triggering_cr;
                 if resource_create_request_msg(resource_key)(msg) {
                     lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
@@ -1211,7 +1219,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
             }
         }
     }
-    init_invariant(spec, Cluster::init(), stronger_next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 
@@ -1223,10 +1231,10 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 // Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
+pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        Cluster::next_step(s, s_prime, step),
+        cluster.next_step(s, s_prime, step),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
@@ -1355,10 +1363,10 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(s
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
+pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        Cluster::next_step(s, s_prime, step),
+        cluster.next_step(s, s_prime, step),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
@@ -1481,12 +1489,12 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(s
     }
 }
 
-pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
@@ -1520,12 +1528,12 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 //   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 //     and the original statepred.
 #[verifier(spinoff_prover)]
-proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
@@ -1541,12 +1549,12 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: 
     };
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
+        &&& cluster.next()(s, s_prime)
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& resource_well_formed(s)
     };
-    always_weaken(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(cluster.each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1554,7 +1562,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: 
                 assert(requirements(msg, s));
                 assert(requirements(msg, s_prime));
             } else {
-                let step = choose |step| Cluster::next_step(s, s_prime, step);
+                let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::BuiltinControllersStep(_) => {
                         if s.resources().contains_key(resource_key) {
@@ -1588,7 +1596,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: 
     }
     invariant_n!(
         spec, lift_action(stronger_next), lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(Cluster::next()), lift_state(Cluster::desired_state_is(rabbitmq)),
+        lift_action(cluster.next()), lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(resource_well_formed)
     );
@@ -1600,10 +1608,10 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: 
     );
 }
 
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
@@ -1624,10 +1632,12 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
+    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
     requires
         spec.entails(always(lift_state(Cluster::busy_disabled()))),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
@@ -1674,12 +1684,12 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
 // Below are invariants that only hold after the config map matches the desired state
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update( spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| Cluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Cluster::builtin_controllers_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
@@ -1705,7 +1715,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))
     );
     let inv_for_update = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
         &&& stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
@@ -1718,7 +1728,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
     StatefulSetView::marshal_status_preserves_integrity();
     invariant_n!(
         spec, lift_action(inv_for_update), lift_state(Cluster::every_in_flight_update_req_msg_for_this_sts_matches(sts_key, cm_key, make_fn)),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
         lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),
         lift_state(stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)),
@@ -1733,7 +1743,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
     Cluster::lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec, sts_key, cm_key, make_fn);
 
     let stronger_inv = |s: ClusterState| {
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, rabbitmq)(s)
@@ -1752,7 +1762,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         }
     }
     combine_spec_entails_always_n!(
-        spec, lift_state(stronger_inv), lift_state(Cluster::each_object_in_etcd_is_well_formed()), lift_state(Cluster::desired_state_is(rabbitmq)),
+        spec, lift_state(stronger_inv), lift_state(cluster.each_object_in_etcd_is_well_formed()), lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, rabbitmq)),
         lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
@@ -1766,10 +1776,10 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_cm_rv_stays_unchanged(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(Cluster::next()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
@@ -1780,8 +1790,8 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ClusterState>, ra
 {
     let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let stronger_inv = |s: ClusterState, s_prime: ClusterState| {
-        &&& Cluster::next()(s, s_prime)
-        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& cluster.next()(s, s_prime)
+        &&& cluster.each_object_in_etcd_is_well_formed()(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
@@ -1791,9 +1801,9 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ClusterState>, ra
     };
 
     assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) implies cm_rv_stays_unchanged(rabbitmq)(s, s_prime) by {
-        let step = choose |step| Cluster::next_step(s, s_prime, step);
+        let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ApiServerStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input->0;
                 assert(!resource_delete_request_msg(cm_key)(req));
                 assert(!resource_update_status_request_msg(cm_key)(req));
@@ -1805,8 +1815,8 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ClusterState>, ra
 
     invariant_n!(
         spec, lift_action(stronger_inv), lift_action(cm_rv_stays_unchanged(rabbitmq)),
-        lift_action(Cluster::next()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
+        lift_action(cluster.next()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
         lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
@@ -1817,10 +1827,10 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ClusterState>, ra
 }
 
 // We can probably hide a lof of spec functions to make this lemma faster
-pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
 {
     // hide(crate::kubernetes_cluster::spec::api_server::state_machine::create_request_admission_check);
@@ -1832,15 +1842,15 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq);
 
-    assert forall |s: ClusterState| #[trigger] Cluster::init()(s) implies inv(s) by {}
+    assert forall |s: ClusterState| #[trigger] cluster.init()(s) implies inv(s) by {}
 
-    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] Cluster::next()(s, s_prime) && inv(s) implies inv(s_prime) by {
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] cluster.next()(s, s_prime) && inv(s) implies inv(s_prime) by {
         assert forall |msg: Message|
             !(s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg))
         by {
-            let step = choose |step| Cluster::next_step(s, s_prime, step);
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
-                Step::ApiServerStep(_) => {
+                Step::APIServerStep(_) => {
                     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
                         assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
                     }
@@ -1868,7 +1878,7 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
             }
         }
     }
-    init_invariant(spec, Cluster::init(), Cluster::next(), inv);
+    init_invariant(spec, cluster.init(), cluster.next(), inv);
 }
 
 }

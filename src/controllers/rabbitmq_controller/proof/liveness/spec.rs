@@ -141,8 +141,8 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
 }
 
 // Next and all the wf conditions.
-pub open spec fn next_with_wf() -> TempPred<ClusterState> {
-    always(lift_action(Cluster::next()))
+pub open spec fn next_with_wf(cluster: Cluster) -> TempPred<ClusterState> {
+    always(lift_action(cluster.next()))
     .and(tla_forall(|input| Cluster::kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| Cluster::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| Cluster::controller_next().weak_fairness(input)))
@@ -152,10 +152,10 @@ pub open spec fn next_with_wf() -> TempPred<ClusterState> {
     .and(Cluster::disable_transient_failure().weak_fairness(()))
 }
 
-pub proof fn next_with_wf_is_stable()
+pub proof fn next_with_wf_is_stable(cluster: Cluster)
     ensures valid(stable(next_with_wf())),
 {
-    always_p_is_stable(lift_action(Cluster::next()));
+    always_p_is_stable(lift_action(cluster.next()));
     Cluster::tla_forall_action_weak_fairness_is_stable(Cluster::kubernetes_api_next());
     Cluster::tla_forall_action_weak_fairness_is_stable(Cluster::external_api_next());
     Cluster::tla_forall_action_weak_fairness_is_stable(Cluster::controller_next());
@@ -164,7 +164,7 @@ pub proof fn next_with_wf_is_stable()
     Cluster::action_weak_fairness_is_stable(Cluster::disable_crash());
     Cluster::action_weak_fairness_is_stable(Cluster::disable_transient_failure());
     stable_and_n!(
-        always(lift_action(Cluster::next())),
+        always(lift_action(cluster.next())),
         tla_forall(|input| Cluster::kubernetes_api_next().weak_fairness(input)),
         tla_forall(|input| Cluster::external_api_next().weak_fairness(input)),
         tla_forall(|input| Cluster::controller_next().weak_fairness(input)),
@@ -196,13 +196,13 @@ pub proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 }
 
 // The safety invariants that are required to prove liveness.
-pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
+pub open spec fn derived_invariants_since_beginning(cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
     .and(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
-    .and(always(lift_state(Cluster::each_object_in_etcd_is_well_formed())))
+    .and(always(lift_state(cluster.each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))))
@@ -221,8 +221,8 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))))
 }
 
-pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures valid(stable(derived_invariants_since_beginning(rabbitmq))),
+pub proof fn derived_invariants_since_beginning_is_stable(cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    ensures valid(stable(derived_invariants_since_beginning(cluster, rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq));
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
@@ -237,7 +237,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
@@ -360,10 +360,10 @@ pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
 
-pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(Cluster::init())),
-        spec.entails(always(lift_action(Cluster::next()))),
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
     ensures
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))))),
@@ -382,13 +382,13 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     });
 }
 
-pub proof fn sm_spec_entails_all_invariants(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn sm_spec_entails_all_invariants(cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     ensures spec.entails(derived_invariants_since_beginning(rabbitmq)),
 {
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.
     // And then the verifier doesn't have to infer it every time applying those lemmas.
-    assert(spec.entails(lift_state(Cluster::init())));
-    assert(spec.entails(always(lift_action(Cluster::next()))));
+    assert(spec.entails(lift_state(cluster.init())));
+    assert(spec.entails(always(lift_action(cluster.next()))));
     Cluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
     Cluster::lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, rabbitmq.object_ref());
     Cluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
@@ -461,7 +461,7 @@ pub proof fn sm_spec_entails_all_invariants(spec: TempPred<ClusterState>, rabbit
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_object_in_etcd_is_well_formed()),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
