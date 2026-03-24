@@ -36,9 +36,9 @@ verus! {
 
 // Objects in create request messages satisfying the properties can be proved along because it doesn't have to do with
 // how the objects in etcd look like now.
-pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    |s: RMQCluster| {
+    |s: ClusterState| {
         forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
             && resource_create_request_msg(resource_key)(msg)
@@ -47,9 +47,9 @@ pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_r
 }
 
 // On the contrary, we should combine the proof of update request message and etcd because they rely on each other.
-pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    |s: RMQCluster| {
+    |s: ClusterState| {
         forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
             && resource_update_request_msg(resource_key)(msg)
@@ -59,30 +59,30 @@ pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
-proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(lift_state(Cluster::init())),
+        spec.entails(always(lift_action(Cluster::next()))),
     ensures spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
     let inv = object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq);
     let next = |s, s_prime| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& Cluster::next()(s, s_prime)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
-    RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
+    Cluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
+        lift_action(Cluster::next()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_create_request_msg(resource_key)(msg)
         implies unchangeable(sub_resource, msg.content.get_create_request().obj, rabbitmq) by {
             if !s.in_flight().contains(msg) {
-                let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+                let step = choose |step| Cluster::next_step(s, s_prime, step);
                 lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                 match sub_resource {
                     SubResource::ErlangCookieSecret => {
@@ -102,66 +102,66 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
             }
         }
     }
-    init_invariant(spec, RMQCluster::init(), next, inv);
+    init_invariant(spec, Cluster::init(), next, inv);
 }
 
-pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(lift_state(Cluster::init())),
+        spec.entails(always(lift_action(Cluster::next()))),
     ensures spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
-    let inv = |s: RMQCluster| {
+    let inv = |s: ClusterState| {
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s)
     };
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    let next = |s: RMQCluster, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
-        &&& RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(resource_key)(s)
+    let next = |s: ClusterState, s_prime: ClusterState| {
+        &&& Cluster::next()(s, s_prime)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& Cluster::each_object_in_etcd_is_well_formed()(s)
+        &&& Cluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(resource_key)(s)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)(s)
         &&& object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
     };
-    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
-    RMQCluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, resource_key);
+    Cluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    Cluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
+    always_to_always_later(spec, lift_state(Cluster::each_object_in_etcd_is_well_formed()));
+    Cluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, resource_key);
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, sub_resource, rabbitmq);
     lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec, sub_resource, rabbitmq);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, rabbitmq);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-        later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
-        lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(resource_key)),
+        spec, lift_action(next), lift_action(Cluster::next()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        lift_state(Cluster::each_object_in_etcd_is_well_formed()),
+        later(lift_state(Cluster::each_object_in_etcd_is_well_formed())),
+        lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(resource_key)),
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)),
         lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
     );
-    assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         object_in_etcd_satisfies_unchangeable_induction(sub_resource, rabbitmq, s, s_prime);
         object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource, rabbitmq, s, s_prime);
     }
-    init_invariant(spec, RMQCluster::init(), next, inv);
+    init_invariant(spec, Cluster::init(), next, inv);
     always_weaken(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)));
 }
 
-pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
+pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
-        RMQCluster::next()(s, s_prime),
-        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
-        RMQCluster::each_object_in_etcd_is_well_formed()(s),
-        RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
+        Cluster::next()(s, s_prime),
+        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+        Cluster::each_object_in_etcd_is_well_formed()(s),
+        Cluster::each_object_in_etcd_is_well_formed()(s_prime),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s),
@@ -188,7 +188,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
             },
             _ => {},
         }
-        let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+        let step = choose |step| Cluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
                 let req = input->0;
@@ -200,13 +200,13 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
     }
 }
 
-pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
+pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
-        RMQCluster::next()(s, s_prime),
-        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
-        RMQCluster::each_object_in_etcd_is_well_formed()(s),
-        RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)(s),
+        Cluster::next()(s, s_prime),
+        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+        Cluster::each_object_in_etcd_is_well_formed()(s),
+        Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)(s),
         response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)(s),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s),
@@ -228,7 +228,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
             }
             assert(unchangeable(sub_resource, msg.content.get_update_request().obj, rabbitmq));
         } else {
-            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            let step = choose |step| Cluster::next_step(s, s_prime, step);
             lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
             match sub_resource {
                 SubResource::ErlangCookieSecret => {

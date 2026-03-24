@@ -14,11 +14,11 @@ pub open spec fn safety_theorem<M: Maker>() -> bool {
     cluster_spec_without_wf().entails(tla_forall(|rabbitmq: RabbitmqClusterView| safety::<M>(rabbitmq)))
 }
 
-pub open spec fn cluster_spec_without_wf() -> TempPred<RMQCluster> {
-    lift_state(RMQCluster::init()).and(always(lift_action(RMQCluster::next())))
+pub open spec fn cluster_spec_without_wf() -> TempPred<ClusterState> {
+    lift_state(Cluster::init()).and(always(lift_action(Cluster::next())))
 }
 
-pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(lift_action(stateful_set_not_scaled_down::<M>(rabbitmq)))
 }
 
@@ -29,8 +29,8 @@ pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<RMQ
 // because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is
 // to talk about the previous and current state: an object being updated means that it exists in both states but changes
 // in current state.
-pub open spec fn stateful_set_not_scaled_down<M: Maker>(rabbitmq: RabbitmqClusterView) -> ActionPred<RMQCluster> {
-    |s: RMQCluster, s_prime: RMQCluster| {
+pub open spec fn stateful_set_not_scaled_down<M: Maker>(rabbitmq: RabbitmqClusterView) -> ActionPred<ClusterState> {
+    |s: ClusterState, s_prime: ClusterState| {
         let sts_key = M::make_stateful_set_key(rabbitmq);
         s.resources().contains_key(sts_key)
         && s_prime.resources().contains_key(sts_key)
