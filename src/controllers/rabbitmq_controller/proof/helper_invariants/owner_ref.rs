@@ -52,7 +52,6 @@ pub open spec fn object_in_every_resource_create_or_update_request_msg_only_has_
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView

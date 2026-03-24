@@ -1695,7 +1695,6 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
 
 // Below are invariants that only hold after the config map matches the desired state
 
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
