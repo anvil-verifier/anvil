@@ -553,7 +553,7 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
         spec.entails(always(lift_action(cluster.next()))),
     ensures spec.entails(always(lift_state(request_at_after_get_request_step_is_resource_get_request(controller_id, sub_resource, rabbitmq)))),
 {
-    hide(make_stateful_set);
+    // hide(make_stateful_set); // TODO: Verus AIR code bug with fuel path
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = request_at_after_get_request_step_is_resource_get_request(controller_id, sub_resource, rabbitmq);
@@ -1258,11 +1258,11 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
-    hide(make_stateful_set);
-    hide(update_stateful_set);
-    hide(update_server_config_map);
-    hide(update_plugins_config_map);
-    hide(update_erlang_secret);
+    // hide(make_stateful_set); // TODO: Verus AIR code bug with fuel path
+    // hide(update_stateful_set); // TODO: Verus AIR code bug with fuel path
+    // hide(update_server_config_map); // TODO: Verus AIR code bug with fuel path
+    // hide(update_plugins_config_map); // TODO: Verus AIR code bug with fuel path
+    // hide(update_erlang_secret); // TODO: Verus AIR code bug with fuel path
     let cr_key = step->ControllerStep_0.2->0;
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;

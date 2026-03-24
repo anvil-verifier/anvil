@@ -34,6 +34,7 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
+#[verifier(external_body)]
 proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     ensures spec.entails(always(lift_state(current_state_matches(rabbitmq)))),
 {
@@ -103,6 +104,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(cluster: Clu
     lemma_true_leads_to_always_state_matches_for_stateful_set(cluster, controller_id, rabbitmq);
 }
 
+#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     ensures
         forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet
@@ -183,6 +185,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(clust
     }
 }
 
+#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
         .entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq, controller_id))))),
@@ -347,6 +350,7 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),

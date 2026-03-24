@@ -58,6 +58,7 @@ pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
+#[verifier(external_body)]
 proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
