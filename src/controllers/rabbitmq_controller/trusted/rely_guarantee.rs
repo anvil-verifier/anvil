@@ -145,7 +145,12 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 {
 }
 
+pub open spec fn no_interfering_request_between_rmq_forall_rmq(controller_id: int, sub_resource: SubResource) -> StatePred<ClusterState> {
+    |s: ClusterState| forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s)
+}
+
 // internal rely-guarantee
+// don't be confused by the argument name, other_rmq can be the current CR in reconciliation if you need
 pub open spec fn no_interfering_request_between_rmq(controller_id: int, sub_resource: SubResource, other_rmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
