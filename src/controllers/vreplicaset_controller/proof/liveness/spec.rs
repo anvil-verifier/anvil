@@ -491,7 +491,6 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
         cluster.reconcile_model(controller_id).error
     ))))
     .and(always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)))))
-    .and(always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id))))
     .and(always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id))))
 }
 
@@ -528,7 +527,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
     )))));
     always_p_is_stable(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterUpdateVRSStatus)))));
-    always_p_is_stable(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)));
     always_p_is_stable(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id,
         vrs.object_ref(),
@@ -584,7 +582,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
             cluster.reconcile_model(controller_id).error
         ))),
         always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)))),
-        always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id))),
         always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)))
     );
 }
@@ -660,7 +657,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     spec_entails_always_tla_forall_equality(
         spec, |vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))
     );
-    lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(spec, cluster, controller_id);
     lemma_always_every_msg_from_vrs_controller_carries_vrs_key(spec, cluster, controller_id);
     entails_always_and_n!(
         spec,
@@ -705,7 +701,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
             cluster.reconcile_model(controller_id).error
         )),
         tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))),
-        lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)),
         lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id))
     );
 }

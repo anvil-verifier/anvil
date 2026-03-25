@@ -200,35 +200,31 @@ pub open spec fn no_other_pending_request_interferes_with_vrs_reconcile(
 pub open spec fn vrs_reconcile_create_request_only_interferes_with_itself(
     req: CreateRequest,
     vrs: VReplicaSetView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let owner_references = req.obj.metadata.owner_references->0;
-        &&& req.obj.kind == Kind::PodKind
-        &&& req.key().namespace == vrs.metadata.namespace.unwrap()
-        &&& req.obj.metadata.owner_references is Some
-        &&& exists |owner_ref: OwnerReferenceView| {
-            // using the macro messes up the trigger.
-            &&& owner_references == #[trigger] Seq::empty().push(owner_ref)
-            &&& owner_ref.controller is Some
-            &&& owner_ref.controller->0
-            &&& owner_ref.kind == VReplicaSetView::kind()
-            &&& owner_ref.name == vrs.object_ref().name
-        }
+) -> bool {
+    let owner_references = req.obj.metadata.owner_references->0;
+    &&& req.obj.kind == Kind::PodKind
+    &&& req.key().namespace == vrs.metadata.namespace.unwrap()
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |owner_ref: OwnerReferenceView| {
+        // using the macro messes up the trigger.
+        &&& owner_references == #[trigger] Seq::empty().push(owner_ref)
+        &&& owner_ref.controller is Some
+        &&& owner_ref.controller->0
+        &&& owner_ref.kind == VReplicaSetView::kind()
+        &&& owner_ref.name == vrs.object_ref().name
     }
 }
 
 pub open spec fn vrs_reconcile_get_then_delete_request_only_interferes_with_itself(
     req: GetThenDeleteRequest,
     vrs: VReplicaSetView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& req.key.kind == Kind::PodKind
-        &&& req.key.namespace == vrs.metadata.namespace.unwrap()
-        &&& req.owner_ref.controller is Some
-        &&& req.owner_ref.controller->0
-        &&& req.owner_ref.kind == VReplicaSetView::kind()
-        &&& req.owner_ref.name == vrs.object_ref().name
-    }
+) -> bool {
+    &&& req.key.kind == Kind::PodKind
+    &&& req.key.namespace == vrs.metadata.namespace.unwrap()
+    &&& req.owner_ref.controller is Some
+    &&& req.owner_ref.controller->0
+    &&& req.owner_ref.kind == VReplicaSetView::kind()
+    &&& req.owner_ref.name == vrs.object_ref().name
 }
 
 pub open spec fn vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(
@@ -248,8 +244,8 @@ pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
             &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
         } ==> match msg.content->APIRequest_0 {
             APIRequest::ListRequest(_) => true,
-            APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s),
-            APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s),
+            APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs),
+            APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs),
             APIRequest::GetThenUpdateStatusRequest(req) => vrs_reconcile_get_then_update_status_request_only_interferes_with_itself(req, vrs),
             _ => false, // vrs doesn't send other requests (yet).
         }
@@ -356,78 +352,6 @@ pub open spec fn no_pending_mutation_request_not_from_controller_on_pods() -> St
             &&& msg.content.is_get_then_delete_request() ==> msg.content.get_get_then_delete_request().key.kind != PodView::kind()
             &&& msg.content.is_get_then_update_request() ==> msg.content.get_get_then_update_request().key().kind != PodView::kind()
         }
-    }
-}
-
-pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |key: ObjectRef|
-            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            ==> {
-                // Unlike the below invariant, this entire invariant is used in both proving itself as well as in other proofs.
-                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-                let filtered_pods = state.filtered_pods.unwrap();
-                &&& triggering_cr.object_ref() == key
-                &&& triggering_cr.metadata().well_formed_for_namespaced()
-                &&& state.filtered_pods is Some ==>
-                // Maintained across deletes, 
-                // maintained across creates since all new keys with generate_name
-                // are unique, maintained across updates since there are
-                // no updates.
-                    forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len() ==>
-                    (
-                        filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                        && ((s.resources().contains_key(filtered_pods[i].object_ref())
-                                && s.resources()[filtered_pods[i].object_ref()].metadata.resource_version
-                                    == filtered_pods[i].metadata.resource_version) ==>
-                            (s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
-                                triggering_cr.controller_owner_ref()
-                                )
-                             ))
-                        && filtered_pods[i].metadata.resource_version.is_some()
-                        && filtered_pods[i].metadata.resource_version.unwrap()
-                            < s.api_server.resource_version_counter
-                    )
-                // Special case: the above property holds on a list response to the
-                // appropriate request. 
-                &&& state.reconcile_step is AfterListPods ==> {
-                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                    &&& req_msg.dst is APIServer
-                    &&& req_msg.content.is_list_request()
-                    &&& req_msg.content.get_list_request() == ListRequest {
-                        kind: PodView::kind(),
-                        namespace: triggering_cr.metadata.namespace.unwrap(),
-                    }
-                    &&& forall |msg| {
-                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
-                        &&& #[trigger] s.in_flight().contains(msg)
-                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
-                        &&& msg.src is APIServer
-                        &&& resp_msg_matches_req_msg(msg, req_msg)
-                        &&& is_ok_resp(msg.content->APIResponse_0)
-                    } ==> {
-                        let resp_objs = msg.content.get_list_response().res.unwrap();
-                        &&& msg.content.is_list_response()
-                        &&& msg.content.get_list_response().res is Ok
-                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
-                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
-                        (
-                            resp_objs[i].metadata.namespace.is_some()
-                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            && ((s.resources().contains_key(resp_objs[i].object_ref())
-                                    && s.resources()[resp_objs[i].object_ref()].metadata.resource_version
-                                    == resp_objs[i].metadata.resource_version) ==> 
-                                    s.resources()[resp_objs[i].object_ref()].metadata
-                                        == resp_objs[i].metadata)
-                            && resp_objs[i].metadata.resource_version.is_some()
-                            && resp_objs[i].metadata.resource_version.unwrap()
-                                    < s.api_server.resource_version_counter
-                        )
-                    }
-                }
-            }
     }
 }
 
