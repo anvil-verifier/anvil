@@ -157,8 +157,8 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that the sub resource that every intermediate steps can lead to reconcile idle.
-    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::StatefulSet, RabbitmqReconcileStep::Done);
-    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::RoleBinding, after_get_k_request_step(SubResource::StatefulSet));
+    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::VStatefulSetView, RabbitmqReconcileStep::Done);
+    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::RoleBinding, after_get_k_request_step(SubResource::VStatefulSetView));
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::Role, after_get_k_request_step(SubResource::RoleBinding));
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::ServiceAccount, after_get_k_request_step(SubResource::Role));
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::ServerConfigMap, after_get_k_request_step(SubResource::ServiceAccount));
@@ -186,7 +186,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
         lift_state(state_pred_regarding_sub_resource(rabbitmq, controller_id, SubResource::ServiceAccount)),
         lift_state(state_pred_regarding_sub_resource(rabbitmq, controller_id, SubResource::Role)),
         lift_state(state_pred_regarding_sub_resource(rabbitmq, controller_id, SubResource::RoleBinding)),
-        lift_state(state_pred_regarding_sub_resource(rabbitmq, controller_id, SubResource::StatefulSet)),
+        lift_state(state_pred_regarding_sub_resource(rabbitmq, controller_id, SubResource::VStatefulSetView)),
         lift_state(at_step_state_pred(rabbitmq, controller_id, RabbitmqReconcileStep::Done)),
         lift_state(at_step_state_pred(rabbitmq, controller_id, RabbitmqReconcileStep::Error));
         lift_state(reconcile_idle)

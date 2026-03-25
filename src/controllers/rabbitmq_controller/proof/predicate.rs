@@ -106,7 +106,7 @@ pub open spec fn next_resource_after(sub_resource: SubResource) -> RabbitmqRecon
         SubResource::ServerConfigMap => after_get_k_request_step(SubResource::ServiceAccount),
         SubResource::ServiceAccount => after_get_k_request_step(SubResource::Role),
         SubResource::Role => after_get_k_request_step(SubResource::RoleBinding),
-        SubResource::RoleBinding => after_get_k_request_step(SubResource::StatefulSet),
+        SubResource::RoleBinding => after_get_k_request_step(SubResource::VStatefulSetView),
         _ => RabbitmqReconcileStep::Done,
     }
 }

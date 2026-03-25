@@ -268,7 +268,7 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
 
 pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        sub_resource != SubResource::StatefulSet
+        sub_resource != SubResource::VStatefulSetView
         ==> {
             forall |msg: Message|
                 s.in_flight().contains(msg)
@@ -283,7 +283,7 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
             #[trigger] s.in_flight().contains(msg)
             && msg.dst is APIServer
             && !(msg.src is BuiltinController)
-            ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg)
+            ==> !resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg)
     }
 }
 
@@ -296,7 +296,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
         ==> match local_state.reconcile_step {
             RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
                 match sub_resource {
-                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
+                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::VStatefulSetView => {
                         let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
                         &&& s.resources().contains_key(cm_key)
                         &&& s.resources()[cm_key].metadata.resource_version is Some
@@ -329,13 +329,13 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
 
 pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let sts_key = get_request(SubResource::StatefulSet, rabbitmq).key;
+        let sts_key = get_request(SubResource::VStatefulSetView, rabbitmq).key;
         ||| !s.resources().contains_key(sts_key)
-        ||| sub_resource_state_matches(SubResource::StatefulSet, rabbitmq, controller_id)(s)
+        ||| sub_resource_state_matches(SubResource::VStatefulSetView, rabbitmq, controller_id)(s)
         ||| {
             &&& forall |msg: Message|
                     s.in_flight().contains(msg)
-                    ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg))
+                    ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg))
             // TODO: s.stable_resources() was removed from the cluster model
         }
     }

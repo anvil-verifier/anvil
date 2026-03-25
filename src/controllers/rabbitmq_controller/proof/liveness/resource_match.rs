@@ -36,7 +36,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, sub_resource: SubResource, next_resource: SubResource
 )
     requires
-        // sub_resource != SubResource::StatefulSet,
+        // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
@@ -259,7 +259,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        // sub_resource != SubResource::StatefulSet,
+        // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
@@ -670,7 +670,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
-            SubResource::StatefulSet => VStatefulSetView::marshal_preserves_integrity(),
+            SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
         }
     }
 
@@ -700,7 +700,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
-        // sub_resource != SubResource::StatefulSet,
+        // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
@@ -783,7 +783,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
-        // sub_resource != SubResource::StatefulSet,
+        // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
@@ -858,7 +858,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
-            SubResource::StatefulSet => VStatefulSetView::marshal_preserves_integrity(),
+            SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
         }
     }
 
@@ -888,7 +888,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
-        // sub_resource != SubResource::StatefulSet,
+        // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
@@ -964,7 +964,7 @@ pub proof fn lemma_resource_object_is_stable(
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<ClusterState>
 )
     requires
-        // sub_resource != SubResource::StatefulSet,
+        // sub_resource != SubResource::VStatefulSetView,
         spec.entails(p.leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq, controller_id)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),

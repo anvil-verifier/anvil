@@ -64,7 +64,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
     ensures spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(zookeeper)))),
 {
     let inv = stateful_set_in_etcd_satisfies_unchangeable(zookeeper);
-    let sts_res = SubResource::StatefulSet;
+    let sts_res = SubResource::VStatefulSetView;
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
@@ -72,8 +72,8 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
         &&& every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sts_res, zookeeper)(s)
         &&& stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper)(s)
         &&& stateful_set_update_request_msg_does_not_change_owner_reference(zookeeper)(s)
-        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, zookeeper)(s)
-        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, zookeeper)(s)
+        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, zookeeper)(s)
+        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, zookeeper)(s)
     };
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(ZKCluster::each_object_in_etcd_is_well_formed()));
@@ -88,8 +88,8 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
         lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sts_res, zookeeper)),
         lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper)),
         lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(zookeeper)),
-        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, zookeeper)),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, zookeeper))
+        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, zookeeper)),
+        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, zookeeper))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = zookeeper.object_ref();
@@ -153,25 +153,25 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s_prime)
-        &&& response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, zookeeper)(s)
+        &&& response_at_after_get_resource_step_is_resource_get_response(SubResource::VStatefulSetView, zookeeper)(s)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)(s)
-        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, zookeeper)(s)
+        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, zookeeper)(s)
     };
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, SubResource::StatefulSet, zookeeper);
+    lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, SubResource::VStatefulSetView, zookeeper);
     always_to_always_later(spec, lift_state(ZKCluster::each_object_in_etcd_is_well_formed()));
     ZKCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     ZKCluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, sts_key);
-    lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, SubResource::StatefulSet, zookeeper);
+    lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, SubResource::VStatefulSetView, zookeeper);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())),
-        lift_state(response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, zookeeper)),
+        lift_state(response_at_after_get_resource_step_is_resource_get_response(SubResource::VStatefulSetView, zookeeper)),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)),
-        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, zookeeper))
+        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, zookeeper))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(sts_key)(msg)
@@ -186,7 +186,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
                     assert(msg.content.get_update_request().obj.metadata.resource_version->0 < s_prime.resources()[sts_key].metadata.resource_version->0);
                 }
             } else if resource_update_request_msg(sts_key)(msg) {
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, zookeeper, s, s_prime, msg, step);
+                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::VStatefulSetView, zookeeper, s, s_prime, msg, step);
             }
         }
     }
@@ -275,7 +275,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
     ensures spec.entails(always(lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper)))),
 {
     let inv = stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper);
-    let sts_res = SubResource::StatefulSet;
+    let sts_res = SubResource::VStatefulSetView;
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
