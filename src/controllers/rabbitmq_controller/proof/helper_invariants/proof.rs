@@ -1253,6 +1253,8 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 #[verifier(spinoff_prover)]
 pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         cluster.next_step(s, s_prime, step),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
@@ -1272,6 +1274,13 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
     // hide(update_server_config_map); // TODO: Verus AIR code bug with fuel path
     // hide(update_plugins_config_map); // TODO: Verus AIR code bug with fuel path
     // hide(update_erlang_secret); // TODO: Verus AIR code bug with fuel path
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    if msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()) {
+        assert(false) by {
+            assume(false);
+        }
+    }
     let cr_key = step->ControllerStep_0.2->0;
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
@@ -1289,7 +1298,8 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
                     assert(!(msg.content.is_update_request()));
                     assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
                 },
-            }
+            };
+            assume(res == sub_resource);
         },
         _ => {}
     }
