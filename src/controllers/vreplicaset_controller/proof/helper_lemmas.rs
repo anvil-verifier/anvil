@@ -208,7 +208,6 @@ pub proof fn matching_pods_equal_to_matching_pod_entries_values(vrs: VReplicaSet
     }
 }
 
-#[verifier(external_body)] // prove with all_pods_owned_by_vrs_in_etcd_have_vrs_prefix
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
@@ -313,7 +312,9 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             |pod: PodView|
                 pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                 && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp is None,
+                && pod.metadata.deletion_timestamp is None
+                && pod.metadata.name is Some
+                && has_vrs_prefix(pod.metadata.name->0),
             filtered_pods[i]
         );
         seq_filter_contains_implies_seq_contains(
@@ -321,7 +322,9 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             |pod: PodView|
                 pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                 && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp is None,
+                && pod.metadata.deletion_timestamp is None
+                && pod.metadata.name is Some
+                && has_vrs_prefix(pod.metadata.name->0),
             filtered_pods[j]
         );
 
@@ -351,7 +354,9 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
                 |pod: PodView|
                     pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                     && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                    && pod.metadata.deletion_timestamp is None,
+                    && pod.metadata.deletion_timestamp is None
+                    && pod.metadata.name is Some
+                    && has_vrs_prefix(pod.metadata.name->0),
             );
         } else {
             assert(resp_obj_keys[idxi] == resp_objs[idxi].object_ref());

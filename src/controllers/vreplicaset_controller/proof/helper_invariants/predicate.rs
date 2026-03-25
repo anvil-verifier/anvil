@@ -478,19 +478,4 @@ pub open spec fn vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletio
     }
 }
 
-// in VSTS, prefix is the first class citizen, so we need a glue invariant saying all pods with prefix have correct owner_reference
-// in VRS, owner_reference is the first class citizen, so we need a glue invariant to convert owner_reference to prefix
-pub open spec fn all_pods_owned_by_vrs_in_etcd_have_vrs_prefix() -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |k: ObjectRef| {
-            let obj = s.resources()[k];
-            &&& #[trigger] s.resources().contains_key(k)
-            &&& k.kind == Kind::PodKind
-            &&& obj.metadata.owner_references is Some
-            &&& obj.metadata.owner_references->0.filter(controller_owner_filter()).len() > 0
-            &&& obj.metadata.owner_references->0.filter(controller_owner_filter())[0].kind == VReplicaSetView::kind()
-        } ==> has_vrs_prefix(k.name)
-    }
-}
-
 }

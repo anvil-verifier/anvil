@@ -1,9 +1,11 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::{
+    trusted::spec_types::*, model::reconciler::*,
+    proof::predicate::*,
+};
 use crate::vreplicaset_controller::trusted::step::VReplicaSetRecStepView;
-use crate::vreplicaset_controller::proof::predicate::*;
 use vstd::prelude::*;
 
 verus! {
@@ -51,6 +53,8 @@ pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> 
 
 pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
     &&& obj.kind == PodView::kind()
+    &&& obj.metadata.name is Some
+    &&& has_vrs_prefix(obj.metadata.name->0)
     &&& obj.metadata.namespace is Some
     &&& obj.metadata.namespace == vrs.metadata.namespace
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
