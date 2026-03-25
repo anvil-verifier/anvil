@@ -42,38 +42,17 @@ ensures
 
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
-    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
-    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
-    cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
-    cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
-    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
-    cluster.lemma_always_etcd_is_finite(spec);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
-        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
-        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
-        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
-        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s)
-        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
     };
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::etcd_is_finite())
+        lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))
     );
 
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -140,6 +119,7 @@ ensures
 }
 
 #[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -153,8 +133,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
-    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     lemma_always_local_pods_have_vrs_prefix(spec, cluster, controller_id);
     always_to_always_later(spec, lift_state(local_pods_have_vrs_prefix(controller_id)));
 
@@ -162,8 +140,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
-        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
-        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& local_pods_have_vrs_prefix(controller_id)(s)
         &&& local_pods_have_vrs_prefix(controller_id)(s_prime)
     };
@@ -172,8 +148,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         spec, lift_action(stronger_next), lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
-        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(local_pods_have_vrs_prefix(controller_id)),
         later(lift_state(local_pods_have_vrs_prefix(controller_id)))
     );
@@ -240,29 +214,19 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                                 let next_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                                 assert(next_state.reconcile_step is AfterDeletePod);
                                 let diff = next_state.reconcile_step->AfterDeletePod_0 as int;
-
-                                // The key insight: after transition, next_state.filtered_pods
-                                // satisfies local_pods_have_vrs_prefix (from the s_prime invariant).
-                                // The req.key.name comes from filtered_pods[some_index].metadata.name->0,
-                                // so it has vrs prefix.
                                 if state.reconcile_step is AfterListPods {
                                     if next_state.filtered_pods is None || next_state.filtered_pods->0.len() <= diff || next_state.filtered_pods->0[diff].metadata.name is None {
                                         assert(false);
                                     }
                                     assert(has_vrs_prefix(req.key.name)) by {
                                         assert(next_state.filtered_pods->0.len() > triggering_cr.spec.replicas.unwrap_or(1));
-                                        // req.key.name = filtered_pods[filtered_pods.len() - desired_replicas - 1].metadata.name->0
-                                        // and filtered_pods was set from filter_pods which checks has_vrs_prefix per pod_filter
-                                        // Use s_prime invariant: local_pods_have_vrs_prefix
                                         assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
                                     }
                                 } else {
-                                    // AfterDeletePod -> AfterDeletePod: filtered_pods inherited from state
                                     if state.filtered_pods.is_none() {
                                         assert(false);
                                     }
                                     assert(has_vrs_prefix(req.key.name)) by {
-                                        // Use s_prime invariant: local_pods_have_vrs_prefix
                                         assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
                                     }
                                 }
