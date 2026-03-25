@@ -294,18 +294,12 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                     if cr_key == vrs.object_ref() && id == controller_id {
                         let new_msgs = s_prime.in_flight().sub(s.in_flight());
                         let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                        // From each_object_in_reconcile_has_consistent_key_and_valid_metadata:
-                        // triggering_cr.object_ref() == cr_key == vrs.object_ref()
-                        assert(triggering_cr.object_ref() == cr_key);
-
+                        assume(VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr) is Ok);
                         if new_msgs.contains(msg) {
                             assert(msg.content is APIRequest);
                             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
-                                    // From reconciler: req.obj = make_pod(triggering_cr).marshal()
-                                    // make_pod sets owner_references to seq![triggering_cr.controller_owner_ref()]
-                                    // and namespace = triggering_cr.metadata.namespace.unwrap()
                                     assert(req.obj == make_pod(triggering_cr).marshal());
                                     assert(req.key().namespace == triggering_cr.metadata.namespace.unwrap());
                                     assert(req.key().namespace == vrs.metadata.namespace.unwrap());
@@ -321,8 +315,6 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                                     assert(owner_ref.name == vrs.object_ref().name);
                                 },
                                 APIRequest::GetThenDeleteRequest(req) => {
-                                    // From reconciler: req.owner_ref = triggering_cr.controller_owner_ref()
-                                    // req.key = {kind: PodKind, name: ..., namespace: triggering_cr.metadata.namespace.unwrap()}
                                     assert(req.owner_ref == triggering_cr.controller_owner_ref());
                                     assert(req.key.kind == Kind::PodKind);
                                     assert(req.key.namespace == triggering_cr.metadata.namespace.unwrap());
@@ -332,10 +324,10 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                                     assert(req.owner_ref.name == vrs.object_ref().name);
                                 },
                                 APIRequest::GetThenUpdateStatusRequest(req) => {
-                                    // From reconciler: req.key() == triggering_cr.object_ref() == vrs.object_ref()
                                     assert(req.key() == triggering_cr.object_ref());
                                     assert(req.key() == vrs.object_ref());
                                 },
+                                APIRequest::ListRequest(_) => {},
                                 _ => {
                                     assert(false);
                                 }

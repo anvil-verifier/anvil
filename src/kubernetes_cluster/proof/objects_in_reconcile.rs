@@ -1,5 +1,5 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::cluster::*;
+use crate::kubernetes_cluster::spec::{api_server::state_machine::*, cluster::*};
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
@@ -106,6 +106,20 @@ pub proof fn lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_
     }
 
     init_invariant(spec, self.init(), stronger_next, invariant);
+}
+
+pub open spec fn each_object_in_reconcile_is_well_formed<T: CustomResourceView>(self, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            &&& #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            &&& key.kind == T::kind()
+        } ==> {
+            let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
+            &&& Self::etcd_object_is_weakly_well_formed(key)(s)
+            &&& unmarshallable_object(cr, self.installed_types)
+            &&& valid_object(cr, self.installed_types)
+        }
+    }
 }
 
 }
