@@ -492,43 +492,5 @@ pub open spec fn all_pods_owned_by_vrs_in_etcd_have_vrs_prefix() -> StatePred<Cl
         } ==> has_vrs_prefix(k.name)
     }
 }
-pub open spec fn all_pods_has_vrs_prefix_in_vrs_local_state(controller_id: int, vrs_key: ObjectRef) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs_key].local_state)->Ok_0;
-        &&& local_state.filtered_pods is Some ==>
-            forall |i| #![trigger local_state.filtered_pods->0[i]] 0 <= i < local_state.filtered_pods->0.len() ==> {
-                &&& local_state.filtered_pods->0[i].metadata.name is Some
-                &&& has_vrs_prefix(local_state.filtered_pods->0[i].metadata.name->0)
-            }
-        // message predicate to make it inductive
-        &&& local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods ==> {
-            let req_msg = s.ongoing_reconciles(controller_id)[vrs_key].pending_req_msg->0;
-            &&& s.ongoing_reconciles(controller_id)[vrs_key].pending_req_msg is Some
-            &&& req_msg.dst is APIServer
-            &&& req_msg.content.is_list_request()
-            &&& req_msg.content.get_list_request() == ListRequest {
-                kind: Kind::PodKind,
-                namespace: vrs_key.namespace,
-            }
-            &&& forall |msg| {
-                &&& #[trigger] s.in_flight().contains(msg)
-                &&& msg.src is APIServer
-                &&& resp_msg_matches_req_msg(msg, req_msg)
-                &&& is_ok_resp(msg.content->APIResponse_0)
-            } ==> {
-                let resp_objs = msg.content.get_list_response().res.unwrap();
-                &&& forall |i| #![trigger resp_objs[i]] {
-                    &&& 0 <= i < resp_objs.len()
-                    &&& resp_objs[i].metadata.owner_references is Some
-                    &&& resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter()).len() > 0
-                    &&& resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter())[0].kind == VReplicaSetView::kind()
-                } ==> {
-                    &&& resp_objs[i].metadata.name is Some
-                    &&& has_vrs_prefix(resp_objs[i].metadata.name->0)
-                }
-            }
-        }
-    }
-}
 
 }
