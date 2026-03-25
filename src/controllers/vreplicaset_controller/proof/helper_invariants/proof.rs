@@ -11,6 +11,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     proof::{
+        guarantee,
         helper_invariants::predicate::*, helper_lemmas, liveness::api_actions::*, predicate::*,
     },
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
@@ -222,6 +223,8 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(spec);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    guarantee::lemma_always_local_pods_have_vrs_prefix(spec, cluster, controller_id);
 
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
@@ -230,6 +233,8 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
         &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& guarantee::local_pods_have_vrs_prefix(controller_id)(s)
     };
 
     combine_spec_entails_always_n!(
@@ -238,7 +243,9 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(guarantee::local_pods_have_vrs_prefix(controller_id))
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
@@ -268,6 +275,7 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                 }
             }
             Step::ControllerStep((id, _, cr_key_opt)) => {
+                let cr_key = cr_key_opt->0;
                 assert forall |msg| {
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)
@@ -283,29 +291,53 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
 
-                    if cr_key_opt->0 == vrs.object_ref() {
+                    if cr_key == vrs.object_ref() && id == controller_id {
+                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                        let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                        // From each_object_in_reconcile_has_consistent_key_and_valid_metadata:
+                        // triggering_cr.object_ref() == cr_key == vrs.object_ref()
+                        assert(triggering_cr.object_ref() == cr_key);
 
-                        if id == controller_id {
-                            let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                            let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();    
-
-                            if new_msgs.contains(msg) {
-                                assert(msg.content is APIRequest);
-                                match msg.content->APIRequest_0 {
-                                    APIRequest::GetThenDeleteRequest(req) => {
-                                        assert(req.owner_ref == triggering_cr.controller_owner_ref());
-                                        assume(false);
-                                    },
-                                    APIRequest::GetThenUpdateStatusRequest(req) => {
-                                        assert(req.key() == triggering_cr.object_ref());
-                                        assume(false);
-                                    },
-                                    APIRequest::CreateRequest(req) => {
-                                        assume(false);
-                                    },
-                                    _ => {
-                                        assert(false);
-                                    }
+                        if new_msgs.contains(msg) {
+                            assert(msg.content is APIRequest);
+                            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                            match msg.content->APIRequest_0 {
+                                APIRequest::CreateRequest(req) => {
+                                    // From reconciler: req.obj = make_pod(triggering_cr).marshal()
+                                    // make_pod sets owner_references to seq![triggering_cr.controller_owner_ref()]
+                                    // and namespace = triggering_cr.metadata.namespace.unwrap()
+                                    assert(req.obj == make_pod(triggering_cr).marshal());
+                                    assert(req.key().namespace == triggering_cr.metadata.namespace.unwrap());
+                                    assert(req.key().namespace == vrs.metadata.namespace.unwrap());
+                                    assert(req.obj.kind == Kind::PodKind);
+                                    // owner_references from make_pod
+                                    let pod = make_pod(triggering_cr);
+                                    assert(pod.metadata.owner_references == Some(make_owner_references(triggering_cr)));
+                                    assert(make_owner_references(triggering_cr) == seq![triggering_cr.controller_owner_ref()]);
+                                    let owner_ref = triggering_cr.controller_owner_ref();
+                                    assert(owner_ref.controller == Some(true));
+                                    assert(owner_ref.kind == VReplicaSetView::kind());
+                                    assert(owner_ref.name == triggering_cr.metadata.name->0);
+                                    assert(owner_ref.name == vrs.object_ref().name);
+                                },
+                                APIRequest::GetThenDeleteRequest(req) => {
+                                    // From reconciler: req.owner_ref = triggering_cr.controller_owner_ref()
+                                    // req.key = {kind: PodKind, name: ..., namespace: triggering_cr.metadata.namespace.unwrap()}
+                                    assert(req.owner_ref == triggering_cr.controller_owner_ref());
+                                    assert(req.key.kind == Kind::PodKind);
+                                    assert(req.key.namespace == triggering_cr.metadata.namespace.unwrap());
+                                    assert(req.key.namespace == vrs.metadata.namespace.unwrap());
+                                    assert(req.owner_ref.controller == Some(true));
+                                    assert(req.owner_ref.kind == VReplicaSetView::kind());
+                                    assert(req.owner_ref.name == vrs.object_ref().name);
+                                },
+                                APIRequest::GetThenUpdateStatusRequest(req) => {
+                                    // From reconciler: req.key() == triggering_cr.object_ref() == vrs.object_ref()
+                                    assert(req.key() == triggering_cr.object_ref());
+                                    assert(req.key() == vrs.object_ref());
+                                },
+                                _ => {
+                                    assert(false);
                                 }
                             }
                         }

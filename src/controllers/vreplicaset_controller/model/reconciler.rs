@@ -227,6 +227,7 @@ pub open spec fn pod_filter(vrs: VReplicaSetView) -> spec_fn(pod: PodView) -> bo
         &&& pod.metadata.deletion_timestamp is None
         &&& pod.metadata.name is Some
         &&& has_vrs_prefix(pod.metadata.name->0)
+        &&& pod.metadata.namespace == Some(vrs.metadata.namespace.unwrap())
     }
 }
 

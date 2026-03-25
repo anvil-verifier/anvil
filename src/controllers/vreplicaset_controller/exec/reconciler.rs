@@ -361,6 +361,7 @@ fn filter_pods(pods: Vec<Pod>, vrs: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
             idx <= pods.len(),
             filtered_pods.deep_view()
                 == model_reconciler::filter_pods(pods.deep_view().take(idx as int), vrs@),
+            vrs@.well_formed(),
     {
         let pod = &pods[idx];
 
@@ -372,12 +373,15 @@ fn filter_pods(pods: Vec<Pod>, vrs: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
         // (2) the pod should not be terminating (its deletion timestamp is nil)
         && !pod.metadata().has_deletion_timestamp()
         && pod.metadata().name().is_some()
-        && has_vrs_prefix(&pod.metadata().name().unwrap()){
+        && has_vrs_prefix(&pod.metadata().name().unwrap())
+        && pod.metadata().namespace_eq(&vrs.metadata()){
             filtered_pods.push(pod.clone());
         }
 
         proof {
             let spec_filter = model_reconciler::pod_filter(vrs@);
+            // vrs@.well_formed() implies vrs@.metadata.namespace is Some
+            assert(Some(vrs@.metadata.namespace.unwrap()) == vrs@.metadata.namespace);
             let old_filtered = if spec_filter(pod@) {
                 filtered_pods.deep_view().drop_last()
             } else {
