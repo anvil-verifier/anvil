@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::vstatefulset_controller::trusted::spec_types::*;
+use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
