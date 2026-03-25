@@ -1,9 +1,9 @@
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::{
-    model::{install::rabbitmq_controller_model, reconciler::*},
+    model::{install::rabbitmq_controller_model, reconciler::*, resource::*},
     proof::predicate::*,
-    trusted::spec_types::*,
+    trusted::{spec_types::*, step::*},
 };
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::defs::*;
@@ -144,5 +144,44 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         spec.entails(always(lift_state(rmq_guarantee(controller_id))))
 {
 }
+
+// internal rely-guarantee
+pub open spec fn no_interfering_request_between_rmq(controller_id: int, sub_resource: SubResource, other_rmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src == HostId::Controller(controller_id, other_rmq.object_ref())
+        } ==> match msg.content->APIRequest_0 {
+            APIRequest::GetRequest(_) => true,
+            APIRequest::CreateRequest(_) | APIRequest::UpdateRequest(_)=> {
+                let key = if msg.content.is_create_request() {
+                    msg.content.get_create_request().key()
+                } else {
+                    msg.content.get_update_request().key()
+                };
+                &&& rmq_requests_carry_rmq_key(key, sub_resource, other_rmq)
+            }
+            _ => false
+        }
+    }
+}
+
+pub open spec fn rmq_requests_carry_rmq_key(req_key: ObjectRef, sub_resource: SubResource, other_rmq: RabbitmqClusterView) -> bool {
+    match sub_resource {
+        SubResource::HeadlessService => req_key == make_headless_service_key(other_rmq),
+        SubResource::Service => req_key == make_main_service_key(other_rmq),
+        SubResource::ErlangCookieSecret => req_key == make_erlang_secret_key(other_rmq),
+        SubResource::DefaultUserSecret => req_key == make_default_user_secret_key(other_rmq),
+        SubResource::PluginsConfigMap => req_key == make_plugins_config_map_key(other_rmq),
+        SubResource::ServerConfigMap => req_key == make_server_config_map_key(other_rmq),
+        SubResource::ServiceAccount => req_key == make_service_account_key(other_rmq),
+        SubResource::Role => req_key == make_role_key(other_rmq),
+        SubResource::RoleBinding => req_key == make_role_binding_key(other_rmq),
+        SubResource::VStatefulSetView => req_key == make_stateful_set_key(other_rmq),
+        _ => false,
+    }
+}
+
 
 }
