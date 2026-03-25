@@ -22,6 +22,9 @@ use vstd::prelude::*;
 verus! {
 
 proof fn safety_proof_forall_rabbitmq(controller_id: int, cluster: Cluster)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures safety_theorem(cluster),
 {
     assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf(cluster).entails(safety(rabbitmq)) by {
@@ -31,6 +34,9 @@ proof fn safety_proof_forall_rabbitmq(controller_id: int, cluster: Cluster)
 }
 
 proof fn safety_proof(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures cluster_spec_without_wf(cluster).entails(safety(rabbitmq)),
 {
     lemma_stateful_set_never_scaled_down_for_rabbitmq(controller_id, cluster, cluster_spec_without_wf(cluster), rabbitmq);
@@ -45,6 +51,8 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(controller_id: int, c
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_action(stateful_set_not_scaled_down(rabbitmq)))),
 {
     let inv = stateful_set_not_scaled_down(rabbitmq);
