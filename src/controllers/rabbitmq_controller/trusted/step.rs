@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use vstd::prelude::*;
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 
 verus! {
 
@@ -31,7 +32,7 @@ pub enum SubResource {
     ServiceAccount,
     Role,
     RoleBinding,
-    StatefulSet,
+    VStatefulSetView,
 }
 
 pub enum ActionKind {

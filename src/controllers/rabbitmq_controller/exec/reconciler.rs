@@ -98,7 +98,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<VoidER
                 SubResource::ServiceAccount => reconcile_helper::<model_resource::ServiceAccountBuilder, ServiceAccountBuilder>(rabbitmq, resp_o, state),
                 SubResource::Role => reconcile_helper::<model_resource::RoleBuilder, RoleBuilder>(rabbitmq, resp_o, state),
                 SubResource::RoleBinding => reconcile_helper::<model_resource::RoleBindingBuilder, RoleBindingBuilder>(rabbitmq, resp_o, state),
-                SubResource::StatefulSet => reconcile_helper::<model_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state),
+                SubResource::VStatefulSetView => reconcile_helper::<model_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state),
             }
         },
         _ => {

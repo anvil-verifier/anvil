@@ -50,7 +50,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Ro
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                 ..state
             };
             let req = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(rabbitmq));
@@ -64,7 +64,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Ro
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                 ..state
             };
             let req = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(rabbitmq));

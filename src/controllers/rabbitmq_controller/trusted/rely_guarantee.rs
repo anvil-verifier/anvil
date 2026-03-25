@@ -5,6 +5,7 @@ use crate::rabbitmq_controller::{
     proof::predicate::*,
     trusted::spec_types::*,
 };
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -41,6 +42,8 @@ pub open spec fn rmq_rely(other_id: int) -> StatePred<ClusterState> {
 
 // Helper to check if a kind is managed by the RMQ controller
 pub open spec fn is_rmq_managed_kind(kind: Kind) -> bool {
+    // err: `fn` calls are not allowed in patterns
+    let vsts_kind = VStatefulSetView::kind();
     match kind {
         Kind::ServiceKind => true,
         Kind::SecretKind => true,
@@ -48,7 +51,7 @@ pub open spec fn is_rmq_managed_kind(kind: Kind) -> bool {
         Kind::ServiceAccountKind => true,
         Kind::RoleKind => true,
         Kind::RoleBindingKind => true,
-        Kind::StatefulSetKind => true,
+        vsts_kind => true,
         _ => false,
     }
 }
@@ -56,13 +59,10 @@ pub open spec fn is_rmq_managed_kind(kind: Kind) -> bool {
 // should not create objects with "rabbitmq-" prefix
 pub open spec fn rely_create_req(req: CreateRequest) -> bool {
     is_rmq_managed_kind(req.obj.kind) ==> {
-        !{
-            if req.obj.metadata.name is Some {
-                has_rabbitmq_prefix(req.obj.metadata.name->0)
-            } else {
-                &&& req.obj.metadata.generate_name is Some
-                &&& has_rabbitmq_prefix(req.obj.metadata.generate_name->0)
-            }
+        if req.obj.metadata.name is Some {
+            !has_rabbitmq_prefix(req.obj.metadata.name->0)
+        } else {
+            !(req.obj.metadata.generate_name is Some && has_rabbitmq_prefix(req.obj.metadata.generate_name->0))
         }
     }
 }

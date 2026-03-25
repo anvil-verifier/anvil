@@ -76,7 +76,7 @@ pub open spec fn next_resource_after(sub_resource: SubResource) -> ZookeeperReco
         SubResource::ClientService => after_get_k_request_step(SubResource::AdminServerService),
         SubResource::AdminServerService => after_get_k_request_step(SubResource::ConfigMap),
         SubResource::ConfigMap => ZookeeperReconcileStep::AfterExistsStatefulSet,
-        SubResource::StatefulSet => ZookeeperReconcileStep::AfterUpdateStatus,
+        SubResource::VStatefulSetView => ZookeeperReconcileStep::AfterUpdateStatus,
     }
 }
 
@@ -112,7 +112,7 @@ pub open spec fn pending_req_in_flight_at_after_exists_stateful_set_step(
         &&& msg.dst == HostId::ApiServer
         &&& msg.content is APIRequest
         &&& request is GetRequest
-        &&& request->GetRequest_0 == get_request(SubResource::StatefulSet, zk)
+        &&& request->GetRequest_0 == get_request(SubResource::VStatefulSetView, zk)
     }
 }
 
@@ -146,7 +146,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_s
         &&& req_msg.dst == HostId::ApiServer
         &&& req_msg.content is APIRequest
         &&& request is GetRequest
-        &&& request->GetRequest_0 == get_request(SubResource::StatefulSet, zk)
+        &&& request->GetRequest_0 == get_request(SubResource::VStatefulSetView, zk)
     }
 }
 
@@ -195,7 +195,7 @@ pub open spec fn at_after_exists_stateful_set_step_and_exists_not_found_resp_in_
         &&& msg.dst == HostId::ApiServer
         &&& msg.content is APIRequest
         &&& request is GetRequest
-        &&& request->GetRequest_0 == get_request(SubResource::StatefulSet, zk)
+        &&& request->GetRequest_0 == get_request(SubResource::VStatefulSetView, zk)
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
@@ -236,14 +236,14 @@ pub open spec fn at_after_exists_stateful_set_step_and_exists_ok_resp_in_flight(
         let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
-        let key = get_request(SubResource::StatefulSet, zk).key;
+        let key = get_request(SubResource::VStatefulSetView, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
         &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
         &&& msg.content is APIRequest
         &&& request is GetRequest
-        &&& request->GetRequest_0 == get_request(SubResource::StatefulSet, zk)
+        &&& request->GetRequest_0 == get_request(SubResource::VStatefulSetView, zk)
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
@@ -281,14 +281,14 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_exists_stateful_set_
         let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
-        let key = get_request(SubResource::StatefulSet, zk).key;
+        let key = get_request(SubResource::VStatefulSetView, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
         &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
         &&& msg.content is APIRequest
         &&& request is GetRequest
-        &&& request->GetRequest_0 == get_request(SubResource::StatefulSet, zk)
+        &&& request->GetRequest_0 == get_request(SubResource::VStatefulSetView, zk)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_get_response().res is Ok
@@ -327,7 +327,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_ste
         &&& msg.dst == HostId::ApiServer
         &&& msg.content is APIRequest
         &&& request is GetRequest
-        &&& request->GetRequest_0 == get_request(SubResource::StatefulSet, zk)
+        &&& request->GetRequest_0 == get_request(SubResource::VStatefulSetView, zk)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
     }
@@ -526,12 +526,12 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_exists_zk_node_st
 }
 
 pub open spec fn zk_node_addr(s: ZKCluster, zk: ZookeeperClusterView) -> ZKNodeAddr {
-    let sts_uid = s.resources()[get_request(SubResource::StatefulSet, zk).key].metadata.uid->0;
+    let sts_uid = s.resources()[get_request(SubResource::VStatefulSetView, zk).key].metadata.uid->0;
     ZKNodeAddr::new(zk.metadata.name->0, zk.metadata.namespace->0, sts_uid, zk_node_path(zk))
 }
 
 pub open spec fn zk_parent_node_addr(s: ZKCluster, zk: ZookeeperClusterView) -> ZKNodeAddr {
-    let sts_uid = s.resources()[get_request(SubResource::StatefulSet, zk).key].metadata.uid->0;
+    let sts_uid = s.resources()[get_request(SubResource::VStatefulSetView, zk).key].metadata.uid->0;
     ZKNodeAddr::new(zk.metadata.name->0, zk.metadata.namespace->0, sts_uid, zk_parent_node_path(zk))
 }
 

@@ -161,7 +161,7 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
             &&& obj.metadata.labels == RabbitmqMaker::make_role_binding(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == RabbitmqMaker::make_role_binding(rabbitmq).metadata.annotations
         },
-        SubResource::StatefulSet => {
+        SubResource::VStatefulSetView => {
             let key = RabbitmqMaker::make_stateful_set_key(rabbitmq);
             let obj = resources[key];
             let cm_key = RabbitmqMaker::make_server_config_map_key(rabbitmq);

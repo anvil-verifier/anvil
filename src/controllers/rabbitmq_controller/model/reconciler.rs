@@ -90,7 +90,7 @@ pub open spec fn reconcile_core(
                 SubResource::ServiceAccount => { reconcile_helper::<ServiceAccountBuilder>(rabbitmq, resp_o, state) },
                 SubResource::Role => { reconcile_helper::<RoleBuilder>(rabbitmq, resp_o, state) },
                 SubResource::RoleBinding => { reconcile_helper::<RoleBindingBuilder>(rabbitmq, resp_o, state) },
-                SubResource::StatefulSet => { reconcile_helper::<StatefulSetBuilder>(rabbitmq, resp_o, state) },
+                SubResource::VStatefulSetView => { reconcile_helper::<StatefulSetBuilder>(rabbitmq, resp_o, state) },
             }
         },
         _ => {

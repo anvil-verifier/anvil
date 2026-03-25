@@ -96,7 +96,7 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
                     SubResource::ServiceAccount => {
                         ServiceAccountView::marshal_preserves_integrity();
                     },
-                    SubResource::StatefulSet => {
+                    SubResource::VStatefulSetView => {
                         VStatefulSetView::marshal_preserves_integrity();
                     },
                     _ => {},
@@ -186,7 +186,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(controller_id: int,
                 ServiceAccountView::marshal_preserves_integrity();
                 ServiceAccountView::marshal_spec_preserves_integrity();
             },
-            SubResource::StatefulSet => {
+            SubResource::VStatefulSetView => {
                 VStatefulSetView::marshal_preserves_integrity();
                 VStatefulSetView::marshal_spec_preserves_integrity();
             },
@@ -244,7 +244,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
                 SubResource::ServiceAccount => {
                     ServiceAccountView::marshal_preserves_integrity();
                 },
-                SubResource::StatefulSet => {
+                SubResource::VStatefulSetView => {
                     VStatefulSetView::marshal_preserves_integrity();
                 },
                 _ => {},

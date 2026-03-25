@@ -27,7 +27,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, sub_resource: SubResource
 )
     requires
-        sub_resource != SubResource::StatefulSet,
+        sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
@@ -109,7 +109,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))
         ),
-        sub_resource != SubResource::ConfigMap && sub_resource != SubResource::StatefulSet ==> spec.entails(
+        sub_resource != SubResource::ConfigMap && sub_resource != SubResource::VStatefulSetView ==> spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(sub_resource, zookeeper).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
@@ -207,7 +207,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
 
     // We already have the desired state.
     // Now prove the system can successfully enter the next state.
-    if sub_resource != SubResource::StatefulSet {
+    if sub_resource != SubResource::VStatefulSetView {
         assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
             let known_ok_resp = |resp_msg: ZKMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, zookeeper, resp_msg));
             assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
@@ -272,7 +272,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
     requires
-        sub_resource != SubResource::StatefulSet,
+        sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
@@ -679,7 +679,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
             SubResource::ClientService => ServiceView::marshal_preserves_integrity(),
             SubResource::AdminServerService => ServiceView::marshal_preserves_integrity(),
             SubResource::ConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::StatefulSet => StatefulSetView::marshal_preserves_integrity(),
+            SubResource::VStatefulSetView => StatefulSetView::marshal_preserves_integrity(),
         }
     }
 
@@ -706,7 +706,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
 
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
-        sub_resource != SubResource::StatefulSet,
+        sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
@@ -784,7 +784,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
 
 proof fn lemma_resource_state_matches_at_after_update_resource_step(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
-        sub_resource != SubResource::StatefulSet,
+        sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
@@ -879,7 +879,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(spec: TempPr
 
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
-        sub_resource != SubResource::StatefulSet,
+        sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
@@ -951,7 +951,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(spec: 
 
 pub proof fn lemma_resource_object_is_stable(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView, p: TempPred<ZKCluster>)
     requires
-        sub_resource != SubResource::StatefulSet,
+        sub_resource != SubResource::VStatefulSetView,
         spec.entails(p.leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, zookeeper)))),

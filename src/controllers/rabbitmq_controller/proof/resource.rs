@@ -30,7 +30,7 @@ pub open spec fn get_request(sub_resource: SubResource, rabbitmq: RabbitmqCluste
         SubResource::ServiceAccount => ServiceAccountBuilder::get_request(rabbitmq),
         SubResource::Role => RoleBuilder::get_request(rabbitmq),
         SubResource::RoleBinding => RoleBindingBuilder::get_request(rabbitmq),
-        SubResource::StatefulSet => StatefulSetBuilder::get_request(rabbitmq),
+        SubResource::VStatefulSetView => StatefulSetBuilder::get_request(rabbitmq),
     }
 }
 
@@ -45,7 +45,7 @@ pub open spec fn make(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, 
         SubResource::ServiceAccount => ServiceAccountBuilder::make(rabbitmq, state),
         SubResource::Role => RoleBuilder::make(rabbitmq, state),
         SubResource::RoleBinding => RoleBindingBuilder::make(rabbitmq, state),
-        SubResource::StatefulSet => StatefulSetBuilder::make(rabbitmq, state),
+        SubResource::VStatefulSetView => StatefulSetBuilder::make(rabbitmq, state),
     }
 }
 
@@ -60,7 +60,7 @@ pub open spec fn update(sub_resource: SubResource, rabbitmq: RabbitmqClusterView
         SubResource::ServiceAccount => ServiceAccountBuilder::update(rabbitmq, state, obj),
         SubResource::Role => RoleBuilder::update(rabbitmq, state, obj),
         SubResource::RoleBinding => RoleBindingBuilder::update(rabbitmq, state, obj),
-        SubResource::StatefulSet => StatefulSetBuilder::update(rabbitmq, state, obj),
+        SubResource::VStatefulSetView => StatefulSetBuilder::update(rabbitmq, state, obj),
     }
 }
 
@@ -77,7 +77,7 @@ pub open spec fn state_after_create(
         SubResource::ServiceAccount => ServiceAccountBuilder::state_after_create(rabbitmq, obj, state),
         SubResource::Role => RoleBuilder::state_after_create(rabbitmq, obj, state),
         SubResource::RoleBinding => RoleBindingBuilder::state_after_create(rabbitmq, obj, state),
-        SubResource::StatefulSet => StatefulSetBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::VStatefulSetView => StatefulSetBuilder::state_after_create(rabbitmq, obj, state),
     }
 }
 
@@ -94,7 +94,7 @@ pub open spec fn state_after_update(
         SubResource::ServiceAccount => ServiceAccountBuilder::state_after_update(rabbitmq, obj, state),
         SubResource::Role => RoleBuilder::state_after_update(rabbitmq, obj, state),
         SubResource::RoleBinding => RoleBindingBuilder::state_after_update(rabbitmq, obj, state),
-        SubResource::StatefulSet => StatefulSetBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::VStatefulSetView => StatefulSetBuilder::state_after_update(rabbitmq, obj, state),
     }
 }
 
