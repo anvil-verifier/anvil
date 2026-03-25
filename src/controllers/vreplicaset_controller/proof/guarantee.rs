@@ -33,7 +33,7 @@ pub open spec fn local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key: Obj
             &&& pod.metadata.namespace == Some(cr_key.namespace)
             &&& pod.metadata.owner_references is Some
             &&& exists |owner_ref: OwnerReferenceView| {
-                &&& pod.metadata.owner_references->0.contains(owner_ref)
+                &&& #[trigger] pod.metadata.owner_references->0.contains(owner_ref)
                 &&& owner_ref.controller is Some
                 &&& owner_ref.controller->0
                 &&& owner_ref.kind == VReplicaSetView::kind()
@@ -44,7 +44,218 @@ pub open spec fn local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key: Obj
 
 pub open spec fn local_pods_are_bound_to_vrs_with_key(controller_id: int, cr_key: ObjectRef, s: ClusterState) -> bool {
     let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
-    local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key, local_state)
+    &&& local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key, local_state)
+    &&& local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods ==> {
+        let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+        &&& s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some
+        &&& req_msg.dst is APIServer
+        &&& req_msg.content.is_list_request()
+        &&& req_msg.content.get_list_request() == ListRequest {
+            kind: Kind::PodKind,
+            namespace: cr_key.namespace,
+        }
+        &&& forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some
+            &&& msg.src is APIServer
+            &&& resp_msg_matches_req_msg(msg, req_msg)
+            &&& is_ok_resp(msg.content->APIResponse_0)
+        } ==> {
+            let resp_objs = msg.content.get_list_response().res.unwrap();
+            &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
+                &&& resp_objs[i].metadata.owner_references is Some
+                    ==> resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1
+            }
+        }
+    }
+}
+
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(200))]
+pub proof fn lemma_local_pods_are_bound_to_vrs_with_key_preserves_from_s_to_s_prime(
+    cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next()(s, s_prime),
+    Cluster::there_is_the_controller_state(controller_id)(s),
+    Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::every_in_flight_msg_has_unique_id()(s),
+    Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    Cluster::etcd_is_finite()(s),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+    local_pods_are_bound_to_vrs_with_key(controller_id, cr_key, s),
+    s.ongoing_reconciles(controller_id).contains_key(cr_key),
+    s_prime.ongoing_reconciles(controller_id).contains_key(cr_key),
+    cr_key.kind == VReplicaSetView::kind(),
+ensures
+    local_pods_are_bound_to_vrs_with_key(controller_id, cr_key, s_prime),
+{
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    VReplicaSetReconcileState::marshal_preserves_integrity();
+    VReplicaSetView::marshal_preserves_integrity();
+    PodView::marshal_preserves_integrity();
+    let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let next_local_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+    match step {
+        Step::APIServerStep(req_msg_opt) => {
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            assert(next_local_state == local_state);
+            assert(local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key, next_local_state));
+            if local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods {
+                assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg == Some(req_msg));
+                assert forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                    &&& is_ok_resp(msg.content->APIResponse_0)
+                } implies {
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                        &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
+                        &&& resp_objs[i].metadata.owner_references is Some
+                            ==> resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1
+                    }
+                } by {
+                    if new_msgs.contains(msg) {
+                        if req_msg_opt == Some(req_msg) {
+                            let resp_objs = msg.content.get_list_response().res.unwrap();
+                            assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
+                                implies {
+                                    &&& resp_objs[i].metadata.namespace == Some(cr_key.namespace)
+                                    &&& resp_objs[i].metadata.owner_references is Some
+                                        ==> resp_objs[i].metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1
+                                } by {
+                                let selector = |o: DynamicObjectView| {
+                                    &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                    &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                };
+                                let selected_elements = s.resources().values().filter(selector);
+                                lemma_values_finite(s.resources());
+                                element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
+                                lemma_filter_set(s.resources().values(), selector);
+                                let obj = resp_objs[i];
+                                assert(s.resources().contains_key(obj.object_ref()));
+                            }
+                        } else {
+                            assert(s.in_flight().contains(req_msg_opt->0)); // trigger
+                        }
+                    } else {
+                        assert(s.in_flight().contains(msg)); // trigger
+                    }
+                }
+            }
+        },
+        Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+            if id == controller_id && cr_key_opt == Some(cr_key) {
+                assume(VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr) is Ok);
+                let vrs = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                assert(vrs.object_ref() == cr_key);
+
+                match local_state.reconcile_step {
+                    VReplicaSetRecStepView::Init => {
+                        assert(local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key, next_local_state));
+                        if next_local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods {
+                            assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some);
+                            let new_req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                            assert(forall |msg| {
+                                &&& #[trigger] s_prime.in_flight().contains(msg)
+                                &&& msg.src is APIServer
+                                &&& resp_msg_matches_req_msg(msg, new_req_msg)
+                            } ==> s.in_flight().contains(msg));
+                        }
+                    },
+                    VReplicaSetRecStepView::AfterListPods => {
+                        // Error paths are benign: if filter/unmarshal fails, filtered_pods stays None
+                        if resp_msg_opt is Some {
+                            let resp_msg = resp_msg_opt->0;
+                            if is_some_k_list_resp_view(Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)))
+                                && extract_some_k_list_resp_view(Some(ResponseView::KResponse(resp_msg.content->APIResponse_0))) is Ok {
+                                let objs = extract_some_k_list_resp_view(Some(ResponseView::KResponse(resp_msg.content->APIResponse_0))).unwrap();
+                                let pods_or_none = objects_to_pods(objs);
+                                if pods_or_none.is_some() {
+                                    let pods = pods_or_none.unwrap();
+                                    let filtered_pods = filter_pods(pods, vrs);
+
+                                    assume(resp_msg.src is APIServer);
+                                    assume(resp_msg_matches_req_msg(resp_msg, req_msg));
+
+                                    seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                                        objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                                    );
+                                    assert forall |k| 0 <= k < objs.len() implies PodView::unmarshal(#[trigger] objs[k]) is Ok by {
+                                        assert(objs.contains(objs[k]));
+                                    }
+
+                                    assert forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len()
+                                        implies {
+                                            let pod = filtered_pods[i];
+                                            &&& has_vrs_prefix(pod.metadata.name->0)
+                                            &&& pod.metadata.namespace == Some(cr_key.namespace)
+                                            &&& pod.metadata.owner_references is Some
+                                            &&& exists |owner_ref: OwnerReferenceView| {
+                                                &&& #[trigger] pod.metadata.owner_references->0.contains(owner_ref)
+                                                &&& owner_ref.controller is Some
+                                                &&& owner_ref.controller->0
+                                                &&& owner_ref.kind == VReplicaSetView::kind()
+                                                &&& owner_ref.name == cr_key.name
+                                            }
+                                        } by {
+                                        assert(filtered_pods.contains(filtered_pods[i]));
+                                        seq_filter_contains_implies_seq_contains(pods, pod_filter(vrs), filtered_pods[i]);
+                                        let pod = filtered_pods[i];
+                                        assert(pod.metadata.owner_references_contains(vrs.controller_owner_ref()));
+                                        let owner_ref = vrs.controller_owner_ref();
+                                        assert(owner_ref.controller == Some(true));
+                                        assert(owner_ref.kind == VReplicaSetView::kind());
+                                        assert(owner_ref.name == cr_key.name);
+                                        PodView::marshal_preserves_metadata();
+                                        let j = choose |j: int| 0 <= j < pods.len() && pods[j as int] == pod;
+                                        assert(pod.metadata.namespace == objs[j as int].metadata.namespace);
+                                        assert(objs[j as int].metadata.namespace == Some(cr_key.namespace));
+                                    }
+                                }
+                            }
+                        }
+                        assert(forall |msg| {
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } ==> s.in_flight().contains(msg));
+                    },
+                    _ => {
+                        // filtered_pods inherited unchanged, not in AfterListPods so list condition is vacuous
+                    }
+                }
+            } else {
+                if local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods {
+                    assert(forall |msg| {
+                        &&& #[trigger] s_prime.in_flight().contains(msg)
+                        &&& msg.src is APIServer
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& is_ok_resp(msg.content->APIResponse_0)
+                    } ==> s.in_flight().contains(msg));
+                }
+            }
+        },
+        _ => {
+            if local_state.reconcile_step == VReplicaSetRecStepView::AfterListPods {
+                assert(forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                    &&& is_ok_resp(msg.content->APIResponse_0)
+                } ==> s.in_flight().contains(msg));
+            }
+        }
+    }
 }
 
 pub proof fn lemma_always_local_pods_have_vrs_prefix(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
@@ -61,94 +272,47 @@ ensures
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
+    cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
+    cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_etcd_is_finite(spec);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::etcd_is_finite()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
     };
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())
     );
 
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         assert forall |cr_key: ObjectRef| #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(cr_key) && cr_key.kind == VReplicaSetView::kind()
             implies local_pods_are_bound_to_vrs_with_key(controller_id, cr_key, s_prime) by {
             if s.ongoing_reconciles(controller_id).contains_key(cr_key) {
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
-                let next_local_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
-                match step {
-                    Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
-                        if id == controller_id && cr_key_opt == Some(cr_key) {
-                            VReplicaSetReconcileState::marshal_preserves_integrity();
-                            VReplicaSetView::marshal_preserves_integrity();
-                            PodView::marshal_preserves_integrity();
-                            let vrs = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-
-                            // The only time filtered_pods changes is AfterListPods step
-                            match local_state.reconcile_step {
-                                VReplicaSetRecStepView::AfterListPods => {
-                                    if resp_msg_opt is Some {
-                                        let resp_msg = resp_msg_opt->0;
-                                        if is_some_k_list_resp_view(Some(ResponseView::KResponse(resp_msg.content->APIResponse_0)))
-                                            && extract_some_k_list_resp_view(Some(ResponseView::KResponse(resp_msg.content->APIResponse_0))) is Ok {
-                                            let objs = extract_some_k_list_resp_view(Some(ResponseView::KResponse(resp_msg.content->APIResponse_0))).unwrap();
-                                            let pods_or_none = objects_to_pods(objs);
-                                            if pods_or_none.is_some() {
-                                                let pods = pods_or_none.unwrap();
-                                                let filtered_pods = filter_pods(pods, vrs);
-                                                let replicas = vrs.spec.replicas.unwrap_or(1);
-                                                // vrs.object_ref() == cr_key from consistent key invariant
-                                                assert(vrs.object_ref() == cr_key);
-
-                                                // Prove properties for all branches where filtered_pods is stored
-                                                assert forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len()
-                                                    implies {
-                                                        let pod = filtered_pods[i];
-                                                        &&& has_vrs_prefix(pod.metadata.name->0)
-                                                        &&& pod.metadata.namespace == Some(cr_key.namespace)
-                                                        &&& pod.metadata.owner_references is Some
-                                                        &&& exists |owner_ref: OwnerReferenceView| {
-                                                            &&& pod.metadata.owner_references->0.contains(owner_ref)
-                                                            &&& owner_ref.controller is Some
-                                                            &&& owner_ref.controller->0
-                                                            &&& owner_ref.kind == VReplicaSetView::kind()
-                                                            &&& owner_ref.name == cr_key.name
-                                                        }
-                                                    } by {
-                                                    assert(filtered_pods.contains(filtered_pods[i]));
-                                                    seq_filter_contains_implies_seq_contains(pods, pod_filter(vrs), filtered_pods[i]);
-                                                    // pod_filter ensures owner_references_contains(vrs.controller_owner_ref())
-                                                    // which gives us owner_ref with kind=VReplicaSetView::kind() and name=vrs.metadata.name->0=cr_key.name
-                                                    let pod = filtered_pods[i];
-                                                    assert(pod.metadata.owner_references_contains(vrs.controller_owner_ref()));
-                                                    // owner_references_contains means vrs.controller_owner_ref() is in the seq
-                                                    let owner_ref = vrs.controller_owner_ref();
-                                                    assert(owner_ref.controller == Some(true));
-                                                    assert(owner_ref.kind == VReplicaSetView::kind());
-                                                    assert(owner_ref.name == vrs.metadata.name->0);
-                                                    assert(owner_ref.name == cr_key.name);
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                _ => {
-                                    // In all other steps, filtered_pods is inherited unchanged via ..state
-                                }
-                            }
-                        }
-                    },
-                    _ => {}
-                }
+                lemma_local_pods_are_bound_to_vrs_with_key_preserves_from_s_to_s_prime(
+                    cluster, controller_id, cr_key, s, s_prime
+                );
             } else {
-                // New reconcile: init state has filtered_pods = None, so implication is vacuously true
                 VReplicaSetReconcileState::marshal_preserves_integrity();
             }
         }
