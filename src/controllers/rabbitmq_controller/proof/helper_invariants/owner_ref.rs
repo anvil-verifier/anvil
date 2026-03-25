@@ -113,6 +113,7 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
     assert(s.api_server.uid_counter <= s_prime.api_server.uid_counter);
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let input = step->ControllerStep_0;
+    RabbitmqClusterView::marshal_preserves_integrity();
     let cr_dynamic = s.ongoing_reconciles(controller_id)[input.2->0].triggering_cr;
     let cr = RabbitmqClusterView::unmarshal(cr_dynamic).unwrap();
     if resource_create_request_msg(resource_key)(msg) {

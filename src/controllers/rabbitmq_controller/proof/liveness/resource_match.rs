@@ -39,7 +39,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     requires
         // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -90,7 +90,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -262,7 +262,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     requires
         // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -519,7 +519,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
@@ -891,7 +891,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     requires
         // sub_resource != SubResource::VStatefulSetView,
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))),
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),

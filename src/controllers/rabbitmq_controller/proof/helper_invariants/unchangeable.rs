@@ -86,6 +86,7 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
             if !s.in_flight().contains(msg) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
+                RabbitmqClusterView::marshal_preserves_integrity();
                 match sub_resource {
                     SubResource::ErlangCookieSecret => {
                         SecretView::marshal_preserves_integrity();
@@ -234,6 +235,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
         } else {
             let step = choose |step| cluster.next_step(s, s_prime, step);
             lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
+            RabbitmqClusterView::marshal_preserves_integrity();
             match sub_resource {
                 SubResource::ErlangCookieSecret => {
                     SecretView::marshal_preserves_integrity();

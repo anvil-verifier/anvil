@@ -226,6 +226,8 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))))
+    .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
+    .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -238,6 +240,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
     let a_to_p_5 = |res: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key));
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
     let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq));
+    always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
+    always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     stable_and_always_n!(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
@@ -260,7 +264,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         tla_forall(a_to_p_5),
         lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)),
         tla_forall(a_to_p_6),
-        tla_forall(a_to_p_7)
+        tla_forall(a_to_p_7),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))
     );
 }
 
@@ -371,6 +377,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))),
     ensures
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))))),
@@ -381,6 +388,8 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     let a_to_p = |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
     assert_by(spec.entails(always(tla_forall(a_to_p))), {
         assert forall |step: (ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p(step))) by {
+            RabbitmqReconcileState::marshal_preserves_integrity();
+            RabbitmqClusterView::marshal_preserves_integrity();
             cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
             );
         }
@@ -415,6 +424,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_1);
     });
+    RabbitmqReconcileState::marshal_preserves_integrity();
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
 
     // Different from other a_to_p_x, we encapsulate a_to_p_2 inside the lemma below because we find its reasoning is
@@ -464,6 +474,8 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_7);
     });
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(controller_id, cluster, spec);
 
     entails_always_and_n!(
         spec,
@@ -488,7 +500,9 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         tla_forall(a_to_p_5),
         lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)),
         tla_forall(a_to_p_6),
-        tla_forall(a_to_p_7)
+        tla_forall(a_to_p_7),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))
     );
 }
 

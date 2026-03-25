@@ -631,7 +631,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -668,7 +668,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -779,7 +779,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -802,7 +802,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -865,7 +865,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -889,7 +889,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -1516,7 +1516,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))))),
@@ -1555,7 +1555,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(contro
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))),
@@ -1830,6 +1830,47 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
         }
     }
     init_invariant(spec, cluster.init(), cluster.next(), inv);
+}
+
+pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
+    controller_id: int,
+    cluster: Cluster,
+    spec: TempPred<ClusterState>,
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    ensures
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+{
+    let inv = Cluster::there_is_no_request_msg_to_external_from_controller(controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
+        implies inv(s_prime) by {
+        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+        assert forall |msg: Message|
+            inv(s)
+            && #[trigger] s_prime.in_flight().contains(msg)
+            && msg.src.is_controller_id(controller_id)
+            implies msg.dst != HostId::External(controller_id) by {
+            if s.in_flight().contains(msg) {}
+            if new_msgs.contains(msg) {}
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 }

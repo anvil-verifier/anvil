@@ -290,7 +290,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(cluster: Clus
 proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
     ensures
         spec.entails(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()) })
@@ -333,7 +333,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
 proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq)))),
@@ -368,7 +368,7 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
 proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
     ensures
         spec.entails(lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, RabbitmqReconcileStep::Init))
