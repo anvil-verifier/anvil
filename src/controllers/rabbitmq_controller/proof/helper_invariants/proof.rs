@@ -551,6 +551,8 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(request_at_after_get_request_step_is_resource_get_request(controller_id, sub_resource, rabbitmq)))),
 {
     // hide(make_stateful_set); // TODO: Verus AIR code bug with fuel path
@@ -1167,6 +1169,8 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)))),
 {
     let inv = resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq);

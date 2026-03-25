@@ -68,7 +68,10 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
-    requires 1 <= i <= 7,
+    requires
+        1 <= i <= 7,
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec_before_phase_n(controller_id, i, cluster, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(controller_id, i, cluster, rabbitmq))),
 {
     let spec = spec_before_phase_n(controller_id, i, cluster, rabbitmq);
@@ -385,6 +388,11 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
 }
 
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)),
 {
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.

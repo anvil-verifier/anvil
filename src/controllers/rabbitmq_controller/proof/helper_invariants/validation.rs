@@ -63,6 +63,8 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(controller
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
 {
     let inv = stateful_set_in_etcd_satisfies_unchangeable(rabbitmq);
@@ -219,6 +221,8 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)))),
 {
     let key = rabbitmq.object_ref();
@@ -281,6 +285,8 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)))),
 {
     let inv = stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq);

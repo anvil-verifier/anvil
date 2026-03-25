@@ -35,6 +35,9 @@ use vstd::{prelude::*, string::*};
 verus! {
 
 proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(current_state_matches(rabbitmq)))),
 {
     assumption_and_invariants_of_all_phases_is_stable(controller_id, cluster, rabbitmq);
@@ -63,6 +66,8 @@ proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<Clu
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         valid(stable(spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
         spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq)))))
     ensures spec_before_phase_n(controller_id, i, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
@@ -76,6 +81,9 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(control
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
 {
     let spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
@@ -94,6 +102,9 @@ proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cl
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_resources(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures
         forall |sub_resource: SubResource|
             assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
@@ -104,6 +115,9 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(cluster: Clu
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures
         forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet
         ==> assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq, controller_id))))),
@@ -184,7 +198,10 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(clust
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
-    requires assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
         .entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq, controller_id))))),
     ensures assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq, controller_id))))),
 {

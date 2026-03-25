@@ -99,6 +99,8 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq);
@@ -200,6 +202,8 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(controller_i
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(replicas_of_etcd_stateful_set_satisfies_order(controller_id, rabbitmq)))),
 {
     let inv = replicas_of_etcd_stateful_set_satisfies_order(controller_id, rabbitmq);
@@ -274,6 +278,8 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(controller_id, rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(controller_id, rabbitmq);

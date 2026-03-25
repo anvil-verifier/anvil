@@ -111,6 +111,8 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(controller_id: i
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
     let inv = |s: ClusterState| {
