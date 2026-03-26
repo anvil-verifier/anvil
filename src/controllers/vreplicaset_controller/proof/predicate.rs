@@ -69,8 +69,10 @@ pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, 
         &&& triggering_cr.object_ref() == vrs.object_ref()
         &&& triggering_cr.spec == vrs.spec
         &&& triggering_cr.metadata.uid == vrs.metadata.uid
+        &&& triggering_cr.metadata.owner_references is Some
         &&& triggering_cr.metadata.owner_references->0.filter(controller_owner_filter())
             == vrs.metadata.owner_references->0.filter(controller_owner_filter())
+        &&& vrs.metadata.owner_references is Some
         &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
         &&& local_state.reconcile_step == step
     }

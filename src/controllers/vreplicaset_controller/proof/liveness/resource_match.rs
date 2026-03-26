@@ -1276,7 +1276,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message
@@ -1315,8 +1314,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
             ).leads_to(
                 lift_state(
                     |s: ClusterState| {
-                        &&& current_state_matches(vrs)(s)
-                        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+                        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+                        &&& num_diff_pods_is(vrs, 0)(s)
                     }
                 )
             )
@@ -1327,8 +1326,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         &&& num_diff_pods_is(vrs, 0)(s)
     };
     let post = |s: ClusterState| {
-        &&& current_state_matches(vrs)(s)
-        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
     };
     let input = (Some(resp_msg), Some(vrs.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
@@ -1391,11 +1390,11 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
                 if input.0 == controller_id
                     && input.1 == Some(resp_msg)
                     && input.2 == Some(vrs.object_ref()) {
+                    VReplicaSetView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
                         s, vrs, cluster, controller_id, resp_msg
                     );
-                    let resources = s_prime.resources();
                 }
             },
             _ => {}
@@ -1808,7 +1807,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
@@ -2107,7 +2105,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
 
 // TODO: investigate flaky proof.
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2473,9 +2471,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     );
 }
 
-// TODO: investigate flaky proof
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
@@ -2514,8 +2510,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
             ).leads_to(
                 lift_state(
                     |s: ClusterState| {
-                        &&& current_state_matches(vrs)(s)
-                        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+                        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+                        &&& num_diff_pods_is(vrs, 0)(s)
                     }
                 )
             )
@@ -2527,8 +2523,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
         &&& filtered_pods_in_vrs_matching_pods(vrs, controller_id)(s)
     };
     let post = |s: ClusterState| {
-        &&& current_state_matches(vrs)(s)
-        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
     };
     let input = (Some(resp_msg), Some(vrs.object_ref()));
 
@@ -2588,6 +2584,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
             },
             Step::ControllerStep(..) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();
+                VReplicaSetView::marshal_preserves_integrity();
             },
             _ => {}
         }
