@@ -456,6 +456,7 @@ pub open spec fn vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletio
         let cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr)->Ok_0;
         &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr) is Ok
         &&& cr.metadata.deletion_timestamp is None
+        &&& cr.metadata.owner_references is Some
         &&& cr.metadata.owner_references->0.filter(controller_owner_filter())
             == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
         &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1

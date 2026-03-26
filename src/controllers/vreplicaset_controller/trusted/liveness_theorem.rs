@@ -41,6 +41,8 @@ pub open spec fn desired_state_is(vrs: VReplicaSetView) -> StatePred<ClusterStat
         &&& etcd_vrs.spec.with_replicas(etcd_vrs.spec.replicas.unwrap_or(1))
             == vrs.spec.with_replicas(vrs.spec.replicas.unwrap_or(1))
         // required by get_then_update
+        &&& vrs.metadata.owner_references is Some
+        &&& s.resources()[vrs.object_ref()].metadata.owner_references is Some
         &&& vrs.metadata.owner_references->0.filter(controller_owner_filter())
             == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
         &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
