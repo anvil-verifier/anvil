@@ -486,4 +486,48 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
     return handle_get_then_delete_request_msg(msg, s.api_server).1;
 }
 
+pub proof fn lemma_get_then_update_vrs_status_request_updates_vrs_status_and_returns_ok(
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
+    msg: Message,
+) -> (resp_msg: Message)
+    requires
+        cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+        cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+        cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+        Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
+        helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
+        Cluster::etcd_is_finite()(s),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        desired_state_is(vrs)(s),
+        desired_state_is(vrs)(s_prime),
+        req_msg_is_the_in_flight_get_then_update_status_req_at_get_then_update_status_step(vrs, controller_id, msg)(s),
+    ensures
+        resp_msg == handle_get_then_update_status_request_msg(cluster.installed_types, msg, s.api_server).1,
+        resp_msg.content.get_get_then_update_status_response().res is Ok,
+        s_prime.resources().contains_key(vrs.object_ref()),
+        ({
+            let etcd_vrs = VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()]).unwrap();
+            &&& etcd_vrs.status is Some
+            &&& etcd_vrs.status->0.replicas == etcd_vrs.spec.replicas.unwrap_or(1)
+        }),
+        matching_pods(vrs, s.resources()).len() == matching_pods(vrs, s_prime.resources()).len(),
+
+{
+    let req = msg.content.get_get_then_update_status_request();
+    let current_obj = s.resources()[req.key()];
+    assert(current_obj.metadata.owner_references_contains(req.owner_ref)) by {
+        assert(current_obj.metadata.owner_references->0.filter(controller_owner_filter())
+            .contains(current_obj.metadata.owner_references->0.filter(controller_owner_filter())[0]));
+        seq_filter_contains_implies_seq_contains(current_obj.metadata.owner_references->0, controller_owner_filter(), req.owner_ref);
+    }
+    assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources())) by {
+        assert(req.obj.kind == VReplicaSetView::kind());
+    }
+    helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
+    helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
+    return handle_get_then_update_status_request_msg(cluster.installed_types, msg, s.api_server).1;
+}
+
 }

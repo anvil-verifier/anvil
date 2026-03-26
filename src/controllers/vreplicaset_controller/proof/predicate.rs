@@ -435,6 +435,7 @@ pub open spec fn req_msg_is_get_then_update_status_vrs_req(
     &&& req_msg.content.is_get_then_update_status_request()
     &&& resource_get_then_update_status_request_msg(vrs.object_ref())(req_msg)
     &&& req.owner_ref == vrs.metadata.owner_references->0.filter(controller_owner_filter())[0]
+    &&& req.key() == vrs.object_ref()
     // replicas field is updated
     &&& VReplicaSetView::unmarshal(req.obj) is Ok
     &&& VReplicaSetView::unmarshal(req.obj)->Ok_0.status is Some
@@ -472,6 +473,7 @@ pub open spec fn exists_ok_resp_in_flight_at_get_then_update_status_step(
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterUpdateVRSStatus;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+        let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]).unwrap();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
         &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, msg)
@@ -480,6 +482,9 @@ pub open spec fn exists_ok_resp_in_flight_at_get_then_update_status_step(
             &&& resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_get_then_update_status_response().res is Ok
         }
+        &&& s.resources().contains_key(vrs.object_ref())
+        &&& etcd_vrs.status is Some
+        &&& etcd_vrs.status->0.replicas == etcd_vrs.spec.replicas.unwrap_or(1)
     }
 }
 
