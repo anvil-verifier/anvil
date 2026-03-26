@@ -875,6 +875,8 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
@@ -885,6 +887,10 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))),
         spec.entails(always(lift_state(rabbitmq_is_well_formed(rabbitmq)))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        // rely
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))) by {
@@ -1471,6 +1477,8 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
+        make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap()) is Ok,
+        msg.content.get_create_request().obj == make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap())->Ok_0,
 {
     match msg.src {
         HostId::Controller(other_id, cr_key) => {
@@ -1522,6 +1530,8 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                         _ => {}
                     }
                     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
+                    assume(make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap()) is Ok);
+                    assume(msg.content.get_create_request().obj == make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap())->Ok_0);
                 }
             } else { // other controller, call rely condition
                 // same reasoning, also on string prefix, other controller shouldn't send request to managed subresources with correct name prefix
