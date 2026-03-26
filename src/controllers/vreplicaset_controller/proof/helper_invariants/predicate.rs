@@ -443,6 +443,7 @@ pub open spec fn vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestam
         let cr = VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()])->Ok_0;
         &&& VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()]) is Ok
         &&& cr.metadata.deletion_timestamp is None
+        &&& cr.metadata.owner_references is Some
         &&& cr.metadata.owner_references->0.filter(controller_owner_filter())
             == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
         &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
