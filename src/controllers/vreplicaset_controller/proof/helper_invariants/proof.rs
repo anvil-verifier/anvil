@@ -506,9 +506,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     );
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -588,10 +586,10 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
             let step = choose |step| cluster.next_step(s, s_prime, step);
+            let key = msg.content.get_delete_request().key;
             match step {
                 Step::BuiltinControllersStep(..) => {
                     if (!s.in_flight().contains(msg) && requirements_antecedent(msg, s_prime)) {
-                        let key = msg.content.get_delete_request().key;
                         let obj = s.resources()[key];
                         let owner_references = obj.metadata.owner_references->0;
                         assert(forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {
@@ -606,6 +604,21 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
                             && obj.metadata.namespace == vrs.metadata.namespace {
                             let idx = choose |i| 0 <= i < owner_references.len() && owner_references[i] == vrs.controller_owner_ref();
                             assert(s.resources().contains_key(vrs.object_ref()));
+                        }
+                    }
+                },
+                Step::APIServerStep(input) => {
+                    let req_msg = input->0;
+                    if s.in_flight().contains(msg) && requirements(msg, s) && s_prime.resources().contains_key(key) {
+                        if s.resources().contains_key(key) {
+                            let obj = s.resources()[key];
+                            let owner_references = obj.metadata.owner_references->0;
+                            if obj.metadata.owner_references_contains(vrs.controller_owner_ref())
+                                && obj.kind == Kind::PodKind
+                                && obj.metadata.namespace == vrs.metadata.namespace {
+                                let idx = choose |i| 0 <= i < owner_references.len() && owner_references[i] == vrs.controller_owner_ref();
+                                assert(s.resources().contains_key(vrs.object_ref()));
+                            }
                         }
                     }
                 },
