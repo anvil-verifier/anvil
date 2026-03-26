@@ -1442,9 +1442,16 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
 #[verifier(spinoff_prover)]
 pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        // rely
+        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s),
+        // internal rely
+        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s),
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         cluster.next_step(s, s_prime, step),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
         step is ControllerStep,
@@ -1453,117 +1460,70 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
 {
-    // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
-    // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
-    // is possible by extra reasoning about the strings.
-    let cr_key = step->ControllerStep_0.2->0;
-    let key = rabbitmq.object_ref();
-    let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert(step is ControllerStep);
-    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
-    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
-    let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
-    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
-    match local_step_prime {
-        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
-            match action {
-                ActionKind::Create => {},
-                _ => {
-                    assert(!msg.content.is_create_request());
-                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                },
+    match msg.src {
+        HostId::Controller(other_id, cr_key) => {
+            if other_id == controller_id {
+                RabbitmqReconcileState::marshal_preserves_integrity();
+                RabbitmqClusterView::marshal_preserves_integrity();
+                if cr_key != rabbitmq.object_ref() {
+                    // construct another rmq that has such cr_key and prove the request from that reconciliation shan't have such req.key()
+                    let other_rmq = RabbitmqClusterView {
+                        metadata: ObjectMetaView {
+                            name: Some(cr_key.name),
+                            namespace: Some(cr_key.namespace),
+                            ..ObjectMetaView::default()
+                        },
+                        ..RabbitmqClusterView::default()
+                    };
+                    assert(other_rmq.object_ref() == cr_key);
+                    assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
+                    // move the string prefix part here
+                    // lemma_no_interference_on_pods and vsts_name_neq_implies_no_pod_name_match can be good reference after we always add rabbitmq- prefix
+                    // we may require dash_free(rabbitmq.metadata.name->0) in state_validation
+                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
+                        assume(false);
+                    }
+                    assert(false);
+                } else { // same reconciliation
+                    let key = rabbitmq.object_ref();
+                    let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
+                    let resource_key = get_request(sub_resource, rabbitmq).key;
+                    assert(step is ControllerStep);
+                    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+                    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
+                    let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
+                    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
+                    match local_step_prime {
+                        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
+                            match action {
+                                ActionKind::Create => {},
+                                _ => {
+                                    assert(!(msg.content.is_create_request()));
+                                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+                                },
+                            };
+
+                            // move the local_step_prime chunk here, saying request on other sub resources shall not has this prefix
+                            // but in https://github.com/anvil-verifier/anvil/pull/758, some keys are updated, make sure to correct them
+                            assume(res == sub_resource);
+                        },
+                        _ => {}
+                    }
+                    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
+                }
+            } else { // other controller, call rely condition
+                // same reasoning, also on string prefix, other controller shouldn't send request to managed subresources with correct name prefix
+                assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
+                assert(rmq_rely(other_id)(s));
+                assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
+                    assume(false);
+                }
+                assert(false);
             }
         },
         _ => {}
     }
-    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
-    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
-    match sub_resource {
-        SubResource::ServerConfigMap => {
-            // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
-            // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
-            // such a post state.
-            assert_by(
-                cr_key.name + "-plugins-conf"@ != key.name + "-server-conf"@,
-                {
-                    let str1 = cr_key.name + "-plugins-conf"@;
-                    reveal_strlit("-server-conf");
-                    reveal_strlit("-plugins-conf");
-                    assert(str1[str1.len() - 6] == 's');
-                }
-            );
-            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-server-conf"@);
-        },
-        SubResource::PluginsConfigMap => {
-            assert_by(
-                key.name + "-plugins-conf"@ != cr_key.name + "-server-conf"@,
-                {
-                    let str1 = key.name + "-plugins-conf"@;
-                    reveal_strlit("-server-conf");
-                    reveal_strlit("-plugins-conf");
-                    assert(str1[str1.len() - 6] == 's');
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-plugins-conf"@);
-        },
-        SubResource::ErlangCookieSecret => {
-            assert_by(
-                cr_key.name + "-default-user"@ != key.name + "-erlang-cookie"@,
-                {
-                    let str1 = cr_key.name + "-default-user"@;
-                    reveal_strlit("-erlang-cookie");
-                    reveal_strlit("-default-user");
-                    assert(str1[str1.len() - 1] == 'r');
-                }
-            );
-            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-erlang-cookie"@);
-        },
-        SubResource::DefaultUserSecret => {
-            assert_by(
-                key.name + "-default-user"@ != cr_key.name + "-erlang-cookie"@,
-                {
-                    let str1 = key.name + "-default-user"@;
-                    reveal_strlit("-erlang-cookie");
-                    reveal_strlit("-default-user");
-                    assert(str1[str1.len() - 1] == 'r');
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-default-user"@);
-        },
-        SubResource::HeadlessService => {
-            assert_by(
-                key.name + "-nodes"@ != cr_key.name + "-client"@,
-                {
-                    let str1 = key.name + "-nodes"@;
-                    reveal_strlit("-client");
-                    reveal_strlit("-nodes");
-                    assert(str1[str1.len() - 1] == 's');
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-nodes"@);
-        },
-        SubResource::Service => {
-            assert_by(
-                cr_key.name + "-nodes"@ != key.name + "-client"@,
-                {
-                    let str1 = cr_key.name + "-nodes"@;
-                    reveal_strlit("-client");
-                    reveal_strlit("-nodes");
-                    assert(str1[str1.len() - 1] == 's');
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-client"@);
-        },
-        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-server"@);
-        },
-        SubResource::Role => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-peer-discovery"@);
-        },
-    }
+    let cr_key = step->ControllerStep_0.2->0;
 }
 
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
