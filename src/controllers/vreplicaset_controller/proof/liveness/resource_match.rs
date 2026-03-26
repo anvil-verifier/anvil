@@ -2168,7 +2168,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     );
 }
 
-// TODO: investigate flaky proof.
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
@@ -2307,6 +2306,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
                         &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
+                        assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
                         if s.resources().contains_key(filtered_pod_keys[i]) {}
                     }
                 } else {
@@ -2324,6 +2324,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
                         &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
+                        assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
                         if s.resources().contains_key(filtered_pod_keys[i]) {}
                     }
                 }
