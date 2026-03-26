@@ -94,6 +94,42 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
 }
 
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
+    msg: Message,
+)
+    requires
+        cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+        cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+        cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+        Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
+        helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
+        msg.src != HostId::Controller(controller_id, vrs.object_ref()),
+        desired_state_is(vrs)(s),
+        desired_state_is(vrs)(s_prime),
+        VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0.status is Some,
+        VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0.status->0.replicas == vrs.spec.replicas.unwrap_or(1),
+    ensures
+        VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0.status is Some,
+        VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0.status->0.replicas == vrs.spec.replicas.unwrap_or(1),
+{
+    VReplicaSetView::marshal_preserves_integrity();
+    if resource_get_then_update_status_request_msg(vrs.object_ref())(msg) {
+        let req = msg.content.get_get_then_update_status_request();
+        assert(helper_invariants::no_other_pending_get_then_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s));
+        assert(req.key() == vrs.object_ref());
+        assert(false);
+    }
+    if resource_update_status_request_msg(vrs.object_ref())(msg) {
+        let req = msg.content.get_update_status_request();
+        assert(helper_invariants::no_other_pending_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s));
+        assert(req.key() == vrs.object_ref());
+        assert(false);
+    }
+}
+
 pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     msg: Message,
@@ -111,7 +147,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         resp_msg == handle_list_request_msg(msg, s.api_server).1,
         resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, resp_msg),
 {
-    let pre = {
+    let pre = { 
         &&& cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg)))
         &&& req_msg_is_list_pods_req(vrs, msg)
         &&& desired_state_is(vrs)(s)

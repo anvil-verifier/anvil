@@ -70,9 +70,8 @@ pub open spec fn no_other_pending_update_status_request_interferes_with_vrs_reco
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        (req.obj.kind == Kind::PodKind
-            && req.key().namespace == vrs.metadata.namespace.unwrap()) ==> 
-            req.obj.metadata.resource_version is Some
+        &&& req.obj.kind == Kind::PodKind && req.key().namespace == vrs.metadata.namespace.unwrap()
+            ==> req.obj.metadata.resource_version is Some
             && !{
                 let etcd_obj = s.resources()[req.key()];
                 let owner_references = etcd_obj.metadata.owner_references->0;
@@ -83,6 +82,8 @@ pub open spec fn no_other_pending_update_status_request_interferes_with_vrs_reco
                 &&& etcd_obj.metadata.owner_references is Some
                 &&& owner_references.contains(vrs.controller_owner_ref())
             }
+        &&& req.obj.kind == VReplicaSetView::kind()
+            ==> req.key() != vrs.object_ref()
     }
 }
 
