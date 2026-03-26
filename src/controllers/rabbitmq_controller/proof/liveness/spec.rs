@@ -209,6 +209,7 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
     .and(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
+    .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
     .and(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())))
     .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>())))
     .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))))
@@ -249,6 +250,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
@@ -416,6 +418,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
     cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
@@ -487,6 +490,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),

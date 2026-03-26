@@ -1704,6 +1704,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
@@ -1731,6 +1732,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))),
@@ -1739,9 +1741,21 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
 {
     let key = get_request(sub_resource, rabbitmq).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
+    assert forall |s: ClusterState|
+        #[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
+        implies Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s) by {
+        assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg)
+            implies eventual_owner_ref(msg.content.get_update_request().obj.metadata.owner_references) by {
+        }
+        assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_get_then_update_request_msg(key)(msg)
+            implies eventual_owner_ref(msg.content.get_get_then_update_request().obj.metadata.owner_references) by {
+            assume(false); // string reasoning: resource_key has rabbitmq prefix, no controller sends get_then_update for it
+        }
+    }
     always_weaken(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
     always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
     always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(Cluster::object_has_no_finalizers(key)));
+    always_weaken(spec, lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)));
 
     let state = |s: ClusterState| {
         Cluster::desired_state_is(rabbitmq)(s)
