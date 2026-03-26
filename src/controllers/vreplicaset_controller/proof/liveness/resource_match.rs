@@ -120,10 +120,10 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
-    let post = lift_state(
+    let update_vrs_status_req = lift_state(
         |s: ClusterState| {
-            &&& current_state_matches(vrs)(s)
-            &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+            &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
         }
     );
 
@@ -181,11 +181,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         // Is this enough?
         if diff + 1 == 0 {
             assert forall |resp_msg: Message|
-                #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(post)) by {
+                #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
                 lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
             };
 
-            leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), post);
+            leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), update_vrs_status_req);
             assert_by(
                 spec.entails(create_resp(0).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)))),
                 {
@@ -209,9 +209,8 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                 pre(diff),
                 create_resp(diff + 1),
                 tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)),
-                post
+                update_vrs_status_req
             );
-            return;
         }
 
         // In this branch, we need to convert negative integers to natural numbers for
@@ -250,11 +249,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 
         // Chain everything
         assert forall |resp_msg: Message|
-            #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(post)) by {
+            #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
             lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), post);
+        leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(create_resp(0).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)))),
             {
@@ -281,7 +280,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             ranking_pred(0),
             create_resp(0),
             tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)),
-            post
+            update_vrs_status_req
         );
     } else if diff > 0 {
         let delete_resp = |diff: int| lift_state(
@@ -311,11 +310,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         // Is this enough?
         if diff - 1 == 0 {
             assert forall |resp_msg: Message|
-                #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(post)) by {
+                #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
                 lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
             };
 
-            leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), post);
+            leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), update_vrs_status_req);
             assert_by(
                 spec.entails(delete_resp(0).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)))),
                 {
@@ -339,9 +338,8 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                 pre(diff),
                 delete_resp(diff - 1),
                 tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)),
-                post
+                update_vrs_status_req
             );
-            return;
         }
 
         let ranking_pred = |n: nat| delete_resp(n as int);
@@ -377,11 +375,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 
         // Chain everything
         assert forall |resp_msg: Message|
-            #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(post)) by {
+            #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
             lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), post);
+        leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(delete_resp(0).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)))),
             {
@@ -408,16 +406,16 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             ranking_pred(0),
             delete_resp(0),
             tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)),
-            post
+            update_vrs_status_req
         );
     } else {
         // diff = 0
         assert forall |resp_msg: Message|
-            #[trigger] spec.entails(list_resp_msg(resp_msg, 0).leads_to(post)) by {
+            #[trigger] spec.entails(list_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
             lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, 0), post);
+        leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(list_resp(0).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, 0)))),
             {
@@ -455,9 +453,73 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             pre(diff),
             list_resp(diff),
             tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, 0)),
-            post
+            update_vrs_status_req
         );
     }
+    let update_vrs_status_req_msg = |msg| lift_state(
+        |s: ClusterState| {
+            &&& req_msg_is_the_in_flight_get_then_update_status_req_at_get_then_update_status_step(vrs, controller_id, msg)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
+        }
+    );
+    assert(spec.entails(update_vrs_status_req.leads_to(tla_exists(update_vrs_status_req_msg)))) by {
+        assert forall |ex| #[trigger] update_vrs_status_req.satisfied_by(ex) implies 
+            tla_exists(|msg| update_vrs_status_req_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+            assert((|msg| update_vrs_status_req_msg(msg))(msg).satisfied_by(ex));
+        };
+        entails_implies_leads_to(spec, update_vrs_status_req, tla_exists(update_vrs_status_req_msg));
+    };
+    let update_vrs_status_resp = lift_state(
+        |s: ClusterState| {
+            &&& exists_ok_resp_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
+        }
+    );
+    assert forall |msg| spec.entails(#[trigger] update_vrs_status_req_msg(msg).leads_to(update_vrs_status_resp)) by {
+        lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(spec, vrs, cluster, controller_id, msg);
+    };
+    leads_to_exists_intro(spec, update_vrs_status_req_msg, update_vrs_status_resp);
+    let update_vrs_status_resp_msg = |msg| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, msg)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
+        }
+    );
+    assert(spec.entails(update_vrs_status_resp.leads_to(tla_exists(update_vrs_status_resp_msg)))) by {
+        assert forall |ex| #[trigger] update_vrs_status_resp.satisfied_by(ex) implies 
+            tla_exists(|msg| update_vrs_status_resp_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+            let msg = choose |msg| {
+                &&& #[trigger] s.in_flight().contains(msg)
+                &&& resp_msg_matches_req_msg(msg, req_msg)
+                &&& msg.content.get_get_then_update_status_response().res is Ok
+            };
+            assert((|msg| update_vrs_status_resp_msg(msg))(msg).satisfied_by(ex));
+        };
+        entails_implies_leads_to(spec, update_vrs_status_resp, tla_exists(update_vrs_status_resp_msg));
+    };
+    let post = lift_state(
+        |s: ClusterState| {
+            &&& current_state_matches(vrs)(s)
+            &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        }
+    );
+    assert forall |msg| spec.entails(#[trigger] update_vrs_status_resp_msg(msg).leads_to(post)) by {
+        lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done(spec, vrs, cluster, controller_id, msg);
+    };
+    leads_to_exists_intro(spec, update_vrs_status_resp_msg, post);
+    leads_to_trans_n!(
+        spec,
+        pre(diff),
+        update_vrs_status_req,
+        tla_exists(update_vrs_status_req_msg),
+        update_vrs_status_resp,
+        tla_exists(update_vrs_status_resp_msg),
+        post
+    );
 }
 
 // Create lemmas.
