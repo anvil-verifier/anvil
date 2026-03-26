@@ -88,7 +88,7 @@ pub open spec fn vrs_rely_get_then_update_req(req: GetThenUpdateRequest) -> Stat
 // requests to owned pods after we address the fairness issues.
 pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> 
+        &&& req.obj.kind == Kind::PodKind ==> 
             req.obj.metadata.resource_version is Some
             && !{
                 let etcd_obj = s.resources()[req.key()];
@@ -101,6 +101,7 @@ pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             }
             && !has_vrs_prefix(req.key().name)
+        &&& req.obj.kind != VReplicaSetView::kind()
     }
 }
 
