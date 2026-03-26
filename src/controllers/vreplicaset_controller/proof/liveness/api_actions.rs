@@ -7,6 +7,7 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     message::*,
 };
+use crate::kubernetes_cluster::proof::api_server::generated_name_reflects_prefix;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
@@ -297,7 +298,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
     return resp_msg;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     msg: Message,
@@ -339,12 +339,26 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     assert(created_obj.metadata.owner_references->0[0] == vrs.controller_owner_ref());
     assert(created_obj.metadata.owner_references_contains(vrs.controller_owner_ref()));
     
-    assert(owned_selector_match_is(vrs, created_obj));
+    let generate_name_field = msg.content.get_create_request().obj.metadata.generate_name->0;
+    assert(owned_selector_match_is(vrs, created_obj)) by {
+        PodView::marshal_preserves_metadata();
+        assert(has_vrs_prefix(created_obj.metadata.name->0)) by {
+            assert(generate_name_field == pod_generate_name(vrs));
+            let suffix = vrs.metadata.name.unwrap() + "-"@;
+            assert(generate_name_field == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + vrs.metadata.name.unwrap() + "-"@);
+            assert(generate_name_field == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+            // prove existential quantifier
+            assert((|suffix| generate_name_field == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix)(suffix));
+            generated_name_reflects_prefix(s.api_server, generate_name_field, VReplicaSetView::kind()->CustomResourceKind_0)
+        }
+    }
 
     assert(
         matching_pod_entries(vrs, s_prime.resources())
         == matching_pod_entries(vrs, s.resources()).insert(created_obj.object_ref(), created_obj)
-    );
+    ) by {
+        generated_name_spec(s.api_server, generate_name_field);
+    }
     assert_by(
         matching_pod_entries(vrs, s.resources()).insert(created_obj.object_ref(), created_obj).values()
         =~= matching_pod_entries(vrs, s.resources()).values().insert(created_obj),
