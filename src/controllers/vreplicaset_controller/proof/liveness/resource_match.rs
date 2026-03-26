@@ -2660,6 +2660,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -2677,6 +2678,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
+    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
@@ -2685,6 +2687,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(desired_state_is(vrs)),
+        later(lift_state(desired_state_is(vrs))),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -2710,9 +2713,16 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
                 lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
                     s, s_prime, vrs, cluster, controller_id, msg
                 );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
+                    s, s_prime, vrs, cluster, controller_id, msg
+                );
+                assert(pre(s_prime));
             },
-            Step::ControllerStep(..) => {
+            Step::ControllerStep(input) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vrs.object_ref()) {
+                    assert(post(s_prime));
+                }
             },
             _ => {}
         }
