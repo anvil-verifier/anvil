@@ -3007,6 +3007,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     always_to_always_later(spec, lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
     always_to_always_later(spec, lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)));
+    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)));
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
@@ -3038,6 +3039,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
+        later(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)),
         later(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))
     );
