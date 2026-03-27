@@ -2978,6 +2978,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -3003,6 +3004,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s_prime)
     };
 
     always_to_always_later(spec, lift_state(desired_state_is(vrs)));
