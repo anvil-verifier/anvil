@@ -2111,22 +2111,16 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                 );
             },
             Step::ControllerStep(input) => {
-                if input.0 == controller_id
-                    && input.1 == Some(resp_msg)
-                    && input.2 == Some(vrs.object_ref()) {
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vrs.object_ref()) {
                     
                     VReplicaSetReconcileState::marshal_preserves_integrity();
 
-                    let objs = resp_msg.content.get_list_response().res.unwrap();
-                    let pods_or_none = objects_to_pods(objs);
-                    let pods = pods_or_none.unwrap();
-                    let filtered_pods = filter_pods(pods, vrs);
+                    let filtered_pods = helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
+                        s, vrs, cluster, controller_id, resp_msg
+                    );
                     let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
                     let s_prime_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
                     let new_diff = s_prime_state.reconcile_step->AfterDeletePod_0;
-                    helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
-                        s, vrs, cluster, controller_id, resp_msg
-                    );
 
                     let filtered_pods_as_set = filtered_pods.to_set();
                     assert(filtered_pods_as_set.contains(filtered_pods[diff - 1]));
@@ -2134,24 +2128,23 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                     // Small helper for converting the non-quantified result of lemma_filtered_pods_set_equals_matching_pods
                     // to the quantified quasi-invariant we need.
                     // Stopgap fix for flaky proof.
-                    assert(post(s_prime)) by {
+                    assert(filtered_pods_in_vrs_matching_pods(vrs, controller_id)(s_prime)) by {
 
                         assert(s.resources() == s_prime.resources());
+                        assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
 
                         assert forall |i| 0 <= i < new_diff implies {
-                            &&& #[trigger] s.resources().contains_key(filtered_pod_keys[i])
-                            &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
-                            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
+                            &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
+                            &&& matching_pods(vrs, s_prime.resources()).contains(s.resources()[filtered_pod_keys[i]])
+                            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                         } by {
                             assert(filtered_pods.to_set().contains(filtered_pods[i]));
+                            assert(exists |obj: DynamicObjectView| #[trigger] matching_pods(vrs, s_prime.resources()).contains(obj) && PodView::unmarshal(obj)->Ok_0 == filtered_pods[i]);
+                            let obj = choose |obj: DynamicObjectView| #[trigger] matching_pods(vrs, s_prime.resources()).contains(obj) && PodView::unmarshal(obj)->Ok_0 == filtered_pods[i];
+                            assert(obj.object_ref() == filtered_pods[i].object_ref());
+                            assert(obj.object_ref() == filtered_pod_keys[i]);
+                            assert(s_prime.resources().contains_key(obj.object_ref()));
                         }
-                        assert(forall |i| {
-                            &&& 0 <= i < diff
-                        } ==> {
-                            &&& s_prime.resources().contains_key(filtered_pod_keys[i])
-                            &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == #[trigger] filtered_pods[i]
-                        });
                     }
                 }
             },

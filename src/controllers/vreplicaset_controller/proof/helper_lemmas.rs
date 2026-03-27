@@ -209,24 +209,19 @@ pub proof fn matching_pods_equal_to_matching_pod_entries_values(vrs: VReplicaSet
 }
 
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
-    s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
-    controller_id: int, resp_msg: Message
-)
+    s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, resp_msg: Message
+) -> (filtered_pods: Seq<PodView>)
     requires
         Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         Cluster::etcd_is_finite()(s),
         resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
         forall |obj: DynamicObjectView| #[trigger] matching_pods(vrs, s.resources()).contains(obj) ==> PodView::unmarshal(obj) is Ok,
     ensures
-        ({
-            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
-            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-            &&& filtered_pods.no_duplicates()
-            &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
-            &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)
-            &&& filtered_pod_keys.no_duplicates()
-        }),
+        filtered_pods == filter_pods(objects_to_pods(resp_msg.content.get_list_response().res->Ok_0)->0, vrs),
+        filtered_pods.no_duplicates(),
+        filtered_pods.len() == matching_pods(vrs, s.resources()).len(),
+        filtered_pods.to_set() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0),
+        filtered_pods.map_values(|p: PodView| p.object_ref()).no_duplicates(),
 {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
@@ -364,6 +359,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             assert(resp_objs[idxi].object_ref() != resp_objs[idxj].object_ref());
         }
     }
+    return filtered_pods;
 }
 
 }
