@@ -2950,7 +2950,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
-        spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
@@ -2991,8 +2991,8 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
-        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s)
-        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime)
+        &&& helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s)
+        &&& helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
@@ -3004,7 +3004,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     };
 
     always_to_always_later(spec, lift_state(desired_state_is(vrs)));
-    always_to_always_later(spec, lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
+    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
     always_to_always_later(spec, lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)));
     always_to_always_later(spec, lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)));
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
@@ -3032,8 +3032,8 @@ pub proof fn lemma_current_state_matches_is_stable(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
-        later(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs))),
+        lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
+        later(lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs))),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
@@ -3077,8 +3077,8 @@ requires
     cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
     cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
-    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s),
-    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime),
+    helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s),
+    helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime),
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s),
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> #[trigger] vrs_rely(other_id)(s),

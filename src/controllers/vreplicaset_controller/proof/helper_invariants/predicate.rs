@@ -464,4 +464,25 @@ pub open spec fn vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletio
     }
 }
 
+// hack Cluster::the_object_in_schedule_has_spec_and_uid_as
+// after we allow inconsistency in spec
+pub open spec fn vrs_in_schedule_has_spec_and_uid_as(controller_id: int, vrs: VReplicaSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vrs.object_ref())
+        ==> s.scheduled_reconciles(controller_id)[vrs.object_ref()].metadata.uid == vrs.metadata().uid
+        && VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()]) is Ok
+        && VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()])->Ok_0.spec.without_replicas() == vrs.spec.without_replicas()
+        && VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()])->Ok_0.spec.replicas.unwrap_or(1)
+            == vrs.spec.replicas.unwrap_or(1)
+}
+
+// hack Cluster::the_object_in_reconcile_has_spec_and_uid_as
+pub open spec fn vrs_in_reconcile_has_spec_and_uid_as(controller_id: int, vrs: VReplicaSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+        ==> s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr.metadata.uid == vrs.metadata().uid
+        && VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr) is Ok
+        && VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr)->Ok_0.spec().without_replicas() == vrs.spec().without_replicas()
+        && VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr)->Ok_0.spec().replicas.unwrap_or(1)
+            == vrs.spec.replicas.unwrap_or(1)
+}
+
 }
