@@ -3196,7 +3196,9 @@ ensures
                 } else {
                     assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                 }
-            } else if s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {}
+            } else if s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
+                assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
+            }
             assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
         },
         _ => {
