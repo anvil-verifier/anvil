@@ -3001,6 +3001,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
 
