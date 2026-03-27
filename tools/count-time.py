@@ -14,6 +14,7 @@ def empty_counting_map():
         "Impl": 0,
         "Liveness": 0,
         "Safety": 0,
+        "Composition": 0,
         "Total": 0,
     }
 
@@ -25,7 +26,9 @@ def parse_json_and_collect_time(file_path, controller_name):
     module_times = json_data["times-ms"]["total-verify-module-times"]
     for module_time in module_times:
         verify_time["Total"] += module_time["time"]
-        if "::exec::" in module_time["module"]:
+        if "::composition::" in module_time["module"]:
+            verify_time["Composition"] += module_time["time"]
+        elif "::exec::" in module_time["module"]:
             verify_time["Impl"] += module_time["time"]
         elif "::proof::safety::" in module_time["module"]:
             verify_time["Safety"] += module_time["time"]
