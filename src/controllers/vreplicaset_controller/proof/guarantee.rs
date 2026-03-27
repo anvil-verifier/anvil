@@ -80,6 +80,7 @@ requires
     cluster.next()(s, s_prime),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s),
+    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::every_in_flight_msg_has_unique_id()(s),
     Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
@@ -155,7 +156,7 @@ ensures
         },
         Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
             if id == controller_id && cr_key_opt == Some(cr_key) {
-                assume(VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr) is Ok);
+                assert(VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr) is Ok);
                 let vrs = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
                 assert(vrs.object_ref() == cr_key);
 
@@ -184,8 +185,8 @@ ensures
                                     let pods = pods_or_none.unwrap();
                                     let filtered_pods = filter_pods(pods, vrs);
 
-                                    assume(resp_msg.src is APIServer);
-                                    assume(resp_msg_matches_req_msg(resp_msg, req_msg));
+                                    assert(resp_msg.src is APIServer);
+                                    assert(resp_msg_matches_req_msg(resp_msg, req_msg));
 
                                     seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                                         objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
@@ -271,6 +272,7 @@ ensures
 
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
@@ -283,6 +285,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
@@ -296,6 +299,7 @@ ensures
         spec, lift_action(stronger_next), lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
