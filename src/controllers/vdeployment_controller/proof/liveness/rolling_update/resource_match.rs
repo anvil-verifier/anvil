@@ -404,17 +404,15 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
-                if msg == req_msg {
-                    let req = req_msg.content.get_get_then_update_request();
-                    let etcd_obj = s.resources()[new_vrs.object_ref()];
-                    assert(etcd_obj.metadata.owner_references_contains(req.owner_ref));
-                    assert(req.owner_ref == vd.controller_owner_ref());
-                    assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
-                } else {
+                if msg != req_msg {
+                    assert(s.resources().contains_key(new_vrs.object_ref())); // trigger
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, msg
                     ); // new_vrs in etcd is not updated
                 }
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.2 == Some(vd.object_ref()) {}
             },
             _ => {}
         }
