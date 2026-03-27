@@ -795,7 +795,6 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
             .lemma_map_finite(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
-    VReplicaSetView::marshal_preserves_integrity();
     assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies vrs_liveness::desired_state_is(vrs)(s) && vrs.spec.replicas.unwrap_or(1) == 0 by {
         VReplicaSetView::marshal_preserves_integrity();
         let etcd_obj = choose |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj) && obj.object_ref() == vrs.object_ref();
@@ -821,6 +820,12 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
             && s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(etcd_obj);
         assert(etcd_obj2.object_ref() == vrs.object_ref());
         assert(etcd_obj2 == etcd_obj);
+        assert(valid_owned_vrs(vrs_with_rv_status, vd));
+        assert(etcd_obj.metadata.owner_references is Some);
+        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1) by {
+            assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+            assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+        }
         assert(vrs_liveness::desired_state_is(etcd_vrs)(s));
         if vrs.spec.replicas.unwrap_or(1) > 0 {
             let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
