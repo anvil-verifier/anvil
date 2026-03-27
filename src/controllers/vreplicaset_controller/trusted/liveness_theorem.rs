@@ -71,6 +71,7 @@ pub open spec fn inductive_current_state_matches(vrs: VReplicaSetView, controlle
             &&& {
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s)
+                ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Error)(s)
             }
@@ -83,6 +84,10 @@ pub open spec fn inductive_current_state_matches(vrs: VReplicaSetView, controlle
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, msg)
+            } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                &&& s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some
+                &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, req_msg)
             } else {
                 s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is None
             }
