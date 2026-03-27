@@ -1266,6 +1266,10 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                     assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s));
                     // Witness: the VRS currently in etcd at new_vrs_key
                     let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
+                    assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1) by {
+                        assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+                        assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+                    }
                     assert(desired_state_is_vrs_with_key(vd, etcd_vrs, new_vrs_key)(s));
                     assert((|new_vrs: VReplicaSetView|
                         lift_state(desired_state_is_vrs_with_key(vd, new_vrs, new_vrs_key))
@@ -1291,6 +1295,10 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                     assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s));
                     // Use the state-level witness
                     let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
+                    assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1) by {
+                        assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+                        assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+                    }
                     assert(desired_state_is_vrs_with_key(vd, etcd_vrs, new_vrs_key)(s));
                     assert((|new_vrs: VReplicaSetView|
                         lift_state(desired_state_is_vrs_with_key(vd, new_vrs, new_vrs_key))
