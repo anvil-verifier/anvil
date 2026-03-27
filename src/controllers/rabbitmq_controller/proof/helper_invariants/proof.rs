@@ -1291,6 +1291,69 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 }
 
 
+// Pure string lemma: the key name for any RMQ sub-resource has the rabbitmq prefix.
+// The name has the form: rmq_prefix + "-" + cr_name + suffix, which matches has_rabbitmq_prefix.
+proof fn lemma_key_name_has_rabbitmq_prefix(cr_name: StringView, suffix: StringView)
+    ensures has_rabbitmq_prefix(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name + suffix),
+{
+    let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0;
+    // name = prefix + "-" + cr_name + suffix = prefix + "-" + (cr_name + suffix)
+    // left-associativity: (prefix + "-"@) + cr_name + suffix = (prefix + "-"@ + cr_name) + suffix
+    // but we need prefix + "-"@ + (cr_name + suffix); use seq extensionality
+    let name = prefix + "-"@ + cr_name + suffix;
+    assert(name =~= prefix + "-"@ + (cr_name + suffix));
+    assert(has_rabbitmq_prefix(name));
+}
+
+// Pure string lemma: if two CR names differ, their sub-resource key names differ.
+// Key names have the form: rmq_prefix + "-" + cr_name + suffix
+proof fn lemma_key_names_differ_for_different_cr_names(cr_name1: StringView, cr_name2: StringView, suffix: StringView)
+    requires cr_name1 != cr_name2,
+    ensures RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name1 + suffix
+         != RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name2 + suffix,
+{
+    let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    seq_lib::seq_unequal_preserved_by_add_prefix(prefix, cr_name1, cr_name2);
+    // prefix + cr_name1 != prefix + cr_name2; now add suffix
+    seq_lib::seq_unequal_preserved_by_add(prefix + cr_name1, prefix + cr_name2, suffix);
+    // (prefix + cr_name1) + suffix != (prefix + cr_name2) + suffix
+    // left-assoc: prefix + cr_name1 + suffix = (prefix + cr_name1) + suffix
+}
+
+// Pure string spec: the suffix appended to the CR name for a given sub_resource
+pub open spec fn sub_resource_name_suffix(sub_resource: SubResource) -> StringView {
+    match sub_resource {
+        SubResource::HeadlessService =>    "-nodes"@,
+        SubResource::Service =>            "-client"@,
+        SubResource::ErlangCookieSecret => "-erlang-cookie"@,
+        SubResource::DefaultUserSecret =>  "-default-user"@,
+        SubResource::PluginsConfigMap =>   "-plugins-conf"@,
+        SubResource::ServerConfigMap =>    "-server-conf"@,
+        SubResource::ServiceAccount =>     "-server"@,
+        SubResource::Role =>               "-peer-discovery"@,
+        SubResource::RoleBinding =>        "-server"@,
+        SubResource::VStatefulSetView =>   "-server"@,
+    }
+}
+
+// String lemma: the key name for a given sub_resource and CR name differs when CR names differ.
+proof fn lemma_sub_resource_key_names_differ_for_different_cr_names(
+    sub_resource: SubResource, cr_name1: StringView, cr_name2: StringView
+)
+    requires cr_name1 != cr_name2,
+    ensures RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name1 + sub_resource_name_suffix(sub_resource)
+         != RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name2 + sub_resource_name_suffix(sub_resource),
+{
+    lemma_key_names_differ_for_different_cr_names(cr_name1, cr_name2, sub_resource_name_suffix(sub_resource));
+}
+
+// String lemma: the key name for any sub_resource has the rabbitmq prefix.
+proof fn lemma_sub_resource_key_name_has_rabbitmq_prefix(sub_resource: SubResource, cr_name: StringView)
+    ensures has_rabbitmq_prefix(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name + sub_resource_name_suffix(sub_resource)),
+{
+    lemma_key_name_has_rabbitmq_prefix(cr_name, sub_resource_name_suffix(sub_resource));
+}
+
 // This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
 // create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles(controller_id)[key].triggering_cr.
 //
@@ -1340,13 +1403,19 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
                     };
                     assert(other_rmq.object_ref() == cr_key);
                     assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
-                    // move the string prefix part here
-                    // lemma_no_interference_on_pods and vsts_name_neq_implies_no_pod_name_match can be good reference after we always add rabbitmq- prefix
-                    // we may require dash_free(rabbitmq.metadata.name->0) in state_validation
-                    assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                        assume(false);
-                    }
-                    assert(false);
+                    // no_interfering says the update key == get_request(sub_resource, other_rmq).key
+                    // resource_update_request_msg says the update key == get_request(sub_resource, rabbitmq).key
+                    // so these two keys must be equal; derive contradiction using string lemma
+                    assert(get_request(sub_resource, other_rmq).key != get_request(sub_resource, rabbitmq).key) by {
+                        if cr_key.namespace != rabbitmq.metadata.namespace->0 {
+                            // keys differ by namespace
+                        } else {
+                            // namespaces same, but cr_key.name != rabbitmq.metadata.name->0
+                            // (since cr_key != rabbitmq.object_ref() and kind is same)
+                            assert(cr_key.name != rabbitmq.metadata.name->0);
+                            lemma_sub_resource_key_names_differ_for_different_cr_names(sub_resource, cr_key.name, rabbitmq.metadata.name->0);
+                        }
+                    };
                 } else { // same reconciliation
                     let key = rabbitmq.object_ref();
                     let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
@@ -1375,13 +1444,13 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
                     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
                 }
             } else { // other controller, call rely condition
-                // same reasoning, also on string prefix, other controller shouldn't send request to managed subresources with correct name prefix
+                // rely says other controllers don't update rmq-managed kinds with rabbitmq prefix names
                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                 assert(rmq_rely(other_id)(s));
-                assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                    assume(false);
-                }
-                assert(false);
+                // key name has rabbitmq prefix; rely says !has_rabbitmq_prefix → contradiction
+                assert(has_rabbitmq_prefix(get_request(sub_resource, rabbitmq).key.name)) by {
+                    lemma_sub_resource_key_name_has_rabbitmq_prefix(sub_resource, rabbitmq.metadata.name->0);
+                };
             }
         },
         _ => {}
@@ -1515,13 +1584,13 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                     };
                     assert(other_rmq.object_ref() == cr_key);
                     assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
-                    // move the string prefix part here
-                    // lemma_no_interference_on_pods and vsts_name_neq_implies_no_pod_name_match can be good reference after we always add rabbitmq- prefix
-                    // we may require dash_free(rabbitmq.metadata.name->0) in state_validation
-                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                        assume(false);
-                    }
-                    assert(false);
+                    assert(get_request(sub_resource, other_rmq).key != get_request(sub_resource, rabbitmq).key) by {
+                        if cr_key.namespace != rabbitmq.metadata.namespace->0 {
+                        } else {
+                            assert(cr_key.name != rabbitmq.metadata.name->0);
+                            lemma_sub_resource_key_names_differ_for_different_cr_names(sub_resource, cr_key.name, rabbitmq.metadata.name->0);
+                        }
+                    };
                 } else { // same reconciliation
                     let key = rabbitmq.object_ref();
                     let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
@@ -1552,13 +1621,11 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                     assume(msg.content.get_create_request().obj == make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap())->Ok_0);
                 }
             } else { // other controller, call rely condition
-                // same reasoning, also on string prefix, other controller shouldn't send request to managed subresources with correct name prefix
                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                 assert(rmq_rely(other_id)(s));
-                assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                    assume(false);
-                }
-                assert(false);
+                assert(has_rabbitmq_prefix(get_request(sub_resource, rabbitmq).key.name)) by {
+                    lemma_sub_resource_key_name_has_rabbitmq_prefix(sub_resource, rabbitmq.metadata.name->0);
+                };
             }
         },
         _ => {}
