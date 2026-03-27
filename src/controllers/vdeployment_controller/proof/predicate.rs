@@ -710,13 +710,11 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         desired_state_is(vd),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()),
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
-        
         // we use lifted version for vd_reconcile_request_only_interferes_with_itself with quantifiers
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd),
         helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id),
         helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id),
-        helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id),
-        helper_invariants::every_vrs_in_etcd_has_one_controller_owner()
+        helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)
     )
 }
 

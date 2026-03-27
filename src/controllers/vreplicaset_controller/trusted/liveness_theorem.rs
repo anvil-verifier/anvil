@@ -1,9 +1,11 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::{
+    trusted::spec_types::*, model::reconciler::*,
+    proof::predicate::*,
+};
 use crate::vreplicaset_controller::trusted::step::VReplicaSetRecStepView;
-use crate::vreplicaset_controller::proof::predicate::*;
 use vstd::prelude::*;
 
 verus! {
@@ -39,6 +41,8 @@ pub open spec fn desired_state_is(vrs: VReplicaSetView) -> StatePred<ClusterStat
         &&& etcd_vrs.spec.with_replicas(etcd_vrs.spec.replicas.unwrap_or(1))
             == vrs.spec.with_replicas(vrs.spec.replicas.unwrap_or(1))
         // required by get_then_update
+        &&& vrs.metadata.owner_references is Some
+        &&& s.resources()[vrs.object_ref()].metadata.owner_references is Some
         &&& vrs.metadata.owner_references->0.filter(controller_owner_filter())
             == s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter())
         &&& s.resources()[vrs.object_ref()].metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
@@ -51,6 +55,8 @@ pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> 
 
 pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
     &&& obj.kind == PodView::kind()
+    &&& obj.metadata.name is Some
+    &&& has_vrs_prefix(obj.metadata.name->0)
     &&& obj.metadata.namespace is Some
     &&& obj.metadata.namespace == vrs.metadata.namespace
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
@@ -65,6 +71,7 @@ pub open spec fn inductive_current_state_matches(vrs: VReplicaSetView, controlle
             &&& {
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s)
+                ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Error)(s)
             }
@@ -77,6 +84,10 @@ pub open spec fn inductive_current_state_matches(vrs: VReplicaSetView, controlle
                     &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, msg)
+            } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                &&& s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is Some
+                &&& req_msg_is_get_then_update_status_vrs_req(vrs, controller_id, req_msg)
             } else {
                 s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is None
             }

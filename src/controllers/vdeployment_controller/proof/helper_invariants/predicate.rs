@@ -479,14 +479,4 @@ pub open spec fn vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_label
     }
 }
 
-// to connect desired_state_is(vrs) with owner_ref requirements and current_state_matches(vd)
-// FIXME: weaken to only talk about owned_by_vd vrs
-pub open spec fn every_vrs_in_etcd_has_one_controller_owner() -> StatePred<ClusterState> {
-    |s: ClusterState| forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) && k.kind == VReplicaSetView::kind() ==> {
-        let vrs = s.resources()[k];
-        &&& vrs.metadata.owner_references is Some
-        &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1
-    }
-}
-
 }
