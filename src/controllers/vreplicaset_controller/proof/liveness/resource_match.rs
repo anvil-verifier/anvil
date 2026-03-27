@@ -1999,8 +1999,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_
 
 // Delete lemmas
 
-// TODO: Investigate flaky proof and weird assertion needed. Higher priority:
-// already put in a stopgap fix.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
@@ -2135,20 +2133,18 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                 
                     // Small helper for converting the non-quantified result of lemma_filtered_pods_set_equals_matching_pods
                     // to the quantified quasi-invariant we need.
-                    assert forall |i| {
-                        &&& pre(s)
-                        &&& stronger_next(s, s_prime)
-                        &&& 0 <= i < new_diff 
-                    } implies {
-                        &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
-                        &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
-                    } by {
-                        assert(filtered_pods.to_set().contains(filtered_pods[i]));
-                    }
-
                     // Stopgap fix for flaky proof.
-                    assert_by(post(s_prime), {
+                    assert(post(s_prime)) by {
+
+                        assert(s.resources() == s_prime.resources());
+
+                        assert forall |i| 0 <= i < new_diff implies {
+                            &&& #[trigger] s.resources().contains_key(filtered_pod_keys[i])
+                            &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
+                            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
+                        } by {
+                            assert(filtered_pods.to_set().contains(filtered_pods[i]));
+                        }
                         assert(forall |i| {
                             &&& 0 <= i < diff
                         } ==> {
@@ -2156,7 +2152,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                             &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
                             &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == #[trigger] filtered_pods[i]
                         });
-                    });
+                    }
                 }
             },
             _ => {}
