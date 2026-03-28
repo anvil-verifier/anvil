@@ -1121,33 +1121,39 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
             |new_vrs_key: ObjectRef| always(lift_state(k_to_csm(new_vrs_key)))
         );
+        let rely_and_interferes = lifted_vd_rely_condition(cluster, controller_id)
+            .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
+        always_and_equality(
+            lifted_vd_rely_condition(cluster, controller_id),
+            lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)
+        );
+        entails_and_temp(provided_spec,
+            always(lifted_vd_rely_condition(cluster, controller_id)),
+            always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
+        );
+        entails_trans(provided_spec,
+            always(lifted_vd_rely_condition(cluster, controller_id))
+                .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
+            always(rely_and_interferes)
+        );
+        always_double_equality(rely_and_interferes);
+
         assert(provided_spec.entails(always(lift_state(desired_state_is(vd))).leads_to(later_spec))) by {
             leads_to_with_always(provided_spec,
                 always(lift_state(desired_state_is(vd))),
                 assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
-                lifted_vd_rely_condition(cluster, controller_id)
-                    .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
-            );
-            always_and_equality(
-                lifted_vd_rely_condition(cluster, controller_id),
-                lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)
+                rely_and_interferes
             );
             temp_pred_equality(
                 later_spec,
                 assumption_and_invariants_of_all_phases(vd, cluster, controller_id)
-                    .and(always(lifted_vd_rely_condition(cluster, controller_id).and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))))
-            );
-            always_double_equality(
-                lifted_vd_rely_condition(cluster, controller_id)
-                    .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
+                    .and(always(rely_and_interferes))
             );
             leads_to_by_borrowing_inv(provided_spec,
                 always(lift_state(desired_state_is(vd))),
                 later_spec,
-                always(lifted_vd_rely_condition(cluster, controller_id)
-                    .and(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
+                always(rely_and_interferes)
             );
-
         }
         temp_pred_equality(later_spec, later_spec.and(true_pred()));
         leads_to_trans_with_entailed_leads_to(provided_spec,
