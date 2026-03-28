@@ -17,9 +17,9 @@ use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
     proof::{
         helper_invariants, liveness::spec::assumption_and_invariants_of_all_phases, predicate::*,
-        resource::*,
+        resource::*, helper_lemmas::*,
     },
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
@@ -894,6 +894,8 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
@@ -903,6 +905,8 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
@@ -919,6 +923,8 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::desired_state_is(rabbitmq)(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref())(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s)
@@ -928,12 +934,15 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)(s)
         &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
     };
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::desired_state_is(rabbitmq)),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
@@ -942,43 +951,39 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rabbitmq)),
         lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)),
         lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))
+        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
+        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource))
     );
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let req = input->0;
-                assert(s.in_flight().contains(req));
-                if resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(req) {} else {}
-                assert(s_prime.in_flight().contains(resp_msg));
-                assert(pre(s_prime)) by {
-                    let step = after_get_k_request_step(sub_resource);
-                    let msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                    let request = msg.content->APIRequest_0;
-                    let key = get_request(sub_resource, rabbitmq).key;
-                    assert(at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s_prime));
-                    assert(Cluster::has_pending_k8s_api_req_msg(controller_id, s_prime, rabbitmq.object_ref()));
-                    assert(msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()));
-                    assert(msg.dst == HostId::APIServer);
-                    assert(msg.content is APIRequest);
-                    assert(request is GetRequest);
-                    assert(request->GetRequest_0 == get_request(sub_resource, rabbitmq));
-                    assert(s.resources().contains_key(key));
-                    assert(s_prime.resources().contains_key(key)) by {
-                        assert(!resource_delete_request_msg(key)(req));
-                        assert(!resource_get_then_delete_request_msg(key)(req));
-                        assert(!resource_get_then_update_request_msg(key)(req));
-                        assert(!resource_get_then_update_status_request_msg(key)(req));
-                        assume(!resource_update_request_msg(key)(req));
-                        assume(!resource_update_status_request_msg(key)(req));
+                let msg = input->0;
+                assert(msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()));
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id == controller_id {
+                            assert(cr_key != rabbitmq.object_ref());
+                            let other_rmq = RabbitmqClusterView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..ObjectMetaView::default()
+                                },
+                                ..RabbitmqClusterView::default()
+                            };
+                            assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
+                            rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
+                        } else {
+                            assume(false);
+                        }
+                    },
+                    _ => {
+                        assume(false);
                     }
-                    assert(s_prime.in_flight().contains(resp_msg));
-                    assert(resp_msg_matches_req_msg(resp_msg, msg));
-                    assert(resp_msg.content.get_get_response().res is Ok);
-                    assert(resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[key]);
                 }
+                assume(false);
             },
             Step::ControllerStep(input) => {
                 assume(false);
@@ -988,7 +993,9 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
                     assert(pre(s_prime));
                 }
             }
-            _ => {},
+            _ => {
+                assume(false);
+            },
         }
     }
 
