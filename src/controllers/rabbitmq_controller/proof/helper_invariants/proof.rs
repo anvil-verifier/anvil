@@ -1302,61 +1302,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-
-// String lemma: if two RMQ CRs have different names (same or different namespace),
-// then for any sub_resource, the resource key name built for one differs from the other.
-// String lemma: the resource key name for any RMQ sub_resource has the rabbitmq prefix.
-proof fn lemma_resource_key_name_has_rabbitmq_prefix(sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
-    requires rabbitmq.metadata.name is Some,
-    ensures has_rabbitmq_prefix(get_request(sub_resource, rabbitmq).key.name),
-{
-    let cr_name = rabbitmq.metadata.name->0;
-    let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0;
-    let key_name = get_request(sub_resource, rabbitmq).key.name;
-    match sub_resource {
-        SubResource::HeadlessService => {
-            let suffix = cr_name + "-nodes"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::Service => {
-            let suffix = cr_name + "-client"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::ErlangCookieSecret => {
-            let suffix = cr_name + "-erlang-cookie"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::DefaultUserSecret => {
-            let suffix = cr_name + "-default-user"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::PluginsConfigMap => {
-            let suffix = cr_name + "-plugins-conf"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::ServerConfigMap => {
-            let suffix = cr_name + "-server-conf"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::ServiceAccount => {
-            let suffix = cr_name + "-server"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::Role => {
-            let suffix = cr_name + "-peer-discovery"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::RoleBinding => {
-            let suffix = cr_name + "-server"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-        SubResource::VStatefulSetView => {
-            let suffix = cr_name + "-server"@;
-            assert(key_name == prefix + "-"@ + suffix);
-        },
-    }
-}
-
 proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
     cr_name_a: StringView, cr_name_b: StringView, suffix: StringView,
 )

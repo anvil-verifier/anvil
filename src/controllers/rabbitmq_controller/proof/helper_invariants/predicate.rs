@@ -164,8 +164,8 @@ pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etc
             && resource_update_request_msg(resource_key)(pending_req)
             && (
                 forall |msg: Message|
-                    s.in_flight().contains(msg)
-                    && #[trigger] resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
+                    #[trigger] s.in_flight().contains(msg)
+                    && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
                     ==> resource_update_response_msg(resource_key, s)(msg)
             )
     }
@@ -185,8 +185,8 @@ pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etc
             && resource_create_request_msg(resource_key)(pending_req)
             && (
                 forall |msg: Message|
-                    s.in_flight().contains(msg)
-                    && #[trigger] resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
+                    #[trigger] s.in_flight().contains(msg)
+                    && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
                     ==> resource_create_response_msg(resource_key, s)(msg)
             )
     }
@@ -196,8 +196,8 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         forall |msg: Message| {
-            &&& s.in_flight().contains(msg)
-            &&& #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
@@ -210,8 +210,8 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         forall |msg: Message| {
-            &&& s.in_flight().contains(msg)
-            &&& #[trigger] resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
@@ -226,8 +226,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         forall |msg: Message| {
-            &&& s.in_flight().contains(msg)
-            &&& #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
@@ -274,8 +274,8 @@ pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(s
         sub_resource != SubResource::VStatefulSetView
         ==> {
             forall |msg: Message|
-                s.in_flight().contains(msg)
-                ==> !(#[trigger] resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg))
+                #[trigger] s.in_flight().contains(msg)
+                ==> !(resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg))
         }
     }
 }
@@ -337,8 +337,8 @@ pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(con
         ||| sub_resource_state_matches(SubResource::VStatefulSetView, rabbitmq, controller_id)(s)
         ||| {
             &&& forall |msg: Message|
-                    s.in_flight().contains(msg)
-                    ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg))
+                    #[trigger] s.in_flight().contains(msg)
+                    ==> !(resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg))
         }
     }
 }

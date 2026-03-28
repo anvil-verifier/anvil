@@ -10,10 +10,11 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
-use crate::rabbitmq_controller::proof::resource::*;
+use crate::rabbitmq_controller::proof::{resource::*, helper_invariants::*};
 use crate::rabbitmq_controller::trusted::{
     spec_types::*, step::*, liveness_theorem::*,
 };
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -395,8 +396,42 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
     }
 }
 
-pub open spec fn has_rabbitmq_prefix(name: StringView) -> bool {
-    exists |suffix| name == RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + suffix
+pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, controller_id: int, rmq: RabbitmqClusterView, sub_resource: SubResource) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::etcd_objects_have_unique_uids()(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s)
+        &&& Cluster::ongoing_reconciles_is_finite(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::etcd_is_finite()(s)
+        &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rmq.object_ref())(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
+        &&& Cluster::desired_state_is(rmq)(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
+        &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
+        &&& no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rmq)(s)
+        &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rmq)(s)
+        &&& object_in_etcd_satisfies_unchangeable(sub_resource, rmq)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
+    }
 }
 
 }
