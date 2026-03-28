@@ -1427,7 +1427,7 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
                     assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s_prime));
                     assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
                         // no_interfering gives: msg's update key == make_{sub_resource}_key(other_rmq)
-                        assert(rmq_requests_carry_rmq_key(msg.content.get_update_request().key(), sub_resource, other_rmq));
+                        assert(get_request(sub_resource, other_rmq).key == msg.content.get_create_request().key());
                         // cr_key != rabbitmq.object_ref() => either namespace or name differs
                         if cr_key.namespace != rabbitmq.object_ref().namespace {
                             // namespaces differ so keys differ
@@ -1500,15 +1500,7 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                 // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
                 assert(rmq_rely(other_id)(s_prime));
-                assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                    // rely_update_req says: is_rmq_managed_kind(kind) ==> !has_rabbitmq_prefix(key.name)
-                    // But our key IS rmq-managed and HAS rabbitmq prefix. Contradiction.
-                    let req = msg.content.get_update_request();
-                    assert(rely_update_req(req)(s_prime));
-                    // req.key() == get_request(sub_resource, rabbitmq).key, so req.obj.kind == rmq-managed kind
-                    // and has_rabbitmq_prefix(req.key().name) holds
-                    lemma_resource_key_name_has_rabbitmq_prefix(sub_resource, rabbitmq);
-                }
+                assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
                 assert(false);
             }
         },
@@ -1650,7 +1642,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                     assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s_prime));
                     assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
                         // no_interfering gives: msg's create key == make_{sub_resource}_key(other_rmq)
-                        assert(rmq_requests_carry_rmq_key(msg.content.get_create_request().key(), sub_resource, other_rmq));
+                        assert(get_request(sub_resource, other_rmq).key == msg.content.get_create_request().key());
                         // cr_key != rabbitmq.object_ref() => either namespace or name differs
                         if cr_key.namespace != rabbitmq.object_ref().namespace {
                             // namespaces differ so keys differ
@@ -1725,13 +1717,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                 // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
                 assert(rmq_rely(other_id)(s_prime));
-                assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                    // rely_create_req says: is_rmq_managed_kind(kind) && name is Some ==> !has_rabbitmq_prefix(name)
-                    // But our key IS rmq-managed and HAS rabbitmq prefix. Contradiction.
-                    let req = msg.content.get_create_request();
-                    assert(rely_create_req(req));
-                    lemma_resource_key_name_has_rabbitmq_prefix(sub_resource, rabbitmq);
-                }
+                assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
                 assert(false);
             }
         },

@@ -339,7 +339,6 @@ pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(con
             &&& forall |msg: Message|
                     s.in_flight().contains(msg)
                     ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg))
-            // TODO: s.stable_resources() was removed from the cluster model
         }
     }
 }
