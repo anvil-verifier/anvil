@@ -40,7 +40,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     vd_rely_condition_equivalent_to_lifted_vd_rely_condition(
         stable_spec, cluster, controller_id
     );
-    lemma_true_leads_to_always_current_state_matches(stable_spec, vd, cluster, controller_id);
+    lemma_true_leads_to_current_state_matches_with_nv_key(stable_spec, vd, cluster, controller_id);
     reveal_with_fuel(spec_before_phase_n, 7);
 
     spec_before_phase_n_entails_true_leads_to_current_state_matches(6, stable_spec, vd, cluster, controller_id);
@@ -185,7 +185,7 @@ ensures
 }
 
 
-proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
+pub proof fn lemma_true_leads_to_current_state_matches_with_nv_key(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
         provided_spec.entails(next_with_wf(cluster, controller_id)),
@@ -198,7 +198,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> provided_spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures
-        provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)).entails(true_pred().leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))))),
+        provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)).entails(true_pred().leads_to(tla_exists(|new_vrs_key: ObjectRef| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))),
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
     // non-interference properties
