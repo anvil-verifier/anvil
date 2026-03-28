@@ -104,7 +104,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controlle
         } else if i == 4 {
             helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
         } else if i == 5 {
-            helper_invariants::lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(controller_id, cluster, spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight_forall(controller_id, cluster, spec, rabbitmq);
         } else if i == 6 {
             helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
             helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
@@ -341,13 +341,13 @@ pub proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
 // pointing to current cr, it will never be recycled by the garbage collector. Plus, the reconciler itself never tries to
 // delete this object, so we can have the invariants saying that no delete request messages will be in flight.
 pub open spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
-    always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))
+    always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq))))
 }
 
 pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_v(rabbitmq))),
 {
-    always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))));
+    always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq))));
 }
 
 pub open spec fn invariants_since_phase_vi(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
