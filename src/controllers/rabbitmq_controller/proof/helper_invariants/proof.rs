@@ -2130,4 +2130,6 @@ pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+
+
 }

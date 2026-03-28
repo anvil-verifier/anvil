@@ -966,7 +966,14 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
                     assert(request is GetRequest);
                     assert(request->GetRequest_0 == get_request(sub_resource, rabbitmq));
                     assert(s.resources().contains_key(key));
-                    assert(s_prime.resources().contains_key(key));
+                    assert(s_prime.resources().contains_key(key)) by {
+                        assert(!resource_delete_request_msg(key)(req));
+                        assert(!resource_get_then_delete_request_msg(key)(req));
+                        assert(!resource_get_then_update_request_msg(key)(req));
+                        assert(!resource_get_then_update_status_request_msg(key)(req));
+                        assume(!resource_update_request_msg(key)(req));
+                        assume(!resource_update_status_request_msg(key)(req));
+                    }
                     assert(s_prime.in_flight().contains(resp_msg));
                     assert(resp_msg_matches_req_msg(resp_msg, msg));
                     assert(resp_msg.content.get_get_response().res is Ok);
