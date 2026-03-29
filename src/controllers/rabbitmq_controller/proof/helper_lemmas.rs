@@ -43,9 +43,11 @@ requires
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
 ensures
-    // ultimate version of ownership and guarantee
     s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
     s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
+    // cm is not updated
+    s.resources().contains_key(make_server_config_map_key(rmq)) == s_prime.resources().contains_key(make_server_config_map_key(rmq)),
+    s.resources()[make_server_config_map_key(rmq)] == s_prime.resources()[make_server_config_map_key(rmq)],
 {}
 
 pub proof fn lemma_update_sub_resource_request_returns_ok(
