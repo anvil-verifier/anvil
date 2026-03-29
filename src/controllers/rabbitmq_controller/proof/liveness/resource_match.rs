@@ -599,13 +599,12 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
-        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures
         spec.entails(
             lift_state(
@@ -627,24 +626,16 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::crash_disabled(controller_id)(s)
-        &&& Cluster::req_drop_disabled()(s)
-        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s)
-        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)(s)
-        &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)(s)
-        &&& helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
-        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
-        lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)),
-        lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
+        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
+        lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
     let post = |s: ClusterState| {
@@ -654,28 +645,28 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let pending_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-        let resp = handle_create_request_msg(cluster.installed_types, pending_msg, s.api_server).1;
+        let resp = lemma_create_sub_resource_request_returns_ok(
+            s, s_prime, rabbitmq, cluster, controller_id, sub_resource, pending_msg
+        );
         assert(s_prime.in_flight().contains(resp));
-        match sub_resource {
-            SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
-            SubResource::Service => ServiceView::marshal_preserves_integrity(),
-            SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
-            SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
-            SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
-            SubResource::Role => RoleView::marshal_preserves_integrity(),
-            SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
-            SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
-        }
     }
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                if resource_create_request_msg(resource_key)(input->0) {} else {}
-                if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0) {} else {}
+                let msg = input->0;
+                if msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()) {
+                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                        s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
+                    );
+                    assert(pre(s_prime));
+                } else {
+                    lemma_create_sub_resource_request_returns_ok(
+                        s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
+                    );
+                    assert(post(s_prime));
+                }
             },
             _ => {},
         }

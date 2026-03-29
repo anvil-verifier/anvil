@@ -65,6 +65,27 @@ ensures
     s.resources()[make_server_config_map_key(rmq)] == s_prime.resources()[make_server_config_map_key(rmq)],
 {}
 
+pub proof fn lemma_create_sub_resource_request_returns_ok(
+    s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
+) -> (resp_msg: Message)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
+    req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rmq, controller_id, msg)(s),
+ensures
+    resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
+    resource_state_matches(sub_resource, rmq)(s_prime),
+{
+    let resp_msg = handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
+    let local_state = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state;
+    let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+    assert(state_after_create(sub_resource, rmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok);
+
+    return resp_msg;
+}
+
 pub proof fn lemma_update_sub_resource_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)
