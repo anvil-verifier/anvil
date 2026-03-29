@@ -361,7 +361,7 @@ impl VerticalComposition for RabbitmqReconciler {
                     lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).satisfied_by(ex)
                     implies #[trigger] lift_state(Cluster::desired_state_is(desired_sts)).satisfied_by(ex) by {
                     let s = ex.head();
-                    assert(resource_state_matches(SubResource::VStatefulSetView, rmq, s));
+                    assert(resource_state_matches(SubResource::VStatefulSetView, rmq)(s));
                     assert(config_map_rv_match(rmq, rv)(s));
                 };
             };

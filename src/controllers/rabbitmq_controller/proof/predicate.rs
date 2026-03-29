@@ -21,28 +21,6 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        resource_state_matches(sub_resource, rabbitmq, s)
-    }
-}
-
-// pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
-//     let key = get_request(sub_resource, rabbitmq).key;
-//     let obj = resources[key];
-//     let made_spec = make(sub_resource, rabbitmq, RabbitmqReconcileState {
-//         reconcile_step: RabbitmqReconcileStep::Init,
-//         latest_config_map_rv_opt: if resources.contains_key(get_request(SubResource::ServerConfigMap, rabbitmq).key) && resources[get_request(SubResource::ServerConfigMap, rabbitmq).key].metadata.resource_version is Some {
-//             Some(int_to_string_view(resources[get_request(SubResource::ServerConfigMap, rabbitmq).key].metadata.resource_version->0))
-//         } else {
-//             None
-//         },
-//     });
-//     &&& resources.contains_key(key)
-//     &&& made_spec is Ok
-//     &&& obj.spec == made_spec->Ok_0.spec
-// }
-
 pub open spec fn at_rabbitmq_step(key: ObjectRef, controller_id: int, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
     recommends
         key.kind is CustomResourceKind
@@ -432,7 +410,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
-        &&& the_object_in_reconcile_satisfies_state_validation(sub_resource, rmq)(s)
+        &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s)
     }
 }
 

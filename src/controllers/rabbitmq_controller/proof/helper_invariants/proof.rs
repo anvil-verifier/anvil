@@ -1839,30 +1839,6 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
     );
 }
 
-// Below are invariants that only hold after the config map matches the desired state
-
-pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
-    requires
-        spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
-        spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, SubResource::VStatefulSetView, rabbitmq)))),
-        spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::VStatefulSetView, rabbitmq)))),
-        spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
-        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::VStatefulSetView, rabbitmq)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, rabbitmq)))),
-        spec.entails(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))),
-        spec.entails(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq, controller_id)))),
-        spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(controller_id, rabbitmq)))),
-        spec.entails(always(lift_action(cm_rv_stays_unchanged(rabbitmq)))),
-    ensures spec.entails(true_pred().leads_to(always(lift_state(stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq))))),
-{
-    // TODO: This proof relied on Cluster::stateful_set_not_exist_or_updated_or_no_more_status_from_bc
-    // which was removed now that we have VStatefulSet controller.
-}
-
 #[verifier(spinoff_prover)]
 pub proof fn lemma_always_cm_rv_stays_unchanged(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
@@ -1871,7 +1847,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(controller_id: int, cluster: Clu
         spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq, controller_id)))),
+        spec.entails(always(lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)))),
     ensures spec.entails(always(lift_action(cm_rv_stays_unchanged(rabbitmq)))),
@@ -1883,7 +1859,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(controller_id: int, cluster: Clu
         &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq, controller_id)(s)
+        &&& resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
     };
@@ -1908,7 +1884,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(controller_id: int, cluster: Clu
         lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)),
         lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq, controller_id)),
+        lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
     );

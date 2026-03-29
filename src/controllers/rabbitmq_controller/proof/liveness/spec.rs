@@ -445,7 +445,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec_entails_always_tla_forall_equality(spec, a_to_p_3);
     });
     helper_invariants::lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(controller_id, cluster, spec, rabbitmq);
-    helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(controller_id, cluster, spec, rabbitmq.object_ref());
     cluster.lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(spec, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(spec, controller_id, rabbitmq.object_ref());

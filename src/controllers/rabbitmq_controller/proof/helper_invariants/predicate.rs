@@ -296,18 +296,4 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
         &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
     }
 }
-
-pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let sts_key = get_request(SubResource::VStatefulSetView, rabbitmq).key;
-        ||| !s.resources().contains_key(sts_key)
-        ||| sub_resource_state_matches(SubResource::VStatefulSetView, rabbitmq, controller_id)(s)
-        ||| {
-            &&& forall |msg: Message|
-                    #[trigger] s.in_flight().contains(msg)
-                    ==> !(resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg))
-        }
-    }
-}
-
 }
