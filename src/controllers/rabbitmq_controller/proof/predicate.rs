@@ -317,12 +317,22 @@ pub open spec fn pending_req_in_flight_at_after_create_resource_step(
     |s: ClusterState| {
         let step = after_create_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+        let req = msg.content.get_create_request();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
         &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_create_request().obj)(s)
+        // sanity check
+        &&& !s.resources().contains_key(req.key())
+        &&& req.obj.metadata.name is Some
+        &&& req.obj.metadata.generate_name is None
+        &&& req.obj.metadata.namespace is Some
+        &&& req.namespace == req.obj.metadata.namespace->0
+        &&& req.obj.metadata.uid is Some
+        &&& req.obj.metadata.deletion_timestamp is None
+        &&& req.obj.metadata.finalizers is None
     }
 }
 
@@ -331,12 +341,22 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_resource_s
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = after_create_k_request_step(sub_resource);
+        let req = req_msg.content.get_create_request();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, rabbitmq.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
         &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req_msg.content.get_create_request().obj)(s)
+        // sanity check
+        &&& !s.resources().contains_key(req.key())
+        &&& req.obj.metadata.name is Some
+        &&& req.obj.metadata.generate_name is None
+        &&& req.obj.metadata.namespace is Some
+        &&& req.namespace == req.obj.metadata.namespace->0
+        &&& req.obj.metadata.uid is Some
+        &&& req.obj.metadata.deletion_timestamp is None
+        &&& req.obj.metadata.finalizers is None
     }
 }
 

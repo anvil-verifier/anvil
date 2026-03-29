@@ -31,6 +31,17 @@ ensures
 {}
 
 #[verifier(external_body)]
+pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
+requires
+    rmq.state_validation(),
+ensures
+    sts == make_stateful_set(rmq, cm_rv),
+    sts.state_validation(),
+{
+    return make_stateful_set(rmq, cm_rv);
+}
+
+#[verifier(external_body)]
 pub proof fn update_sts_pass_state_validation(rmq: RabbitmqClusterView, found_sts: VStatefulSetView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
     rmq.state_validation(),
@@ -78,7 +89,62 @@ ensures
     resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
     resource_state_matches(sub_resource, rmq)(s_prime),
 {
+    RabbitmqReconcileState::marshal_preserves_integrity();
+
+    match sub_resource {
+        SubResource::HeadlessService => {
+            ServiceView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ServiceView::marshal_preserves_integrity();
+            ServiceView::marshal_status_preserves_integrity(); // marshalled default status can pass state validation
+        },
+        SubResource::Service => {
+            ServiceView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ServiceView::marshal_preserves_integrity();
+            ServiceView::marshal_status_preserves_integrity();
+        },
+        SubResource::ErlangCookieSecret => {
+            SecretView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            SecretView::marshal_preserves_integrity();
+            SecretView::marshal_status_preserves_integrity();
+        },
+        SubResource::DefaultUserSecret => {
+            SecretView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            SecretView::marshal_preserves_integrity();
+            SecretView::marshal_status_preserves_integrity();
+        },
+        SubResource::PluginsConfigMap => {
+            ConfigMapView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ConfigMapView::marshal_preserves_integrity();
+            ConfigMapView::marshal_status_preserves_integrity();
+        },
+        SubResource::ServerConfigMap => {
+            ConfigMapView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ConfigMapView::marshal_preserves_integrity();
+            ConfigMapView::marshal_status_preserves_integrity();
+        },
+        SubResource::ServiceAccount => {
+            ServiceAccountView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ServiceAccountView::marshal_preserves_integrity();
+            ServiceAccountView::marshal_status_preserves_integrity();
+        },
+        SubResource::Role => {
+            RoleView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            RoleView::marshal_preserves_integrity();
+            RoleView::marshal_status_preserves_integrity();
+        },
+        SubResource::RoleBinding => {
+            RoleBindingView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            RoleBindingView::marshal_preserves_integrity();
+            RoleBindingView::marshal_status_preserves_integrity();
+        },
+        SubResource::VStatefulSetView => {
+            VStatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            VStatefulSetView::marshal_preserves_integrity();
+            VStatefulSetView::marshal_status_preserves_integrity();
+        },
+    }
     let resp_msg = handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
+    assert(resp_msg.content.get_create_response().res is Ok);
     let local_state = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state;
     let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
     assert(state_after_create(sub_resource, rmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok);
