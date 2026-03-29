@@ -4,8 +4,8 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vstatefulset_controller::trusted::spec_types::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::rabbitmq_controller::model::reconciler::RabbitmqMaker;
-use crate::rabbitmq_controller::trusted::{maker::*, spec_types::*, step::*};
+use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
+use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::int_to_string_view;
 use vstd::prelude::*;
@@ -33,7 +33,7 @@ pub open spec fn safety(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState>
 // in current state.
 pub open spec fn stateful_set_not_scaled_down(rabbitmq: RabbitmqClusterView) -> ActionPred<ClusterState> {
     |s: ClusterState, s_prime: ClusterState| {
-        let sts_key = RabbitmqMaker::make_stateful_set_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         s.resources().contains_key(sts_key)
         && s_prime.resources().contains_key(sts_key)
         ==> replicas_of_stateful_set(s_prime.resources()[sts_key]) >= replicas_of_stateful_set(s.resources()[sts_key])

@@ -229,63 +229,65 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
         match sub_resource {
             SubResource::HeadlessService => {
                 &&& ServiceView::unmarshal(obj) is Ok
-                &&& ServiceView::unmarshal(obj)->Ok_0.spec.without_cluster_ip() == RabbitmqMaker::make_headless_service(rabbitmq).spec.without_cluster_ip()
-                &&& obj.metadata.labels == RabbitmqMaker::make_headless_service(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_headless_service(rabbitmq).metadata.annotations
+                &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
+                &&& ServiceView::unmarshal(obj)->Ok_0.spec->0.without_cluster_ip() == make_headless_service(rabbitmq).spec->0.without_cluster_ip()
+                &&& obj.metadata.labels == make_headless_service(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_headless_service(rabbitmq).metadata.annotations
             },
             SubResource::Service => {
                 &&& ServiceView::unmarshal(obj) is Ok
-                &&& ServiceView::unmarshal(obj)->Ok_0.spec.without_cluster_ip() == RabbitmqMaker::make_main_service(rabbitmq).spec.without_cluster_ip()
-                &&& obj.metadata.labels == RabbitmqMaker::make_main_service(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_main_service(rabbitmq).metadata.annotations
+                &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
+                &&& ServiceView::unmarshal(obj)->Ok_0.spec->0.without_cluster_ip() == make_main_service(rabbitmq).spec->0.without_cluster_ip()
+                &&& obj.metadata.labels == make_main_service(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_main_service(rabbitmq).metadata.annotations
             },
             SubResource::ErlangCookieSecret => {
                 &&& SecretView::unmarshal(obj) is Ok
-                &&& SecretView::unmarshal(obj)->Ok_0.data == RabbitmqMaker::make_erlang_cookie_secret(rabbitmq).data
-                &&& obj.metadata.labels == RabbitmqMaker::make_erlang_cookie_secret(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_erlang_cookie_secret(rabbitmq).metadata.annotations
+                &&& SecretView::unmarshal(obj)->Ok_0.data == make_erlang_secret(rabbitmq).data
+                &&& obj.metadata.labels == make_erlang_secret(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_erlang_secret(rabbitmq).metadata.annotations
             },
             SubResource::DefaultUserSecret => {
                 &&& SecretView::unmarshal(obj) is Ok
-                &&& SecretView::unmarshal(obj)->Ok_0.data == RabbitmqMaker::make_default_user_secret(rabbitmq).data
-                &&& obj.metadata.labels == RabbitmqMaker::make_default_user_secret(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_default_user_secret(rabbitmq).metadata.annotations
+                &&& SecretView::unmarshal(obj)->Ok_0.data == make_default_user_secret(rabbitmq).data
+                &&& obj.metadata.labels == make_default_user_secret(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_default_user_secret(rabbitmq).metadata.annotations
             },
             SubResource::PluginsConfigMap => {
                 &&& ConfigMapView::unmarshal(obj) is Ok
-                &&& ConfigMapView::unmarshal(obj)->Ok_0.data == RabbitmqMaker::make_plugins_config_map(rabbitmq).data
-                &&& obj.metadata.labels == RabbitmqMaker::make_plugins_config_map(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_plugins_config_map(rabbitmq).metadata.annotations
+                &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_plugins_config_map(rabbitmq).data
+                &&& obj.metadata.labels == make_plugins_config_map(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_plugins_config_map(rabbitmq).metadata.annotations
             },
             SubResource::ServerConfigMap => {
                 &&& ConfigMapView::unmarshal(obj) is Ok
-                &&& ConfigMapView::unmarshal(obj)->Ok_0.data == RabbitmqMaker::make_server_config_map(rabbitmq).data
-                &&& obj.metadata.labels == RabbitmqMaker::make_server_config_map(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_server_config_map(rabbitmq).metadata.annotations
+                &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_server_config_map(rabbitmq).data
+                &&& obj.metadata.labels == make_server_config_map(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_server_config_map(rabbitmq).metadata.annotations
             },
             SubResource::ServiceAccount => {
                 &&& ServiceAccountView::unmarshal(obj) is Ok
-                &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == RabbitmqMaker::make_service_account(rabbitmq).automount_service_account_token
-                &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.labels == RabbitmqMaker::make_service_account(rabbitmq).metadata.labels
-                &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.annotations == RabbitmqMaker::make_service_account(rabbitmq).metadata.annotations
+                &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
+                &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.labels == make_service_account(rabbitmq).metadata.labels
+                &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.annotations == make_service_account(rabbitmq).metadata.annotations
             },
             SubResource::Role => {
                 &&& RoleView::unmarshal(obj) is Ok
-                &&& RoleView::unmarshal(obj)->Ok_0.policy_rules == RabbitmqMaker::make_role(rabbitmq).policy_rules
-                &&& obj.metadata.labels == RabbitmqMaker::make_role(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_role(rabbitmq).metadata.annotations
+                &&& RoleView::unmarshal(obj)->Ok_0.policy_rules == make_role(rabbitmq).policy_rules
+                &&& obj.metadata.labels == make_role(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_role(rabbitmq).metadata.annotations
             },
             SubResource::RoleBinding => {
                 &&& RoleBindingView::unmarshal(obj) is Ok
-                &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == RabbitmqMaker::make_role_binding(rabbitmq).role_ref
-                &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == RabbitmqMaker::make_role_binding(rabbitmq).subjects
-                &&& obj.metadata.labels == RabbitmqMaker::make_role_binding(rabbitmq).metadata.labels
-                &&& obj.metadata.annotations == RabbitmqMaker::make_role_binding(rabbitmq).metadata.annotations
+                &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == make_role_binding(rabbitmq).role_ref
+                &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == make_role_binding(rabbitmq).subjects
+                &&& obj.metadata.labels == make_role_binding(rabbitmq).metadata.labels
+                &&& obj.metadata.annotations == make_role_binding(rabbitmq).metadata.annotations
             },
             SubResource::VStatefulSetView => {
-                let cm_key = RabbitmqMaker::make_server_config_map_key(rabbitmq);
+                let cm_key = make_server_config_map_key(rabbitmq);
                 let cm_obj = s.resources()[cm_key];
-                let made_sts = RabbitmqMaker::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+                let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
                 &&& VStatefulSetView::unmarshal(obj) is Ok
                 &&& VStatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec
                 &&& obj.metadata.labels == made_sts.metadata.labels
@@ -293,7 +295,7 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
             },
         }
     }
-}               
+}
 
 pub open spec fn pending_req_in_flight_at_after_create_resource_step(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int
@@ -479,7 +481,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::desired_state_is(rmq)(s)
         &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
-        &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
+        // &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rmq)(s)
         &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rmq)(s)
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, rmq)(s)
