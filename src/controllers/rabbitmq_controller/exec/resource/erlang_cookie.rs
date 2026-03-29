@@ -93,6 +93,7 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
         }
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_secret.metadata().labels().unwrap());
         metadata.set_annotations(made_secret.metadata().annotations().unwrap());
         metadata

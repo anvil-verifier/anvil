@@ -100,7 +100,7 @@ pub fn reconcile_core(
                 SubResource::ClientService => reconcile_helper::<model_resource::ClientServiceBuilder, ClientServiceBuilder>(zk, resp_o, state),
                 SubResource::AdminServerService => reconcile_helper::<model_resource::AdminServerServiceBuilder, AdminServerServiceBuilder>(zk, resp_o, state),
                 SubResource::ConfigMap => reconcile_helper::<model_resource::ConfigMapBuilder, ConfigMapBuilder>(zk, resp_o, state),
-                SubResource::StatefulSet => reconcile_helper::<model_resource::StatefulSetBuilder, StatefulSetBuilder>(zk, resp_o, state),
+                SubResource::VStatefulSetView => reconcile_helper::<model_resource::StatefulSetBuilder, StatefulSetBuilder>(zk, resp_o, state),
             }
         },
         ZookeeperReconcileStep::AfterExistsStatefulSet => {
@@ -127,7 +127,7 @@ pub fn reconcile_core(
                 } else if get_stateful_set_resp.unwrap_err().is_object_not_found() {
                     let req_o = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                        reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
@@ -206,7 +206,7 @@ pub fn reconcile_core(
             && resp_o.unwrap().into_external_response().unwrap_create_response().res.is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                 let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                     ..state
                 };
                 return (state_prime, Some(Request::KRequest(req_o)));
@@ -223,7 +223,7 @@ pub fn reconcile_core(
             && resp_o.unwrap().into_external_response().unwrap_set_data_response().res.is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                 let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                     ..state
                 };
                 return (state_prime, Some(Request::KRequest(req_o)));

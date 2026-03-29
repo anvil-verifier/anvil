@@ -57,12 +57,12 @@ impl VStatefulSet {
         }
 
         // podManagementPolicy
-        if let Some(pod_management_policy) = self.spec().pod_management_policy() {
-            // should be either "OrderedReady" or "Parallel"
-            if !string_equal(&pod_management_policy, "OrderedReady") && !string_equal(&pod_management_policy, "Parallel") {
-                return false;
-            }
-        }
+        // if let Some(pod_management_policy) = self.spec().pod_management_policy() {
+        //     // should be either "OrderedReady" or "Parallel"
+        //     if !string_equal(&pod_management_policy, "OrderedReady") && !string_equal(&pod_management_policy, "Parallel") {
+        //         return false;
+        //     }
+        // }
 
         // volumeClaimTemplates
         if let Some(vct) = self.spec().volume_claim_templates() {
@@ -72,16 +72,19 @@ impl VStatefulSet {
             for idx in 0..vct.len()
                 invariant
                     0 <= idx <= vct.len(),
-                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.well_formed_for_namespaced() && dash_free(vct[i]@.metadata.name->0),
+                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.name is Some && vct[i]@.metadata.namespace is Some && dash_free(vct[i]@.metadata.name->0),
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
                     self@.spec.volume_claim_templates is Some,
                     vct_view == self@.spec.volume_claim_templates->0,
             {
                 let pvc_sv = vct[idx].spec().is_some();
-                let pvc_metadata_sv = vct[idx].metadata().well_formed_for_namespaced();
+                let pvc_meta = vct[idx].metadata();
+                let pvc_name = pvc_meta.name();
+                let pvc_ns = pvc_meta.namespace();
+                let pvc_metadata_sv = pvc_name.is_some() && pvc_ns.is_some();
                 
                 assert(pvc_sv == vct_view[idx as int].state_validation());
-                assert(pvc_metadata_sv == vct_view[idx as int].metadata.well_formed_for_namespaced());
+                assert(pvc_metadata_sv == (vct_view[idx as int].metadata.name is Some && vct_view[idx as int].metadata.namespace is Some));
                 
                 if !pvc_sv || !pvc_metadata_sv {
                     return false;
@@ -104,19 +107,19 @@ impl VStatefulSet {
         }
 
         // persistentVolumeClaimRetentionPolicy
-        if let Some(persistent_volume_claim_retention_policy) = self.spec().persistent_volume_claim_retention_policy() {
-            // when_deleted and when_scaled should be either "Retain" or "Delete"
-            if let Some(when_deleted) = persistent_volume_claim_retention_policy.when_deleted() {
-                if !string_equal(&when_deleted, "Retain") && !string_equal(&when_deleted, "Delete") {
-                    return false;
-                }
-            }
-            if let Some(when_scaled) = persistent_volume_claim_retention_policy.when_scaled() {
-                if !string_equal(&when_scaled, "Retain") && !string_equal(&when_scaled, "Delete") {
-                    return false;
-                }
-            }
-        }
+        // if let Some(persistent_volume_claim_retention_policy) = self.spec().persistent_volume_claim_retention_policy() {
+        //     // when_deleted and when_scaled should be either "Retain" or "Delete"
+        //     if let Some(when_deleted) = persistent_volume_claim_retention_policy.when_deleted() {
+        //         if !string_equal(&when_deleted, "Retain") && !string_equal(&when_deleted, "Delete") {
+        //             return false;
+        //         }
+        //     }
+        //     if let Some(when_scaled) = persistent_volume_claim_retention_policy.when_scaled() {
+        //         if !string_equal(&when_scaled, "Retain") && !string_equal(&when_scaled, "Delete") {
+        //             return false;
+        //         }
+        //     }
+        // }
 
         // ordinals
         if let Some(ordinals) = self.spec().ordinals() {

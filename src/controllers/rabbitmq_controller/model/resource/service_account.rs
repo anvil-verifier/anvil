@@ -86,6 +86,7 @@ pub open spec fn update_service_account(rabbitmq: RabbitmqClusterView, found_ser
             finalizers: None,
             labels: made_service_account.metadata.labels,
             annotations: made_service_account.metadata.annotations,
+            deletion_timestamp: None,
             ..found_service_account.metadata
         },
         ..found_service_account

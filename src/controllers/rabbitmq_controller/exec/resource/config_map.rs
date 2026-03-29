@@ -92,6 +92,7 @@ pub fn update_server_config_map(rabbitmq: &RabbitmqCluster, found_config_map: Co
         // for stateful set are.
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_server_cm.metadata().labels().unwrap());
         metadata.set_annotations(made_server_cm.metadata().annotations().unwrap());
         metadata

@@ -85,6 +85,7 @@ pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account:
         let mut metadata = found_service_account.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_service_account.metadata().labels().unwrap());
         metadata.set_annotations(made_service_account.metadata().annotations().unwrap());
         metadata
