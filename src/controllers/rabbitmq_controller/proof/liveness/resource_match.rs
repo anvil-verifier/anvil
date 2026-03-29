@@ -510,6 +510,61 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     );
 }
 
+proof fn lemma_from_after_get_resource_step_to_after_create_resource_step_by_controller(
+    controller_id: int,  cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message,
+    s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(rabbitmq.object_ref())))),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s),
+    resp_msg.content.get_get_response().res is Err,
+    resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound,
+    !s.resources().contains_key(get_request(sub_resource, rabbitmq).key),
+ensures
+    pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id)(s_prime),
+    !s_prime.resources().contains_key(get_request(sub_resource, rabbitmq).key),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    match sub_resource {
+        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+        SubResource::Role => RoleView::marshal_preserves_integrity(),
+        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+    }
+    let step = after_create_k_request_step(sub_resource);
+    let msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+    let req = msg.content.get_create_request();
+    assert(at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s_prime));
+    assert(Cluster::has_pending_k8s_api_req_msg(controller_id, s_prime, rabbitmq.object_ref()));
+    assert(s_prime.in_flight().contains(msg));
+    assert(msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()));
+    assert(resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+    assert(req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_create_request().obj)(s_prime)) by {
+        let obj = msg.content.get_create_request().obj;
+        if sub_resource == SubResource::VStatefulSetView {
+            let cm_key = make_server_config_map_key(rabbitmq);
+            let cm_obj = s.resources()[cm_key];
+            let made_sts = make_sts_pass_state_validation(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+            let req_obj_spec = VStatefulSetView::unmarshal(obj)->Ok_0.spec;
+            assert(VStatefulSetView::unmarshal(obj) is Ok);
+            assert(VStatefulSetView::unmarshal(obj)->Ok_0.state_validation());
+            assert(obj.metadata.labels == made_sts.metadata.labels);
+            assert(obj.metadata.annotations == made_sts.metadata.annotations);
+            assert(req_obj_spec.template == made_sts.spec.template);
+        }
+    }
+}
+
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     controller_id: int,
@@ -574,7 +629,9 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.2 == Some(key) {
-                    assume(false);
+                    lemma_from_after_get_resource_step_to_after_create_resource_step_by_controller(
+                        controller_id, cluster, sub_resource, rabbitmq, resp_msg, s, s_prime
+                    );
                 }
             }
             _ => {}

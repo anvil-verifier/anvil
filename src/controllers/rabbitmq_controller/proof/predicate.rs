@@ -330,7 +330,6 @@ pub open spec fn pending_req_in_flight_at_after_create_resource_step(
         &&& req.obj.metadata.generate_name is None
         &&& req.obj.metadata.namespace is Some
         &&& req.namespace == req.obj.metadata.namespace->0
-        &&& req.obj.metadata.uid is Some
         &&& req.obj.metadata.deletion_timestamp is None
         &&& req.obj.metadata.finalizers is None
     }
@@ -354,7 +353,6 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_resource_s
         &&& req.obj.metadata.generate_name is None
         &&& req.obj.metadata.namespace is Some
         &&& req.namespace == req.obj.metadata.namespace->0
-        &&& req.obj.metadata.uid is Some
         &&& req.obj.metadata.deletion_timestamp is None
         &&& req.obj.metadata.finalizers is None
     }
