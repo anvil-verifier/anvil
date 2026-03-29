@@ -432,6 +432,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(sub_resource, rmq)(s)
     }
 }
 

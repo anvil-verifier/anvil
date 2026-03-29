@@ -43,57 +43,6 @@ pub proof fn lemma_always_rabbitmq_is_well_formed(cluster: Cluster, spec: TempPr
     );
 }
 
-proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(cluster: Cluster, spec: TempPred<ClusterState>)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-    ensures spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
-{
-    let inv = cr_objects_in_etcd_satisfy_state_validation();
-    RabbitmqClusterView::marshal_status_preserves_integrity();
-    init_invariant(spec, cluster.init(), cluster.next(), inv);
-}
-
-proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-    ensures spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation(controller_id)))),
-{
-    let inv = the_object_in_schedule_satisfies_state_validation(controller_id);
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cr_objects_in_etcd_satisfy_state_validation()(s)
-    };
-    lemma_always_cr_objects_in_etcd_satisfy_state_validation(cluster, spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cr_objects_in_etcd_satisfy_state_validation())
-    );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-}
-
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, key: ObjectRef)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-    ensures spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(controller_id, key)))),
-{
-    let inv = the_object_in_reconcile_satisfies_state_validation(controller_id, key);
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& the_object_in_schedule_satisfies_state_validation(controller_id)(s)
-    };
-    lemma_always_the_object_in_schedule_satisfies_state_validation(controller_id, cluster, spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(the_object_in_schedule_satisfies_state_validation(controller_id))
-    );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-}
-
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),

@@ -26,39 +26,6 @@ pub open spec fn rabbitmq_is_well_formed(rabbitmq: RabbitmqClusterView) -> State
     |s: ClusterState| rabbitmq.well_formed()
 }
 
-pub open spec fn the_object_in_reconcile_satisfies_state_validation(controller_id: int, key: ObjectRef) -> StatePred<ClusterState>
-{
-    |s: ClusterState| {
-        s.ongoing_reconciles(controller_id).contains_key(key)
-        ==> RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).is_ok()
-            && RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap().state_validation()
-    }
-}
-
-pub open spec fn the_object_in_schedule_satisfies_state_validation(controller_id: int) -> StatePred<ClusterState>
-{
-    |s: ClusterState| {
-        forall |key: ObjectRef|
-        #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
-        && key.kind is CustomResourceKind
-        && key.kind == RabbitmqClusterView::kind()
-        ==> RabbitmqClusterView::unmarshal(s.scheduled_reconciles(controller_id)[key]).is_ok()
-            && RabbitmqClusterView::unmarshal(s.scheduled_reconciles(controller_id)[key]).unwrap().state_validation()
-    }
-}
-
-pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<ClusterState>
-{
-    |s: ClusterState| {
-        forall |key: ObjectRef|
-        #[trigger] s.resources().contains_key(key)
-        && key.kind is CustomResourceKind
-        && key.kind == RabbitmqClusterView::kind()
-        ==> RabbitmqClusterView::unmarshal(s.resources()[key]) is Ok
-            && RabbitmqClusterView::unmarshal(s.resources()[key])->Ok_0.state_validation()
-    }
-}
-
 pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let key = get_request(sub_resource, rabbitmq).key;
     |s: ClusterState| {

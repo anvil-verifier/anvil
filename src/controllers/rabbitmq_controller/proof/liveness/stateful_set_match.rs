@@ -42,7 +42,6 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::VStatefulSetView, rabbitmq)))),
@@ -86,7 +85,6 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::VStatefulSetView, rabbitmq)))),
@@ -393,7 +391,6 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::VStatefulSetView, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq)))),
@@ -429,7 +426,6 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& resource_well_formed(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
-        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, rabbitmq)(s)
         &&& helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::VStatefulSetView, rabbitmq)(s)
         &&& helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq)(s)
@@ -447,7 +443,6 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(resource_well_formed),
         lift_state(Cluster::desired_state_is(rabbitmq)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, rabbitmq)),
         lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::VStatefulSetView, rabbitmq)),
         lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(controller_id, rabbitmq)),
