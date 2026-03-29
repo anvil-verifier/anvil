@@ -86,6 +86,7 @@ pub open spec fn update_erlang_secret(rabbitmq: RabbitmqClusterView, found_erlan
             finalizers: None,
             labels: made_erlang_secret.metadata.labels,
             annotations: made_erlang_secret.metadata.annotations,
+            deletion_timestamp: None,
             ..found_erlang_secret.metadata
         },
         ..found_erlang_secret

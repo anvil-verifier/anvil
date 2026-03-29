@@ -86,6 +86,7 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
             finalizers: None,
             labels: made_secret.metadata.labels,
             annotations: made_secret.metadata.annotations,
+            deletion_timestamp: None,
             ..found_secret.metadata
         },
         data: Some(make_default_user_secret_data(rabbitmq)),

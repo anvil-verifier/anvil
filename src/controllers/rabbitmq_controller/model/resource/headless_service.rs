@@ -87,6 +87,7 @@ pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_he
             finalizers: None,
             labels: made_headless_service.metadata.labels,
             annotations: made_headless_service.metadata.annotations,
+            deletion_timestamp: None,
             ..found_headless_service.metadata
         },
         spec: Some(ServiceSpecView {

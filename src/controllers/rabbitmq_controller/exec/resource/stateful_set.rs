@@ -118,6 +118,7 @@ pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: VStat
         // for stateful set are.
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_sts.metadata().labels().unwrap());
         metadata.set_annotations(made_sts.metadata().annotations().unwrap());
         metadata

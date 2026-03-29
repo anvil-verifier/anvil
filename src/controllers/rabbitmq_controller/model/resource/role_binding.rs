@@ -86,6 +86,7 @@ pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_b
             finalizers: None,
             labels: made_role_binding.metadata.labels,
             annotations: made_role_binding.metadata.annotations,
+            deletion_timestamp: None,
             ..found_role_binding.metadata
         },
         subjects: made_role_binding.subjects,

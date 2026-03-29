@@ -86,6 +86,7 @@ pub fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleB
         let mut metadata = found_role_binding.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_role_binding.metadata().labels().unwrap());
         metadata.set_annotations(made_role_binding.metadata().annotations().unwrap());
         metadata

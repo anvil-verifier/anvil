@@ -30,7 +30,7 @@ ensures
 {}
 
 // shield_lemma
-
+#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )
@@ -62,7 +62,8 @@ ensures
     resource_state_matches(sub_resource, rmq)(s_prime),
 {
     let resp_msg = handle_update_request_msg(cluster.installed_types, msg, s.api_server).1;
-
+    let req = msg.content.get_update_request();
+    assert(update_request_admission_check(cluster.installed_types, req, s.api_server) is None);
     let step = after_update_k_request_step(sub_resource);
     let msg = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
     let request = msg.content->APIRequest_0;

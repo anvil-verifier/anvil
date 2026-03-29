@@ -77,6 +77,7 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
             finalizers: None,
             labels: make_server_config_map(rabbitmq).metadata.labels,
             annotations: make_server_config_map(rabbitmq).metadata.annotations,
+            deletion_timestamp: None,
             ..found_config_map.metadata
         },
         data: make_server_config_map(rabbitmq).data,

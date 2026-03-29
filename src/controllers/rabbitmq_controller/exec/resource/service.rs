@@ -93,6 +93,7 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
         // for stateful set are.
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_service.metadata().labels().unwrap());
         metadata.set_annotations(made_service.metadata().annotations().unwrap());
         metadata

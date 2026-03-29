@@ -91,6 +91,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
         let mut metadata = found_headless_service.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_service.metadata().labels().unwrap());
         metadata.set_annotations(made_service.metadata().annotations().unwrap());
         metadata
