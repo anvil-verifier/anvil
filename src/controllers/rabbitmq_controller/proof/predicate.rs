@@ -226,9 +226,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
 
 pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        match sub_resource {
+        &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+        &&& match sub_resource {
             SubResource::HeadlessService => {
                 &&& ServiceView::unmarshal(obj) is Ok
+                &&& ServiceView::unmarshal(obj)->Ok_0.state_validation()
                 &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
                 &&& ServiceView::unmarshal(obj)->Ok_0.spec->0.without_cluster_ip() == make_headless_service(rabbitmq).spec->0.without_cluster_ip()
                 &&& obj.metadata.labels == make_headless_service(rabbitmq).metadata.labels
@@ -236,6 +238,7 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
             },
             SubResource::Service => {
                 &&& ServiceView::unmarshal(obj) is Ok
+                &&& ServiceView::unmarshal(obj)->Ok_0.state_validation()
                 &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
                 &&& ServiceView::unmarshal(obj)->Ok_0.spec->0.without_cluster_ip() == make_main_service(rabbitmq).spec->0.without_cluster_ip()
                 &&& obj.metadata.labels == make_main_service(rabbitmq).metadata.labels
@@ -243,42 +246,49 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
             },
             SubResource::ErlangCookieSecret => {
                 &&& SecretView::unmarshal(obj) is Ok
+                &&& SecretView::unmarshal(obj)->Ok_0.state_validation()
                 &&& SecretView::unmarshal(obj)->Ok_0.data == make_erlang_secret(rabbitmq).data
                 &&& obj.metadata.labels == make_erlang_secret(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_erlang_secret(rabbitmq).metadata.annotations
             },
             SubResource::DefaultUserSecret => {
                 &&& SecretView::unmarshal(obj) is Ok
+                &&& SecretView::unmarshal(obj)->Ok_0.state_validation()
                 &&& SecretView::unmarshal(obj)->Ok_0.data == make_default_user_secret(rabbitmq).data
                 &&& obj.metadata.labels == make_default_user_secret(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_default_user_secret(rabbitmq).metadata.annotations
             },
             SubResource::PluginsConfigMap => {
                 &&& ConfigMapView::unmarshal(obj) is Ok
+                &&& ConfigMapView::unmarshal(obj)->Ok_0.state_validation()
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_plugins_config_map(rabbitmq).data
                 &&& obj.metadata.labels == make_plugins_config_map(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_plugins_config_map(rabbitmq).metadata.annotations
             },
             SubResource::ServerConfigMap => {
                 &&& ConfigMapView::unmarshal(obj) is Ok
+                &&& ConfigMapView::unmarshal(obj)->Ok_0.state_validation()
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_server_config_map(rabbitmq).data
                 &&& obj.metadata.labels == make_server_config_map(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_server_config_map(rabbitmq).metadata.annotations
             },
             SubResource::ServiceAccount => {
                 &&& ServiceAccountView::unmarshal(obj) is Ok
+                &&& ServiceAccountView::unmarshal(obj)->Ok_0.state_validation()
                 &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
                 &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.labels == make_service_account(rabbitmq).metadata.labels
                 &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.annotations == make_service_account(rabbitmq).metadata.annotations
             },
             SubResource::Role => {
                 &&& RoleView::unmarshal(obj) is Ok
+                &&& RoleView::unmarshal(obj)->Ok_0.state_validation()
                 &&& RoleView::unmarshal(obj)->Ok_0.policy_rules == make_role(rabbitmq).policy_rules
                 &&& obj.metadata.labels == make_role(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_role(rabbitmq).metadata.annotations
             },
             SubResource::RoleBinding => {
                 &&& RoleBindingView::unmarshal(obj) is Ok
+                &&& RoleBindingView::unmarshal(obj)->Ok_0.state_validation()
                 &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == make_role_binding(rabbitmq).role_ref
                 &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == make_role_binding(rabbitmq).subjects
                 &&& obj.metadata.labels == make_role_binding(rabbitmq).metadata.labels
@@ -289,6 +299,7 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
                 let cm_obj = s.resources()[cm_key];
                 let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
                 &&& VStatefulSetView::unmarshal(obj) is Ok
+                &&& VStatefulSetView::unmarshal(obj)->Ok_0.state_validation()
                 &&& VStatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec
                 &&& obj.metadata.labels == made_sts.metadata.labels
                 &&& obj.metadata.annotations == made_sts.metadata.annotations
@@ -376,6 +387,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
     |s: ClusterState| {
         let step = after_update_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+        let req = msg.content.get_update_request();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
@@ -386,6 +398,15 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
         &&& msg.content.get_update_request().obj.metadata.resource_version is Some
         &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_update_request().obj)(s)
+        // sanity check
+        &&& req.obj.metadata.name is Some
+        &&& req.name == req.obj.metadata.name->0
+        &&& req.obj.metadata.namespace is Some
+        &&& req.namespace == req.obj.metadata.namespace->0
+        &&& req.obj.metadata.uid is Some
+        &&& req.obj.metadata.deletion_timestamp is None
+        &&& req.obj.metadata.finalizers is None
+        &&& s.resources()[resource_key].metadata.uid->0 == req.obj.metadata.uid->0
     }
 }
 
@@ -395,6 +416,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
     |s: ClusterState| {
         let step = after_update_k_request_step(sub_resource);
         let resource_key = get_request(sub_resource, rabbitmq).key;
+        let req = req_msg.content.get_update_request();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, rabbitmq.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
@@ -404,6 +426,15 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& req_msg.content.get_update_request().obj.metadata.resource_version is Some
         &&& req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req_msg.content.get_update_request().obj)(s)
+        // sanity check
+        &&& req.obj.metadata.name is Some
+        &&& req.name == req.obj.metadata.name->0
+        &&& req.obj.metadata.namespace is Some
+        &&& req.namespace == req.obj.metadata.namespace->0
+        &&& req.obj.metadata.uid is Some
+        &&& req.obj.metadata.deletion_timestamp is None
+        &&& req.obj.metadata.finalizers is None
+        &&& s.resources()[resource_key].metadata.uid->0 == req.obj.metadata.uid->0
     }
 }
 
