@@ -18,10 +18,6 @@ use crate::rabbitmq_controller::{
         liveness::{
             resource_match::*,
             spec::*,
-            // stateful_set_match::{
-            //     lemma_from_after_get_stateful_set_step_to_stateful_set_matches,
-            //     lemma_stateful_set_is_stable,
-            // },
             terminate,
         },
         predicate::*,

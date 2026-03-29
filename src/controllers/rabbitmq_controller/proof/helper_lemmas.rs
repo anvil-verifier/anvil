@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     message::*,
+    api_server::state_machine::*,
 };
 use crate::rabbitmq_controller::{
     model::resource::*,
@@ -60,7 +61,8 @@ ensures
     resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
     resource_state_matches(sub_resource, rmq)(s_prime),
 {
-    return msg;
+    let resp_msg = handle_update_request_msg(cluster.installed_types, msg, s.api_server).1;
+    return resp_msg;
 }
 
 }

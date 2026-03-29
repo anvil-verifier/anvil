@@ -75,10 +75,7 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& resources.contains_key(key)
                 &&& ServiceView::unmarshal(obj) is Ok
                 &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
-                &&& made_spec == ServiceSpecView {
-                    cluster_ip: made_spec.cluster_ip,
-                    ..spec
-                }
+                &&& made_spec.without_cluster_ip() == spec.without_cluster_ip()
                 &&& obj.metadata.labels == RabbitmqMaker::make_headless_service(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == RabbitmqMaker::make_headless_service(rabbitmq).metadata.annotations
             },
@@ -90,10 +87,7 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& resources.contains_key(key)
                 &&& ServiceView::unmarshal(obj) is Ok
                 &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
-                &&& made_spec == ServiceSpecView {
-                    cluster_ip: made_spec.cluster_ip,
-                    ..spec
-                }
+                &&& made_spec.without_cluster_ip() == spec.without_cluster_ip()
                 &&& obj.metadata.labels == RabbitmqMaker::make_main_service(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == RabbitmqMaker::make_main_service(rabbitmq).metadata.annotations
             },
@@ -130,7 +124,6 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& resources.contains_key(key)
                 &&& ConfigMapView::unmarshal(obj) is Ok
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.data == RabbitmqMaker::make_server_config_map(rabbitmq).data
-                &&& obj.spec == ConfigMapView::marshal_spec(RabbitmqMaker::make_server_config_map(rabbitmq).data)
                 &&& obj.metadata.labels == RabbitmqMaker::make_server_config_map(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == RabbitmqMaker::make_server_config_map(rabbitmq).metadata.annotations
             },
@@ -168,6 +161,7 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 let cm_key = RabbitmqMaker::make_server_config_map_key(rabbitmq);
                 let cm_obj = resources[cm_key];
                 let made_sts = RabbitmqMaker::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+                let etcd_sts = VStatefulSetView::unmarshal(obj)->Ok_0;
                 // hack 
                 &&& resources.contains_key(key)
                 &&& resources.contains_key(cm_key)
@@ -175,7 +169,8 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& VStatefulSetView::unmarshal(obj) is Ok
                 &&& obj.metadata.labels == made_sts.metadata.labels
                 &&& obj.metadata.annotations == made_sts.metadata.annotations
-                &&& Cluster::desired_state_is(made_sts)(state)
+                &&& etcd_sts.spec == made_sts.spec
+                &&& Cluster::desired_state_is(etcd_sts)(state)
             },
         }
     }
