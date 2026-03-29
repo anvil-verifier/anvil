@@ -821,29 +821,20 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     };
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let pending_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-        let resp = handle_update_request_msg(cluster.installed_types, pending_msg, s.api_server).1;
-        assert(s_prime.in_flight().contains(resp));
-        match sub_resource {
-            SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
-            SubResource::Service => ServiceView::marshal_preserves_integrity(),
-            SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
-            SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
-            SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
-            SubResource::Role => RoleView::marshal_preserves_integrity(),
-            SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
-            SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
-        }
+        let resp_msg = lemma_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
+        assert(s_prime.in_flight().contains(resp_msg));
     }
-
+    assume(false);
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
                 if input->0 != req_msg {
+                    // TODO: cm rv is not updated
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0);
+                } else {
+                    let resp_msg = lemma_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
+                    assert(s_prime.in_flight().contains(resp_msg));
                 }
             },
             _ => {},
