@@ -168,9 +168,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& obj.metadata.labels == made_sts.metadata.labels
                 &&& obj.metadata.annotations == made_sts.metadata.annotations
                 &&& obj.metadata.deletion_timestamp is None
-                &&& etcd_sts.spec.replicas == made_sts.spec.replicas
+                &&& etcd_sts.spec.replicas == Some(rabbitmq.spec.replicas)
                 &&& etcd_sts.spec.template == made_sts.spec.template
-                &&& etcd_sts.persistent_volume_claim_retention_policy == made_sts.persistent_volume_claim_retention_policy
+                &&& etcd_sts.spec.persistent_volume_claim_retention_policy == rabbitmq.spec.persistent_volume_claim_retention_policy
                 &&& Cluster::desired_state_is(etcd_sts)(state)
             },
         }

@@ -298,11 +298,14 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
                 let cm_key = make_server_config_map_key(rabbitmq);
                 let cm_obj = s.resources()[cm_key];
                 let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+                let req_obj_spec = VStatefulSetView::unmarshal(obj)->Ok_0.spec;
                 &&& VStatefulSetView::unmarshal(obj) is Ok
                 &&& VStatefulSetView::unmarshal(obj)->Ok_0.state_validation()
-                &&& VStatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec
                 &&& obj.metadata.labels == made_sts.metadata.labels
                 &&& obj.metadata.annotations == made_sts.metadata.annotations
+                &&& req_obj_spec.replicas == Some(rabbitmq.spec.replicas)
+                &&& req_obj_spec.template == made_sts.spec.template
+                &&& req_obj_spec.persistent_volume_claim_retention_policy == rabbitmq.spec.persistent_volume_claim_retention_policy
             },
         }
     }

@@ -3,6 +3,7 @@ use super::predicate::*;
 use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
+    label_selector::LabelSelectorView,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
@@ -30,12 +31,18 @@ ensures
 {}
 
 #[verifier(external_body)]
-pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, s: ClusterState) -> (sts: VStatefulSetView)
+pub proof fn update_sts_pass_state_validation(rmq: RabbitmqClusterView, found_sts: VStatefulSetView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
     rmq.state_validation(),
+    found_sts.state_validation(),
+    found_sts.metadata.owner_references_only_contains(rmq.controller_owner_ref()),
+    found_sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rmq.metadata.name->0)),
 ensures
-    sts = make_stateful_set(rmq, s.resources()[make_server_config_map_key(rmq)].metadata.resource_version->0),
-{}
+    sts == update_stateful_set(rmq, found_sts, cm_rv),
+    sts.state_validation(),
+{
+    return update_stateful_set(rmq, found_sts, cm_rv);
+}
 
 // shield_lemma
 #[verifier(external_body)]

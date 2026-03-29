@@ -3,15 +3,16 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
-    stateful_set::*,
+    stateful_set::*, label_selector::LabelSelectorView,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
-    model::reconciler::*,
+    model::{reconciler::*, resource::*},
     proof::{predicate::*, resource::*},
     trusted::{spec_types::*, step::*},
 };
@@ -303,7 +304,7 @@ pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq:
         ==> {
             let sts = VStatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq)]).unwrap();
             &&& s.resources()[make_stateful_set_key(rabbitmq)].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0)),
+            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
         }
     }
 }
