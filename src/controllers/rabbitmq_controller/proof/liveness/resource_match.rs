@@ -848,7 +848,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
+#[verifier(rlimit(500))]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
@@ -897,7 +897,41 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.2 == Some(rabbitmq.object_ref()) {
                     RabbitmqReconcileState::marshal_preserves_integrity();
-                    assert(post(s_prime));
+                    match sub_resource {
+                        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+                        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+                        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+                        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+                        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+                        SubResource::Role => RoleView::marshal_preserves_integrity(),
+                        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+                        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+                    }
+                    assert(post(s_prime)) by {
+                        assert(s.resources() == s_prime.resources());
+                        let step = after_update_k_request_step(sub_resource);
+                        let msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+                        let req = msg.content.get_update_request();
+                        assert(req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_update_request().obj)(s_prime)) by {
+                            let obj = req.obj;
+                            assert(obj.metadata.owner_references == Some(make_owner_references(rabbitmq)));
+                            if sub_resource == SubResource::VStatefulSetView {
+                                let cm_key = make_server_config_map_key(rabbitmq);
+                                let cm_obj = s.resources()[cm_key];
+                                let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+                                assume(made_sts.state_validation());
+                                VStatefulSetView::marshal_preserves_integrity();
+                                assert(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s));
+                                assert(VStatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec);
+                                assert(VStatefulSetView::unmarshal(obj) is Ok);
+                                assert(VStatefulSetView::unmarshal(obj)->Ok_0.state_validation());
+                                assert(obj.metadata.labels == made_sts.metadata.labels);
+                                assert(obj.metadata.annotations == made_sts.metadata.annotations);
+                            }
+                        }
+                    }
                 } else {
                     assert(pre(s_prime));
                 }

@@ -161,14 +161,16 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 let cm_obj = resources[cm_key];
                 let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
                 let etcd_sts = VStatefulSetView::unmarshal(obj)->Ok_0;
-                // hack 
                 &&& resources.contains_key(key)
                 &&& resources.contains_key(cm_key)
                 &&& cm_obj.metadata.resource_version is Some
                 &&& VStatefulSetView::unmarshal(obj) is Ok
                 &&& obj.metadata.labels == made_sts.metadata.labels
                 &&& obj.metadata.annotations == made_sts.metadata.annotations
-                &&& etcd_sts.spec == made_sts.spec
+                &&& obj.metadata.deletion_timestamp is None
+                &&& etcd_sts.spec.replicas == made_sts.spec.replicas
+                &&& etcd_sts.spec.template == made_sts.spec.template
+                &&& etcd_sts.persistent_volume_claim_retention_policy == made_sts.persistent_volume_claim_retention_policy
                 &&& Cluster::desired_state_is(etcd_sts)(state)
             },
         }

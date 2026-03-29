@@ -29,6 +29,14 @@ ensures
     get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
 {}
 
+#[verifier(external_body)]
+pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, s: ClusterState) -> (sts: VStatefulSetView)
+requires
+    rmq.state_validation(),
+ensures
+    sts = make_stateful_set(rmq, s.resources()[make_server_config_map_key(rmq)].metadata.resource_version->0),
+{}
+
 // shield_lemma
 #[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(

@@ -296,4 +296,15 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
         &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
     }
 }
+
+pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        s.resources().contains_key(make_stateful_set_key(rabbitmq))
+        ==> {
+            let sts = VStatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq)]).unwrap();
+            &&& s.resources()[make_stateful_set_key(rabbitmq)].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0)),
+        }
+    }
+}
 }
