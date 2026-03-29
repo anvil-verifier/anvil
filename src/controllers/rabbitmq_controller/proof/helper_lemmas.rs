@@ -80,7 +80,6 @@ ensures
     return sts;
 }
 
-#[verifier(external_body)]
 pub proof fn update_sts_pass_state_validation(rmq: RabbitmqClusterView, found_sts: VStatefulSetView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
     rmq.state_validation(),
@@ -91,7 +90,39 @@ ensures
     sts == update_stateful_set(rmq, found_sts, cm_rv),
     sts.state_validation(),
 {
-    return update_stateful_set(rmq, found_sts, cm_rv);
+    let sts = update_stateful_set(rmq, found_sts, cm_rv);
+    let name = rmq.metadata.name->0;
+
+    // The updated sts keeps found_sts.spec.selector, which already passes validation
+    // The updated sts keeps found_sts.spec.volume_claim_templates, update_strategy, ordinals, min_ready_seconds
+    // All of these pass validation from found_sts.state_validation()
+
+    // template comes from make_stateful_set - need to prove labels don't contain reserved keys
+    // and selector matches template labels
+    let template_labels = make_labels(rmq);
+    let labels = Map::empty().insert("app"@, name);
+
+    // selector matches template labels (selector is preserved from found_sts)
+    assert forall |k: StringView, v: StringView| labels.contains_pair(k, v) implies template_labels.contains_pair(k, v) by {
+    };
+
+    // template labels don't contain StatefulSetPodNameLabel or StatefulSetOrdinalLabel
+    reveal_strlit("app");
+    reveal_strlit("statefulset.kubernetes.io/pod-name");
+    reveal_strlit("apps.kubernetes.io/pod-index");
+    assert(StatefulSetPodNameLabel == "statefulset.kubernetes.io/pod-name"@);
+    assert(StatefulSetOrdinalLabel == "apps.kubernetes.io/pod-index"@);
+    assert(!rmq.spec.labels.contains_key(StatefulSetPodNameLabel));
+    assert(!rmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
+    assert("app"@.len() == 3);
+    assert("statefulset.kubernetes.io/pod-name"@.len() > 3);
+    assert("apps.kubernetes.io/pod-index"@.len() > 3);
+    assert("app"@ != StatefulSetPodNameLabel);
+    assert("app"@ != StatefulSetOrdinalLabel);
+    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
+    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
+
+    return sts;
 }
 
 // shield_lemma
