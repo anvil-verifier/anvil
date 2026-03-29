@@ -78,10 +78,13 @@ impl VStatefulSet {
                     vct_view == self@.spec.volume_claim_templates->0,
             {
                 let pvc_sv = vct[idx].spec().is_some();
-                let pvc_metadata_sv = vct[idx].metadata().name().is_some() && vct[idx].metadata().namespace().is_some();
+                let pvc_meta = vct[idx].metadata();
+                let pvc_name = pvc_meta.name();
+                let pvc_ns = pvc_meta.namespace();
+                let pvc_metadata_sv = pvc_name.is_some() && pvc_ns.is_some();
                 
                 assert(pvc_sv == vct_view[idx as int].state_validation());
-                assert(pvc_metadata_sv == vct_view[idx as int].metadata.name is Some && vct_view[idx as int].metadata.namespace is Some);
+                assert(pvc_metadata_sv == (vct_view[idx as int].metadata.name is Some && vct_view[idx as int].metadata.namespace is Some));
                 
                 if !pvc_sv || !pvc_metadata_sv {
                     return false;
