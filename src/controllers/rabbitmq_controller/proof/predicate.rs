@@ -125,15 +125,6 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_resource_step
     }
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
-    }
-}
-
 pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int
 ) -> StatePred<ClusterState> {
@@ -539,7 +530,6 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         // &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rmq)(s)
         &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rmq)(s)
-        &&& object_in_etcd_satisfies_unchangeable(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s)

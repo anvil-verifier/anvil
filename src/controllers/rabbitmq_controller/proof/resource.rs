@@ -98,23 +98,4 @@ pub open spec fn state_after_update(
     }
 }
 
-pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-    match sub_resource {
-        SubResource::ErlangCookieSecret => {
-            &&& SecretView::unmarshal(object) is Ok
-            &&& SecretView::unmarshal(object)->Ok_0.data == make_erlang_secret(rabbitmq).data
-        },
-        SubResource::ServiceAccount => {
-            &&& ServiceAccountView::unmarshal(object) is Ok
-            &&& ServiceAccountView::unmarshal(object)->Ok_0.automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
-        },
-        SubResource::RoleBinding => {
-            let rb = RoleBindingView::unmarshal(object)->Ok_0;
-            &&& RoleBindingView::unmarshal(object) is Ok
-            &&& rb.role_ref == make_role_binding(rabbitmq).role_ref
-        },
-        _ => true,
-    }
-}
-
 }
