@@ -13,6 +13,7 @@ use crate::kubernetes_cluster::spec::{
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
+use crate::reconciler::spec::resource_builder::*;
 use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
     proof::{
@@ -938,32 +939,13 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
                     assert(pre(s_prime));
                 }
             }
-            _ => {
-                assume(false);
-            },
+            _ => {},
         }
     }
 
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next,
         ControllerStep::ContinueReconcile, pre, post
     );
-}
-
-proof fn lemma_from_after_get_resource_step_to_after_update_resource_step_by_cmq_controller(
-    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message,
-    s: ClusterState, s_prime: ClusterState
-)
-requires
-    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
-    cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(rabbitmq.object_ref())))),
-    resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s),
-ensures
-    pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime),
-{
-    RabbitmqReconcileState::marshal_preserves_integrity();
 }
 
 pub proof fn lemma_resource_object_is_stable(
