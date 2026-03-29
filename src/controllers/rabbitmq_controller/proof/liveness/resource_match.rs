@@ -125,20 +125,9 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
     });
-    let pre_and_exists_resp_in_flight = lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& at_after_get_resource_step_and_exists_not_found_resp_in_flight(sub_resource, rabbitmq, controller_id)(s)
-    });
-    let pre_and_resp_in_flight = |resp_msg| lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
-        &&& resp_msg.content.get_get_response().res is Err
-        &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
-    });
-    let post_and_req_in_flight = |req_msg| lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
-    });
+    let pre_and_exists_resp_in_flight = lift_state(at_after_get_resource_step_and_exists_not_found_resp_in_flight(sub_resource, rabbitmq, controller_id));
+    let pre_and_resp_in_flight = |resp_msg| lift_state(resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg));
+    let post_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, req_msg));
     let match_and_ok_resp = lift_state(resource_state_matches(sub_resource, rabbitmq))
         .and(lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)));
     let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
@@ -513,13 +502,9 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s),
-    resp_msg.content.get_get_response().res is Err,
-    resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound,
-    !s.resources().contains_key(get_request(sub_resource, rabbitmq).key),
+    resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s),
 ensures
     pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id)(s_prime),
-    !s_prime.resources().contains_key(get_request(sub_resource, rabbitmq).key),
 {
     RabbitmqReconcileState::marshal_preserves_integrity();
     match sub_resource {
@@ -574,28 +559,12 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures
         spec.entails(
-            lift_state(|s: ClusterState| {
-                &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-                &&& resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
-                &&& resp_msg.content.get_get_response().res is Err
-                &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
-            }).leads_to(lift_state(|s: ClusterState| {
-                &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-                &&& pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id)(s)
-            }))
+            lift_state(resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg))
+                .leads_to(lift_state(pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id)))
         ),
 {
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    let pre = |s: ClusterState| {
-        &&& !s.resources().contains_key(resource_key)
-        &&& resp_msg_is_the_in_flight_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
-        &&& resp_msg.content.get_get_response().res is Err
-        &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
-    };
-    let post = |s: ClusterState| {
-        &&& !s.resources().contains_key(resource_key)
-        &&& pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id)(s)
-    };
+    let pre = resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg);
+    let post = pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id);
     let key = rabbitmq.object_ref();
     let input = (Some(resp_msg), Some(key));
     let stronger_next = |s, s_prime: ClusterState| {

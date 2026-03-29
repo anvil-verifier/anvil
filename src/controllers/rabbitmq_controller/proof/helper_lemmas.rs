@@ -146,6 +146,28 @@ ensures
     s.resources()[make_server_config_map_key(rmq)] == s_prime.resources()[make_server_config_map_key(rmq)],
 {}
 
+pub proof fn lemma_get_sub_resource_request_returns_ok_or_not_found(
+    s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
+) -> (resp_msg: Message)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
+    req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rmq, controller_id, msg)(s),
+ensures
+    s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
+    s.resources().contains_key(get_request(sub_resource, rmq).key) ==>
+        resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
+    !s.resources().contains_key(get_request(sub_resource, rmq).key) ==>
+        resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+
+    let resp_msg = handle_get_request_msg(msg, s.api_server).1;
+    return resp_msg;
+}
+
 pub proof fn lemma_create_sub_resource_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)

@@ -205,7 +205,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
     }
 }
 
-pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
+pub open spec fn resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -219,8 +219,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
         &&& msg.content is APIRequest
         &&& request is GetRequest
         &&& request->GetRequest_0 == get_request(sub_resource, rabbitmq)
+        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
+        &&& resp_msg.content.get_get_response().res is Err
+        &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
     }
 }
 
