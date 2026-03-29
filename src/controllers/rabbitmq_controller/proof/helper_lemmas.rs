@@ -3,7 +3,7 @@ use super::predicate::*;
 use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
-    label_selector::LabelSelectorView,
+    label_selector::LabelSelectorView, volume_resource_requirements::*,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
@@ -15,7 +15,7 @@ use crate::rabbitmq_controller::{
     proof::{predicate::*, resource::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
-use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
+use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
@@ -30,7 +30,6 @@ ensures
     get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
 {}
 
-#[verifier(external_body)]
 pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
     rmq.state_validation(),
@@ -38,7 +37,47 @@ ensures
     sts == make_stateful_set(rmq, cm_rv),
     sts.state_validation(),
 {
-    return make_stateful_set(rmq, cm_rv);
+    let sts = make_stateful_set(rmq, cm_rv);
+    let name = rmq.metadata.name->0;
+    let labels = Map::empty().insert("app"@, name);
+
+    // selector.match_labels is Some and non-empty
+    assert(labels.len() > 0) by {
+        assert(labels.contains_key("app"@));
+    };
+
+    // selector matches template labels
+    let template_labels = make_labels(rmq);
+    assert forall |k: StringView, v: StringView| labels.contains_pair(k, v) implies template_labels.contains_pair(k, v) by {
+    };
+
+    // template labels don't contain StatefulSetPodNameLabel or StatefulSetOrdinalLabel
+    // make_labels(rmq) = rmq.spec.labels.insert("app"@, name)
+    reveal_strlit("app");
+    reveal_strlit("statefulset.kubernetes.io/pod-name");
+    reveal_strlit("apps.kubernetes.io/pod-index");
+    assert(StatefulSetPodNameLabel == "statefulset.kubernetes.io/pod-name"@);
+    assert(StatefulSetOrdinalLabel == "apps.kubernetes.io/pod-index"@);
+    // From rmq.state_validation()
+    assert(!rmq.spec.labels.contains_key(StatefulSetPodNameLabel));
+    assert(!rmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
+    // "app" != StatefulSetPodNameLabel/StatefulSetOrdinalLabel (different lengths)
+    assert("app"@.len() == 3);
+    assert("statefulset.kubernetes.io/pod-name"@.len() > 3);
+    assert("apps.kubernetes.io/pod-index"@.len() > 3);
+    assert("app"@ != StatefulSetPodNameLabel);
+    assert("app"@ != StatefulSetOrdinalLabel);
+    // So insert("app", name) doesn't introduce those keys
+    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
+    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
+
+    // Volume claim templates validation
+    if rmq.spec.persistence.storage != "0Gi"@ {
+        reveal_strlit("persistence");
+        assert(dash_free("persistence"@));
+    }
+
+    return sts;
 }
 
 #[verifier(external_body)]

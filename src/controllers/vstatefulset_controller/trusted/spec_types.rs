@@ -104,7 +104,8 @@ impl VStatefulSetView {
             forall | i: int | #![trigger self.spec.volume_claim_templates->0[i]] 0 <= i < self.spec.volume_claim_templates->0.len() ==> {
                 let pvc_template = self.spec.volume_claim_templates->0[i];
                 &&& pvc_template.state_validation() 
-                &&& pvc_template.metadata.well_formed_for_namespaced()
+                &&& pvc_template.metadata.name is Some
+                &&& pvc_template.metadata.namespace is Some
                 // fix https://github.com/kubernetes/kubernetes/issues/41153 
                 &&& dash_free(pvc_template.metadata.name->0)
             }

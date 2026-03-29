@@ -72,16 +72,16 @@ impl VStatefulSet {
             for idx in 0..vct.len()
                 invariant
                     0 <= idx <= vct.len(),
-                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.well_formed_for_namespaced() && dash_free(vct[i]@.metadata.name->0),
+                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.name is Some && vct[i]@.metadata.namespace is Some && dash_free(vct[i]@.metadata.name->0),
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
                     self@.spec.volume_claim_templates is Some,
                     vct_view == self@.spec.volume_claim_templates->0,
             {
                 let pvc_sv = vct[idx].spec().is_some();
-                let pvc_metadata_sv = vct[idx].metadata().well_formed_for_namespaced();
+                let pvc_metadata_sv = vct[idx].metadata().name().is_some() && vct[idx].metadata().namespace().is_some();
                 
                 assert(pvc_sv == vct_view[idx as int].state_validation());
-                assert(pvc_metadata_sv == vct_view[idx as int].metadata.well_formed_for_namespaced());
+                assert(pvc_metadata_sv == vct_view[idx as int].metadata.name is Some && vct_view[idx as int].metadata.namespace is Some);
                 
                 if !pvc_sv || !pvc_metadata_sv {
                     return false;
