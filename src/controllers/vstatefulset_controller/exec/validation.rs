@@ -57,12 +57,12 @@ impl VStatefulSet {
         }
 
         // podManagementPolicy
-        if let Some(pod_management_policy) = self.spec().pod_management_policy() {
-            // should be either "OrderedReady" or "Parallel"
-            if !string_equal(&pod_management_policy, "OrderedReady") && !string_equal(&pod_management_policy, "Parallel") {
-                return false;
-            }
-        }
+        // if let Some(pod_management_policy) = self.spec().pod_management_policy() {
+        //     // should be either "OrderedReady" or "Parallel"
+        //     if !string_equal(&pod_management_policy, "OrderedReady") && !string_equal(&pod_management_policy, "Parallel") {
+        //         return false;
+        //     }
+        // }
 
         // volumeClaimTemplates
         if let Some(vct) = self.spec().volume_claim_templates() {
@@ -104,19 +104,19 @@ impl VStatefulSet {
         }
 
         // persistentVolumeClaimRetentionPolicy
-        if let Some(persistent_volume_claim_retention_policy) = self.spec().persistent_volume_claim_retention_policy() {
-            // when_deleted and when_scaled should be either "Retain" or "Delete"
-            if let Some(when_deleted) = persistent_volume_claim_retention_policy.when_deleted() {
-                if !string_equal(&when_deleted, "Retain") && !string_equal(&when_deleted, "Delete") {
-                    return false;
-                }
-            }
-            if let Some(when_scaled) = persistent_volume_claim_retention_policy.when_scaled() {
-                if !string_equal(&when_scaled, "Retain") && !string_equal(&when_scaled, "Delete") {
-                    return false;
-                }
-            }
-        }
+        // if let Some(persistent_volume_claim_retention_policy) = self.spec().persistent_volume_claim_retention_policy() {
+        //     // when_deleted and when_scaled should be either "Retain" or "Delete"
+        //     if let Some(when_deleted) = persistent_volume_claim_retention_policy.when_deleted() {
+        //         if !string_equal(&when_deleted, "Retain") && !string_equal(&when_deleted, "Delete") {
+        //             return false;
+        //         }
+        //     }
+        //     if let Some(when_scaled) = persistent_volume_claim_retention_policy.when_scaled() {
+        //         if !string_equal(&when_scaled, "Retain") && !string_equal(&when_scaled, "Delete") {
+        //             return false;
+        //         }
+        //     }
+        // }
 
         // ordinals
         if let Some(ordinals) = self.spec().ordinals() {

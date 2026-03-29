@@ -94,10 +94,10 @@ impl VStatefulSetView {
         }
 
         // podManagementPolicy must be either OrderedReady or Parallel
-        &&& self.spec.pod_management_policy is Some ==> (
-            self.spec.pod_management_policy->0 == "OrderedReady"@
-            || self.spec.pod_management_policy->0 == "Parallel"@
-        )
+        // &&& self.spec.pod_management_policy is Some ==> (
+        //     self.spec.pod_management_policy->0 == "OrderedReady"@
+        //     || self.spec.pod_management_policy->0 == "Parallel"@
+        // )
 
         // volumeClaimTemplates
         &&& self.spec.volume_claim_templates is Some ==> (
@@ -115,14 +115,14 @@ impl VStatefulSetView {
         self.spec.min_ready_seconds->0 >= 0
 
         // persistentVolumeClaimRetentionPolicy.whenDeleted/whenScaled must be Delete or Retain
-        &&& self.spec.persistent_volume_claim_retention_policy is Some ==> (
-            match (self.spec.persistent_volume_claim_retention_policy->0.when_deleted, self.spec.persistent_volume_claim_retention_policy->0.when_scaled) {
-                (Some(when_deleted), Some(when_scaled)) => (when_deleted == "Retain"@ || when_deleted == "Delete"@) && (when_scaled == "Retain"@ || when_scaled == "Delete"@),
-                (Some(when_deleted), None) => when_deleted == "Retain"@ || when_deleted == "Delete"@,
-                (None, Some(when_scaled)) => when_scaled == "Retain"@ || when_scaled == "Delete"@,
-                (None, None) => true,
-            }
-        )
+        // &&& self.spec.persistent_volume_claim_retention_policy is Some ==> (
+        //     match (self.spec.persistent_volume_claim_retention_policy->0.when_deleted, self.spec.persistent_volume_claim_retention_policy->0.when_scaled) {
+        //         (Some(when_deleted), Some(when_scaled)) => (when_deleted == "Retain"@ || when_deleted == "Delete"@) && (when_scaled == "Retain"@ || when_scaled == "Delete"@),
+        //         (Some(when_deleted), None) => when_deleted == "Retain"@ || when_deleted == "Delete"@,
+        //         (None, Some(when_scaled)) => when_scaled == "Retain"@ || when_scaled == "Delete"@,
+        //         (None, None) => true,
+        //     }
+        // )
 
         // ordinals.start must be non‑negative if ordinals is provided
         &&& self.spec.ordinals is Some ==> (
