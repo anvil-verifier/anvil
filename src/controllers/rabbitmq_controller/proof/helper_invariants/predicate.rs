@@ -263,16 +263,6 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
     }
 }
 
-pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionPred<ClusterState> {
-    |s: ClusterState, s_prime: ClusterState| {
-        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
-        &&& s.resources().contains_key(cm_key)
-        &&& s_prime.resources().contains_key(cm_key)
-        &&& s.resources()[cm_key].metadata.resource_version is Some
-        &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
-    }
-}
-
 pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.resources().contains_key(make_stateful_set_key(rabbitmq))

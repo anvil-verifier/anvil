@@ -498,6 +498,16 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
     }
 }
 
+pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionPred<ClusterState> {
+    |s: ClusterState, s_prime: ClusterState| {
+        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+        &&& s.resources().contains_key(cm_key)
+        &&& s_prime.resources().contains_key(cm_key)
+        &&& s.resources()[cm_key].metadata.resource_version is Some
+        &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
+    }
+}
+
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, controller_id: int, rmq: RabbitmqClusterView, sub_resource: SubResource) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::crash_disabled(controller_id)(s)

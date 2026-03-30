@@ -10,6 +10,7 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
+    api_server::state_machine::*,
 };
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
@@ -1812,61 +1813,6 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
         set![SubResource::HeadlessService, SubResource::Service, SubResource::ErlangCookieSecret, SubResource::DefaultUserSecret,
         SubResource::PluginsConfigMap, SubResource::ServerConfigMap, SubResource::ServiceAccount, SubResource::Role,
         SubResource::RoleBinding, SubResource::VStatefulSetView]
-    );
-}
-
-#[verifier(external_body)]
-#[verifier(spinoff_prover)]
-pub proof fn lemma_always_cm_rv_stays_unchanged(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
-    requires
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
-        spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(no_update_status_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)))),
-    ensures spec.entails(always(lift_action(cm_rv_stays_unchanged(rabbitmq)))),
-{
-    let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
-    let stronger_inv = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s)
-        &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& no_update_status_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
-    };
-
-    assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) implies cm_rv_stays_unchanged(rabbitmq)(s, s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let req = input->0;
-                assert(!resource_delete_request_msg(cm_key)(req));
-                assert(!resource_update_status_request_msg(cm_key)(req));
-                if resource_update_request_msg(cm_key)(req) {} else {}
-            },
-            _ => {},
-        }
-    }
-
-    invariant_n!(
-        spec, lift_action(stronger_inv), lift_action(cm_rv_stays_unchanged(rabbitmq)),
-        lift_action(cluster.next()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
-        lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(no_update_status_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
     );
 }
 

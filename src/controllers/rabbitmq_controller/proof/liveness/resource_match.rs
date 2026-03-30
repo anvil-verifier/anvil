@@ -44,7 +44,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
         spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
@@ -806,7 +805,7 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
+    cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
     resource_state_matches(sub_resource, rabbitmq)(s),
 ensures
     resource_state_matches(sub_resource, rabbitmq)(s_prime),
@@ -875,7 +874,7 @@ requires
     resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s),
 ensures
     resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s_prime),
-    helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
+    cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
 {
     let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let key = rabbitmq.object_ref();
