@@ -102,30 +102,25 @@ impl Composition for RabbitmqReconciler {
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(VStatefulSetReconciler::id())
                         implies (match msg.content->APIRequest_0 {
-                            APIRequest::CreateRequest(req) => rely_create_req(req),
-                            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
-                            APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req)(s),
-                            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
-                            APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req)(s),
-                            APIRequest::UpdateStatusRequest(req) => rely_update_status_req(req)(s),
+                            APIRequest::CreateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::UpdateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenUpdateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::DeleteRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenDeleteRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::UpdateStatusRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenUpdateStatusRequest(req) => !is_rmq_managed_kind(req.key().kind),
                             _ => true,
                         }) by {
                         match msg.content->APIRequest_0 {
                             APIRequest::CreateRequest(req) => {
-                                assert(vsts_guarantee_create_req(req));
-                                // VSTS creates only PodKind or PVCKind; neither is rmq-managed
                                 assert(req.obj.kind == Kind::PodKind || req.obj.kind == Kind::PersistentVolumeClaimKind);
                                 assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenUpdateRequest(req) => {
-                                assert(vsts_guarantee_get_then_update_req(req));
-                                // VSTS only updates PodKind, not rmq-managed
                                 assert(req.obj.kind == Kind::PodKind);
                                 assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenDeleteRequest(req) => {
-                                assert(vsts_guarantee_get_then_delete_req(req));
-                                // VSTS only deletes PodKind, not rmq-managed
                                 assert(req.key.kind == Kind::PodKind);
                                 assert(!is_rmq_managed_kind(req.key.kind));
                             }
@@ -188,12 +183,13 @@ impl Composition for RabbitmqReconciler {
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(VReplicaSetReconciler::id())
                         implies (match msg.content->APIRequest_0 {
-                            APIRequest::CreateRequest(req) => rely_create_req(req),
-                            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
-                            APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req)(s),
-                            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
-                            APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req)(s),
-                            APIRequest::UpdateStatusRequest(req) => rely_update_status_req(req)(s),
+                            APIRequest::CreateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::UpdateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenUpdateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::DeleteRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenDeleteRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::UpdateStatusRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenUpdateStatusRequest(req) => !is_rmq_managed_kind(req.key().kind),
                             _ => true,
                         }) by {
                         match msg.content->APIRequest_0 {
@@ -263,12 +259,13 @@ impl Composition for RabbitmqReconciler {
                         && msg.content is APIRequest
                         && msg.src.is_controller_id(VDeploymentReconciler::id())
                         implies (match msg.content->APIRequest_0 {
-                            APIRequest::CreateRequest(req) => rely_create_req(req),
-                            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
-                            APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req)(s),
-                            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
-                            APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req)(s),
-                            APIRequest::UpdateStatusRequest(req) => rely_update_status_req(req)(s),
+                            APIRequest::CreateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::UpdateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenUpdateRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::DeleteRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenDeleteRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::UpdateStatusRequest(req) => !is_rmq_managed_kind(req.key().kind),
+                            APIRequest::GetThenUpdateStatusRequest(req) => !is_rmq_managed_kind(req.key().kind),
                             _ => true,
                         }) by {
                         match msg.content->APIRequest_0 {
