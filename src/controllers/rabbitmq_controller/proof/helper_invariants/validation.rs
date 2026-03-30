@@ -137,7 +137,6 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
                     }
                 },
                 Step::ControllerStep(_) => {
-                    assume(false);
                     // controller only sends msg, do not touch etcd obj / delete msg, just prove it holds for new messages
                     if !s.in_flight().contains(msg) && resource_update_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg) {
                         lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
