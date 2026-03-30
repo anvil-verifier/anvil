@@ -66,6 +66,8 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
@@ -76,31 +78,50 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
     let key = rabbitmq.object_ref();
     let sts_key = StatefulSetBuilder::get_request(rabbitmq).key;
     let inv = stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq);
-    let next = |s, s_prime| {
+    let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s)
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime)
-        &&& response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
         &&& Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)(s)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)(s_prime)
     };
     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
-    lemma_always_response_at_after_get_resource_step_is_resource_get_response(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
-    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, sts_key);
+    cluster.lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    lemma_always_response_at_after_get_resource_step_is_resource_get_response(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
+    always_to_always_later(spec, lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)));
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
-    combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(cluster.next()),
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
         later(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())),
-        lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)),
-        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq))
+        lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)))
     );
-    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+    assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg)
         && s_prime.resources().contains_key(sts_key)
         && s_prime.resources()[sts_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
@@ -120,7 +141,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
             }
         }
     }
-    init_invariant(spec, cluster.init(), next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
