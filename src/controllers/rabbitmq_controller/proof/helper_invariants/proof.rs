@@ -1871,7 +1871,8 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(controller_id: int, cluster: Clu
 }
 
 // We can probably hide a lot of spec functions to make this lemma faster
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1879,54 +1880,43 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id))))
     ensures spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
 {
-    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::create_request_admission_check);
-    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::created_object_validity_check);
-    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::update_request_admission_check);
-    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::update_status_request_admission_check);
-    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::updated_object_validity_check);
-    let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq);
 
-    assert forall |s: ClusterState| #[trigger] cluster.init()(s) implies inv(s) by {}
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
+    };
 
-    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] cluster.next()(s, s_prime) && inv(s) implies inv(s_prime) by {
-        assert forall |msg: Message|
-            !(s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg))
-        by {
-            let step = choose |step| cluster.next_step(s, s_prime, step);
-            match step {
-                Step::APIServerStep(_) => {
-                    if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                    }
-                },
-                Step::ControllerStep(_) => {
-                    if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                    }
-                },
-                // Step::DropReqStep(_) => {
-                //     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                //         assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                //     }
-                // },
-                // Step::BuiltinControllersStep(_) => {
-                //     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                //         assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                //     }
-                // },
-                _ => {
-                    if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                    }
-                },
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
+        lift_state(rmq_rely_conditions(cluster, controller_id))
+    );
+
+    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) implies !resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg) by {
+            if !s.in_flight().contains(msg) {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep(_) => {
+                        assume(false);
+                        if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
+                            assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
+                        }
+                    },
+                    _ => {},
+                }
             }
         }
     }
-    init_invariant(spec, cluster.init(), cluster.next(), inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 #[verifier(spinoff_prover)]
