@@ -1880,24 +1880,24 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id))))
     ensures spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
-        &&& rmq_rely_conditions(cluster, controller_id)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
     };
-
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
+        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
     );
 
     assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1905,10 +1905,20 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
             if !s.in_flight().contains(msg) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
-                    Step::ControllerStep(_) => {
-                        assume(false);
-                        if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
+                    Step::ControllerStep((id, _, _)) => {
+                        if id == controller_id {
                             assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
+                        } else {
+                            assert(msg.src.is_controller_id(id));
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                            assert(rmq_rely(id)(s_prime));
+                            if msg.content.is_create_request() {
+                                assert(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
+                                if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg) {
+                                    assert(!is_rmq_managed_kind(resource_key.kind));
+                                    assert(false);
+                                }
+                            }
                         }
                     },
                     _ => {},
