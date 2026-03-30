@@ -50,345 +50,204 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     ensures
         spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
             .leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-            lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
-        ),
-{
-    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(controller_id, cluster, spec, sub_resource, next_resource, rabbitmq);
-    lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(controller_id, cluster, spec, sub_resource, next_resource, rabbitmq);
-    let key_not_exists = lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-    });
-    let key_exists = lift_state(|s: ClusterState| {
-        &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-    });
-    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(resource_state_matches(sub_resource, rabbitmq)));
-    temp_pred_equality(
-        key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
-    );
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)));
-    }
-}
-
-pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
-    requires
-        spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures
-        spec.entails(lift_state(|s: ClusterState| {
-            &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-            &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-        }).leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-            lift_state(|s: ClusterState| {
-                &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
-        ),
-{
-    let pre = lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-    });
-    let post = lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id)(s)
-    });
-    let pre_and_req_in_flight = |req_msg| lift_state(|s: ClusterState| {
-        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
-    });
-    let pre_and_exists_resp_in_flight = lift_state(at_after_get_resource_step_and_exists_not_found_resp_in_flight(sub_resource, rabbitmq, controller_id));
-    let pre_and_resp_in_flight = |resp_msg| lift_state(resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg));
-    let post_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, req_msg));
-    let match_and_ok_resp = lift_state(resource_state_matches(sub_resource, rabbitmq))
-        .and(lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)));
-    let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
-
-    assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
-        assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight)) by {
-            lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq, req_msg);
-        }
-        leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
-        assert_by(tla_exists(pre_and_req_in_flight) == pre, {
-            assert forall |ex| #[trigger] pre.satisfied_by(ex) implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
-        });
-
-        assert forall |resp_msg| spec.entails(#[trigger] pre_and_resp_in_flight(resp_msg).leads_to(post)) by {
-            lemma_from_after_get_resource_step_to_after_create_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq, resp_msg);
-        }
-        leads_to_exists_intro(spec, pre_and_resp_in_flight, post);
-        assert_by(tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight, {
-            assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex) implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
-                let resp_msg = choose |resp_msg| {
-                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0)
-                    &&& resp_msg.content.get_get_response().res is Err
-                    &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
-                };
-                assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(tla_exists(pre_and_resp_in_flight), pre_and_exists_resp_in_flight);
-        });
-
-        assert forall |req_msg| spec.entails(#[trigger] post_and_req_in_flight(req_msg).leads_to(match_and_ok_resp)) by {
-            lemma_resource_state_matches_at_after_create_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq, req_msg);
-        }
-        leads_to_exists_intro(spec, post_and_req_in_flight, match_and_ok_resp);
-        assert_by(tla_exists(post_and_req_in_flight) == post, {
-            assert forall |ex| #[trigger] post.satisfied_by(ex) implies tla_exists(post_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                assert(post_and_req_in_flight(req_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(tla_exists(post_and_req_in_flight), post);
-        });
-        leads_to_trans_n!(spec, pre, pre_and_exists_resp_in_flight, post, match_and_ok_resp);
-    });
-
-    assert_by(spec.entails(pre.leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))), {
-        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(resource_state_matches(sub_resource, rabbitmq)));
-        leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(resource_state_matches(sub_resource, rabbitmq)));
-    });
-
-    // We already have the desired state.
-    // Now prove the system can successfully enter the next state.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: Message| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg));
-            assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
-                let pre = resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg);
-                let stronger_next = |s, s_prime: ClusterState| {
-                    &&& cluster.next()(s, s_prime)
-                    &&& Cluster::crash_disabled(controller_id)(s)
-                    &&& Cluster::req_drop_disabled()(s)
-                    &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())(s)
-                    &&& Cluster::every_in_flight_msg_has_unique_id()(s)
-                };
-                combine_spec_entails_always_n!(
-                    spec, lift_action(stronger_next),
-                    lift_action(cluster.next()),
-                    lift_state(Cluster::crash_disabled(controller_id)),
-                    lift_state(Cluster::req_drop_disabled()),
-                    lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
-                    lift_state(Cluster::every_in_flight_msg_has_unique_id())
-                );
-
-                assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
-                    let step = choose |step| cluster.next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            if input.2 is Some && input.2->0 == rabbitmq.object_ref() {
-                                assert(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().reconcile_step == after_get_k_request_step(next_resource));
-                                assert(next_state(s_prime));
-                            } else {
-                                assert(pre(s_prime));
-                            }
-                        }
-                        _ => {
-                            assert(pre(s_prime));
-                        }
-                    }
-                }
-                cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (Some(resp_msg), Some(rabbitmq.object_ref())), stronger_next, ControllerStep::ContinueReconcile, pre, next_state
-                );
-            }
-            leads_to_exists_intro(spec, known_ok_resp, lift_state(next_state));
-            let exists_ok_resp = lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id));
-            assert_by(tla_exists(known_ok_resp) == exists_ok_resp, {
-                assert forall |ex| #[trigger] exists_ok_resp.satisfied_by(ex) implies tla_exists(known_ok_resp).satisfied_by(ex) by {
-                    let resp_msg = choose |resp_msg| {
-                        &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0)
-                        &&& resp_msg.content.get_create_response().res is Ok
-                        &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, RabbitmqReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap()) is Ok
-                    };
-                    assert(known_ok_resp(resp_msg).satisfied_by(ex));
-                }
-                temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
-            });
-            entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
-            leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
-        });
-    }
-}
-
-proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
-    requires
-        spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures
-        spec.entails(
-            lift_state(|s: ClusterState| {
-                &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-            }).leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))
-        ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-            lift_state(|s: ClusterState| {
-                &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
-                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
-        ),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    let pre = lift_state(|s: ClusterState| {
+    let pre = pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id);
+
+    // Split into: key exists or key doesn't exist
+    let pre_with_key = |s: ClusterState| {
         &&& s.resources().contains_key(resource_key)
-        &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)(s)
-    });
-    let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id);
-    let match_and_ok_resp = lift_state(resource_state_matches(sub_resource, rabbitmq)).and(lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)));
-    let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
-    assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
-        let pre_and_req_in_flight = |req_msg| lift_state(|s: ClusterState| {
-            &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
+        &&& pre(s)
+    };
+    let pre_without_key = |s: ClusterState| {
+        &&& !s.resources().contains_key(resource_key)
+        &&& pre(s)
+    };
+
+    // Case 1: key doesn't exist
+    // Step 1a: get req ~> not_found resp
+    let not_found_resp = at_after_get_resource_step_and_exists_not_found_resp_in_flight(sub_resource, rabbitmq, controller_id);
+    // ∃ msg version: pre_without_key has a specific req_msg
+    let pre_without_key_msg = |req_msg| {
+        |s: ClusterState| {
+            &&& !s.resources().contains_key(resource_key)
             &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
-        });
-        assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id))))
-        by {
-            lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq, req_msg);
         }
-        leads_to_exists_intro(spec, pre_and_req_in_flight, lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)));
-        assert_by(tla_exists(pre_and_req_in_flight) == pre, {
-            assert forall |ex| #[trigger] pre.satisfied_by(ex)
-            implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
-        });
-        let pre_and_resp_in_flight = |resp_msg| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg));
-        assert forall |resp_msg| spec.entails(#[trigger] pre_and_resp_in_flight(resp_msg).leads_to(lift_state(post)))
-        by {
-            lemma_from_after_get_resource_step_to_after_update_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq, resp_msg);
+    };
+    assert(lift_state(pre_without_key) == tla_exists(|msg| lift_state(pre_without_key_msg(msg)))) by {
+        assert forall |ex| #[trigger] lift_state(pre_without_key).satisfied_by(ex) implies
+            tla_exists(|msg| lift_state(pre_without_key_msg(msg))).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            assert((|msg| lift_state(pre_without_key_msg(msg)))(req_msg).satisfied_by(ex));
         }
-        leads_to_exists_intro(spec, pre_and_resp_in_flight, lift_state(post));
-        assert_by(tla_exists(pre_and_resp_in_flight) == lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)), {
-            assert forall |ex| #[trigger] lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)).satisfied_by(ex)
-            implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
-                let resp_msg = choose |resp_msg| {
-                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0)
-                    &&& resp_msg.content.get_get_response().res is Ok
-                    &&& resp_msg.content.get_get_response().res->Ok_0 == ex.head().resources()[resource_key]
-                };
-                assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(tla_exists(pre_and_resp_in_flight), lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)));
-        });
-        let pre_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, req_msg));
-        assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(match_and_ok_resp)) by {
-            lemma_resource_state_matches_at_after_update_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq, req_msg);
-        }
-        leads_to_exists_intro(spec, pre_and_req_in_flight, match_and_ok_resp);
-        assert_by(tla_exists(pre_and_req_in_flight) == lift_state(post), {
-            assert forall |ex| #[trigger] lift_state(post).satisfied_by(ex)
-            implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(tla_exists(pre_and_req_in_flight), lift_state(post));
-        });
-        leads_to_trans_n!(
-            spec, pre, lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id)),
-            lift_state(post), match_and_ok_resp
-        );
-    });
-
-    assert_by(spec.entails(pre.leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))), {
-        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(resource_state_matches(sub_resource, rabbitmq)));
-        leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(resource_state_matches(sub_resource, rabbitmq)));
-    });
-
-    // We already have the desired state.
-    // Now prove the system can successfully enter the next state.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: Message| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg));
-            assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
-                let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg);
-                let stronger_next = |s, s_prime: ClusterState| {
-                    &&& cluster.next()(s, s_prime)
-                    &&& Cluster::crash_disabled(controller_id)(s)
-                    &&& Cluster::req_drop_disabled()(s)
-                    &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())(s)
-                    &&& Cluster::every_in_flight_msg_has_unique_id()(s)
-                };
-
-                combine_spec_entails_always_n!(
-                    spec, lift_action(stronger_next),
-                    lift_action(cluster.next()),
-                    lift_state(Cluster::crash_disabled(controller_id)),
-                    lift_state(Cluster::req_drop_disabled()),
-                    lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
-                    lift_state(Cluster::every_in_flight_msg_has_unique_id())
-                );
-
-                assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
-                    let step = choose |step| cluster.next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            if input.2 is Some && input.2->0 == rabbitmq.object_ref() {
-                                // assert(input)
-                                assert(RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap().reconcile_step == after_get_k_request_step(next_resource));
-                                assert(next_state(s_prime));
-                            } else {
-                                assert(pre(s_prime));
-                            }
-                        }
-                        _ => {
-                            assert(pre(s_prime));
-                        }
-                    }
-                }
-                cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, (Some(resp_msg), Some(rabbitmq.object_ref())), stronger_next, ControllerStep::ContinueReconcile, pre, next_state
-                );
-            }
-            leads_to_exists_intro(spec, known_ok_resp, lift_state(next_state));
-            let exists_ok_resp = lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id));
-            assert_by(tla_exists(known_ok_resp) == exists_ok_resp, {
-                assert forall |ex| #[trigger] exists_ok_resp.satisfied_by(ex) implies tla_exists(known_ok_resp).satisfied_by(ex) by {
-                    let resp_msg = choose |resp_msg| {
-                        &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0)
-                        &&& resp_msg.content.get_update_response().res is Ok
-                        &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_update_response().res->Ok_0, RabbitmqReconcileState::unmarshal(ex.head().ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap()) is Ok
-                    };
-                    assert(known_ok_resp(resp_msg).satisfied_by(ex));
-                }
-                temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
-            });
-            entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
-            leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
-        });
+        temp_pred_equality(lift_state(pre_without_key), tla_exists(|msg| lift_state(pre_without_key_msg(msg))));
     }
+    assert forall |req_msg| spec.entails(#[trigger] lift_state(pre_without_key_msg(req_msg)).leads_to(lift_state(not_found_resp))) by {
+        lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
+        );
+    }
+    leads_to_exists_intro(spec, |msg| lift_state(pre_without_key_msg(msg)), lift_state(not_found_resp));
+
+    // Step 1b: not_found resp ~> create step
+    let create_req = pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id);
+    let not_found_resp_msg = |resp_msg| lift_state(
+        resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)
+    );
+    assert(lift_state(not_found_resp) == tla_exists(|msg| not_found_resp_msg(msg))) by {
+        assert forall |ex| #[trigger] lift_state(not_found_resp).satisfied_by(ex) implies
+            tla_exists(|msg| not_found_resp_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            let resp_msg = choose |resp_msg| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.get_get_response().res is Err
+                &&& resp_msg.content.get_get_response().res->Err_0 is ObjectNotFound
+            };
+            assert((|msg| not_found_resp_msg(msg))(resp_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(not_found_resp), tla_exists(|msg| not_found_resp_msg(msg)));
+    }
+    assert forall |resp_msg| spec.entails(#[trigger] not_found_resp_msg(resp_msg).leads_to(lift_state(create_req))) by {
+        lemma_from_after_get_resource_step_to_after_create_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, resp_msg
+        );
+    }
+    leads_to_exists_intro(spec, |msg| not_found_resp_msg(msg), lift_state(create_req));
+
+    // Step 1c: create step ~> resource matches
+    let create_req_msg = |req_msg| lift_state(
+        |s: ClusterState| {
+            &&& !s.resources().contains_key(resource_key)
+            &&& req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
+        }
+    );
+    assert(lift_state(create_req) == tla_exists(|msg| create_req_msg(msg))) by {
+        assert forall |ex| #[trigger] lift_state(create_req).satisfied_by(ex) implies
+            tla_exists(|msg| create_req_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            assert((|msg| create_req_msg(msg))(req_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(create_req), tla_exists(|msg| create_req_msg(msg)));
+    }
+    assert forall |req_msg| spec.entails(#[trigger] create_req_msg(req_msg).leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))) by {
+        lemma_resource_state_matches_at_after_create_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
+        );
+        leads_to_weaken::<ClusterState>(spec,
+            create_req_msg(req_msg),
+            lift_state(resource_state_matches(sub_resource, rabbitmq))
+                .and(lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id))),
+            create_req_msg(req_msg),
+            lift_state(resource_state_matches(sub_resource, rabbitmq))
+        );
+    }
+    leads_to_exists_intro(spec, |msg| create_req_msg(msg), lift_state(resource_state_matches(sub_resource, rabbitmq)));
+
+    // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> resource_matches
+    leads_to_trans_n!(
+        spec,
+        lift_state(pre_without_key),
+        lift_state(not_found_resp),
+        lift_state(create_req),
+        lift_state(resource_state_matches(sub_resource, rabbitmq))
+    );
+
+    // Case 2: key exists
+    // Step 2a: get req ~> ok resp
+    let ok_resp = at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id);
+    let pre_with_key_msg = |req_msg| {
+        |s: ClusterState| {
+            &&& s.resources().contains_key(resource_key)
+            &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, req_msg)(s)
+        }
+    };
+    assert(lift_state(pre_with_key) == tla_exists(|msg| lift_state(pre_with_key_msg(msg)))) by {
+        assert forall |ex| #[trigger] lift_state(pre_with_key).satisfied_by(ex) implies
+            tla_exists(|msg| lift_state(pre_with_key_msg(msg))).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            assert((|msg| lift_state(pre_with_key_msg(msg)))(req_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(pre_with_key), tla_exists(|msg| lift_state(pre_with_key_msg(msg))));
+    }
+    assert forall |req_msg| spec.entails(#[trigger] lift_state(pre_with_key_msg(req_msg)).leads_to(lift_state(ok_resp))) by {
+        lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
+        );
+    }
+    leads_to_exists_intro(spec, |msg| lift_state(pre_with_key_msg(msg)), lift_state(ok_resp));
+
+    // Step 2b: ok resp ~> update step
+    let update_req = pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id);
+    let ok_resp_msg = |resp_msg| lift_state(
+        resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)
+    );
+    assert(lift_state(ok_resp) == tla_exists(|msg| ok_resp_msg(msg))) by {
+        assert forall |ex| #[trigger] lift_state(ok_resp).satisfied_by(ex) implies
+            tla_exists(|msg| ok_resp_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            let key = get_request(sub_resource, rabbitmq).key;
+            let resp_msg = choose |resp_msg| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.get_get_response().res is Ok
+                &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
+            };
+            assert((|msg| ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(ok_resp), tla_exists(|msg| ok_resp_msg(msg)));
+    }
+    assert forall |resp_msg| spec.entails(#[trigger] ok_resp_msg(resp_msg).leads_to(lift_state(update_req))) by {
+        lemma_from_after_get_resource_step_to_after_update_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, resp_msg
+        );
+    }
+    leads_to_exists_intro(spec, |msg| ok_resp_msg(msg), lift_state(update_req));
+
+    // Step 2c: update step ~> resource matches
+    let update_req_msg = |req_msg| lift_state(
+        req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, req_msg)
+    );
+    assert(lift_state(update_req) == tla_exists(|msg| update_req_msg(msg))) by {
+        assert forall |ex| #[trigger] lift_state(update_req).satisfied_by(ex) implies
+            tla_exists(|msg| update_req_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            assert((|msg| update_req_msg(msg))(req_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(update_req), tla_exists(|msg| update_req_msg(msg)));
+    }
+    assert forall |req_msg| spec.entails(#[trigger] update_req_msg(req_msg).leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))) by {
+        lemma_resource_state_matches_at_after_update_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
+        );
+        leads_to_weaken::<ClusterState>(spec,
+            update_req_msg(req_msg),
+            lift_state(resource_state_matches(sub_resource, rabbitmq))
+                .and(lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id))),
+            update_req_msg(req_msg),
+            lift_state(resource_state_matches(sub_resource, rabbitmq))
+        );
+    }
+    leads_to_exists_intro(spec, |msg| update_req_msg(msg), lift_state(resource_state_matches(sub_resource, rabbitmq)));
+
+    // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> resource_matches
+    leads_to_trans_n!(
+        spec,
+        lift_state(pre_with_key),
+        lift_state(ok_resp),
+        lift_state(update_req),
+        lift_state(resource_state_matches(sub_resource, rabbitmq))
+    );
+
+    // Combine case 1 and case 2: pre = pre_with_key \/ pre_without_key
+    or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(resource_state_matches(sub_resource, rabbitmq)));
+    temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
 }
 
 #[verifier(spinoff_prover)]
@@ -929,6 +788,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_resource_object_is_stable(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<ClusterState>

@@ -139,6 +139,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
         &&& msg.content is APIRequest
         &&& request is GetRequest
         &&& request->GetRequest_0 == get_request(sub_resource, rabbitmq)
+        &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
