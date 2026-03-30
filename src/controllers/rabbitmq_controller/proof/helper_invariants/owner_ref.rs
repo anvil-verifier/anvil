@@ -161,7 +161,7 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(controller_id, cluster, spec, sub_resource, rabbitmq);
-    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, spec, sub_resource, rabbitmq);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
     combine_spec_entails_always_n!(spec, lift_action(next), lift_action(cluster.next()),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))

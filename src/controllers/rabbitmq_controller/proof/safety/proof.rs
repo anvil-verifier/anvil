@@ -228,7 +228,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(controller_i
     always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
     lemma_always_replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(controller_id, cluster, spec, rabbitmq);
-    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, spec, SubResource::VStatefulSetView, rabbitmq);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, SubResource::VStatefulSetView, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(cluster.next()), lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
         later(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())),

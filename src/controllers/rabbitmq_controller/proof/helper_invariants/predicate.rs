@@ -23,10 +23,6 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-pub open spec fn rabbitmq_is_well_formed(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| rabbitmq.well_formed()
-}
-
 pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let key = get_request(sub_resource, rabbitmq).key;
     |s: ClusterState| {
@@ -238,24 +234,9 @@ pub open spec fn no_delete_get_then_delete_get_then_update_get_then_update_statu
     }
 }
 
-pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn no_update_status_request_msg_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        sub_resource != SubResource::VStatefulSetView
-        ==> {
-            forall |msg: Message|
-                #[trigger] s.in_flight().contains(msg)
-                ==> !(resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg))
-        }
-    }
-}
-
-pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message|
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst is APIServer
-            && !(msg.src is BuiltinController)
-            ==> !resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg)
+        forall |msg: Message| #[trigger] s.in_flight().contains(msg) ==> !(resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg))
     }
 }
 
