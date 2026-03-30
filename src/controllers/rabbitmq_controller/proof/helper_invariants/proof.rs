@@ -1320,11 +1320,7 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
         Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
         Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        // rely (s_prime needed for new msgs from other controllers)
-        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s),
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
-        // internal rely (s_prime needed for new msgs from other CR reconciliations)
-        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s),
         forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s_prime),
         !s.in_flight().contains(msg),
         s_prime.in_flight().contains(msg),
@@ -1332,7 +1328,6 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
-        rmq_rely_conditions(cluster, controller_id)(s_prime),
         rabbitmq.metadata.name is Some,
     ensures
         step is ControllerStep,
@@ -1363,47 +1358,46 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
                     assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s_prime));
                     assert(s_prime.in_flight().contains(msg));
                     assert(get_request(sub_resource, other_rmq).key == msg.content.get_update_request().key());
-                    if cr_key.namespace != rabbitmq.object_ref().namespace {} else {
-                        assert(cr_key.name != rabbitmq.metadata.name->0);
-                        match sub_resource {
-                            SubResource::HeadlessService => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-nodes"@);
-                            },
-                            SubResource::Service => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-client"@);
-                            },
-                            SubResource::ErlangCookieSecret => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-erlang-cookie"@);
-                            },
-                            SubResource::DefaultUserSecret => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-default-user"@);
-                            },
-                            SubResource::PluginsConfigMap => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-plugins-conf"@);
-                            },
-                            SubResource::ServerConfigMap => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server-conf"@);
-                            },
-                            SubResource::ServiceAccount => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server"@);
-                            },
-                            SubResource::Role => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-peer-discovery"@);
-                            },
-                            SubResource::RoleBinding => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server"@);
-                            },
-                            SubResource::VStatefulSetView => {
-                                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server"@);
-                            },
+                    assert(false) by {
+                        if cr_key.namespace != rabbitmq.object_ref().namespace {} else {
+                            assert(cr_key.name != rabbitmq.metadata.name->0);
+                            match sub_resource {
+                                SubResource::HeadlessService => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-nodes"@);
+                                },
+                                SubResource::Service => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-client"@);
+                                },
+                                SubResource::ErlangCookieSecret => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-erlang-cookie"@);
+                                },
+                                SubResource::DefaultUserSecret => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-default-user"@);
+                                },
+                                SubResource::PluginsConfigMap => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-plugins-conf"@);
+                                },
+                                SubResource::ServerConfigMap => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server-conf"@);
+                                },
+                                SubResource::ServiceAccount => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server"@);
+                                },
+                                SubResource::Role => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-peer-discovery"@);
+                                },
+                                SubResource::RoleBinding => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server"@);
+                                },
+                                SubResource::VStatefulSetView => {
+                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.metadata.name->0, "-server"@);
+                                },
+                            }
                         }
                     }
-                    assert(false);
                 } else { // same reconciliation
-                    let key = rabbitmq.object_ref();
-                    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].triggering_cr).unwrap();
                     let resource_key = get_request(sub_resource, rabbitmq).key;
-                    assert(step is ControllerStep);
                     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
                     assert(no_interfering_request_between_rmq(controller_id, sub_resource, cr)(s_prime));
                     let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
