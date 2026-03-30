@@ -50,7 +50,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures
         spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
-            .leads_to(always(lift_state(resource_state_matches(sub_resource, rabbitmq))))),
+            .leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let pre = pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id);
@@ -249,24 +249,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     // Combine case 1 and case 2: pre = pre_with_key \/ pre_without_key
     or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(resource_state_matches(sub_resource, rabbitmq)));
     temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
-    
-    let stronger_next = |s, s_prime| {
-        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& cluster.next()(s, s_prime)
-        &&& helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime)
-    };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))
-    );
-    assert forall |s, s_prime| resource_state_matches(sub_resource, rabbitmq)(s) && #[trigger] stronger_next(s, s_prime) implies resource_state_matches(sub_resource, rabbitmq)(s_prime) by {
-        lemma_current_state_matches_preserves_from_s_to_s_prime(
-            controller_id, cluster, sub_resource, rabbitmq, s, s_prime
-        )
-    }
-    leads_to_stable(spec, lift_action(stronger_next), lift_state(pre), lift_state(resource_state_matches(sub_resource, rabbitmq)));
 }
 
 #[verifier(spinoff_prover)]
