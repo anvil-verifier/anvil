@@ -24,7 +24,7 @@ use crate::rabbitmq_controller::{
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
-use vstd::{prelude::*, string::*};
+use vstd::{prelude::*, string::*, multiset::*};
 
 verus! {
 
@@ -810,7 +810,7 @@ requires
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
 ensures
-    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
+    exists |next_resource: SubResource| inductive_current_state_matches(rabbitmq, next_resource, controller_id)(s_prime),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let key = rabbitmq.object_ref();
@@ -833,6 +833,7 @@ ensures
     let step = choose |step| cluster.next_step(s, s_prime, step);
     match step {
         Step::APIServerStep(input) => {
+            assume(false);
             let msg = input->0;
             let new_msgs = s_prime.in_flight().sub(s.in_flight());
             if s.ongoing_reconciles(controller_id).contains_key(key) {
@@ -891,10 +892,64 @@ ensures
             }
         },
         Step::ControllerStep(input) => {
-            assume(false);
+            if s.ongoing_reconciles(controller_id).contains_key(key) {
+                if input.0 == controller_id && input.2 == Some(rabbitmq.object_ref()) {
+                    if at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, RabbitmqReconcileStep::Init)(s) {
+                        if s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some {
+                            let req_msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+                            assert(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is None);
+                            assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                            assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)) by {
+                                assert(s_prime.in_flight().contains(req_msg));
+                                assert(!s.in_flight().contains(req_msg));
+                            }
+                            assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                                && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                                && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                                && msg != req_msg
+                                implies msg.rpc_id != req_msg.rpc_id by {
+                                if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                            }
+                            assert(inductive_current_state_matches(rabbitmq, SubResource::HeadlessService, controller_id)(s_prime));
+                        }
+                    } else if at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, after_get_k_request_step(sub_resource))(s) {
+                        assume(false);
+                        let resp_msg = input.1->0;
+                        let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+                        assume(s.in_flight().contains(resp_msg));
+                        assert(resp_msg_matches_req_msg(resp_msg, msg));
+                        assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
+                        let update_req_msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+                        assert(resource_update_request_msg(resource_key)(update_req_msg));
+                        assert(req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, update_req_msg.content.get_update_request().obj)(s_prime));
+                    } else if at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, after_update_k_request_step(sub_resource))(s) {
+                        assume(false);
+                    } else {
+                        assume(false);
+                    }
+                } else {
+                    assume(false);
+                }
+            } else {
+                assume(false);
+            }
         },
         _ => {
             assume(false);
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            if at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, after_get_k_request_step(sub_resource))(s) {
+                let req_msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+                assert forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } implies resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s) by {
+                    assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] resp_msg_matches_req_msg(msg, req_msg)));
+                    if !new_msgs.contains(msg) {
+                        assert(s.in_flight().contains(msg));
+                    }
+                }
+            }
         },
     }
 }
