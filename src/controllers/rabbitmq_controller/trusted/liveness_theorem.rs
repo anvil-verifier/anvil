@@ -65,7 +65,8 @@ pub open spec fn composed_current_state_matches(rabbitmq: RabbitmqClusterView) -
 pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |state: ClusterState| {
         let resources = state.resources();
-        match sub_resource {
+        // shared by all objects
+        &&& match sub_resource {
             SubResource::HeadlessService => {
                 let key = make_headless_service_key(rabbitmq);
                 let obj = resources[key];
@@ -77,6 +78,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& made_spec.without_cluster_ip() == spec.without_cluster_ip()
                 &&& obj.metadata.labels == make_headless_service(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_headless_service(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::Service => {
                 let key = make_main_service_key(rabbitmq);
@@ -89,6 +93,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& made_spec.without_cluster_ip() == spec.without_cluster_ip()
                 &&& obj.metadata.labels == make_main_service(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_main_service(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::ErlangCookieSecret => {
                 let key = make_erlang_secret_key(rabbitmq);
@@ -97,6 +104,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& SecretView::unmarshal(obj) is Ok
                 &&& obj.metadata.labels == make_erlang_secret(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_erlang_secret(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::DefaultUserSecret => {
                 let key = make_default_user_secret_key(rabbitmq);
@@ -106,6 +116,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& SecretView::unmarshal(obj)->Ok_0.data == make_default_user_secret(rabbitmq).data
                 &&& obj.metadata.labels == make_default_user_secret(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_default_user_secret(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::PluginsConfigMap => {
                 let key = make_plugins_config_map_key(rabbitmq);
@@ -115,6 +128,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_plugins_config_map(rabbitmq).data
                 &&& obj.metadata.labels == make_plugins_config_map(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_plugins_config_map(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::ServerConfigMap => {
                 let key = make_server_config_map_key(rabbitmq);
@@ -122,8 +138,12 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& resources.contains_key(key)
                 &&& ConfigMapView::unmarshal(obj) is Ok
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_server_config_map(rabbitmq).data
+                &&& obj.spec == ConfigMapView::marshal_spec(make_server_config_map(rabbitmq).data)
                 &&& obj.metadata.labels == make_server_config_map(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_server_config_map(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::ServiceAccount => {
                 let key = make_service_account_key(rabbitmq);
@@ -132,6 +152,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& ServiceAccountView::unmarshal(obj) is Ok
                 &&& obj.metadata.labels == make_service_account(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_service_account(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::Role => {
                 let key = make_role_key(rabbitmq);
@@ -141,6 +164,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& RoleView::unmarshal(obj)->Ok_0.policy_rules == make_role(rabbitmq).policy_rules
                 &&& obj.metadata.labels == make_role(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_role(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::RoleBinding => {
                 let key = make_role_binding_key(rabbitmq);
@@ -150,6 +176,9 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == make_role_binding(rabbitmq).subjects
                 &&& obj.metadata.labels == make_role_binding(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_role_binding(rabbitmq).metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
+                &&& obj.metadata.deletion_timestamp is None
             },
             SubResource::VStatefulSetView => {
                 let key = make_stateful_set_key(rabbitmq);
@@ -164,6 +193,8 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 &&& VStatefulSetView::unmarshal(obj) is Ok
                 &&& obj.metadata.labels == made_sts.metadata.labels
                 &&& obj.metadata.annotations == made_sts.metadata.annotations
+                &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
+                &&& obj.metadata.finalizers is None
                 &&& obj.metadata.deletion_timestamp is None
                 &&& etcd_sts.spec.replicas == Some(rabbitmq.spec.replicas)
                 &&& etcd_sts.spec.template == made_sts.spec.template

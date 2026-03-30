@@ -221,6 +221,8 @@ pub open spec fn resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_
 
 pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        &&& obj.metadata.finalizers is None
+        &&& obj.metadata.deletion_timestamp is None
         &&& obj.metadata.owner_references == Some(make_owner_references(rabbitmq))
         &&& match sub_resource {
             SubResource::HeadlessService => {
@@ -263,6 +265,7 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
                 &&& ConfigMapView::unmarshal(obj) is Ok
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.state_validation()
                 &&& ConfigMapView::unmarshal(obj)->Ok_0.data == make_server_config_map(rabbitmq).data
+                &&& obj.spec == ConfigMapView::marshal_spec(make_server_config_map(rabbitmq).data)
                 &&& obj.metadata.labels == make_server_config_map(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_server_config_map(rabbitmq).metadata.annotations
             },

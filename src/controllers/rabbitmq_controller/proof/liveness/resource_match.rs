@@ -813,6 +813,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_current_state_matches_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState
@@ -827,6 +828,10 @@ requires
     resource_state_matches(sub_resource, rabbitmq)(s),
 ensures
     resource_state_matches(sub_resource, rabbitmq)(s_prime),
+    // etcd_vsts is unchanged
+    sub_resource == SubResource::VStatefulSetView ==>
+        VStatefulSetView::unmarshal(s_prime.resources()[get_request(sub_resource, rabbitmq).key])->Ok_0.spec
+            == VStatefulSetView::unmarshal(s.resources()[get_request(sub_resource, rabbitmq).key])->Ok_0.spec,
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let key = rabbitmq.object_ref();
@@ -859,6 +864,9 @@ ensures
             assert(!resource_update_status_request_msg(resource_key)(msg));
             assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
             if resource_update_request_msg(resource_key)(msg) {
+                if msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {} else {
+                    assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
+                }
             } else {
                 assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
             }
@@ -868,4 +876,73 @@ ensures
         },
     }
 }
+
+
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
+#[verifier(external_body)]
+pub proof fn lemma_current_state_matches_preserves_from_s_to_s_prime_except_vsts(
+    controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
+    s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    cluster.next()(s, s_prime),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    resource_state_matches(sub_resource, rabbitmq)(s),
+    sub_resource != SubResource::VStatefulSetView,
+ensures
+    resource_state_matches(sub_resource, rabbitmq)(s_prime),
+    helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
+{
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    let key = rabbitmq.object_ref();
+
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    match sub_resource {
+        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+        SubResource::Role => RoleView::marshal_preserves_integrity(),
+        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+    }
+
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    match step {
+        Step::APIServerStep(input) => {
+            let msg = input->0;
+            assert(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)(s));
+            assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)(s));
+            assert(s.in_flight().contains(msg));
+            assert(!resource_delete_request_msg(resource_key)(msg));
+            assert(!resource_get_then_update_request_msg(resource_key)(msg));
+            assert(!resource_get_then_delete_request_msg(resource_key)(msg));
+            assert(!resource_update_status_request_msg(resource_key)(msg));
+            assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
+            if resource_update_request_msg(resource_key)(msg) {
+                if msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
+                    if sub_resource == SubResource::ServerConfigMap {
+                        assert(s.resources()[resource_key].spec == ConfigMapView::marshal_spec(make_server_config_map(rabbitmq).data));
+                    }
+                } else {
+                    assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
+                }
+            } else {
+                assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
+            }
+        },
+        _ => {
+            assert(s_prime.resources() == s.resources());
+        },
+    }
+}
+
 }
