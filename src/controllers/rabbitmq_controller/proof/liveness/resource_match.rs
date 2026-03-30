@@ -712,20 +712,19 @@ ensures
     let req = msg.content.get_update_request();
     let returned_obj = resp_msg.content.get_get_response().res->Ok_0;
     let obj = msg.content.get_update_request().obj;
-    match sub_resource {
-        SubResource::VStatefulSetView => {
-            let cm_key = make_server_config_map_key(rabbitmq);
-            let cm_obj = s.resources()[cm_key];
-            assert(returned_obj == s.resources()[returned_obj.object_ref()]);
-            let found_sts = VStatefulSetView::unmarshal(returned_obj).unwrap();
-            let updated_sts = update_sts_pass_state_validation(rabbitmq, found_sts, int_to_string_view(cm_obj.metadata.resource_version->0));
-            let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
-            let req_obj_spec = VStatefulSetView::unmarshal(obj)->Ok_0.spec;
-            assert(VStatefulSetView::unmarshal(obj) is Ok);
-            assert(VStatefulSetView::unmarshal(obj)->Ok_0.state_validation());
-            assert(obj.metadata.labels == made_sts.metadata.labels);
-            assert(obj.metadata.annotations == made_sts.metadata.annotations);
-            assert(req_obj_spec.template == made_sts.spec.template);
+    if sub_resource == SubResource::VStatefulSetView {
+        let cm_key = make_server_config_map_key(rabbitmq);
+        let cm_obj = s.resources()[cm_key];
+        assert(returned_obj == s.resources()[returned_obj.object_ref()]);
+        let found_sts = VStatefulSetView::unmarshal(returned_obj).unwrap();
+        let updated_sts = update_sts_pass_state_validation(rabbitmq, found_sts, int_to_string_view(cm_obj.metadata.resource_version->0));
+        let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+        let req_obj_spec = VStatefulSetView::unmarshal(obj)->Ok_0.spec;
+        assert(VStatefulSetView::unmarshal(obj) is Ok);
+        assert(VStatefulSetView::unmarshal(obj)->Ok_0.state_validation());
+        assert(obj.metadata.labels == made_sts.metadata.labels);
+        assert(obj.metadata.annotations == made_sts.metadata.annotations);
+        assert(req_obj_spec.template == made_sts.spec.template);
     }
 }
 
@@ -794,65 +793,85 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     );
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_resource_object_is_stable(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<ClusterState>
+pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
+    s: ClusterState, s_prime: ClusterState
 )
-    requires
-        spec.entails(p.leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures spec.entails(p.leads_to(always(lift_state(resource_state_matches(sub_resource, rabbitmq))))),
+requires
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s),
+    rmq_rely_conditions(cluster, controller_id)(s),
+    cluster.next()(s, s_prime),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
+ensures
+    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
-    let post = resource_state_matches(sub_resource, rabbitmq);
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
-        &&& rmq_rely_conditions(cluster, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
-    );
+    let key = rabbitmq.object_ref();
 
-    assert forall |s, s_prime: ClusterState| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let req = input->0;
-                assert(!resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(req));
-                assert(!resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(req));
-                if resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(req) {} else {}
-            },
-            _ => {},
-        }
-        match sub_resource {
-            SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
-            SubResource::Service => ServiceView::marshal_preserves_integrity(),
-            SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
-            SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
-            SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
-            SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
-            SubResource::Role => RoleView::marshal_preserves_integrity(),
-            SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
-            SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
-            _ => {}
-        }
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    match sub_resource {
+        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+        SubResource::Role => RoleView::marshal_preserves_integrity(),
+        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
     }
 
-    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    match step {
+        Step::APIServerStep(input) => {
+            let msg = input->0;
+            // Case 1: The API server processes a message.
+            // We need to show resource_state_matches is preserved.
+            if s.ongoing_reconciles(controller_id).contains_key(key) {
+                if !Cluster::pending_req_msg_is(controller_id, s, key, msg) {
+                    // Not the pending request => resource state doesn't change for our sub_resource
+                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                        s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
+                    );
+                } else {
+                    // The pending request is being processed.
+                    // If we are at the update step, the update succeeds and resource_state_matches holds.
+                    if at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, after_update_k_request_step(sub_resource))(s) {
+                        let req_msg_pending = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                        // The update request is processed; the resource in etcd is updated.
+                        // resource_state_matches is preserved because the update request obj
+                        // satisfies req_obj_matches_sub_resource_requirements.
+                        let resp_msg = lemma_update_sub_resource_request_returns_ok(
+                            s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
+                        );
+                    } else if at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, after_get_k_request_step(sub_resource))(s) {
+                        // At the get step, the get response comes back.
+                        // resource_state_matches is preserved because only reads happen.
+                        let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(
+                            s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
+                        );
+                    }
+                }
+            } else {
+                // No ongoing reconcile for this key => resource state unchanged for our sub_resource
+                lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                    s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
+                );
+            }
+        },
+        Step::ControllerStep(input) => {
+            // The controller takes a step. Resources in etcd don't change (s.resources() == s_prime.resources()).
+            // We need to show the controller invariant part is maintained.
+        },
+        _ => {
+            // Other steps don't affect the resources relevant to our sub_resource.
+        },
+    }
 }
-
 }

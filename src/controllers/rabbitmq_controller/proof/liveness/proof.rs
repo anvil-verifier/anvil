@@ -189,7 +189,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(cluster: Cluster, cont
         true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))
     ) by {
         always_tla_forall_apply_for_sub_resource(controller_id, spec, sub_resource, rabbitmq);
-        lemma_resource_object_is_stable(controller_id, cluster, spec, sub_resource, rabbitmq, true_pred());
+        // lemma_resource_object_is_stable(controller_id, cluster, spec, sub_resource, rabbitmq, true_pred());
     }
 }
 

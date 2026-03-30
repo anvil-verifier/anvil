@@ -535,4 +535,45 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
     }
 }
 
+pub open spec fn inductive_current_state_matches(rmq: RabbitmqClusterView, sub_resource: SubResource, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& resource_state_matches(sub_resource, rmq)(s)
+        &&& s.ongoing_reconciles(controller_id).contains_key(rmq.object_ref()) ==> {
+            &&& {
+                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, RabbitmqReconcileStep::Init)(s)
+                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_get_k_request_step(sub_resource))(s)
+                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_update_k_request_step(sub_resource))(s)
+                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, RabbitmqReconcileStep::Done)(s)
+                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, RabbitmqReconcileStep::Error)(s)
+            }
+            &&& if at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_get_k_request_step(sub_resource))(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
+                &&& s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is Some;
+                let request = req_msg.content->APIRequest_0;
+                &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
+                &&& req_msg.dst == HostId::APIServer
+                &&& req_msg.content is APIRequest
+                &&& request is GetRequest
+                &&& request->GetRequest_0 == get_request(sub_resource, rmq)
+                &&& forall |msg| {
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, msg)(s)
+            } else if at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_update_k_request_step(sub_resource))(s) {
+                let req_msg = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
+                let resource_key = get_request(sub_resource, rmq).key;
+                &&& s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is Some
+                &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
+                &&& req_msg.dst == HostId::APIServer
+                &&& req_msg.content is APIRequest
+                &&& resource_update_request_msg(resource_key)(req_msg)
+                &&& req_obj_matches_sub_resource_requirements(sub_resource, rmq, req_msg.content.get_update_request().obj)(s)
+                // we don't care if update request succeed or not
+            } else {
+                s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is None
+            }
+        }
+    }
+}    
+
 }
