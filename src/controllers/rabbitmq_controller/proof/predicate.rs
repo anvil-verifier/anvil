@@ -525,6 +525,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::desired_state_is(rmq)(s)
         &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
         // &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rmq)(s)
         &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rmq)(s)
@@ -557,6 +558,7 @@ pub open spec fn inductive_current_state_matches(rmq: RabbitmqClusterView, sub_r
                 &&& request->GetRequest_0 == get_request(sub_resource, rmq)
                 &&& forall |msg| {
                     &&& #[trigger] s.in_flight().contains(msg)
+                    &&& msg.src is APIServer
                     &&& resp_msg_matches_req_msg(msg, req_msg)
                 } ==> resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, msg)(s)
             } else if at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_update_k_request_step(sub_resource))(s) {
