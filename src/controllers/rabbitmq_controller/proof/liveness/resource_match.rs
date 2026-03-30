@@ -859,7 +859,6 @@ ensures
             assert(!resource_update_status_request_msg(resource_key)(msg));
             assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
             if resource_update_request_msg(resource_key)(msg) {
-                assume(false);
             } else {
                 assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
             }
