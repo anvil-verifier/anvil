@@ -1929,16 +1929,12 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
     init_invariant(spec, cluster.init(), cluster.next(), inv);
 }
 
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(300))]
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
-    controller_id: int,
-    cluster: Cluster,
-    spec: TempPred<ClusterState>,
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>,
 )
     requires
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
