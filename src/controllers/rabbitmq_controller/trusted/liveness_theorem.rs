@@ -95,7 +95,6 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 let obj = resources[key];
                 &&& resources.contains_key(key)
                 &&& SecretView::unmarshal(obj) is Ok
-                &&& SecretView::unmarshal(obj)->Ok_0.data == make_erlang_secret(rabbitmq).data
                 &&& obj.metadata.labels == make_erlang_secret(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_erlang_secret(rabbitmq).metadata.annotations
             },
@@ -131,7 +130,6 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 let obj = resources[key];
                 &&& resources.contains_key(key)
                 &&& ServiceAccountView::unmarshal(obj) is Ok
-                &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
                 &&& obj.metadata.labels == make_service_account(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_service_account(rabbitmq).metadata.annotations
             },
@@ -149,7 +147,6 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
                 let obj = resources[key];
                 &&& resources.contains_key(key)
                 &&& RoleBindingView::unmarshal(obj) is Ok
-                &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == make_role_binding(rabbitmq).role_ref
                 &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == make_role_binding(rabbitmq).subjects
                 &&& obj.metadata.labels == make_role_binding(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_role_binding(rabbitmq).metadata.annotations

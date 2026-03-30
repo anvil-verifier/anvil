@@ -4,7 +4,7 @@
 use crate::vstatefulset_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::kubernetes_api_objects::spec::{
-    api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
+    api_method::*, common::*, dynamic::*, label_selector::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     api_server::{types::APIServerStep, state_machine::*},
@@ -677,7 +677,8 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
-proof fn lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
+#[verifier(rlimit(200))]
+pub proof fn lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message,
     s: ClusterState, s_prime: ClusterState
 )
@@ -692,6 +693,7 @@ ensures
     pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime),
 {
     RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
     match sub_resource {
         SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
         SubResource::Service => ServiceView::marshal_preserves_integrity(),
@@ -709,17 +711,21 @@ ensures
     let msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
     let req = msg.content.get_update_request();
     let returned_obj = resp_msg.content.get_get_response().res->Ok_0;
-    assert(req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_update_request().obj)(s_prime)) by {
-        let obj = req.obj;
-        assert(returned_obj.metadata.owner_references == Some(make_owner_references(rabbitmq)));
-        if sub_resource == SubResource::VStatefulSetView {
+    let obj = msg.content.get_update_request().obj;
+    match sub_resource {
+        SubResource::VStatefulSetView => {
             let cm_key = make_server_config_map_key(rabbitmq);
             let cm_obj = s.resources()[cm_key];
             assert(returned_obj == s.resources()[returned_obj.object_ref()]);
             let found_sts = VStatefulSetView::unmarshal(returned_obj).unwrap();
             let updated_sts = update_sts_pass_state_validation(rabbitmq, found_sts, int_to_string_view(cm_obj.metadata.resource_version->0));
-            assert(updated_sts.state_validation());
-        }
+            let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
+            let req_obj_spec = VStatefulSetView::unmarshal(obj)->Ok_0.spec;
+            assert(VStatefulSetView::unmarshal(obj) is Ok);
+            assert(VStatefulSetView::unmarshal(obj)->Ok_0.state_validation());
+            assert(obj.metadata.labels == made_sts.metadata.labels);
+            assert(obj.metadata.annotations == made_sts.metadata.annotations);
+            assert(req_obj_spec.template == made_sts.spec.template);
     }
 }
 

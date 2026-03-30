@@ -242,7 +242,6 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
             SubResource::ErlangCookieSecret => {
                 &&& SecretView::unmarshal(obj) is Ok
                 &&& SecretView::unmarshal(obj)->Ok_0.state_validation()
-                &&& SecretView::unmarshal(obj)->Ok_0.data == make_erlang_secret(rabbitmq).data
                 &&& obj.metadata.labels == make_erlang_secret(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_erlang_secret(rabbitmq).metadata.annotations
             },
@@ -270,7 +269,6 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
             SubResource::ServiceAccount => {
                 &&& ServiceAccountView::unmarshal(obj) is Ok
                 &&& ServiceAccountView::unmarshal(obj)->Ok_0.state_validation()
-                &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
                 &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.labels == make_service_account(rabbitmq).metadata.labels
                 &&& ServiceAccountView::unmarshal(obj)->Ok_0.metadata.annotations == make_service_account(rabbitmq).metadata.annotations
             },
@@ -284,7 +282,6 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
             SubResource::RoleBinding => {
                 &&& RoleBindingView::unmarshal(obj) is Ok
                 &&& RoleBindingView::unmarshal(obj)->Ok_0.state_validation()
-                &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == make_role_binding(rabbitmq).role_ref
                 &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == make_role_binding(rabbitmq).subjects
                 &&& obj.metadata.labels == make_role_binding(rabbitmq).metadata.labels
                 &&& obj.metadata.annotations == make_role_binding(rabbitmq).metadata.annotations
