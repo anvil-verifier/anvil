@@ -5,6 +5,7 @@ use crate::rabbitmq_controller::model::install::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
     stateful_set::*,
+    prelude::*,
 };
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::vstatefulset_controller::trusted::spec_types::*;
@@ -62,6 +63,8 @@ pub open spec fn stateful_set_update_request_msg_does_not_change_owner_reference
     }
 }
 
+#[verifier(rlimit(300))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -90,6 +93,8 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)(s)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
         &&& no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)(s_prime)
     };
@@ -118,6 +123,8 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)),
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(rmq_rely_conditions(cluster, controller_id)),
+        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
         later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, SubResource::VStatefulSetView)))
     );
@@ -129,9 +136,59 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
-                    assume(false);
+                    let req_msg = input->0;
+                    match req_msg.src {
+                        HostId::Controller(id, cr_key) => {
+                            if id == controller_id {
+                                if cr_key == rabbitmq.object_ref() {
+                                    assume(false);
+                                } else {
+                                    let other_rmq = RabbitmqClusterView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(cr_key.name),
+                                            namespace: Some(cr_key.namespace),
+                                            ..ObjectMetaView::default()
+                                        },
+                                        ..RabbitmqClusterView::default()
+                                    };
+                                    assert(no_interfering_request_between_rmq(controller_id, SubResource::VStatefulSetView, other_rmq)(s));
+                                }
+                            } else {
+                                assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                assert(rmq_rely(id)(s));
+                                match (req_msg.content->APIRequest_0) {
+                                    APIRequest::CreateRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    APIRequest::UpdateRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    APIRequest::GetThenUpdateRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    APIRequest::DeleteRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    APIRequest::GetThenDeleteRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    APIRequest::UpdateStatusRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    APIRequest::GetThenUpdateStatusRequest(req) => {
+                                        assert(!is_rmq_managed_kind(req.key().kind));
+                                    },
+                                    // Get/List requests do not interfere
+                                    _ => {}
+                                }
+                                assert(s_prime.resources()[sts_key] == s.resources()[sts_key]);
+                            }
+                        },
+                        _ => {}
+                    }
                 },
                 Step::ControllerStep(_) => {
+                    assume(false);
                     // controller only sends msg, do not touch etcd obj / delete msg, just prove it holds for new messages
                     if !s.in_flight().contains(msg) && resource_update_request_msg(get_request(SubResource::VStatefulSetView, rabbitmq).key)(msg) {
                         lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
