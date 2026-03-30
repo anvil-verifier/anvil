@@ -1316,7 +1316,6 @@ proof fn lemma_sub_resource_neq_implies_resource_key_neq(
 pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
         Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
