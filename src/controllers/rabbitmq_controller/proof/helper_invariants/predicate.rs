@@ -230,6 +230,7 @@ pub open spec fn no_delete_get_then_delete_get_then_update_get_then_update_statu
         forall |msg: Message| #[trigger] s.in_flight().contains(msg)
         ==> !{
             ||| resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            ||| resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
             ||| resource_get_then_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
             ||| resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
             ||| resource_get_then_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
