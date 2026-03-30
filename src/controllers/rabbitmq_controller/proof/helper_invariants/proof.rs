@@ -1441,20 +1441,20 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(300))]
 pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        // rely (s_prime needed for new msgs from other controllers)
-        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s),
-        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
-        // internal rely (s_prime needed for new msgs from other CR reconciliations)
-        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s),
-        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s_prime),
-        !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        cluster.next_step(s, s_prime, step),
+        Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
+        Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
+        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s_prime),
+        !s.in_flight().contains(msg),
+        s_prime.in_flight().contains(msg),
+        cluster.next_step(s, s_prime, step),
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
         step is ControllerStep,
@@ -1462,8 +1462,6 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
-        make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap()) is Ok,
-        msg.content.get_create_request().obj == make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap())->Ok_0,
 {
     match msg.src {
         HostId::Controller(other_id, cr_key) => {
@@ -1528,8 +1526,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                     }
                     assert(false);
                 } else { // same reconciliation
-                    let key = rabbitmq.object_ref();
-                    let cr = s.ongoing_reconciles(controller_id)[key].triggering_cr;
+                    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].triggering_cr).unwrap();
                     let resource_key = get_request(sub_resource, rabbitmq).key;
                     assert(step is ControllerStep);
                     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
@@ -1539,22 +1536,29 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                     match local_step_prime {
                         RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
                             match action {
-                                ActionKind::Create => {},
+                                ActionKind::Create => {
+                                    if res != sub_resource {
+                                        lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, sub_resource, res);
+                                        assert(get_request(sub_resource, rabbitmq).key != get_request(res, rabbitmq).key);
+                                        assert(get_request(res, rabbitmq).key == get_request(res, cr).key);
+                                        assert(resource_create_request_msg(get_request(res, cr).key)(msg));
+                                        assert(false);
+                                    }
+                                    assert(at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s));
+                                    assert(at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime));
+                                },
                                 _ => {
                                     assert(!(msg.content.is_create_request()));
                                     assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
                                 },
                             };
-
-                            // move the local_step_prime chunk here, saying request on other sub resources shall not has this prefix
-                            // but in https://github.com/anvil-verifier/anvil/pull/758, some keys are updated, make sure to correct them
-                            assume(res == sub_resource);
                         },
-                        _ => {}
+                        _ => {
+                            assert(!(msg.content.is_create_request()));
+                            assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+                        }
                     }
                     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
-                    assume(make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap()) is Ok);
-                    assume(msg.content.get_create_request().obj == make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap())->Ok_0);
                 }
             } else { // other controller, call rely condition
                 assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
