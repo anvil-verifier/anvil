@@ -22,6 +22,7 @@ use crate::rabbitmq_controller::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
+use crate::reconciler::spec::io::*;
 
 verus! {
 
@@ -925,11 +926,13 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
@@ -949,13 +952,13 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
-        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
-        &&& rmq_rely_conditions(cluster, controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
     };
@@ -966,6 +969,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
             if resource_create_request_msg(resource_key)(msg) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
+                    RabbitmqReconcileState::marshal_preserves_integrity();
                     lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
                 } else {
                     assert(requirements(msg, s));
@@ -976,18 +980,21 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
     }
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     always_to_always_later(spec, lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)));
-    invariant_n!(
-        spec, lift_action(stronger_next), lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(cluster.next()), lift_state(Cluster::crash_disabled(controller_id)), lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+    invariant_n!(spec,
+        lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
         lift_state(Cluster::desired_state_is(rabbitmq)),
-        lift_state(rmq_rely_conditions(cluster, controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
-        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource))),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
+        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
