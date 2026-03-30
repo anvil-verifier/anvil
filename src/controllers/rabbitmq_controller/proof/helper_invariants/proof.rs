@@ -634,6 +634,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
@@ -785,7 +786,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        forall |sub_resource: SubResource| spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
+        forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))) by {
@@ -837,6 +838,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
         &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
@@ -865,6 +867,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
         lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
         lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource))),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
@@ -1238,7 +1241,7 @@ proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
 // Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1459,7 +1462,6 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        rabbitmq.well_formed(),
         // rely (s_prime needed for new msgs from other controllers)
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s),
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
@@ -1628,6 +1630,7 @@ pub proof fn lemma_eventually_always_no_delete_get_then_delete_get_then_update_g
 //   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 //     and the original statepred.
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 proof fn lemma_eventually_always_no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
