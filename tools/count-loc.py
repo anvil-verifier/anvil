@@ -26,6 +26,7 @@ def parse_table_and_collect_lines(file_path, controller_name):
     safety_theorem_lines = empty_counting_map()
     safety_proof_lines = empty_counting_map()
     external_model_lines = empty_counting_map()
+    composition_lines = empty_counting_map()
     wrapper_lines = empty_counting_map()
     entry_lines = empty_counting_map()
     other_lines = empty_counting_map()
@@ -67,8 +68,21 @@ def parse_table_and_collect_lines(file_path, controller_name):
             if line_num <= 2 or line_num >= line_len - 1:
                 # Skip the first two lines and the last two lines
                 continue
+            if controller_name == "composition":
+                if "controllers/composition/" not in stripped_cols[FILE_COL]:
+                    continue
+                # All composition files are proof
+                composition_lines["Proof"] += int(stripped_cols[SPEC_COL])
+                composition_lines["Proof"] += int(stripped_cols[PROOF_COL])
+                composition_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                composition_lines["Exec"] += int(stripped_cols[EXEC_COL])
+                composition_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                continue
             if controller_name + "_controller" not in stripped_cols[FILE_COL]:
                 # Skip the files that don't belong to this controller
+                continue
+            if "controllers/composition/" in stripped_cols[FILE_COL]:
+                # Skip composition files from individual controller counts
                 continue
             if controller_name + "_controller.rs" == stripped_cols[FILE_COL]:
                 entry_lines["Trusted"] += int(stripped_cols[EXEC_COL])
@@ -84,17 +98,6 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 safety_proof_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 safety_proof_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 safety_proof_lines["Proof"] += int(stripped_cols[SPEC_COL])
-            elif controller_name == "zookeeper" and (
-                "/trusted/zookeeper_api_spec.rs" in stripped_cols[FILE_COL]
-                or "/trusted/zookeeper_api_exec.rs" in stripped_cols[FILE_COL]
-                or "/trusted/config_map.rs" in stripped_cols[FILE_COL]
-            ):
-                external_model_lines["Trusted"] += int(stripped_cols[EXEC_COL])
-                external_model_lines["Trusted"] += int(stripped_cols[PROOF_COL])
-                external_model_lines["Trusted"] += int(
-                    stripped_cols[PROOF_AND_EXEC_COL]
-                )
-                external_model_lines["Trusted"] += int(stripped_cols[SPEC_COL])
             elif (
                 "/trusted/spec_types.rs" in stripped_cols[FILE_COL]
                 or "/trusted/exec_types.rs" in stripped_cols[FILE_COL]
@@ -162,6 +165,7 @@ def parse_table_and_collect_lines(file_path, controller_name):
         "safety_theorem": safety_theorem_lines,
         "safety_proof": safety_proof_lines,
         "external_model": external_model_lines,
+        "composition_proof": composition_lines,
         "wrapper": wrapper_lines,
         "entry": entry_lines,
         "other": other_lines,

@@ -87,17 +87,18 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
             // if vd has 0 replicas, local new vrs can have 0 replicas or not
             // if the new_vrs in etcd has > 0 replicas, it will be chosen at after list step
-            &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
-                &&& local_state.new_vrs->0.object_ref() == new_vrs_key
-                &&& local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
-            }
-            &&& local_state.new_vrs is Some && local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
-                &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
-                &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+            &&& local_state.reconcile_step == AfterScaleNewVRS || local_state.reconcile_step == AfterEnsureNewVRS ==> {
+                &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
+                    &&& local_state.new_vrs->0.object_ref() == new_vrs_key
+                    &&& local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
+                }
+                &&& local_state.new_vrs is Some && local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
+                    &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
+                    &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+                }
+                &&& local_state.old_vrs_index == 0
             }
             &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleNewVRS, AfterEnsureNewVRS])(s)
-                ==> local_state.old_vrs_index == 0
             &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                 &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some

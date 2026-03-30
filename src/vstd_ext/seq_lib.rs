@@ -8,6 +8,18 @@ use crate::vstd_ext::set_lib::*;
 
 verus! {
 
+// --- trusted --- //
+
+// currently not provable because sort_by is closed spec
+#[verifier(external_body)]
+pub proof fn lemma_sort_by_does_not_add_or_delete_elements<A>(s: Seq<A>, leq: spec_fn(A, A) -> bool)
+// we don't care if total_ordering(leq) holds here
+    ensures s.sort_by(leq).to_set() == s.to_set(),
+    decreases s.len()
+{}
+
+// --- proved ---
+
 pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A>)
     requires s1 != s2
     ensures s1 + suffix != s2 + suffix
@@ -402,20 +414,117 @@ pub proof fn lemma_homomorphism_of_map_values<A, B, C>(s: Seq<A>, f1: spec_fn(A)
     }
 }
 
-#[verifier(external_body)] // TODO
+// Maps index i in s.filter(pred) to the corresponding index in s
+pub open spec fn filter_idx<A>(s: Seq<A>, pred: spec_fn(A) -> bool, i: int) -> int
+    decreases s.len()
+{
+    if s.len() == 0 {
+        // unreachable under valid preconditions
+        0
+    } else if pred(s.last()) {
+        if i == s.drop_last().filter(pred).len() {
+            // This filtered element is the last element of s
+            s.len() - 1
+        } else {
+            // Recurse into the prefix
+            filter_idx(s.drop_last(), pred, i)
+        }
+    } else {
+        // Last element doesn't match pred, recurse into the prefix
+        filter_idx(s.drop_last(), pred, i)
+    }
+}
+
+// Proves that filter_idx correctly maps filter indices to original sequence indices,
+// and that the mapping is strictly monotone (preserves order).
+proof fn lemma_filter_idx_properties<A>(s: Seq<A>, pred: spec_fn(A) -> bool, i: int)
+    requires
+        0 <= i < s.filter(pred).len(),
+    ensures
+        0 <= filter_idx(s, pred, i) < s.len(),
+        s.filter(pred)[i] == s[filter_idx(s, pred, i)],
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() == 0 {
+        // filter of empty seq is empty, so precondition is false
+    } else {
+        let sub = s.drop_last();
+        if pred(s.last()) {
+            // s.filter(pred) == sub.filter(pred).push(s.last())
+            // so s.filter(pred).len() == sub.filter(pred).len() + 1
+            if i == sub.filter(pred).len() {
+                // This is the last element of the filtered seq, which is s.last()
+                assert(s.filter(pred)[i] == s.last());
+                assert(filter_idx(s, pred, i) == s.len() - 1);
+            } else {
+                // i < sub.filter(pred).len()
+                assert(0 <= i < sub.filter(pred).len());
+                lemma_filter_idx_properties(sub, pred, i);
+                assert(s.filter(pred)[i] == sub.filter(pred)[i]);
+            }
+        } else {
+            // s.filter(pred) == sub.filter(pred)
+            assert(0 <= i < sub.filter(pred).len());
+            lemma_filter_idx_properties(sub, pred, i);
+        }
+    }
+}
+
+// Proves that filter_idx is strictly monotone: i < j ==> filter_idx(s, pred, i) < filter_idx(s, pred, j)
+proof fn lemma_filter_idx_strict_mono<A>(s: Seq<A>, pred: spec_fn(A) -> bool, i: int, j: int)
+    requires
+        0 <= i < j,
+        j < s.filter(pred).len(),
+    ensures
+        filter_idx(s, pred, i) < filter_idx(s, pred, j),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() == 0 {
+    } else {
+        let sub = s.drop_last();
+        if pred(s.last()) {
+            if j == sub.filter(pred).len() {
+                // j maps to s.len() - 1
+                // i < j = sub.filter(pred).len(), so i is in sub's filter
+                lemma_filter_idx_properties(sub, pred, i);
+                // filter_idx(s, pred, i) == filter_idx(sub, pred, i) < sub.len() = s.len() - 1
+            } else {
+                // both i and j are in sub's filter range
+                assert(0 <= i < j);
+                assert(j < sub.filter(pred).len());
+                lemma_filter_idx_strict_mono(sub, pred, i, j);
+            }
+        } else {
+            // s.filter(pred) == sub.filter(pred)
+            lemma_filter_idx_strict_mono(sub, pred, i, j);
+        }
+    }
+}
+
 pub proof fn lemma_different_filtered_elems_map_to_different_elems<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
 ensures
-    forall |i, j| 0 <= i < s.filter(pred).len() && 0 <= j < s.filter(pred).len() && i != j ==>
-        exists |m, n| 0 <= m < s.len() && 0 <= n < s.len() && #[trigger] s.filter(pred)[i] == s[m] && #[trigger] s.filter(pred)[j] == s[n] && m != n,
-{}
-
-// currently not provable because sort_by is closed spec
-#[verifier(external_body)]
-pub proof fn lemma_sort_by_does_not_add_or_delete_elements<A>(s: Seq<A>, leq: spec_fn(A, A) -> bool)
-// we don't care if total_ordering(leq) holds here
-    ensures s.sort_by(leq).to_set() == s.to_set(),
-    decreases s.len()
-{}
+    forall |i: int| 0 <= i < s.filter(pred).len() ==>
+        0 <= #[trigger] filter_idx(s, pred, i) < s.len() && s.filter(pred)[i] == s[filter_idx(s, pred, i)],
+    forall |i: int, j: int| 0 <= i < s.filter(pred).len() && 0 <= j < s.filter(pred).len() && i != j ==>
+        #[trigger] filter_idx(s, pred, i) != #[trigger] filter_idx(s, pred, j),
+{
+    assert forall |i: int| 0 <= i < s.filter(pred).len() implies
+        0 <= #[trigger] filter_idx(s, pred, i) < s.len() && s.filter(pred)[i] == s[filter_idx(s, pred, i)]
+    by {
+        lemma_filter_idx_properties(s, pred, i);
+    };
+    assert forall |i: int, j: int| 0 <= i < s.filter(pred).len() && 0 <= j < s.filter(pred).len() && i != j implies
+        #[trigger] filter_idx(s, pred, i) != #[trigger] filter_idx(s, pred, j)
+    by {
+        if i < j {
+            lemma_filter_idx_strict_mono(s, pred, i, j);
+        } else {
+            lemma_filter_idx_strict_mono(s, pred, j, i);
+        }
+    };
+}
 
 // Verus can directly prove it, but without this lemma a lot of flakiness is introduced
 pub proof fn lemma_singleton_contains_at_most_one_element<A>(s: Seq<A>, e1: A, e2: A)

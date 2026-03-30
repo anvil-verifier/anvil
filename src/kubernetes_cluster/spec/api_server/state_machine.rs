@@ -251,15 +251,15 @@ pub uninterp spec fn generated_name(s: APIServerState, generate_name: StringView
 // that the API server is always able to find a unique name by random generation in our model.
 // For more details, see the implementation: https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L432-L443
 
-#[verifier(external_body)]
+#[verifier(external_body)] // TRUSTED
 pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringView)
     ensures
         forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generated_name(s, generate_name_field),
         exists |suffix| {
             &&& generated_name(s, generate_name_field) == generate_name_field + suffix
             &&& #[trigger] dash_free(suffix)
-        }
-,{}
+        },
+{}
 
 // TODO: add fine grained support for namespace and kind
 // #[verifier(external_body)]

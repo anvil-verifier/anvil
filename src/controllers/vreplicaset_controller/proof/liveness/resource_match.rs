@@ -120,10 +120,10 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
-    let post = lift_state(
+    let update_vrs_status_req = lift_state(
         |s: ClusterState| {
-            &&& current_state_matches(vrs)(s)
-            &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+            &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
         }
     );
 
@@ -181,11 +181,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         // Is this enough?
         if diff + 1 == 0 {
             assert forall |resp_msg: Message|
-                #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(post)) by {
-                lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(vrs, spec, cluster, controller_id, resp_msg);
+                #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
+                lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
             };
 
-            leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), post);
+            leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), update_vrs_status_req);
             assert_by(
                 spec.entails(create_resp(0).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)))),
                 {
@@ -209,9 +209,8 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                 pre(diff),
                 create_resp(diff + 1),
                 tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)),
-                post
+                update_vrs_status_req
             );
-            return;
         }
 
         // In this branch, we need to convert negative integers to natural numbers for
@@ -250,11 +249,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 
         // Chain everything
         assert forall |resp_msg: Message|
-            #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(post)) by {
-            lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(vrs, spec, cluster, controller_id, resp_msg);
+            #[trigger] spec.entails(create_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
+            lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), post);
+        leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(create_resp(0).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)))),
             {
@@ -281,7 +280,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             ranking_pred(0),
             create_resp(0),
             tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)),
-            post
+            update_vrs_status_req
         );
     } else if diff > 0 {
         let delete_resp = |diff: int| lift_state(
@@ -311,11 +310,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         // Is this enough?
         if diff - 1 == 0 {
             assert forall |resp_msg: Message|
-                #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(post)) by {
-                lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(vrs, spec, cluster, controller_id, resp_msg);
+                #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
+                lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
             };
 
-            leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), post);
+            leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), update_vrs_status_req);
             assert_by(
                 spec.entails(delete_resp(0).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)))),
                 {
@@ -339,9 +338,8 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                 pre(diff),
                 delete_resp(diff - 1),
                 tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)),
-                post
+                update_vrs_status_req
             );
-            return;
         }
 
         let ranking_pred = |n: nat| delete_resp(n as int);
@@ -377,11 +375,11 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 
         // Chain everything
         assert forall |resp_msg: Message|
-            #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(post)) by {
-            lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(vrs, spec, cluster, controller_id, resp_msg);
+            #[trigger] spec.entails(delete_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
+            lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), post);
+        leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(delete_resp(0).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)))),
             {
@@ -408,16 +406,16 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             ranking_pred(0),
             delete_resp(0),
             tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)),
-            post
+            update_vrs_status_req
         );
     } else {
         // diff = 0
         assert forall |resp_msg: Message|
-            #[trigger] spec.entails(list_resp_msg(resp_msg, 0).leads_to(post)) by {
-            lemma_from_after_receive_list_pods_resp_to_done(vrs, spec, cluster, controller_id, resp_msg);
+            #[trigger] spec.entails(list_resp_msg(resp_msg, 0).leads_to(update_vrs_status_req)) by {
+            lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, 0), post);
+        leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(list_resp(0).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, 0)))),
             {
@@ -455,9 +453,73 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             pre(diff),
             list_resp(diff),
             tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, 0)),
-            post
+            update_vrs_status_req
         );
     }
+    let update_vrs_status_req_msg = |msg| lift_state(
+        |s: ClusterState| {
+            &&& req_msg_is_the_in_flight_get_then_update_status_req_at_get_then_update_status_step(vrs, controller_id, msg)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
+        }
+    );
+    assert(spec.entails(update_vrs_status_req.leads_to(tla_exists(update_vrs_status_req_msg)))) by {
+        assert forall |ex| #[trigger] update_vrs_status_req.satisfied_by(ex) implies 
+            tla_exists(|msg| update_vrs_status_req_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+            assert((|msg| update_vrs_status_req_msg(msg))(msg).satisfied_by(ex));
+        };
+        entails_implies_leads_to(spec, update_vrs_status_req, tla_exists(update_vrs_status_req_msg));
+    };
+    let update_vrs_status_resp = lift_state(
+        |s: ClusterState| {
+            &&& exists_ok_resp_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
+        }
+    );
+    assert forall |msg| spec.entails(#[trigger] update_vrs_status_req_msg(msg).leads_to(update_vrs_status_resp)) by {
+        lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(spec, vrs, cluster, controller_id, msg);
+    };
+    leads_to_exists_intro(spec, update_vrs_status_req_msg, update_vrs_status_resp);
+    let update_vrs_status_resp_msg = |msg| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, msg)(s)
+            &&& num_diff_pods_is(vrs, 0)(s)
+        }
+    );
+    assert(spec.entails(update_vrs_status_resp.leads_to(tla_exists(update_vrs_status_resp_msg)))) by {
+        assert forall |ex| #[trigger] update_vrs_status_resp.satisfied_by(ex) implies 
+            tla_exists(|msg| update_vrs_status_resp_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+            let msg = choose |msg| {
+                &&& #[trigger] s.in_flight().contains(msg)
+                &&& resp_msg_matches_req_msg(msg, req_msg)
+                &&& msg.content.get_get_then_update_status_response().res is Ok
+            };
+            assert((|msg| update_vrs_status_resp_msg(msg))(msg).satisfied_by(ex));
+        };
+        entails_implies_leads_to(spec, update_vrs_status_resp, tla_exists(update_vrs_status_resp_msg));
+    };
+    let post = lift_state(
+        |s: ClusterState| {
+            &&& current_state_matches(vrs)(s)
+            &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        }
+    );
+    assert forall |msg| spec.entails(#[trigger] update_vrs_status_resp_msg(msg).leads_to(post)) by {
+        lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done(spec, vrs, cluster, controller_id, msg);
+    };
+    leads_to_exists_intro(spec, update_vrs_status_resp_msg, post);
+    leads_to_trans_n!(
+        spec,
+        pre(diff),
+        update_vrs_status_req,
+        tla_exists(update_vrs_status_req_msg),
+        update_vrs_status_resp,
+        tla_exists(update_vrs_status_resp_msg),
+        post
+    );
 }
 
 // Create lemmas.
@@ -1276,8 +1338,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     );
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
+pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message
 )
@@ -1315,8 +1376,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
             ).leads_to(
                 lift_state(
                     |s: ClusterState| {
-                        &&& current_state_matches(vrs)(s)
-                        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+                        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+                        &&& num_diff_pods_is(vrs, 0)(s)
                     }
                 )
             )
@@ -1327,8 +1388,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         &&& num_diff_pods_is(vrs, 0)(s)
     };
     let post = |s: ClusterState| {
-        &&& current_state_matches(vrs)(s)
-        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
     };
     let input = (Some(resp_msg), Some(vrs.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
@@ -1391,11 +1452,11 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
                 if input.0 == controller_id
                     && input.1 == Some(resp_msg)
                     && input.2 == Some(vrs.object_ref()) {
+                    VReplicaSetView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
                         s, vrs, cluster, controller_id, resp_msg
                     );
-                    let resources = s_prime.resources();
                 }
             },
             _ => {}
@@ -1808,8 +1869,9 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
     );
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
+pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
 )
@@ -1846,8 +1908,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
             ).leads_to(
                 lift_state(
                     |s: ClusterState| {
-                        &&& current_state_matches(vrs)(s)
-                        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+                        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+                        &&& num_diff_pods_is(vrs, 0)(s)
                     }
                 )
             )
@@ -1858,8 +1920,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
         &&& num_diff_pods_is(vrs, 0)(s)
     };
     let post = |s: ClusterState| {
-        &&& current_state_matches(vrs)(s)
-        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
     };
     let input = (Some(resp_msg), Some(vrs.object_ref()));
 
@@ -1919,6 +1981,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
             },
             Step::ControllerStep(..) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();
+                VReplicaSetView::marshal_preserves_integrity();
             },
             _ => {}
         }
@@ -1936,8 +1999,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
 
 // Delete lemmas
 
-// TODO: Investigate flaky proof and weird assertion needed. Higher priority:
-// already put in a stopgap fix.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
@@ -2072,20 +2133,18 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                 
                     // Small helper for converting the non-quantified result of lemma_filtered_pods_set_equals_matching_pods
                     // to the quantified quasi-invariant we need.
-                    assert forall |i| {
-                        &&& pre(s)
-                        &&& stronger_next(s, s_prime)
-                        &&& 0 <= i < new_diff 
-                    } implies {
-                        &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
-                        &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
-                    } by {
-                        assert(filtered_pods.to_set().contains(filtered_pods[i]));
-                    }
-
                     // Stopgap fix for flaky proof.
-                    assert_by(post(s_prime), {
+                    assert(post(s_prime)) by {
+
+                        assert(s.resources() == s_prime.resources());
+
+                        assert forall |i| 0 <= i < new_diff implies {
+                            &&& #[trigger] s.resources().contains_key(filtered_pod_keys[i])
+                            &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
+                            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
+                        } by {
+                            assert(filtered_pods.to_set().contains(filtered_pods[i]));
+                        }
                         assert(forall |i| {
                             &&& 0 <= i < diff
                         } ==> {
@@ -2093,7 +2152,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                             &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
                             &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == #[trigger] filtered_pods[i]
                         });
-                    });
+                    }
                 }
             },
             _ => {}
@@ -2105,9 +2164,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     );
 }
 
-// TODO: investigate flaky proof.
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2244,6 +2302,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
                         &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
+                        assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
                         if s.resources().contains_key(filtered_pod_keys[i]) {}
                     }
                 } else {
@@ -2261,6 +2320,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
                         &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
+                        assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
                         if s.resources().contains_key(filtered_pod_keys[i]) {}
                     }
                 }
@@ -2473,10 +2533,8 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     );
 }
 
-// TODO: investigate flaky proof
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
-pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
+pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
 )
@@ -2514,8 +2572,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
             ).leads_to(
                 lift_state(
                     |s: ClusterState| {
-                        &&& current_state_matches(vrs)(s)
-                        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+                        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+                        &&& num_diff_pods_is(vrs, 0)(s)
                     }
                 )
             )
@@ -2527,8 +2585,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
         &&& filtered_pods_in_vrs_matching_pods(vrs, controller_id)(s)
     };
     let post = |s: ClusterState| {
-        &&& current_state_matches(vrs)(s)
-        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        &&& pending_req_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
     };
     let input = (Some(resp_msg), Some(vrs.object_ref()));
 
@@ -2588,6 +2646,266 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
             },
             Step::ControllerStep(..) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();
+                VReplicaSetView::marshal_preserves_integrity();
+            },
+            _ => {}
+        }
+    }
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime)
+        && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        VReplicaSetReconcileState::marshal_preserves_integrity();
+    }
+
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
+}
+
+pub proof fn lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
+    req_msg: Message,
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& req_msg_is_the_in_flight_get_then_update_status_req_at_get_then_update_status_step(vrs, controller_id, req_msg)(s)
+                    &&& num_diff_pods_is(vrs, 0)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: ClusterState| {
+                        &&& exists_ok_resp_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+                        &&& num_diff_pods_is(vrs, 0)(s)
+                    }
+                )
+            )
+        ),
+{
+    hide(matching_pods);
+    let pre = |s: ClusterState| {
+        &&& req_msg_is_the_in_flight_get_then_update_status_req_at_get_then_update_status_step(vrs, controller_id, req_msg)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
+    };
+    let post = |s: ClusterState| {
+        &&& exists_ok_resp_in_flight_at_get_then_update_status_step(vrs, controller_id)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
+    };
+    let input = Some(req_msg);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_rely(other_id)(s)
+        &&& Cluster::etcd_is_finite()(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
+    };
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
+        spec, cluster, controller_id
+    );
+    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(desired_state_is(vrs)),
+        later(lift_state(desired_state_is(vrs))),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lifted_vrs_rely_condition(cluster, controller_id),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                if msg == req_msg {
+                    let resp_msg = lemma_get_then_update_vrs_status_request_updates_vrs_status_and_returns_ok(s, s_prime, vrs, cluster, controller_id, msg);
+                    assert(resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, resp_msg)(s_prime));
+                } else {
+                    lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(s, s_prime, vrs, cluster, controller_id, msg);
+                    assert(pre(s_prime));
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+        let resp_msg = lemma_get_then_update_vrs_status_request_updates_vrs_status_and_returns_ok(s, s_prime, vrs, cluster, controller_id, req_msg);
+        assert(resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, resp_msg)(s_prime));
+    }
+    cluster.lemma_pre_leads_to_post_by_api_server(spec, input, stronger_next, APIServerStep::HandleRequest, pre, post);
+}
+
+pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
+    resp_msg: Message,
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, resp_msg)(s)
+                    &&& num_diff_pods_is(vrs, 0)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: ClusterState| {
+                        &&& current_state_matches(vrs)(s)
+                        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+                    }
+                )
+            )
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, resp_msg)(s)
+        &&& num_diff_pods_is(vrs, 0)(s)
+    };
+    let post = |s: ClusterState| {
+        &&& current_state_matches(vrs)(s)
+        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+    };
+    let input = (Some(resp_msg), Some(vrs.object_ref()));
+
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_rely(other_id)(s)
+        &&& Cluster::etcd_is_finite()(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
+    };
+    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
+        spec, cluster, controller_id
+    );
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(desired_state_is(vrs)),
+        later(lift_state(desired_state_is(vrs))),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lifted_vrs_rely_condition(cluster, controller_id),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                    s, s_prime, vrs, cluster, controller_id, msg
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
+                    s, s_prime, vrs, cluster, controller_id, msg
+                );
+                assert(pre(s_prime));
+            },
+            Step::ControllerStep(input) => {
+                VReplicaSetReconcileState::marshal_preserves_integrity();
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vrs.object_ref()) {
+                    assert(post(s_prime));
+                }
             },
             _ => {}
         }
@@ -2632,7 +2950,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
-        spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
@@ -2656,6 +2974,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& desired_state_is(vrs)(s)
+        &&& desired_state_is(vrs)(s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -2672,17 +2991,22 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
-        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s)
-        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime)
+        &&& helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s)
+        &&& helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s_prime)
     };
 
-    always_to_always_later(spec, lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
+    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
+    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
+    always_to_always_later(spec, lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)));
+    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)));
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
@@ -2691,6 +3015,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(desired_state_is(vrs)),
+        later(lift_state(desired_state_is(vrs))),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -2707,13 +3032,15 @@ pub proof fn lemma_current_state_matches_is_stable(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
-        later(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs))),
+        lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
+        later(lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs))),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
-        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
+        later(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)),
+        later(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))
     );
 
     assert forall |s, s_prime: ClusterState| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
@@ -2725,7 +3052,6 @@ pub proof fn lemma_current_state_matches_is_stable(
 }
 
 // to reduce flakiness in lemma_current_state_matches_is_stable
-#[verifier(external_body)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     vrs: VReplicaSetView, cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
 )
@@ -2734,6 +3060,7 @@ requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
     desired_state_is(vrs)(s),
+    desired_state_is(vrs)(s_prime),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::crash_disabled(controller_id)(s),
     Cluster::req_drop_disabled()(s),
@@ -2750,13 +3077,14 @@ requires
     cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
     cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
-    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s),
-    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime),
+    helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s),
+    helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s_prime),
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s),
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> #[trigger] vrs_rely(other_id)(s),
     Cluster::etcd_is_finite()(s),
     helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s),
+    helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime),
     helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
     inductive_current_state_matches(vrs, controller_id)(s),
 ensures
@@ -2773,6 +3101,9 @@ ensures
             if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
                 if !Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg) {
                     lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                        s, s_prime, vrs, cluster, controller_id, msg,
+                    );
+                    lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
                         s, s_prime, vrs, cluster, controller_id, msg,
                     );
 
@@ -2810,10 +3141,18 @@ ensures
                                 );
                             }
                         }
+                    } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s) {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+                        lemma_get_then_update_vrs_status_request_updates_vrs_status_and_returns_ok(
+                            s, s_prime, vrs, cluster, controller_id, msg,
+                        );
                     }
                 }
             } else {
                 lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                    s, s_prime, vrs, cluster, controller_id, msg,
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
                     s, s_prime, vrs, cluster, controller_id, msg,
                 );
             }
@@ -2847,10 +3186,20 @@ ensures
                                 implies msg.rpc_id != req_msg.rpc_id by {
                                 if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                             }
+                            assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
+                        } else {
+                            assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                         }
+                    } else {
+                        assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                     }
+                } else {
+                    assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                 }
-            } else {}
+            } else if s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
+                assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
+            }
+            assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
         },
         _ => {
             let new_msgs = s_prime.in_flight().sub(s.in_flight());

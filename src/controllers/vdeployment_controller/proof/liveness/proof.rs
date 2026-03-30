@@ -4,7 +4,7 @@ use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
-    proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, api_actions::*}, predicate::*},
+    proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, api_actions::*, rolling_update::composition::*}, predicate::*},
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*},
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
@@ -102,7 +102,89 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     leads_to_trans(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)), true_pred(), invariants_since_phase_n(i, vd, cluster, controller_id), tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)))));
 }
 
-#[verifier(external_body)]
+pub proof fn spec_entails_assumptions_and_invariants_of_all_phases_implies_cluster_invariants_since_reconciliation(
+    spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)),
+ensures
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+{
+    assert(assumption_and_invariants_of_all_phases(vd, cluster, controller_id).entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))))) by {
+        always_tla_forall_apply(assumption_and_invariants_of_all_phases(vd, cluster, controller_id), |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
+    }
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::crash_disabled(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::req_drop_disabled())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::pod_monkey_disabled())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::every_in_flight_msg_has_unique_id())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::etcd_objects_have_unique_uids())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::etcd_is_finite())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::there_is_the_controller_state(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(desired_state_is(vd))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))));
+    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))));
+    combine_spec_entails_always_n!(spec,
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::etcd_objects_have_unique_uids()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)),
+        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
+        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        lift_state(desired_state_is(vd)),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)),
+        lift_state(helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)),
+        lift_state(helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)),
+        lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
+        lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))
+    );
+}
+
+
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
@@ -123,50 +205,8 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     vd_rely_condition_equivalent_to_lifted_vd_rely_condition(provided_spec, cluster, controller_id);
     entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
     only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, controller_id);
-    assume(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))); // FIXME
-    assert(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))) by {
-        assert(spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))))) by {
-            always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-        }
-        assume(spec.entails(always(lift_state(helper_invariants::every_vrs_in_etcd_has_one_controller_owner())))); // FIXME
-        combine_spec_entails_always_n!(
-            spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-            lift_state(Cluster::crash_disabled(controller_id)),
-            lift_state(Cluster::req_drop_disabled()),
-            lift_state(Cluster::pod_monkey_disabled()),
-            lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-            lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-            lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-            lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-            lift_state(Cluster::etcd_objects_have_unique_uids()),
-            lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-            lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()),
-            lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
-            lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
-            lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-            lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-            lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)),
-            lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-            lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-            lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-            lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
-            lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)),
-            lift_state(Cluster::etcd_is_finite()),
-            lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
-            lift_state(Cluster::there_is_the_controller_state(controller_id)),
-            lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
-            lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
-            lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-            lift_state(desired_state_is(vd)),
-            lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())),
-            lift_state(helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)),
-            lift_state(helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)),
-            lift_state(helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)),
-            lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
-            lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
-            lift_state(helper_invariants::every_vrs_in_etcd_has_one_controller_owner())
-        );
-    }
+    only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself(spec, cluster, controller_id);
+    spec_entails_assumptions_and_invariants_of_all_phases_implies_cluster_invariants_since_reconciliation(spec, vd, cluster, controller_id);
     // true ~> reconcile_idle
     let reconcile_idle = |s: ClusterState| {
         &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
@@ -263,6 +303,77 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     assert(spec.entails(lift_state(init).leads_to(lift_state(done)))) by {
         lemma_from_init_to_current_state_matches(vd, spec, cluster, controller_id);
     }
+    assert(spec.entails(lift_state(done).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))))) by {
+        let k_to_csm = |new_vrs_key: ObjectRef| inductive_current_state_matches(vd, controller_id, new_vrs_key);
+        let lifted_k_to_csm = |new_vrs_key: ObjectRef| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key));
+        tla_exists_p_tla_exists_q_equality(
+            |new_vrs_key: ObjectRef| lift_state(k_to_csm(new_vrs_key)),
+            lifted_k_to_csm
+        );
+        temp_pred_equality(
+            tla_exists(|new_vrs_key: ObjectRef| lift_state(k_to_csm(new_vrs_key))),
+            tla_exists(lifted_k_to_csm)
+        );
+        assert forall |ex| #[trigger] lift_state(done).satisfied_by(ex) implies exists |k| #[trigger] lifted_k_to_csm(k).satisfied_by(ex) by {
+            let s = ex.head();
+            let nv_key = choose |new_vrs_key: ObjectRef| {
+                let etcd_obj = s.resources()[new_vrs_key];
+                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                &&& #[trigger] s.resources().contains_key(new_vrs_key)
+                &&& valid_owned_obj_key(vd, s)(new_vrs_key)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(new_vrs_key)
+                &&& etcd_vrs.metadata.uid is Some
+                &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
+                // no old vrs, including the 2nd new vrs (if any)
+                &&& !exists |old_k: ObjectRef| {
+                    &&& #[trigger] s.resources().contains_key(old_k)
+                    &&& valid_owned_obj_key(vd, s)(old_k)
+                    &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
+                }
+            };
+            assert(current_state_matches_with_new_vrs_key(vd, nv_key)(s));
+            assert(lifted_k_to_csm(nv_key).satisfied_by(ex));
+        }
+        entails_implies_leads_to(spec, lift_state(done), tla_exists(lifted_k_to_csm));
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime)
+            &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+            &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
+            &&& vd_reconcile_request_only_interferes_with_itself_condition(controller_id)(s)
+            &&& vd_rely_condition(cluster, controller_id)(s)
+        };
+        temp_pred_equality(
+            lift_state(vd_rely_condition(cluster, controller_id)),
+            lifted_vd_rely_condition(cluster, controller_id)
+        );
+        always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
+        combine_spec_entails_always_n!(spec,
+            lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+            later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))),
+            lift_state(vd_reconcile_request_only_interferes_with_itself_condition(controller_id)),
+            lift_state(vd_rely_condition(cluster, controller_id))
+        );
+        assert forall |s, s_prime| (forall |nv_key: ObjectRef| #[trigger] k_to_csm(nv_key)(s) && #[trigger] stronger_next(s, s_prime) ==> k_to_csm(nv_key)(s_prime)) by {
+            assert forall |nv_key: ObjectRef| #[trigger] k_to_csm(nv_key)(s) && stronger_next(s, s_prime) implies k_to_csm(nv_key)(s_prime) by {
+                lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_with_nv_key(vd, controller_id, cluster, nv_key, s, s_prime);
+            }
+        }
+        leads_to_exists_stable(spec, stronger_next, lift_state(done), k_to_csm);
+        tla_exists_p_tla_exists_q_equality(
+            |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
+            |new_vrs_key: ObjectRef| always(lift_state(k_to_csm(new_vrs_key)))
+        );
+    }
+    leads_to_trans_n!(spec,
+        true_pred(),
+        lift_state(reconcile_idle),
+        lift_state(reconcile_scheduled),
+        lift_state(init),
+        lift_state(done),
+        tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
+    );
 }
 
 #[verifier(rlimit(10))]

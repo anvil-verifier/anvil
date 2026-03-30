@@ -3436,11 +3436,11 @@ ensures
             assert(pod_opt_i is Some && pod_opt_j is Some);
             seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_i);
             seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_j);
-            let pod_ord_i = choose |ord: nat| ord < replicas && needed[ord as int] == pod_opt_i;
-            assert(exists |ord: nat| ord < replicas && needed[ord as int] == pod_opt_j && ord != pod_ord_i) by {
-                lemma_different_filtered_elems_map_to_different_elems(needed, outdated_pod_filter(vsts));
-            };
-            let pod_ord_j = choose |ord: nat| ord < replicas && needed[ord as int] == pod_opt_j && ord != pod_ord_i;
+            lemma_different_filtered_elems_map_to_different_elems(needed, outdated_pod_filter(vsts));
+            let pod_ord_i = filter_idx(needed, outdated_pod_filter(vsts), i as int) as nat;
+            let pod_ord_j = filter_idx(needed, outdated_pod_filter(vsts), j as int) as nat;
+            assert(pod_ord_i < replicas && needed[pod_ord_i as int] == pod_opt_i);
+            assert(pod_ord_j < replicas && needed[pod_ord_j as int] == pod_opt_j && pod_ord_j != pod_ord_i);
             get_ordinal_eq_pod_name(vsts_name, pod_ord_i, key.name);
             get_ordinal_eq_pod_name(vsts_name, pod_ord_j, key.name);
             assert(pod_ord_i == pod_ord_j);

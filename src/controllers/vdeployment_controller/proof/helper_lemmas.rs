@@ -126,6 +126,49 @@ pub proof fn vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(
     );
 }
 
+pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+ensures
+    spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
+    <==> spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
+{
+    let lhs = spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))));
+    let rhs = spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
+
+    assert(lhs ==> rhs) by {
+        assert forall |ex: Execution<ClusterState>, n: nat, vd: VDeploymentView| #![auto] lhs && spec.satisfied_by(ex)
+            implies helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head()) by {
+            // Gradually unwrap the semantics of lhs
+            // until Verus can show the consequent.
+            let tla_forall_body = |vd: VDeploymentView| 
+                lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd));
+
+            assert(valid(spec.implies(always(tla_forall(tla_forall_body)))));
+            assert(spec.implies(always(tla_forall(tla_forall_body))).satisfied_by(ex));
+            assert(always(tla_forall(tla_forall_body)).satisfied_by(ex));
+
+            assert(tla_forall(tla_forall_body).satisfied_by(ex.suffix(n)));
+
+            assert(tla_forall_body(vd).satisfied_by(ex.suffix(n)));
+        }
+    }
+    
+    assert(rhs ==> lhs) by {
+        assert forall |ex: Execution<ClusterState>, n: nat, vd: VDeploymentView| #![auto] rhs && spec.satisfied_by(ex)
+            implies helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head()) by {
+            // Gradually unwrap the semantics of rhs
+            // until Verus can show the consequent.
+            assert(valid(spec.implies(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))));
+            assert(spec.implies(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))).satisfied_by(ex));
+            assert(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)).satisfied_by(ex));
+            
+            assert(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id).satisfied_by(ex.suffix(n)));
+
+        }
+    }
+}
+
 pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )

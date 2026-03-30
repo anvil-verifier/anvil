@@ -305,7 +305,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VR
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
-        spec.entails(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_schedule_has_spec_and_uid_as(controller_id, vrs)))),
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(desired_state_is(vrs)))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
@@ -329,7 +329,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VR
         &&& cluster.next()(s, s_prime) 
         &&& Cluster::crash_disabled(controller_id)(s) 
         &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s) 
-        &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vrs)(s) 
+        &&& helper_invariants::vrs_in_schedule_has_spec_and_uid_as(controller_id, vrs)(s) 
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
         &&& desired_state_is(vrs)(s_prime)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime)
@@ -349,7 +349,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VR
         lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vrs)),
+        lift_state(helper_invariants::vrs_in_schedule_has_spec_and_uid_as(controller_id, vrs)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
         later(lift_state(desired_state_is(vrs))),
         later(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))
