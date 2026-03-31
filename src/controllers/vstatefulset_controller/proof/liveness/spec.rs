@@ -358,7 +358,7 @@ pub open spec fn invariants_since_phase_i(controller_id: int, vsts: VStatefulSet
     always(lift_state(Cluster::crash_disabled(controller_id)))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::pod_monkey_disabled())))
-    .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, cr))))
+    .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))))
 }
 
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VStatefulSetView)
@@ -368,7 +368,7 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VState
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, cr))
+        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))
     );
 }
 

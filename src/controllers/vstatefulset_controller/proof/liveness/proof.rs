@@ -271,7 +271,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::req_drop_disabled()),
             lift_state(Cluster::pod_monkey_disabled()),
-            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, cr))
+            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))
         );
     } else {
         reconcile_eventually_terminates(spec, cluster, controller_id);
