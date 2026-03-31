@@ -1223,12 +1223,12 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                     Step::ControllerStep((id, _, cr_key_opt)) => {
                         if id == controller_id {
                             RabbitmqClusterView::marshal_preserves_integrity();
-                            RabbitmqReconcileState::marshal_preserves_integrity();
                             let cr_key = cr_key_opt->0;
                             let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                            let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                            assert(no_interfering_request_between_rmq(controller_id, sub_resource, cr)(s_prime));
                             if cr_key == rabbitmq.object_ref() {
-                                assert(no_interfering_request_between_rmq(controller_id, sub_resource, cr)(s_prime));
+                                RabbitmqReconcileState::marshal_preserves_integrity();
+                                let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                                 if resource_create_request_msg(resource_key)(msg) {
                                     lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
                                     assert(msg.content.get_create_request().obj == make(sub_resource, cr, local_state)->Ok_0);
@@ -1252,7 +1252,46 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                                     ]));
                                 }
                             } else {
-                                assume(false);
+                                assert(s_prime.in_flight().contains(msg));
+                                if resource_create_request_msg(resource_key)(msg) || resource_update_request_msg(resource_key)(msg) {
+                                    assert(false) by {
+                                        if cr_key.namespace != rabbitmq.object_ref().namespace {} else {
+                                            assert(cr_key.name != rabbitmq.object_ref().name);
+                                            match sub_resource {
+                                                SubResource::HeadlessService => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-nodes"@);
+                                                },
+                                                SubResource::Service => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-client"@);
+                                                },
+                                                SubResource::ErlangCookieSecret => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-erlang-cookie"@);
+                                                },
+                                                SubResource::DefaultUserSecret => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-default-user"@);
+                                                },
+                                                SubResource::PluginsConfigMap => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-plugins-conf"@);
+                                                },
+                                                SubResource::ServerConfigMap => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server-conf"@);
+                                                },
+                                                SubResource::ServiceAccount => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
+                                                },
+                                                SubResource::Role => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-peer-discovery"@);
+                                                },
+                                                SubResource::RoleBinding => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
+                                                },
+                                                SubResource::VStatefulSetView => {
+                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
+                                                },
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         } else {
                             assert(msg.src.is_controller_id(id));
