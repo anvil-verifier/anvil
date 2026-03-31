@@ -1,12 +1,12 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::{
-    spec::{
-        api_server::{state_machine::*, types::InstalledTypes}, 
-        cluster::*, 
-        message::*,
-        controller::types::ControllerStep,
-    },
     proof::api_server::*,
+    spec::{
+        api_server::{state_machine::*, types::InstalledTypes},
+        cluster::*,
+        controller::types::ControllerStep,
+        message::*,
+    },
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
@@ -25,6 +25,7 @@ use crate::vstatefulset_controller::{
     },
 };
 use crate::vstd_ext::{seq_lib::*, string_view::*};
+use deps_hack::kube_core::Object;
 use vstd::prelude::*;
 
 verus! {
@@ -195,7 +196,7 @@ ensures
                                     assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                 }
                             },
-                            HostId::BuiltinController => {}, // must be delete requests   
+                            HostId::BuiltinController => {}, // must be delete requests
                             HostId::PodMonkey => {
                                 assert(rely_guarantee::vsts_rely_conditions_pod_monkey()(s));
                                 if msg.content.is_create_request() {
@@ -639,6 +640,355 @@ ensures
         true_pred(),
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
         always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))))
+    );
+}
+
+proof fn lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+        is_vsts_pod_key(vsts),
+        owner_reference_requirements(vsts)
+    )))))
+{
+    let requirements = |msg: Message, s: ClusterState| {
+        resource_create_request_msg_without_name(Kind::PodKind, vsts.object_ref().namespace)(msg)
+        && has_vsts_prefix(msg.content.get_create_request().obj.metadata.generate_name->0)
+            ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references)
+    };
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s_prime)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s_prime)
+        &&& rely::vsts_rely_conditions(cluster, controller_id)(s_prime)
+    };
+    assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+            implies requirements(msg, s_prime) by {
+            if !s.in_flight().contains(msg) && resource_create_request_msg_without_name(Kind::PodKind, vsts.object_ref().namespace)(msg) {
+                let req = msg.content.get_create_request();
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id == controller_id {
+                            let other_vsts = VStatefulSetView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..ObjectMetaView::default()
+                                },
+                                ..VStatefulSetView::default()
+                            };
+                            assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s_prime));
+                            assert(guarantee::vsts_internal_guarantee_create_req(req, vsts));
+                        } else {
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                            assert(rely::vsts_rely(id)(s_prime));
+                            assert(!has_vsts_prefix(req.obj.metadata.generate_name->0));
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
+    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
+    always_to_always_later(spec, lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)));
+    always_to_always_later(spec, lift_state(rely::vsts_rely_conditions(cluster, controller_id)));
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
+        later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        later(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        later(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))
+    );
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex)
+        implies lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))).satisfied_by(ex) by {
+        let s = ex.head();
+        assert forall |key: ObjectRef| #[trigger] is_vsts_pod_key(vsts)(key) implies
+            Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, owner_reference_requirements(vsts))(s) by {
+            assert forall |msg: Message| {
+                &&& #[trigger] s.in_flight().contains(msg)
+                &&& msg.dst is APIServer && msg.content is APIRequest
+            } implies {
+                resource_create_request_msg_without_name(key.kind, key.namespace)(msg)
+                ==> generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name
+                    ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references)
+            } by {
+                if generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == key.name {
+                    generated_name_reflects_prefix(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0, VStatefulSetView::kind()->CustomResourceKind_0);
+                    assert(requirements(msg, s));
+                }
+            };
+        };
+    };
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts)))
+    );
+    entails_implies_leads_to(spec,
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
+    );
+    leads_to_trans(spec,
+        true_pred(),
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
+    );
+}
+
+proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+        is_vsts_pod_key(vsts),
+        owner_reference_requirements(vsts)
+    ))))),
+{
+    let key_cond = |key: ObjectRef| { 
+        &&& key.kind == Kind::PodKind
+        &&& key.namespace == vsts.object_ref().namespace
+        &&& pod_name_match(key.name, vsts.object_ref().name)
+    };
+    let requirements = |msg: Message, s: ClusterState|
+        forall |key: ObjectRef| (key_cond(key) && resource_create_request_msg(key)(msg)) ==> owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s_prime)
+        &&& Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))(s_prime)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s_prime)
+        &&& rely::vsts_rely_conditions(cluster, controller_id)(s_prime)
+    };
+    assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+            implies requirements(msg, s_prime) by {
+            assert forall |key: ObjectRef| (key_cond(key) && resource_create_request_msg(key)(msg)) implies owner_reference_requirements(vsts)(msg.content.get_create_request().obj.metadata.owner_references) by {
+                if !s.in_flight().contains(msg) && resource_create_request_msg(key)(msg) {
+                    match msg.src {
+                        HostId::Controller(id, cr_key) => {
+                            if id == controller_id {
+                                if cr_key == vsts.object_ref() {
+                                    assert(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)(msg, s_prime));
+                                } else if resource_create_request_msg(key)(msg) {
+                                    let other_vsts = VStatefulSetView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(cr_key.name),
+                                            namespace: Some(cr_key.namespace),
+                                            ..ObjectMetaView::default()
+                                        },
+                                        ..VStatefulSetView::default()
+                                    };
+                                    assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s_prime));
+                                    vsts_name_neq_implies_no_pod_name_match(key.name, other_vsts.object_ref().name, vsts.object_ref().name);
+                                    assert(false);
+                                }
+                            } else {
+                                let req = msg.content.get_create_request();
+                                if msg.content is APIRequest && req.key() == key && req.obj.metadata.name is Some {
+                                    assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                    assert(rely::vsts_rely(id)(s_prime));
+                                    assert(false);
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+    };
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
+    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
+    always_to_always_later(spec, lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))));
+    always_to_always_later(spec, lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)));
+    always_to_always_later(spec, lift_state(rely::vsts_rely_conditions(cluster, controller_id)));
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
+        later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        later(lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))),
+        later(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        later(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))
+    );
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+}
+
+proof fn lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))))),
+    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+        is_vsts_pod_key(vsts),
+        owner_reference_requirements(vsts)
+    )))))
+{
+    let key_cond = |key: ObjectRef| {
+        &&& key.kind == Kind::PodKind
+        &&& key.namespace == vsts.object_ref().namespace
+        &&& pod_name_match(key.name, vsts.object_ref().name)
+    };
+    let requirements = |msg: Message, s: ClusterState| {
+        forall |key: ObjectRef| key_cond(key) ==> {
+            &&& resource_update_request_msg(key)(msg) ==> false
+            &&& resource_get_then_update_request_msg(key)(msg) ==> owner_reference_requirements(vsts)(msg.content.get_get_then_update_request().obj.metadata.owner_references)
+        }
+    };
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s_prime)
+        &&& Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))(s_prime)
+        &&& guarantee::vsts_internal_guarantee_conditions(controller_id)(s_prime)
+        &&& rely::vsts_rely_conditions(cluster, controller_id)(s_prime)
+    };
+    assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+            implies requirements(msg, s_prime) by {
+            assert forall |key: ObjectRef| key_cond(key) implies {
+                &&& resource_update_request_msg(key)(msg) ==> false
+                &&& resource_get_then_update_request_msg(key)(msg) ==> owner_reference_requirements(vsts)(msg.content.get_get_then_update_request().obj.metadata.owner_references)
+            } by {
+                if !s.in_flight().contains(msg) {
+                    match msg.src {
+                        HostId::Controller(id, cr_key) => {
+                            if id == controller_id {
+                                if cr_key == vsts.object_ref() {
+                                    assert(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)(msg, s_prime));
+                                } else {
+                                    let other_vsts = VStatefulSetView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(cr_key.name),
+                                            namespace: Some(cr_key.namespace),
+                                            ..ObjectMetaView::default()
+                                        },
+                                        ..VStatefulSetView::default()
+                                    };
+                                    assert(guarantee::no_interfering_request_between_vsts(controller_id, other_vsts)(s_prime));
+                                    if resource_get_then_update_request_msg(key)(msg) {
+                                        vsts_name_neq_implies_no_pod_name_match(key.name, other_vsts.object_ref().name, vsts.object_ref().name);
+                                        assert(false);
+                                    } else if resource_update_request_msg(key)(msg) {
+                                        assert(false);
+                                    }
+                                }
+                            } else {
+                                assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                assert(rely::vsts_rely(id)(s_prime));
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+    };
+    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
+    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
+    always_to_always_later(spec, lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))));
+    always_to_always_later(spec, lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)));
+    always_to_always_later(spec, lift_state(rely::vsts_rely_conditions(cluster, controller_id)));
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
+        later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
+        later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        later(lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))),
+        later(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        later(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))
+    );
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex)
+        implies lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))).satisfied_by(ex) by {
+        let s = ex.head();
+        assert forall |key: ObjectRef| #[trigger] is_vsts_pod_key(vsts)(key) implies Cluster::every_update_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))(s) by {
+            assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg)
+                implies owner_reference_requirements(vsts)(msg.content.get_update_request().obj.metadata.owner_references) by {
+                assert(key_cond(key));
+                assert(requirements(msg, s));
+                assert(false);
+            };
+            assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_get_then_update_request_msg(key)(msg)
+                implies owner_reference_requirements(vsts)(msg.content.get_get_then_update_request().obj.metadata.owner_references) by {
+                assert(key_cond(key));
+                assert(requirements(msg, s));
+            };
+        };
+    };
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
+        lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts)))
+    );
+    entails_implies_leads_to(spec,
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
+    );
+    leads_to_trans(spec,
+        true_pred(),
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
     );
 }
 
