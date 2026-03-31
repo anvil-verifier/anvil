@@ -1090,7 +1090,8 @@ spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> O
     }
 }
 
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(300))]
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
@@ -1098,23 +1099,33 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
 {
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
+        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(rmq_rely_conditions(cluster, controller_id))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1122,7 +1133,65 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         match step {
             Step::APIServerStep(input) => {
                 let req_msg = input->0;
-                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req_msg));
+                match req_msg.src {
+                    HostId::Controller(other_id, cr_key) => {
+                        if other_id == controller_id {
+                            assume(false);
+                        } else {
+                            assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
+                            assert(rmq_rely(other_id)(s));
+                            if msg.content is APIRequest {
+                                match (msg.content->APIRequest_0) {
+                                    APIRequest::CreateRequest(req) => {
+                                        if resource_create_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::UpdateRequest(req) => {
+                                        if resource_update_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::GetThenUpdateRequest(req) => {
+                                        if resource_get_then_update_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::DeleteRequest(req) => {
+                                        if resource_delete_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::GetThenDeleteRequest(req) => {
+                                        if resource_get_then_delete_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::UpdateStatusRequest(req) => {
+                                        if resource_update_status_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::GetThenUpdateStatusRequest(req) => {
+                                        if resource_get_then_update_status_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    // Get/List requests do not interfere
+                                    _ => {},
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }
@@ -1164,7 +1233,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
@@ -1173,7 +1241,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     let inv = resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq);
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
-        &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
@@ -1191,7 +1258,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
