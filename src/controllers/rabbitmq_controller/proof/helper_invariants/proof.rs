@@ -828,15 +828,26 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                                                 };
                                                 assert(other_rmq.object_ref() == cr_key);
                                                 assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
-                                                if resource_update_request_msg(resource_key)(req_msg) {
-                                                    rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
-                                                    assert(false);
+                                                rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
+                                                // no_interfering_request_between_rmq says req_msg is Get/Create/Update
+                                                // targeting get_request(sub_resource, other_rmq).key != resource_key
+                                                // Case-split to show req_msg doesn't modify resources[resource_key]
+                                                if req_msg.content is APIRequest {
+                                                    match (req_msg.content->APIRequest_0) {
+                                                        APIRequest::CreateRequest(req) => {
+                                                            if resource_create_request_msg(resource_key)(req_msg) {
+                                                                assert(false);
+                                                            }
+                                                        },
+                                                        APIRequest::UpdateRequest(req) => {
+                                                            if resource_update_request_msg(resource_key)(req_msg) {
+                                                                assert(false);
+                                                            }
+                                                        },
+                                                        // Get/List requests do not interfere
+                                                        _ => {},
+                                                    }
                                                 }
-                                                assert(!resource_delete_request_msg(resource_key)(req_msg));
-                                                assert(!resource_get_then_delete_request_msg(resource_key)(req_msg));
-                                                assert(s.resources().contains_key(resource_key));
-                                                assert(s_prime.resources().contains_key(resource_key));
-                                                assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                                             }
                                         }
                                     } else {
