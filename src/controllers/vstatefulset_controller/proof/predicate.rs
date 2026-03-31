@@ -2,7 +2,7 @@
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, esr::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely, liveness_theorem::*};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely_guarantee, liveness_theorem::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::{helper_invariants, guarantee};
 use crate::temporal_logic::{defs::*, rules::*};
@@ -124,7 +124,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref()),
         guarantee::vsts_internal_guarantee_conditions(controller_id),
         guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
-        rely::vsts_rely_conditions(cluster, controller_id)
+        rely_guarantee::vsts_rely_conditions(cluster, controller_id)
     )
 }
 

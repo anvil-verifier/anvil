@@ -17,7 +17,7 @@ use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     proof::{guarantee, helper_invariants, helper_lemmas::*, liveness::*, predicate::*},
     trusted::{
-        liveness_theorem::*, rely::*, spec_types::*, step::VStatefulSetReconcileStepView::*,
+        liveness_theorem::*, rely_guarantee::*, spec_types::*, step::VStatefulSetReconcileStepView::*,
         step::*,
     },
 };

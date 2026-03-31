@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, rely::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
     proof::{predicate::*, helper_invariants, helper_lemmas::*, guarantee, liveness::{spec::*, terminate}},
 };
 use crate::reconciler::spec::io::*;

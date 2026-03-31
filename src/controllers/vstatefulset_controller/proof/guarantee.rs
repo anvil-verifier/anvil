@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::kubernetes_cluster::spec::api_server::{state_machine::*, types::InstalledTypes};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
-    trusted::{spec_types::*, liveness_theorem::*},
+    trusted::{spec_types::*, liveness_theorem::*, rely_guarantee::*},
     model::{reconciler::*, install::*},
     proof::predicate::*,
     proof::helper_lemmas::*
@@ -14,57 +14,6 @@ use vstd::{prelude::*, map_lib::*};
 use crate::vstd_ext::{string_view::*, seq_lib::*, set_lib::*, map_lib::*};
 
 verus! {
-
-// VSTS Guarantee Condition (for other controllers)
-
-pub open spec fn vsts_guarantee(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.content is APIRequest
-            &&& msg.src.is_controller_id(controller_id)
-        } ==> match msg.content->APIRequest_0 {
-            APIRequest::ListRequest(_) | APIRequest::GetRequest(_) => true, // read-only requests
-            APIRequest::CreateRequest(req) => vsts_guarantee_create_req(req),
-            APIRequest::GetThenUpdateRequest(req) => vsts_guarantee_get_then_update_req(req),
-            APIRequest::GetThenDeleteRequest(req) => vsts_guarantee_get_then_delete_req(req),
-            // No Update, UpdateStatus and Delete requests submitted
-            _ => false,
-        }
-    }
-}
-
-// VSTS controller only creates Pods owned by itself
-// and only creates PVC matching its PVC templates
-pub open spec fn vsts_guarantee_create_req(req: CreateRequest) -> bool {
-    let owner_references = req.obj.metadata.owner_references->0;
-    &&& req.obj.metadata.name is Some
-    &&& has_vsts_prefix(req.obj.metadata.name->0)
-    &&& (req.obj.kind == Kind::PodKind || req.obj.kind == Kind::PersistentVolumeClaimKind)
-    &&& req.obj.kind == Kind::PodKind
-        ==> exists |vsts: VStatefulSetView| req.obj.metadata.owner_references == Some(Seq::empty().push(#[trigger] vsts.controller_owner_ref()))
-    &&& req.obj.kind == Kind::PersistentVolumeClaimKind
-        ==> req.obj.metadata.owner_references is None
-}
-
-// VSTS controller Only updates Pod owned by itself and does not update PVC
-pub open spec fn vsts_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
-    &&& req.obj.kind == Kind::PodKind
-    &&& req.obj.metadata.name is Some
-    &&& has_vsts_prefix(req.name)
-    &&& exists |vsts: VStatefulSetView| {
-        &&& req.owner_ref == #[trigger] vsts.controller_owner_ref()
-        // do not change ownership
-        &&& req.obj.metadata.owner_references == Some(Seq::empty().push(req.owner_ref))
-    }
-}
-
-// VSTS controller Only deletes Pod owned by itself
-pub open spec fn vsts_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
-    &&& req.key.kind == Kind::PodKind
-    &&& has_vsts_prefix(req.key.name)
-    &&& exists |vsts: VStatefulSetView| req.owner_ref == #[trigger] vsts.controller_owner_ref()
-}
 
 // VSTS internal Rely-Guarantee condition (for itself and used in shield lemma)
 
