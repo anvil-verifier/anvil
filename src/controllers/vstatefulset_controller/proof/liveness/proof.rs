@@ -9,7 +9,13 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
-    proof::{predicate::*, helper_invariants, helper_lemmas::*, guarantee, liveness::{spec::*, terminate}},
+    proof::{
+        predicate::*,
+        helper_invariants,
+        helper_lemmas::*,
+        internal_rely_guarantee,
+        liveness::{spec::*, terminate},
+    },
 };
 use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
@@ -70,7 +76,7 @@ pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_p
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::desired_state_is(vsts)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
-        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
+        lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))
     );
 
     entails_implies_leads_to(
@@ -525,7 +531,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     // Prove every_in_flight_msg_has_no_replicas_and_has_unique_id
     cluster.lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(spec);
 
-    guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
+    internal_rely_guarantee::internal_guarantee_condition_holds_on_all_vsts(spec, cluster, controller_id);
 
     entails_always_and_n!(
         spec,
@@ -568,7 +574,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
         tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))),
         tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))),
         tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))),
-        lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))
+        lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))
     );
 }
 
