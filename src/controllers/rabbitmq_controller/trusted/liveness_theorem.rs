@@ -17,26 +17,6 @@ use super::spec_types::RabbitmqClusterView;
 
 verus! {
 
-pub proof fn rmq_esr_holds_per_cr(spec: TempPred<ClusterState>, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
-        spec.entails(next_with_wf(cluster, controller_id)),
-        // The vd type is installed in the cluster.
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        // The vrs type is installed in the cluster.
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        // The vd controller runs in the cluster.
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        // No other controllers interfere with the vd controller.
-        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))),
-    ensures
-        spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)),
-        exists |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv)
-{
-}
-
 pub open spec fn rmq_composed_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     Cluster::eventually_stable_reconciliation(|vrs| composed_current_state_matches(vrs))
 }
@@ -229,19 +209,6 @@ pub open spec fn composed_vsts_match(rabbitmq: RabbitmqClusterView) -> StatePred
         let desired_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));   
         vsts_liveness_theorem::current_state_matches(desired_sts)(s)
     }
-}
-
-pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
-    always(lift_action(cluster.next()))
-    .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
-    .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
-    .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
-    .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
-    .and(cluster.disable_crash().weak_fairness(controller_id))
-    .and(cluster.disable_req_drop().weak_fairness(()))
-    .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
 
 }
