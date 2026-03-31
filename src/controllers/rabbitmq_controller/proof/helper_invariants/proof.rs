@@ -311,7 +311,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
+#[verifier(rlimit(50))]
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
@@ -356,6 +356,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     };
     always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     always_to_always_later(spec, lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, key)));
+    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
@@ -379,35 +380,56 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let key = rabbitmq.object_ref();
     assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        let pending_req = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
         if at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime) {
-            assert_by(
-                s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-                && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0),
-                {
-                    let step = choose |step| cluster.next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            RabbitmqReconcileState::marshal_preserves_integrity();
-                            assume(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime));
-                            if controller_id == input.0 && input.2->0 == key {
-                                if at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s) {
-                                    assert(!at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime));
-                                } else {
-                                    assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
-                                    assert(resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
-                                }
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    RabbitmqReconcileState::marshal_preserves_integrity();
+                    assert(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s));
+                    assert(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime));
+                    if controller_id == input.0 && input.2->0 == key {
+                        // The controller just issued a new pending request.
+                        // The new request was just added to in_flight, so no response for it
+                        // can exist yet in s_prime.in_flight() (the request has a fresh unique id).
+                        assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+                        let pending = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                        assert forall |msg: Message| s_prime.in_flight().contains(msg) && #[trigger] resp_msg_matches_req_msg(msg, pending) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
+                            assert(msg.content is APIResponse);
+                            // A response matching the new pending req can't exist because
+                            // the pending req was just created with a fresh id.
+                            // Every in-flight msg in s has id < allocator, but the new req's id >= allocator.
+                            if s.in_flight().contains(msg) {
+                                // msg was already in s.in_flight() but pending is new
+                                assert(Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s));
+                                // pending's id >= s.allocator, msg's id < s.allocator
+                                // So msg.rpc_id != pending.rpc_id, contradicting resp_msg_matches_req_msg
+                                assert(false);
                             } else {
-                                assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
+                                // msg is new in s_prime.in_flight() - must come from the API server step
+                                // but this is a ControllerStep, not APIServerStep, so no new response is added
+                                assert(false);
                             }
-                        },
-                        _ => {
-                            assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
                         }
+                    } else {
+                        // Different controller/key - ongoing_reconciles for our key is unchanged
+                        assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
+                        object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id, cluster, s, s_prime, rabbitmq);
+                        assert(inv(s_prime));
                     }
+                },
+                _ => {
+                    assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
+                    assert_by(
+                        s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+                        && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0),
+                        {
+                            assert(inv(s));
+                        }
+                    );
+                    object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id, cluster, s, s_prime, rabbitmq);
+                    assert(inv(s_prime));
                 }
-            );
-            object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id, cluster, s, s_prime, rabbitmq);
+            }
         }
     }
     leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
