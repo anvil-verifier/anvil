@@ -121,7 +121,6 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 model_lines["Proof"] += int(stripped_cols[SPEC_COL])
             elif (
                 "/trusted/liveness_theorem.rs" in stripped_cols[FILE_COL]
-                or "trusted/maker.rs" in stripped_cols[FILE_COL]
             ):
                 liveness_theorem_lines["Trusted"] += int(stripped_cols[EXEC_COL])
                 liveness_theorem_lines["Trusted"] += int(stripped_cols[PROOF_COL])

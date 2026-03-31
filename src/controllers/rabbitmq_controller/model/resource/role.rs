@@ -87,6 +87,7 @@ pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView
             finalizers: None,
             labels: made_role.metadata.labels,
             annotations: made_role.metadata.annotations,
+            deletion_timestamp: None,
             ..found_role.metadata
         },
         ..found_role

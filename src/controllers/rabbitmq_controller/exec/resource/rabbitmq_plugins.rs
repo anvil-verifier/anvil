@@ -86,6 +86,7 @@ pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: C
         let mut metadata = found_config_map.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_config_map.metadata().labels().unwrap());
         metadata.set_annotations(made_config_map.metadata().annotations().unwrap());
         metadata

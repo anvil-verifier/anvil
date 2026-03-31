@@ -118,7 +118,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(zookeeper: Z
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zookeeper: ZookeeperClusterView)
     ensures
-        forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet
+        forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView
         ==> assumption_and_invariants_of_all_phases(zookeeper)
             .entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper))))),
 {
@@ -145,7 +145,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
     // where sub_resource cannot be StatefulSet because it's the last resource to be processed and doesn't have its next_resource.
     // Through this, we can string all the resources together in sequence. This also means that the system can go to any
     // at_after_get_resource_step(sub_resource) from an arbitrary state.
-    assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet && sub_resource != SubResource::ConfigMap implies
+    assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView && sub_resource != SubResource::ConfigMap implies
     spec.entails(
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
             .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)))
@@ -167,7 +167,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
     // Since we already have true ~> at_after_get_resource_step(sub_resource), and we can get at_after_get_resource_step(sub_resource)
     // ~> sub_resource_state_matches(sub_resource, zookeeper) by applying lemma lemma_from_after_get_resource_step_to_resource_matches,
     // we now have true ~> sub_resource_state_matches(sub_resource, zookeeper).
-    assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies
+    assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView implies
     spec.entails(
         true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper)))
     ) by {
@@ -181,7 +181,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
 
     // Now we further prove stability: given true ~> sub_resource_state_matches(sub_resource, zookeeper)
     // we prove true ~> []sub_resource_state_matches(sub_resource, zookeeper)
-    assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies
+    assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView implies
     spec.entails(
         true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper))))
     ) by {
@@ -192,19 +192,19 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
 
 proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper: ZookeeperClusterView)
     requires assumption_and_invariants_of_all_phases(zookeeper).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))))),
-    ensures assumption_and_invariants_of_all_phases(zookeeper).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))),
+    ensures assumption_and_invariants_of_all_phases(zookeeper).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))))),
 {
     let spec1 = assumption_and_invariants_of_all_phases(zookeeper);
     let spec2 = spec1.and(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))));
     always_tla_forall_apply_for_sub_resource(spec2, SubResource::ConfigMap, zookeeper);
-    always_tla_forall_apply_for_sub_resource(spec2, SubResource::StatefulSet, zookeeper);
+    always_tla_forall_apply_for_sub_resource(spec2, SubResource::VStatefulSetView, zookeeper);
     helper_invariants::lemma_always_cm_rv_stays_unchanged(spec2, zookeeper);
     simplify_predicate(spec2, always(lift_action(helper_invariants::cm_rv_stays_unchanged(zookeeper))));
     // Later we will use the invariant helper_invariants::cm_rv_stays_unchanged(zookeeper) to call
     // lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update
     let spec = spec2.and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))));
     always_tla_forall_apply_for_sub_resource(spec, SubResource::ConfigMap, zookeeper);
-    always_tla_forall_apply_for_sub_resource(spec, SubResource::StatefulSet, zookeeper);
+    always_tla_forall_apply_for_sub_resource(spec, SubResource::VStatefulSetView, zookeeper);
 
     assert_by(valid(stable(spec1)), {
         assumption_and_invariants_of_all_phases_is_stable(zookeeper);
@@ -221,13 +221,13 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper: Zo
         stable_and_n!(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))));
     });
 
-    assert_by(spec.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))), {
-        // We first prove true ~> pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)
+    assert_by(spec.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))))), {
+        // We first prove true ~> pending_req_in_flight_at_after_get_resource_step(SubResource::VStatefulSetView, zookeeper)
         terminate::reconcile_eventually_terminates(spec, zookeeper);
         lemma_from_reconcile_idle_to_scheduled(spec, zookeeper);
         lemma_from_scheduled_to_init_step(spec, zookeeper);
         lemma_from_init_step_to_after_create_headless_service_step(spec, zookeeper);
-        assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet && sub_resource != SubResource::ConfigMap implies
+        assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView && sub_resource != SubResource::ConfigMap implies
         spec.entails(
             lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)))
@@ -246,30 +246,30 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper: Zo
             lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::AdminServerService, zookeeper)),
             lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ConfigMap, zookeeper)),
             lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)),
-            lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper))
+            lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::VStatefulSetView, zookeeper))
         );
 
-        // We then prove pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper) ~> sub_resource_state_matches(SubResource::StatefulSet, zookeeper)
+        // We then prove pending_req_in_flight_at_after_get_resource_step(SubResource::VStatefulSetView, zookeeper) ~> sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper)
         lemma_from_after_get_stateful_set_step_to_stateful_set_matches(spec, zookeeper);
         leads_to_trans(
-            spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)),
-            lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))
+            spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::VStatefulSetView, zookeeper)),
+            lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))
         );
         // Finally we prove stability
         lemma_stateful_set_is_stable(spec, zookeeper, true_pred());
     });
 
-    assert_by(spec2.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))), {
-        unpack_conditions_from_spec(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
+    assert_by(spec2.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))))), {
+        unpack_conditions_from_spec(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))));
         temp_pred_equality(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), true_pred().and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))));
         helper_invariants::lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(spec2, zookeeper);
-        leads_to_trans(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
+        leads_to_trans(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))));
     });
 
-    assert_by(spec1.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))), {
-        unpack_conditions_from_spec(spec1, always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
+    assert_by(spec1.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))))), {
+        unpack_conditions_from_spec(spec1, always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))));
         temp_pred_equality(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), true_pred().and(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)))));
-        leads_to_trans(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
+        leads_to_trans(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper))));
     });
 }
 

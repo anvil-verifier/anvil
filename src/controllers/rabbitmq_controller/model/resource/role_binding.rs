@@ -43,7 +43,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
         let rb = RoleBindingView::unmarshal(obj);
         if rb is Ok {
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                 ..state
             };
             let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(rabbitmq));
@@ -57,7 +57,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
         let rb = RoleBindingView::unmarshal(obj);
         if rb is Ok {
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                 ..state
             };
             let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(rabbitmq));
@@ -86,6 +86,7 @@ pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_b
             finalizers: None,
             labels: made_role_binding.metadata.labels,
             annotations: made_role_binding.metadata.annotations,
+            deletion_timestamp: None,
             ..found_role_binding.metadata
         },
         subjects: made_role_binding.subjects,

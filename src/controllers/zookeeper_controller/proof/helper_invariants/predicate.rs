@@ -246,7 +246,7 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
 
 pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        sub_resource != SubResource::StatefulSet
+        sub_resource != SubResource::VStatefulSetView
         ==> {
             forall |msg: ZKMessage|
                 #[trigger] s.in_flight().contains(msg)
@@ -261,7 +261,7 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
             #[trigger] s.in_flight().contains(msg)
             && msg.dst is APIServer
             && !msg.src is BuiltinController
-            ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg)
+            ==> !resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, zookeeper).key)(msg)
     }
 }
 
@@ -273,7 +273,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper: Zo
         ==> match local_state.reconcile_step {
             ZookeeperReconcileStep::AfterKRequestStep(_, sub_resource) => {
                 match sub_resource {
-                    SubResource::StatefulSet => {
+                    SubResource::VStatefulSetView => {
                         let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
                         &&& s.resources().contains_key(cm_key)
                         &&& s.resources()[cm_key].metadata.resource_version is Some
@@ -312,13 +312,13 @@ pub open spec fn cm_rv_stays_unchanged(zookeeper: ZookeeperClusterView) -> Actio
 
 pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
+        let sts_key = get_request(SubResource::VStatefulSetView, zookeeper).key;
         ||| !s.resources().contains_key(sts_key)
-        ||| sub_resource_state_matches(SubResource::StatefulSet, zookeeper)(s)
+        ||| sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper)(s)
         ||| {
             &&& forall |msg: ZKMessage|
                 s.in_flight().contains(msg)
-                ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg))
+                ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, zookeeper).key)(msg))
             &&& s.stable_resources().contains(sts_key)
         }
     }

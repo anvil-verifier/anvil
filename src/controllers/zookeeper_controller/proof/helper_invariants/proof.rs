@@ -639,7 +639,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                         assert(resp.content.get_get_response().res->Ok_0 == s.resources()[resource_key]);
                         assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                     }
-                    if sub_resource == SubResource::StatefulSet {
+                    if sub_resource == SubResource::VStatefulSetView {
                         let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
                         assert(s.resources()[cm_key] == s_prime.resources()[cm_key]);
                         assert(s.ongoing_reconciles()[key].local_state.latest_config_map_rv_opt == s_prime.ongoing_reconciles()[key].local_state.latest_config_map_rv_opt)
@@ -872,7 +872,7 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
 
     let resource_key = get_request(sub_resource, zookeeper).key;
     assert forall |s, s_prime: ZKCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        if sub_resource != SubResource::StatefulSet {
+        if sub_resource != SubResource::VStatefulSetView {
             assert forall |msg: ZKMessage| s_prime.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(resource_key)(msg)) by {
                 if s.in_flight().contains(msg) {
                     assert(!resource_update_status_request_msg(resource_key)(msg));
@@ -891,7 +891,7 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
                                                 SubResource::ClientService => {},
                                                 SubResource::AdminServerService => {},
                                                 SubResource::ConfigMap => {},
-                                                SubResource::StatefulSet => {},
+                                                SubResource::VStatefulSetView => {},
                                             }
                                         },
                                         _ => {}
@@ -934,7 +934,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed())
     );
 
-    let resource_key = get_request(SubResource::StatefulSet, zookeeper).key;
+    let resource_key = get_request(SubResource::VStatefulSetView, zookeeper).key;
     assert forall |s, s_prime: ZKCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst is APIServer && !msg.src is BuiltinController && msg.content.is_update_status_request()
         implies msg.content.get_update_status_request().key() != resource_key by {
@@ -955,7 +955,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                                             SubResource::ClientService => {},
                                             SubResource::AdminServerService => {},
                                             SubResource::ConfigMap => {},
-                                            SubResource::StatefulSet => {},
+                                            SubResource::VStatefulSetView => {},
                                         }
                                     },
                                     _ => {}
@@ -1463,7 +1463,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ZKCluster>, p
     leads_to_always_tla_forall(
         spec, p, a_to_p,
         set![SubResource::HeadlessService, SubResource::ClientService, SubResource::AdminServerService,
-        SubResource::ConfigMap, SubResource::StatefulSet]
+        SubResource::ConfigMap, SubResource::VStatefulSetView]
     );
 }
 
@@ -1478,36 +1478,36 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::VStatefulSetView, zookeeper)))),
+        spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, zookeeper)))),
+        spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(SubResource::VStatefulSetView, zookeeper)))),
         spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(zookeeper)))),
-        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::VStatefulSetView, zookeeper)))),
         spec.entails(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
         spec.entails(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, zookeeper)))),
         spec.entails(always(lift_action(cm_rv_stays_unchanged(zookeeper)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))))),
 {
-    let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
+    let sts_key = get_request(SubResource::VStatefulSetView, zookeeper).key;
     let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
     let make_fn = |rv: StringView| make_stateful_set(zookeeper, rv);
     let inv_for_create = |s: ZKCluster| {
-        &&& every_resource_create_request_implies_at_after_create_resource_step(SubResource::StatefulSet, zookeeper)(s)
+        &&& every_resource_create_request_implies_at_after_create_resource_step(SubResource::VStatefulSetView, zookeeper)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
     };
     invariant_n!(
         spec, lift_state(inv_for_create), lift_state(ZKCluster::every_in_flight_create_req_msg_for_this_sts_matches(sts_key, cm_key, make_fn)),
-        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::StatefulSet, zookeeper)),
+        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::VStatefulSetView, zookeeper)),
         lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper))
     );
     let inv_for_update = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
         &&& ZKCluster::desired_state_is(zookeeper)(s)
-        &&& every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
+        &&& every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, zookeeper)(s)
         &&& stateful_set_in_etcd_satisfies_unchangeable(zookeeper)(s)
-        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, zookeeper)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::VStatefulSetView, zookeeper)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
         &&& sub_resource_state_matches(SubResource::ConfigMap, zookeeper)(s)
         &&& cm_rv_stays_unchanged(zookeeper)(s, s_prime)
@@ -1518,9 +1518,9 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         spec, lift_action(inv_for_update), lift_state(ZKCluster::every_in_flight_update_req_msg_for_this_sts_matches(sts_key, cm_key, make_fn)),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         lift_state(ZKCluster::desired_state_is(zookeeper)),
-        lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
+        lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::VStatefulSetView, zookeeper)),
         lift_state(stateful_set_in_etcd_satisfies_unchangeable(zookeeper)),
-        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, zookeeper)),
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::VStatefulSetView, zookeeper)),
         lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)),
         lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)),
         lift_action(cm_rv_stays_unchanged(zookeeper))
@@ -1534,7 +1534,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
         &&& ZKCluster::desired_state_is(zookeeper)(s)
         &&& stateful_set_in_etcd_satisfies_unchangeable(zookeeper)(s)
-        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, zookeeper)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::VStatefulSetView, zookeeper)(s)
         &&& sub_resource_state_matches(SubResource::ConfigMap, zookeeper)(s)
         &&& no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)(s)
     };
@@ -1542,17 +1542,17 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
     assert forall |s| #[trigger] stronger_inv(s) && ZKCluster::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(sts_key, cm_key, make_fn)(s)
     implies stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)(s) by {
         if !s.resources().contains_key(sts_key) {}
-        else if sub_resource_state_matches(SubResource::StatefulSet, zookeeper)(s) {}
+        else if sub_resource_state_matches(SubResource::VStatefulSetView, zookeeper)(s) {}
         else {
-            assert forall |msg: ZKMessage| s.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg)) by {
-                if update_status_msg_from_bc_for(get_request(SubResource::StatefulSet, zookeeper).key)(msg) {} else {}
+            assert forall |msg: ZKMessage| s.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(get_request(SubResource::VStatefulSetView, zookeeper).key)(msg)) by {
+                if update_status_msg_from_bc_for(get_request(SubResource::VStatefulSetView, zookeeper).key)(msg) {} else {}
             }
         }
     }
     combine_spec_entails_always_n!(
         spec, lift_state(stronger_inv), lift_state(ZKCluster::each_object_in_etcd_is_well_formed()), lift_state(ZKCluster::desired_state_is(zookeeper)),
         lift_state(stateful_set_in_etcd_satisfies_unchangeable(zookeeper)),
-        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, zookeeper)),
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::VStatefulSetView, zookeeper)),
         lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)),
         lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper))
     );
@@ -1576,7 +1576,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zooke
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)))),
     ensures spec.entails(always(lift_action(cm_rv_stays_unchanged(zookeeper)))),
 {
-    let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
+    let sts_key = get_request(SubResource::VStatefulSetView, zookeeper).key;
     let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
     let make_fn = |rv: StringView| make_stateful_set(zookeeper, rv);
     let stronger_inv = |s: ZKCluster, s_prime: ZKCluster| {

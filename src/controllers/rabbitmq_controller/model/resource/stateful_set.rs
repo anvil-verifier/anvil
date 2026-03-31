@@ -93,6 +93,7 @@ pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_statef
             finalizers: None,
             labels: make_stateful_set(rabbitmq, config_map_rv).metadata.labels,
             annotations: make_stateful_set(rabbitmq, config_map_rv).metadata.annotations,
+            deletion_timestamp: None,
             ..found_stateful_set.metadata
         },
         spec: VStatefulSetSpecView {

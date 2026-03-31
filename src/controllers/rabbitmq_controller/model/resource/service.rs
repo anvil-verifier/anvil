@@ -89,6 +89,7 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
             finalizers: None,
             labels: made_main_service.metadata.labels,
             annotations: made_main_service.metadata.annotations,
+            deletion_timestamp: None,
             ..found_main_service.metadata
         },
         spec: Some(ServiceSpecView {

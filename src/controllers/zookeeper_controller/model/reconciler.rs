@@ -85,7 +85,7 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
                 SubResource::ClientService => { reconcile_helper::<ClientServiceBuilder>(zk, resp_o, state) },
                 SubResource::AdminServerService => { reconcile_helper::<AdminServerServiceBuilder>(zk, resp_o, state) },
                 SubResource::ConfigMap => { reconcile_helper::<ConfigMapBuilder>(zk, resp_o, state) },
-                SubResource::StatefulSet => { reconcile_helper::<StatefulSetBuilder>(zk, resp_o, state) },
+                SubResource::VStatefulSetView => { reconcile_helper::<StatefulSetBuilder>(zk, resp_o, state) },
             }
         },
         ZookeeperReconcileStep::AfterExistsStatefulSet => {
@@ -100,7 +100,7 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
                 } else if get_stateful_set_resp->Err_0 is ObjectNotFound {
                     let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                        reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                         ..state
                     };
                     (state_prime, Some(RequestView::KRequest(req_o)))
@@ -166,7 +166,7 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
             && resp->ExternalResponse_0->CreateResponse_0.res is Ok {
                 let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                 let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                     ..state
                 };
                 (state_prime, Some(RequestView::KRequest(req_o)))
@@ -183,7 +183,7 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
             && resp->ExternalResponse_0->SetDataResponse_0.res is Ok {
                 let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                 let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
+                    reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::VStatefulSetView),
                     ..state
                 };
                 (state_prime, Some(RequestView::KRequest(req_o)))

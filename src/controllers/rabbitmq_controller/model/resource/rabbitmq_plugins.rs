@@ -87,6 +87,7 @@ pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_
             finalizers: None,
             labels: made_config_map.metadata.labels,
             annotations: made_config_map.metadata.annotations,
+            deletion_timestamp: None,
             ..found_config_map.metadata
         },
         ..found_config_map
