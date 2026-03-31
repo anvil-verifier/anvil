@@ -18,7 +18,7 @@ use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
     proof::{
         helper_invariants, liveness::spec::assumption_and_invariants_of_all_phases, predicate::*,
-        resource::*, helper_lemmas::*,
+        resource::*, helper_lemmas::*, guarantee::*,
     },
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };

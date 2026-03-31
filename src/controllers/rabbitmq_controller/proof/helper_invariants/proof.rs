@@ -16,7 +16,7 @@ use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
     model::resource::*,
     proof::{
-        predicate::*, resource::*, helper_lemmas::*,
+        predicate::*, resource::*, helper_lemmas::*, guarantee::*,
     },
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };

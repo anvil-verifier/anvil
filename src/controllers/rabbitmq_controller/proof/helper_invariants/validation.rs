@@ -20,6 +20,7 @@ use crate::rabbitmq_controller::{
         helper_invariants::{owner_ref::*, predicate::*, proof::*},
         predicate::*,
         resource::*,
+        guarantee::*,
     },
     trusted::{spec_types::*, step::*, rely_guarantee::*},
 };

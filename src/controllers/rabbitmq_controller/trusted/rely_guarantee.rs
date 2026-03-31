@@ -92,43 +92,4 @@ pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
     }
 }
 
-pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures
-        spec.entails(always(lift_state(rmq_guarantee(controller_id))))
-{
-}
-
-pub open spec fn no_interfering_request_between_rmq_forall_rmq(controller_id: int, sub_resource: SubResource) -> StatePred<ClusterState> {
-    |s: ClusterState| forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s)
-}
-
-// internal rely-guarantee
-// don't be confused by the argument name, other_rmq can be the current CR in reconciliation if you need
-pub open spec fn no_interfering_request_between_rmq(controller_id: int, sub_resource: SubResource, other_rmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.content is APIRequest
-            &&& msg.src == HostId::Controller(controller_id, other_rmq.object_ref())
-        } ==> match msg.content->APIRequest_0 {
-            APIRequest::GetRequest(req) => {
-                req.key() == get_request(sub_resource, other_rmq).key
-            },
-            APIRequest::CreateRequest(req) => {
-                req.key() == get_request(sub_resource, other_rmq).key
-            },
-            APIRequest::UpdateRequest(req)=> {
-                req.key() == get_request(sub_resource, other_rmq).key
-            },
-            // RMQ controller doesn't send other requests
-            _ => false
-        }
-    }
-}
-
 }

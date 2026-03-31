@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     model::resource::*,
-    proof::{predicate::*, resource::*},
+    proof::{predicate::*, resource::*, guarantee::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};

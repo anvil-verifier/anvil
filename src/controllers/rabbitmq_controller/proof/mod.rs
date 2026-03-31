@@ -6,3 +6,4 @@ pub mod predicate;
 pub mod resource;
 // pub mod safety;
 pub mod helper_lemmas;
+pub mod guarantee;
