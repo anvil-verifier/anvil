@@ -410,6 +410,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                                 assert(false);
                             }
                         }
+                        assert(inv(s_prime));
                     } else {
                         // Different controller/key - ongoing_reconciles for our key is unchanged
                         assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
