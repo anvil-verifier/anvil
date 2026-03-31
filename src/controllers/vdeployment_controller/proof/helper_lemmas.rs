@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, predicate::*},
-    trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
+    trusted::{rely_guarantee::*, spec_types::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};

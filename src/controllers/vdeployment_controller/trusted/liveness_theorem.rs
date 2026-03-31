@@ -4,7 +4,7 @@ use crate::temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::{spec_types::*, liveness_theorem as vrs_liveness};
 use crate::vdeployment_controller::{
     model::reconciler::VDeploymentReconcileState,
-    trusted::{spec_types::*, util::*, step::VDeploymentReconcileStepView::*},
+    trusted::{spec_types::*, step::VDeploymentReconcileStepView::*},
     proof::{predicate::*, liveness::rolling_update::predicate::*},
 };
 use crate::vstd_ext::string_view::*;
@@ -136,6 +136,38 @@ pub open spec fn valid_owned_obj_key(vd: VDeploymentView, s: ClusterState) -> sp
 
 pub open spec fn filter_obj_keys_managed_by_vd(vd: VDeploymentView, s: ClusterState) -> Set<ObjectRef> {
     s.resources().dom().filter(valid_owned_obj_key(vd, s))
+}
+
+// there is no way to ensure vd does not have label with key "pod-template-hash",
+// so here we remote key from both sides
+pub open spec fn match_template_without_hash(template: PodTemplateSpecView) -> spec_fn(VReplicaSetView) -> bool {
+    |vrs: VReplicaSetView| {
+        PodTemplateSpecView {
+            metadata: Some(ObjectMetaView {
+                labels: Some(template.metadata->0.labels->0.remove("pod-template-hash"@)),
+                ..template.metadata->0
+            }),
+            ..template
+        } == PodTemplateSpecView {
+            metadata: Some(ObjectMetaView {
+                labels: Some(vrs.spec.template->0.metadata->0.labels->0.remove("pod-template-hash"@)),
+                ..vrs.spec.template->0.metadata->0
+            }),
+            ..vrs.spec.template->0
+        }
+    }
+}
+
+pub open spec fn valid_owned_vrs(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
+    // weaker version of well_formed, only need the key to be in etcd
+    // and corresponding objects can pass the filter
+    &&& vrs.metadata.name is Some
+    &&& vrs.metadata.namespace is Some
+    &&& vrs.metadata.namespace->0 == vd.metadata.namespace->0
+    &&& vrs.state_validation()
+    // shall not be deleted and is owned by vd
+    &&& vrs.metadata.deletion_timestamp is None
+    &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
 }
 
 }

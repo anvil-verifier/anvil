@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
 use crate::vdeployment_controller::{
-    trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
+    trusted::{spec_types::*, step::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
     proof::{predicate::*, liveness::{api_actions::*, resource_match::*}, helper_lemmas::*, helper_invariants},
     proof::liveness::rolling_update::{predicate::*, composition::*, helper_lemmas::*}

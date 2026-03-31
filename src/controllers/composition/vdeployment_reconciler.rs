@@ -11,7 +11,7 @@ use crate::vreplicaset_controller::{
 };
 use crate::composition::vreplicaset_reconciler::*;
 use crate::vdeployment_controller::{
-    trusted::{spec_types::*, rely_guarantee::*, util::*, liveness_theorem as vd_liveness},
+    trusted::{spec_types::*, rely_guarantee::*, liveness_theorem as vd_liveness},
     model::{reconciler::*, install::vd_controller_model},
     proof::{
         guarantee::*, liveness::{spec as vd_spec, proof as vd_proof, rolling_update::composition::*},
