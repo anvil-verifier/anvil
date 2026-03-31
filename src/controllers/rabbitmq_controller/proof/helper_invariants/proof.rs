@@ -700,7 +700,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
-#[verifier(external_body)]
 proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
@@ -715,6 +714,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))),
@@ -729,7 +729,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
-        spec.entails(always(lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()))),
+        spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
@@ -758,6 +758,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)(s)
@@ -775,7 +776,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
-        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
@@ -785,7 +786,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
             if resource_update_request_msg(resource_key)(msg) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
-                    assume(false);
                     RabbitmqReconcileState::marshal_preserves_integrity();
                     lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
                     let resp = step->ControllerStep_0.1->0;
@@ -806,55 +806,56 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     match step {
                         Step::APIServerStep(input) => {
-                            let msg = input->0;
-                            match msg.src {
+                            let req_msg = input->0;
+                            match req_msg.src {
                                 HostId::Controller(other_id, cr_key) => {
                                     assert(cluster.controller_models.contains_key(other_id));
                                     if other_id == controller_id {
-                                    } else {
                                         assume(false);
+                                        assert(resource_update_request_msg(resource_key)(req_msg));
+                                    } else {
                                         assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                                         assert(rmq_rely(other_id)(s));
-                                        if msg.content is APIRequest {
-                                            match (msg.content->APIRequest_0) {
+                                        if req_msg.content is APIRequest {
+                                            match (req_msg.content->APIRequest_0) {
                                                 APIRequest::CreateRequest(req) => {
-                                                    if resource_create_request_msg(resource_key)(msg) {
+                                                    if resource_create_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
                                                 },
                                                 APIRequest::UpdateRequest(req) => {
-                                                    if resource_update_request_msg(resource_key)(msg) {
+                                                    if resource_update_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
                                                 },
                                                 APIRequest::GetThenUpdateRequest(req) => {
-                                                    if resource_get_then_update_request_msg(resource_key)(msg) {
+                                                    if resource_get_then_update_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
                                                 },
                                                 APIRequest::DeleteRequest(req) => {
-                                                    if resource_delete_request_msg(resource_key)(msg) {
+                                                    if resource_delete_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
                                                 },
                                                 APIRequest::GetThenDeleteRequest(req) => {
-                                                    if resource_get_then_delete_request_msg(resource_key)(msg) {
+                                                    if resource_get_then_delete_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
                                                 },
                                                 APIRequest::UpdateStatusRequest(req) => {
-                                                    if resource_update_status_request_msg(resource_key)(msg) {
+                                                    if resource_update_status_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
                                                 },
                                                 APIRequest::GetThenUpdateStatusRequest(req) => {
-                                                    if resource_get_then_update_status_request_msg(resource_key)(msg) {
+                                                    if resource_get_then_update_status_request_msg(resource_key)(req_msg) {
                                                         assert(!is_rmq_managed_kind(req.key().kind));
                                                         assert(false);
                                                     }
@@ -868,17 +869,13 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                                     assert(requirements(msg, s_prime));
                                 },
                                 HostId::BuiltinController => {
-                                    assert(msg.content.is_delete_request());
+                                    assert(req_msg.content.is_delete_request());
+                                    assert(!resource_delete_request_msg(resource_key)(req_msg));
                                 }, // must be delete requests     
-                                HostId::PodMonkey => {
-                                    assume(false);
-                                },
                                 _ => {},
                             }
                         },
-                        _ => {
-                            assume(false);
-                        },
+                        _ => {},
                     }
                 }
             }
@@ -894,6 +891,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
@@ -911,7 +909,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())
     );
 
