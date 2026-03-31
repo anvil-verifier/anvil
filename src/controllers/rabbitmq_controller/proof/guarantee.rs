@@ -15,6 +15,7 @@ use crate::rabbitmq_controller::{
     proof::{predicate::*, resource::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
+use crate::rabbitmq_controller::trusted::step::RabbitmqReconcileStep::AfterKRequestStep;
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::temporal_logic::{defs::*, rules::*};
@@ -24,6 +25,7 @@ use vstd::{multiset::*, prelude::*, string::*};
 verus !{
 
 
+#[verifier(spinoff_prover)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -61,6 +63,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         RabbitmqReconcileState::marshal_preserves_integrity();
 
         let step = choose |step| cluster.next_step(s, s_prime, step);
+        let new_msgs = s_prime.in_flight().sub(s.in_flight());
         match step {
             Step::APIServerStep(req_msg_opt) => {
                 let req_msg = req_msg_opt.unwrap();
@@ -96,24 +99,11 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
 
-                    if id == controller_id {
+                    if id == controller_id && new_msgs.contains(msg) {
                         let triggering_cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        if new_msgs.contains(msg) {
-                            if msg.content.is_create_request() {
-                                let req = msg.content.get_create_request();
-                                // The created object has owner_references set to the triggering CR
-                                assert(req.obj.metadata.owner_references is Some);
-                                let rabbitmq = triggering_cr;
-                                assert(req.obj.metadata.owner_references->0 == seq![rabbitmq.controller_owner_ref()]);
-                            } else if msg.content.is_update_request() {
-                                let req = msg.content.get_update_request();
-                                // The updated object has owner_references set to the triggering CR
-                                assert(req.obj.metadata.owner_references is Some);
-                                let rabbitmq = triggering_cr;
-                                assert(req.obj.metadata.owner_references->0 == seq![rabbitmq.controller_owner_ref()]);
-                            }
-                        }
+                        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                        assert(msg.content->APIRequest_0 == reconcile_core(triggering_cr, None, local_state).1->0->KRequest_0);
+                        lemma_guarantee_from_reconcile_state(msg, local_state, triggering_cr);
                     }
                 }
             }
@@ -137,6 +127,43 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     }
 
     init_invariant(spec, cluster.init(), stronger_next, invariant);
+}
+
+
+pub proof fn lemma_guarantee_from_reconcile_state(
+    msg: Message,
+    state: RabbitmqReconcileState,
+    rmq: RabbitmqClusterView,
+)
+    requires
+        msg.content is APIRequest,
+        reconcile_core(rmq, None, state).1 is Some,
+        reconcile_core(rmq, None, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(rmq, None, state).1->0->KRequest_0,
+    ensures
+        match msg.content->APIRequest_0 {
+            APIRequest::GetRequest(_) => true,
+            APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
+            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            _ => false,
+        }
+{
+    match state.reconcile_step {
+        AfterKRequestStep(ActionKind::Get, _) => {
+            assert(msg.content.is_get_request());
+        },
+        AfterKRequestStep(ActionKind::Create, _) => {
+            assert(msg.content.is_create_request());
+            assert(rmq_guarantee_create_req(msg.content.get_create_request()));
+        },
+        AfterKRequestStep(ActionKind::Update, _) => {
+            assert(msg.content.is_update_request());
+            assert(rmq_guarantee_update_req(msg.content.get_update_request()));
+        },
+        _ => {
+            assume(reconcile_core(rmq, None, state).1 is None);
+        }
+    }
 }
 
 pub open spec fn no_interfering_request_between_rmq_forall_rmq(controller_id: int, sub_resource: SubResource) -> StatePred<ClusterState> {
