@@ -116,7 +116,9 @@ pub open spec fn no_interfering_request_between_rmq(controller_id: int, sub_reso
             &&& msg.content is APIRequest
             &&& msg.src == HostId::Controller(controller_id, other_rmq.object_ref())
         } ==> match msg.content->APIRequest_0 {
-            APIRequest::GetRequest(_) => true,
+            APIRequest::GetRequest(req) => {
+                req.key() == get_request(sub_resource, other_rmq).key
+            },
             APIRequest::CreateRequest(req) => {
                 req.key() == get_request(sub_resource, other_rmq).key
             },

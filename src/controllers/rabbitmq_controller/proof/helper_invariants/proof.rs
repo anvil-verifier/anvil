@@ -506,35 +506,39 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = request_at_after_get_request_step_is_resource_get_request(controller_id, sub_resource, rabbitmq);
-    let consistent_key = |s: ClusterState| {
-        s.ongoing_reconciles(controller_id).contains_key(key) ==> s.ongoing_reconciles(controller_id)[key].triggering_cr.object_ref() == key
-    };
-    let next = |s, s_prime| {
-        &&& cluster.next()(s, s_prime)
-        &&& consistent_key(s)
-    };
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
-    combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(cluster.next()),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
+    always_to_always_later(spec, lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))),
+        later(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))
     );
-    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         if at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
-                    if at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
-                        let cr_key = input.2->0;
-                        if cr_key == key {
-                            assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
-                            assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
-                        } else {
-                            assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
-                        }
+                    RabbitmqClusterView::marshal_preserves_integrity();
+                    RabbitmqReconcileState::marshal_preserves_integrity();
+                    if input.0 == controller_id && input.2->0 == key {
+                        assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
+                    } else {
+                        assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
                     }
-                },
-                Step::RestartControllerStep(_) => {
-                    assert(!s_prime.ongoing_reconciles(controller_id).contains_key(key));
                 },
                 _ => {
                     assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
@@ -542,7 +546,7 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
             }
         }
     }
-    init_invariant(spec, cluster.init(), next, inv);
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 #[verifier(spinoff_prover)]
