@@ -1,6 +1,6 @@
 # Except this file
 !.gitignore
-
+*.d
 .vscode/
 src/*_controller
 src/*.long-type-*.txt
