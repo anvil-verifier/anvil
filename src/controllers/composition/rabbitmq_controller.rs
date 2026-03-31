@@ -15,10 +15,8 @@ use crate::rabbitmq_controller::proof::{
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
     liveness_theorem as vsts_liveness_theorem,
-    rely as vsts_rely_mod,
+    rely_guarantee as vsts_rely_mod,
 };
-use crate::vstatefulset_controller::trusted::rely::vsts_rely;
-use crate::vstatefulset_controller::proof::guarantee::{vsts_guarantee, vsts_guarantee_create_req, vsts_guarantee_get_then_update_req, vsts_guarantee_get_then_delete_req};
 use crate::vstatefulset_controller::model::{
     reconciler::VStatefulSetReconciler, install::vsts_controller_model
 };
@@ -95,9 +93,9 @@ impl Composition for RabbitmqReconciler {
         let rmq_guarantee = rmq_guarantee(Self::id());
 
         {
-            let vsts_guarantee = vsts_guarantee(VStatefulSetReconciler::id());
+            let vsts_guarantee = vsts_rely_mod::vsts_guarantee(VStatefulSetReconciler::id());
             let rmq_rely_vsts = rmq_rely(VStatefulSetReconciler::id());
-            let vsts_rely_rmq = vsts_rely(Self::id());
+            let vsts_rely_rmq = vsts_rely_mod::vsts_rely(Self::id());
             assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
 
             assert(lift_state(vsts_guarantee).entails(lift_state(rmq_rely_vsts))) by {

@@ -13,7 +13,10 @@ use crate::composition::vreplicaset_reconciler::*;
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, rely_guarantee::*, util::*, liveness_theorem as vd_liveness},
     model::{reconciler::*, install::vd_controller_model},
-    proof::{guarantee::*, liveness::{spec as vd_spec, proof as vd_proof, rolling_update::composition::*}, predicate::*, helper_lemmas::*, helper_invariants, liveness::api_actions::*}
+    proof::{
+        guarantee::*, liveness::{spec as vd_spec, proof as vd_proof, rolling_update::composition::*},
+        predicate::*, helper_lemmas::*, helper_invariants, liveness::api_actions::*
+    }
 };
 use crate::vstd_ext::{
     string_view::*, seq_lib::*, set_lib::*, map_lib::*
@@ -98,7 +101,7 @@ impl VerticalComposition for VDeploymentReconciler {
         assert(spec.entails(vd_spec::next_with_wf(cluster, Self::id()))) by {
             entails_trans(spec, next_with_wf, vd_spec::next_with_wf(cluster, Self::id()));
         }
-        assert forall |vd: VDeploymentView| #![trigger vd_liveness::desired_state_is(vd)] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(tla_exists(|nv_key: ObjectRef| always(lift_state(vd_liveness::inductive_current_state_matches(vd, Self::id(), nv_key)))))) by {
+        assert forall |vd: VDeploymentView| #![trigger vd_liveness::desired_state_is(vd)] spec.entails(always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(tla_exists(|nv_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, Self::id(), nv_key)))))) by {
             vd_proof::eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, Self::id());
         }
         assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(Self::id())))) by {
