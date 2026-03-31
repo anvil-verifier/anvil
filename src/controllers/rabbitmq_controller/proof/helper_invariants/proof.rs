@@ -2047,6 +2047,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))))),
+        spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq))))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))) by {
@@ -2054,6 +2055,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         always_tla_forall_apply(spec, |res: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)), sub_resource);
+        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(res, rabbitmq)), sub_resource);
         lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(controller_id, cluster, spec, sub_resource, rabbitmq);
     }
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
