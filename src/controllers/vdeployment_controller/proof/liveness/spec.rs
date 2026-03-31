@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, step::VDeploymentReconcileStepView::*, util::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, step::VDeploymentReconcileStepView::*},
     proof::{helper_invariants::*, helper_lemmas::*, liveness::*, predicate::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;

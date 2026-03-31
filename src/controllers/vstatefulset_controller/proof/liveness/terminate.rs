@@ -10,7 +10,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely::*},
+    trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely_guarantee::*},
     proof::{predicate::*, helper_invariants, guarantee, liveness::spec::*},
 };
 use vstd::prelude::*;

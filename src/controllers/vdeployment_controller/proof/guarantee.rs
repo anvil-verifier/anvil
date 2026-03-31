@@ -6,10 +6,7 @@ use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::helper_invariants,
     trusted::{
-        rely_guarantee::*,
-        spec_types::*,
-        step::*,
-        util::*,
+        rely_guarantee::*, spec_types::*, step::*, liveness_theorem::*,
     },
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;

@@ -7,3 +7,4 @@ pub mod resource;
 // pub mod safety;
 pub mod helper_lemmas;
 pub mod guarantee;
+pub mod composition;

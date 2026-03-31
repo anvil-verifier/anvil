@@ -7,9 +7,15 @@ use crate::kubernetes_cluster::spec::{
     message::*
 };
 use crate::vstatefulset_controller::{
-    trusted::{spec_types::*, step::*, liveness_theorem::*, rely},
+    trusted::{spec_types::*, step::*, liveness_theorem::*, rely_guarantee},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, helper_lemmas::*, helper_invariants, liveness::{api_actions::*, state_predicates::*}, guarantee, shield_lemma},
+    proof::{
+        predicate::*,
+        helper_lemmas::*,
+        helper_invariants,
+        liveness::{api_actions::*, state_predicates::*},
+        internal_rely_guarantee,
+    },
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -30,8 +36,8 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(reconcile_idle(vsts, controller_id)).leads_to(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),
@@ -137,8 +143,8 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         reconcile_idle(vsts, controller_id),
@@ -216,8 +222,8 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         reconcile_scheduled(vsts, controller_id),
@@ -285,8 +291,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     outdated_len > 0 ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
@@ -534,8 +540,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
@@ -687,8 +693,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![AfterListPod]),
@@ -741,10 +747,10 @@ ensures
                                     assert(owned_obj_keys_prime.contains(key));
                                     assert(false);
                                 }
-                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                                 assert(false);
                             } else {
-                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                                 assert(false);
                             }
                         }
@@ -764,10 +770,10 @@ ensures
                                     assert(owned_obj_keys.contains(key));
                                     assert(false);
                                 }
-                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                                 assert(false);
                             } else {
-                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                                 assert(false);
                             }
                         }
@@ -784,7 +790,7 @@ ensures
                             &&& key.namespace == vsts.metadata.namespace->0
                             &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
                         });
-                        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                        internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                     lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0);
                     assert(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime));
@@ -820,8 +826,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     pvc_cnt(vsts) > 0, // otherwise GetPVC is unreachable
 ensures
     spec.entails(lift_state(and!(
@@ -883,8 +889,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     pvc_index < pvc_cnt(vsts), // otherwise GetPVC is unreachable
 ensures
     pvc_index + 1 < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
@@ -996,8 +1002,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
@@ -1181,7 +1187,7 @@ ensures
                                         &&& key.namespace == vsts.metadata.namespace->0
                                         &&& pvc_name_match(key.name, vsts.metadata.name->0)
                                     })); // pre of lemma_no_interference
-                                    shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
+                                    internal_rely_guarantee::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
                                 }
                             }
                         }
@@ -1234,8 +1240,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     pvc_index < pvc_cnt(vsts),
 ensures
     pvc_index + 1 < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
@@ -1335,8 +1341,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     pvc_index < pvc_cnt(vsts),
 ensures
     pvc_index + 1 < pvc_cnt(vsts) ==> spec.entails(lift_state(and!(
@@ -1500,8 +1506,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     0 < pvc_index <= pvc_cnt(vsts),
 ensures
     spec.entails(lift_state(and!(
@@ -1583,7 +1589,7 @@ ensures
                             &&& key.namespace == vsts.metadata.namespace->0
                             &&& pvc_name_match(key.name, vsts.metadata.name->0)
                         })); // pre of lemma_no_interference
-                        shield_lemma::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
+                        internal_rely_guarantee::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                 },
                 Step::BuiltinControllersStep(_) => {}, // hardener
@@ -1619,8 +1625,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     replicas(vsts) > 0, // otherwise Create/UpdateNeeded steps are not reachable
 ensures
     condemned_len > 0 ==> spec.entails(lift_state(and!(
@@ -1761,8 +1767,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     needed_index < replicas(vsts),
 ensures
     spec.entails(lift_state(and!(
@@ -1863,7 +1869,7 @@ ensures
                                     &&& key.namespace == vsts.metadata.namespace->0
                                     &&& pod_name_match(key.name, vsts.metadata.name->0)
                                 })); // pre of lemma_no_interference
-                                shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                             }
                         }
                     },
@@ -1926,8 +1932,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     0 < needed_index <= replicas(vsts),
 ensures
     spec.entails(lift_state(and!(
@@ -2008,7 +2014,7 @@ ensures
                             &&& key.namespace == vsts.metadata.namespace->0
                             &&& pod_name_match(key.name, vsts.metadata.name->0)
                         })); // pre of lemma_no_interference
-                        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                        internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                 },
                 _ => {
@@ -2050,8 +2056,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     needed_index < replicas(vsts),
 ensures
     spec.entails(lift_state(and!(
@@ -2204,8 +2210,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     0 < needed_index <= replicas(vsts),
 ensures
     spec.entails(lift_state(and!(
@@ -2288,7 +2294,7 @@ ensures
                                 &&& key.namespace == vsts.metadata.namespace->0
                                 &&& pod_name_match(key.name, vsts.metadata.name->0)
                             })); // pre of lemma_no_interference
-                            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                            internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                     },
                     _ => {
@@ -2329,8 +2335,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     condemned_len > 0,
 ensures
     spec.entails(lift_state(and!(
@@ -2393,8 +2399,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     condemned_index < condemned_len,
 ensures
     condemned_index + 1 == condemned_len ==> spec.entails(lift_state(and!(
@@ -2568,8 +2574,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     0 < condemned_index <= condemned_len,
 ensures
     condemned_index < condemned_len ==> spec.entails(lift_state(and!(
@@ -2670,7 +2676,7 @@ ensures
                         let ord = get_ordinal(vsts.metadata.name->0, key.name)->0;
                         assert(key.name == pod_name(vsts.metadata.name->0, ord));
                         assert(s.resources().contains_key(key)) by {
-                            shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                            internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                         }
                         assert(false);
                     }
@@ -2714,8 +2720,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -2881,8 +2887,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     outdated_len > 0 ==> spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -2980,8 +2986,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     outdated_len > 0,
 ensures
     spec.entails(lift_state(and!(
@@ -3068,7 +3074,7 @@ ensures
                             outdated_pod_filter(vsts),
                             outdated_pod
                         );
-                        shield_lemma::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
+                        internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                         assert(false);
                     }
                 },
@@ -3110,8 +3116,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
     spec.entails(lift_state(and!(
         at_vsts_step(vsts, controller_id, at_step![Done]),

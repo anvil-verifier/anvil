@@ -2,9 +2,15 @@
 
 use crate::kubernetes_api_objects::spec::{resource::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, esr::*, message::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely, liveness_theorem::*};
-use crate::vstatefulset_controller::model::{reconciler::*, install::*};
-use crate::vstatefulset_controller::proof::{helper_invariants, guarantee};
+use crate::vstatefulset_controller::trusted::{
+    spec_types::*, step::*, step::VStatefulSetReconcileStepView::*, rely_guarantee, liveness_theorem::*
+};
+use crate::vstatefulset_controller::model::{
+    reconciler::*, install::*
+};
+use crate::vstatefulset_controller::proof::{
+    helper_invariants, guarantee, internal_rely_guarantee
+};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -122,9 +128,9 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vsts:
         helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id),
         helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts(),
         helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref()),
-        guarantee::vsts_internal_guarantee_conditions(controller_id),
-        guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
-        rely::vsts_rely_conditions(cluster, controller_id)
+        internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id),
+        internal_rely_guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
+        rely_guarantee::vsts_rely_conditions(cluster, controller_id)
     )
 }
 

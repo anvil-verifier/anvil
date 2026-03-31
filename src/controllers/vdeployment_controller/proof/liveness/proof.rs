@@ -5,7 +5,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, api_actions::*, rolling_update::composition::*}, predicate::*},
-    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
 use crate::vdeployment_controller::proof::helper_invariants;

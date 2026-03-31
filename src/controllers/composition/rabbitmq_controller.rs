@@ -15,10 +15,8 @@ use crate::rabbitmq_controller::proof::{
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
     liveness_theorem as vsts_liveness_theorem,
-    rely as vsts_rely_mod,
+    rely_guarantee as vsts_rely_mod,
 };
-use crate::vstatefulset_controller::trusted::rely::vsts_rely;
-use crate::vstatefulset_controller::proof::guarantee::{vsts_guarantee, vsts_guarantee_create_req, vsts_guarantee_get_then_update_req, vsts_guarantee_get_then_delete_req};
 use crate::vstatefulset_controller::model::{
     reconciler::VStatefulSetReconciler, install::vsts_controller_model
 };
@@ -95,9 +93,9 @@ impl Composition for RabbitmqReconciler {
         let rmq_guarantee = rmq_guarantee(Self::id());
 
         {
-            let vsts_guarantee = vsts_guarantee(VStatefulSetReconciler::id());
+            let vsts_guarantee = vsts_rely_mod::vsts_guarantee(VStatefulSetReconciler::id());
             let rmq_rely_vsts = rmq_rely(VStatefulSetReconciler::id());
-            let vsts_rely_rmq = vsts_rely(Self::id());
+            let vsts_rely_rmq = vsts_rely_mod::vsts_rely(Self::id());
             assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
 
             assert(lift_state(vsts_guarantee).entails(lift_state(rmq_rely_vsts))) by {
@@ -337,104 +335,7 @@ impl VerticalComposition for RabbitmqReconciler {
     #[verifier(external_body)]
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
-    {
-        assert(spec.entails(vsts_spec::next_with_wf(cluster, Self::id()))) by {
-            entails_trans(spec, next_with_wf(cluster, Self::id()), vsts_spec::next_with_wf(cluster, Self::id()));
-        }
-
-        assert forall |rmq: RabbitmqClusterView| spec.entails(always(lift_state(#[trigger] Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_current_state_matches(rmq))))) by {
-            assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)));
-
-            let rv = choose |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv);
-            assert(rmq_eventually_stable_cm_rv(spec, rmq, rv));
-
-            let desired_sts = make_stateful_set(rmq, int_to_string_view(rv));
-
-            leads_to_always_combine(
-                spec,
-                always(lift_state(Cluster::desired_state_is(rmq))),
-                lift_state(current_state_matches(rmq)),
-                lift_state(config_map_rv_match(rmq, rv))
-            );
-
-            assert(lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).entails(lift_state(Cluster::desired_state_is(desired_sts)))) by {
-                assert forall |ex: Execution<ClusterState>|
-                    lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).satisfied_by(ex)
-                    implies #[trigger] lift_state(Cluster::desired_state_is(desired_sts)).satisfied_by(ex) by {
-                    let s = ex.head();
-                    assert(resource_state_matches(SubResource::VStatefulSetView, rmq)(s));
-                    assert(config_map_rv_match(rmq, rv)(s));
-                };
-            };
-
-            entails_preserved_by_always(
-                lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))),
-                lift_state(Cluster::desired_state_is(desired_sts))
-            );
-            entails_implies_leads_to(
-                spec,
-                always(lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv)))),
-                always(lift_state(Cluster::desired_state_is(desired_sts)))
-            );
-            leads_to_trans(
-                spec,
-                always(lift_state(Cluster::desired_state_is(rmq))),
-                always(lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv)))),
-                always(lift_state(Cluster::desired_state_is(desired_sts)))
-            );
-
-            let current_state_matches_vsts = |vsts: VStatefulSetView| vsts_liveness_theorem::current_state_matches(vsts);
-            assert(spec.entails(Cluster::eventually_stable_reconciliation(current_state_matches_vsts)));
-            assert(spec.entails(tla_forall(|vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches_vsts(vsts)))))));
-            use_tla_forall(spec, |vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches_vsts(vsts)))), desired_sts);
-
-            leads_to_trans(
-                spec,
-                always(lift_state(Cluster::desired_state_is(rmq))),
-                always(lift_state(Cluster::desired_state_is(desired_sts))),
-                always(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))
-            );
-
-            leads_to_always_combine(
-                spec,
-                always(lift_state(Cluster::desired_state_is(rmq))),
-                lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))),
-                lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))
-            );
-
-            assert(
-                lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))
-                .entails(lift_state(composed_current_state_matches(rmq)))
-            ) by {
-                assert forall |ex: Execution<ClusterState>|
-                    lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))).satisfied_by(ex)
-                    implies #[trigger] lift_state(composed_current_state_matches(rmq)).satisfied_by(ex) by {
-                    let s = ex.head();
-                    assert(config_map_rv_match(rmq, rv)(s));
-                    assert(composed_vsts_match(rmq)(s));
-                };
-            };
-
-            entails_preserved_by_always(
-                lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts))),
-                lift_state(composed_current_state_matches(rmq))
-            );
-            entails_implies_leads_to(
-                spec,
-                always(lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))),
-                always(lift_state(composed_current_state_matches(rmq)))
-            );
-            leads_to_trans(
-                spec,
-                always(lift_state(Cluster::desired_state_is(rmq))),
-                always(lift_state(current_state_matches(rmq)).and(lift_state(config_map_rv_match(rmq, rv))).and(lift_state(vsts_liveness_theorem::current_state_matches(desired_sts)))),
-                always(lift_state(composed_current_state_matches(rmq)))
-            );
-        }
-        let composed_current_state_matches = |rmq: RabbitmqClusterView| composed_current_state_matches(rmq);
-        spec_entails_tla_forall(spec, |rmq: RabbitmqClusterView| always(lift_state(Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_current_state_matches(rmq)))));
-        assert(spec.entails(rmq_composed_eventually_stable_reconciliation()));
-    }
+    {}
 
     proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_rely),

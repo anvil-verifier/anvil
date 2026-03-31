@@ -11,7 +11,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::proof::predicate::*;
 use crate::vstatefulset_controller::trusted::{
-    spec_types::*, rely::*, liveness_theorem::*
+    spec_types::*, rely_guarantee::*, liveness_theorem::*
 };
 use crate::vstatefulset_controller::model::{
     reconciler::*, install::*

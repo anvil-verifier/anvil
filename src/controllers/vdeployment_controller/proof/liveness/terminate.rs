@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::reconciler::spec::io::*;
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*, util::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
     proof::predicate::*,
 };
 use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
