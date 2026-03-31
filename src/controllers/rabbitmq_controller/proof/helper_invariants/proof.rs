@@ -424,8 +424,8 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
     leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
-#[verifier(external_body)]
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(300))]
 proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
