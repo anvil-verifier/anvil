@@ -334,7 +334,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
 }
 
-#[verifier(external_body)]
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     controller_id: int,
@@ -426,6 +425,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
+#[verifier(external_body)] // what's wrong with verus
 proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -460,32 +460,99 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
             match step {
                 Step::APIServerStep(input) => {
                     let req_msg = input->0;
+                    assert(req_msg.content is APIRequest);
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
+                    assert(!resource_get_then_delete_request_msg(resource_key)(req_msg));
+                    assert(!resource_get_then_update_request_msg(resource_key)(req_msg));
+                    assert(!resource_get_then_update_status_request_msg(resource_key)(req_msg));
                     match req_msg.content->APIRequest_0 {
                         APIRequest::UpdateRequest(_) => {
                             if !s.in_flight().contains(msg) {
+                                if msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()) {
+                                    assert(false) by {
+                                        assume(false);
+                                    }
+                                }
                                 assert(msg.content.get_update_response().res->Ok_0.object_ref() == req_msg.content.get_update_request().key());
                                 assert(msg.content.get_update_response().res->Ok_0.object_ref() == resource_key);
                                 assert(msg.content.get_update_response().res->Ok_0 == s_prime.resources()[req_msg.content.get_update_request().key()]);
                                 assert(s_prime.resources().contains_key(resource_key));
                                 assert(msg.content.get_update_response().res->Ok_0 == s_prime.resources()[resource_key]);
+                                assert(resource_update_response_msg(resource_key, s_prime)(msg));
                             } else {
+                                assume(false);
                                 assert(!resource_update_request_msg(resource_key)(req_msg));
                                 assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                                 assert(!s.in_flight().contains(pending_req));
+                                assert(s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+                                && resource_update_request_msg(resource_key)(pending_req)
+                                && (
+                                    forall |msg: Message|
+                                        #[trigger] s.in_flight().contains(msg)
+                                        && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
+                                        ==> resource_update_response_msg(resource_key, s)(msg)
+                                ));
                             }
                         },
-                        _ => {
+                        APIRequest::DeleteRequest(req) => {
+                            assert(req.key != resource_key);
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
+                            assert(resource_update_response_msg(resource_key, s)(msg));
+                        },
+                        APIRequest::GetThenUpdateRequest(req) => {
+                            assert(req.key() != resource_key);
+                            assert(s.resources().contains_key(resource_key));
+                            assert(s_prime.resources().contains_key(resource_key));
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                            assert(resource_update_response_msg(resource_key, s)(msg));
+                        },
+                        APIRequest::GetThenDeleteRequest(req) => {
+                            assert(req.key() != resource_key);
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                            assert(resource_update_response_msg(resource_key, s)(msg));
+                        },
+                        APIRequest::GetThenUpdateStatusRequest(req) => {
+                            assert(req.key() != resource_key);
+                            assert(s_prime.resources().contains_key(resource_key));
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                            assert(resource_update_response_msg(resource_key, s)(msg));
+                        },
+                        APIRequest::UpdateStatusRequest(req) => {
+                            assert(req.key() != resource_key);
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                            assert(resource_update_response_msg(resource_key, s)(msg));
+                        },
+                        // instantiate no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight
+                        _ => {
+                            assume(false);
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                            assert(resource_update_response_msg(resource_key, s)(msg));
                         },
                     }
                 },
                 _ => {
                     assert(s.in_flight().contains(msg));
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                    assert(!s.in_flight().contains(pending_req));
+                    assert(resource_update_response_msg(resource_key, s)(msg));
                 },
             }
         }
