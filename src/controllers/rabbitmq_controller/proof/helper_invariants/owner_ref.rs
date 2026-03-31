@@ -144,6 +144,7 @@ pub open spec fn every_owner_ref_of_every_object_in_etcd_has_different_uid_from_
     }
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView

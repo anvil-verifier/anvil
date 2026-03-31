@@ -313,6 +313,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(50))]
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
@@ -682,6 +683,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))),

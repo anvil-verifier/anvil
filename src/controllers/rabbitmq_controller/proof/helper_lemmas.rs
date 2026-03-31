@@ -244,6 +244,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_update_sub_resource_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)

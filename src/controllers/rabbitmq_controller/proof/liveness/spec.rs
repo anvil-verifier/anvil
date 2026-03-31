@@ -68,6 +68,7 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
     }
 }
 
+#[verifier(external_body)]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
@@ -391,6 +392,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     });
 }
 
+#[verifier(external_body)]
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
