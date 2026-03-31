@@ -50,8 +50,8 @@ for entry in "${CONTROLLERS[@]}"; do
     d_file="${PROJECT_DIR}/$(basename "${entry##*:}" .rs).d"
     echo "  Processing ${name} (${d_file})..."
     cd "$LINE_COUNT_DIR"
-    cargo run --release -- "$d_file" --delimiters-are-layout > "${name}_loc_table"
-    cargo run --release -- "$d_file" --delimiters-are-layout --json > "${name}.json"
+    cargo run --release -- "$d_file" > "${name}_loc_table"
+    cargo run --release -- "$d_file" --json > "${name}.json"
     cd "$PROJECT_DIR"
 done
 
@@ -59,8 +59,8 @@ done
 COMP_D_FILE="${PROJECT_DIR}/esr_composition.d"
 echo "  Processing esr_composition (${COMP_D_FILE})..."
 cd "$LINE_COUNT_DIR"
-cargo run --release -- "$COMP_D_FILE" --delimiters-are-layout > "esr_composition_loc_table"
-cargo run --release -- "$COMP_D_FILE" --delimiters-are-layout --json > "esr_composition.json"
+cargo run --release -- "$COMP_D_FILE" > "esr_composition_loc_table"
+cargo run --release -- "$COMP_D_FILE" --json > "esr_composition.json"
 cd "$PROJECT_DIR"
 
 echo ""
