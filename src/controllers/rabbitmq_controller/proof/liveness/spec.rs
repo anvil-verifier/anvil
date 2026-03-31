@@ -42,7 +42,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: in
         valid(stable(invariants(controller_id, cluster, rabbitmq))),
         forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
 {
-    reveal_with_fuel(spec_before_phase_n, 8);
+    reveal_with_fuel(spec_before_phase_n, 9);
     invariants_is_stable(controller_id, cluster, rabbitmq);
     always_p_is_stable(lift_state(Cluster::desired_state_is(rabbitmq)));
     invariants_since_phase_i_is_stable(controller_id, rabbitmq);
@@ -52,11 +52,12 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: in
     invariants_since_phase_v_is_stable(rabbitmq);
     invariants_since_phase_vi_is_stable(controller_id, rabbitmq);
     invariants_since_phase_vii_is_stable(controller_id, rabbitmq);
+    invariants_since_phase_viii_is_stable(controller_id, rabbitmq);
     stable_and_n!(
         invariants(controller_id, cluster, rabbitmq), always(lift_state(Cluster::desired_state_is(rabbitmq))),
         invariants_since_phase_i(controller_id, rabbitmq), invariants_since_phase_ii(controller_id, rabbitmq), invariants_since_phase_iii(controller_id, rabbitmq),
         invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(controller_id, rabbitmq),
-        invariants_since_phase_vii(controller_id, rabbitmq)
+        invariants_since_phase_vii(controller_id, rabbitmq), invariants_since_phase_viii(controller_id, rabbitmq)
     );
 }
 
@@ -109,6 +110,8 @@ pub open spec fn invariants_since_phase_n(controller_id: int, n: nat, cluster: C
         invariants_since_phase_vi(controller_id, rabbitmq)
     } else if n == 7 {
         invariants_since_phase_vii(controller_id, rabbitmq)
+    } else if n == 8 {
+        invariants_since_phase_viii(controller_id, rabbitmq)
     } else {
         true_pred()
     }
@@ -119,7 +122,7 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
 {
     if n == 1 {
         invariants(controller_id, cluster, rabbitmq).and(always(lift_state(Cluster::desired_state_is(rabbitmq))))
-    } else if 2 <= n <= 8 {
+    } else if 2 <= n <= 9 {
         spec_before_phase_n(controller_id, (n-1) as nat, cluster, rabbitmq).and(invariants_since_phase_n(controller_id, (n-1) as nat, cluster, rabbitmq))
     } else {
         true_pred()
@@ -128,7 +131,7 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
-        1 <= i <= 7,
+        1 <= i <= 8,
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
@@ -148,7 +151,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         always(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
 
-    reveal_with_fuel(spec_before_phase_n, 8);
+    reveal_with_fuel(spec_before_phase_n, 9);
     if i == 1 {
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
@@ -164,6 +167,9 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+        assert forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))) by {
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)), sub_resource);
+        }
         if i == 2 {
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, rabbitmq);
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
@@ -185,15 +191,24 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         } else if i == 5 {
             helper_invariants::lemma_eventually_always_no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight_forall(controller_id, cluster, spec, rabbitmq);
         } else if i == 6 {
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
             helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
-            helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
             let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
             leads_to_always_combine_n!(
                 spec, true_pred(),
-                tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)), lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))
+                tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))
             );
         } else if i == 7 {
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
+        } else if i == 8 {
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id, cluster, spec, rabbitmq);
         }
     }
@@ -493,7 +508,6 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
 pub open spec fn invariants_since_phase_vi(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))
     .and(always(lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))))
-    .and(always(lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))))
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
@@ -508,11 +522,21 @@ pub proof fn invariants_since_phase_vi_is_stable(controller_id: int, rabbitmq: R
 }
 
 pub open spec fn invariants_since_phase_vii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
-    always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))
+    always(lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)))
 }
 
 pub proof fn invariants_since_phase_vii_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_vii(controller_id, rabbitmq))),
+{
+    always_p_is_stable(lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)));
+}
+
+pub open spec fn invariants_since_phase_viii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
+    always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))
+}
+
+pub proof fn invariants_since_phase_viii_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
+    ensures valid(stable(invariants_since_phase_viii(controller_id, rabbitmq))),
 {
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)));
 }
