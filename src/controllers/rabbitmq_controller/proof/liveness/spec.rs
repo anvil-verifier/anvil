@@ -15,8 +15,9 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::{
     model::reconciler::*,
     proof::{helper_invariants, liveness::terminate, predicate::*, resource::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
+use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
@@ -33,6 +34,62 @@ pub open spec fn assumption_and_invariants_of_all_phases(controller_id: int, clu
     .and(invariants_since_phase_v(rabbitmq))
     .and(invariants_since_phase_vi(controller_id, rabbitmq))
     .and(invariants_since_phase_vii(controller_id, rabbitmq))
+}
+
+pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    ensures
+        valid(stable(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
+        valid(stable(invariants(controller_id, cluster, rabbitmq))),
+        forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
+{
+    reveal_with_fuel(spec_before_phase_n, 8);
+    invariants_is_stable(controller_id, cluster, rabbitmq);
+    always_p_is_stable(lift_state(Cluster::desired_state_is(rabbitmq)));
+    invariants_since_phase_i_is_stable(controller_id, rabbitmq);
+    invariants_since_phase_ii_is_stable(controller_id, rabbitmq);
+    invariants_since_phase_iii_is_stable(controller_id, rabbitmq);
+    invariants_since_phase_iv_is_stable(rabbitmq);
+    invariants_since_phase_v_is_stable(rabbitmq);
+    invariants_since_phase_vi_is_stable(controller_id, rabbitmq);
+    invariants_since_phase_vii_is_stable(controller_id, rabbitmq);
+    stable_and_n!(
+        invariants(controller_id, cluster, rabbitmq), always(lift_state(Cluster::desired_state_is(rabbitmq))),
+        invariants_since_phase_i(controller_id, rabbitmq), invariants_since_phase_ii(controller_id, rabbitmq), invariants_since_phase_iii(controller_id, rabbitmq),
+        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(controller_id, rabbitmq),
+        invariants_since_phase_vii(controller_id, rabbitmq)
+    );
+}
+
+pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    requires
+        valid(stable(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
+        valid(stable(invariants(controller_id, cluster, rabbitmq))),
+        forall |i: nat| 1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
+    ensures
+        valid(stable(stable_spec(cluster, controller_id))),
+        valid(stable(stable_spec(cluster, controller_id).and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))),
+        valid(stable(stable_spec(cluster, controller_id).and(invariants(controller_id, cluster, rabbitmq)))),
+        forall |i: nat| 1 <= i <= 8 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
+{
+    stable_spec_is_stable(cluster, controller_id);
+    stable_and_n!(
+        stable_spec(cluster, controller_id),
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+    );
+    stable_and_n!(
+        stable_spec(cluster, controller_id),
+        invariants(controller_id, cluster, rabbitmq)
+    );
+    assert forall |i: nat|
+        1 <= i <= 8
+        && valid(stable(stable_spec(cluster, controller_id)))
+        && forall |i: nat| 1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq)))
+        implies valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))) by {
+        stable_and_n!(
+            stable_spec(cluster, controller_id),
+            spec_before_phase_n(controller_id, i, cluster, rabbitmq)
+        );
+    }
 }
 
 pub open spec fn invariants_since_phase_n(controller_id: int, n: nat, cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
@@ -69,24 +126,39 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
     }
 }
 
-pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures spec_before_phase_n(controller_id, i, cluster, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(controller_id, i, cluster, rabbitmq))),
+        provided_spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures provided_spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)).entails(true_pred().leads_to(invariants_since_phase_n(controller_id, i, cluster, rabbitmq))),
 {
-    let spec = spec_before_phase_n(controller_id, i, cluster, rabbitmq);
+    let spec = provided_spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq));
+    // Assert that the combined spec also entails the rely condition.
+    entails_and_different_temp(
+        provided_spec,
+        spec_before_phase_n(controller_id, i, cluster, rabbitmq),
+        always(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        true_pred()
+    );
+    temp_pred_equality(
+        always(lift_state(rmq_rely_conditions(cluster, controller_id))).and(true_pred()),
+        always(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+
     reveal_with_fuel(spec_before_phase_n, 8);
     if i == 1 {
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
+        cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, rabbitmq);
         leads_to_always_combine_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
+            lift_state(Cluster::pod_monkey_disabled()),
             lift_state(Cluster::req_drop_disabled()),
             lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
         );
@@ -121,27 +193,72 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controlle
     }
 }
 
-pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
-        valid(stable(invariants(controller_id, cluster, rabbitmq))),
-        forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
+pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    next_with_wf(cluster, controller_id)
+    .and(always(lift_state(rmq_rely_conditions(cluster, controller_id))))
+}
+
+pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
+    ensures valid(stable(stable_spec(cluster, controller_id))),
 {
-    reveal_with_fuel(spec_before_phase_n, 8);
-    invariants_is_stable(controller_id, cluster, rabbitmq);
-    always_p_is_stable(lift_state(Cluster::desired_state_is(rabbitmq)));
-    invariants_since_phase_i_is_stable(controller_id, rabbitmq);
-    invariants_since_phase_ii_is_stable(controller_id, rabbitmq);
-    invariants_since_phase_iii_is_stable(controller_id, rabbitmq);
-    invariants_since_phase_iv_is_stable(rabbitmq);
-    invariants_since_phase_v_is_stable(rabbitmq);
-    invariants_since_phase_vi_is_stable(controller_id, rabbitmq);
-    invariants_since_phase_vii_is_stable(controller_id, rabbitmq);
+    next_with_wf_is_stable(cluster, controller_id);
+    always_p_is_stable(lift_state(rmq_rely_conditions(cluster, controller_id)));
     stable_and_n!(
-        invariants(controller_id, cluster, rabbitmq), always(lift_state(Cluster::desired_state_is(rabbitmq))),
-        invariants_since_phase_i(controller_id, rabbitmq), invariants_since_phase_ii(controller_id, rabbitmq), invariants_since_phase_iii(controller_id, rabbitmq),
-        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(controller_id, rabbitmq),
-        invariants_since_phase_vii(controller_id, rabbitmq)
+        next_with_wf(cluster, controller_id),
+        always(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+}
+
+pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(next_with_wf(cluster, controller_id)),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures
+        spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq))
+            .entails(stable_spec(cluster, controller_id).and(invariants(controller_id, cluster, rabbitmq))),
+{
+    let pre = spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq));
+
+    // Proof of stable_spec
+    entails_and_n!(
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+
+    entails_and_different_temp(
+        spec,
+        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
+        stable_spec(cluster, controller_id),
+        true_pred()
+    );
+    temp_pred_equality(
+        stable_spec(cluster, controller_id).and(true_pred()),
+        stable_spec(cluster, controller_id)
+    );
+
+    // Proof of invariants
+    entails_and_different_temp(
+        spec,
+        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
+        next_with_wf(cluster, controller_id),
+        true_pred()
+    );
+    temp_pred_equality(
+        next_with_wf(cluster, controller_id).and(true_pred()),
+        next_with_wf(cluster, controller_id)
+    );
+    entails_and_n!(
+        pre,
+        next_with_wf(cluster, controller_id),
+        derived_invariants_since_beginning(controller_id, cluster, rabbitmq)
+    );
+
+    entails_and_n!(
+        pre,
+        stable_spec(cluster, controller_id),
+        invariants(controller_id, cluster, rabbitmq)
     );
 }
 
@@ -154,6 +271,7 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
     .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
     .and(cluster.disable_crash().weak_fairness(controller_id))
+    .and(cluster.disable_pod_monkey().weak_fairness(()))
     .and(cluster.disable_req_drop().weak_fairness(()))
 }
 
@@ -171,6 +289,7 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
         always_p_is_stable::<ClusterState>(split_always);
     }
     Cluster::action_weak_fairness_is_stable(cluster.disable_req_drop());
+    Cluster::action_weak_fairness_is_stable(cluster.disable_pod_monkey());
     stable_and_n!(
         always(lift_action(cluster.next())),
         tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
@@ -179,6 +298,7 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
         tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
         tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))),
         cluster.disable_crash().weak_fairness(controller_id),
+        cluster.disable_pod_monkey().weak_fairness(()),
         cluster.disable_req_drop().weak_fairness(())
     );
 }
@@ -189,7 +309,8 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
 // The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
 // init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get spec |= []desired_state_is(cr) ~> []current_state_matches(cr).
 pub open spec fn invariants(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
-    next_with_wf(cluster, controller_id).and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq))
+    next_with_wf(cluster, controller_id)
+    .and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq))
 }
 
 pub proof fn invariants_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -206,6 +327,8 @@ pub proof fn invariants_is_stable(controller_id: int, cluster: Cluster, rabbitmq
 // The safety invariants that are required to prove liveness.
 pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
+    .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))))
+    .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
     .and(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref()))))
@@ -242,6 +365,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     stable_and_always_n!(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
@@ -273,6 +398,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
 // wait for another of them to first be satisfied.
 pub open spec fn invariants_since_phase_i(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::crash_disabled(controller_id)))
+    .and(always(lift_state(Cluster::pod_monkey_disabled())))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))))
 }
@@ -282,6 +408,7 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, rabbitmq: Ra
 {
     stable_and_always_n!(
         lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
     );
@@ -398,7 +525,9 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.entails(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)),
 {
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.
@@ -406,6 +535,8 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     assert(spec.entails(lift_state(cluster.init())));
     assert(spec.entails(always(lift_action(cluster.next()))));
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
     cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, rabbitmq.object_ref());

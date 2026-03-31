@@ -23,8 +23,9 @@ use crate::rabbitmq_controller::{
         predicate::*,
         resource::*,
     },
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{prelude::*, string::*};
@@ -32,64 +33,113 @@ use vstd::{prelude::*, string::*};
 verus! {
 
 #[verifier(external_body)]
-proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn liveness_proof(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(next_with_wf(cluster, controller_id)),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures spec.entails(always(lift_state(current_state_matches(rabbitmq)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures spec.entails(rmq_eventually_stable_reconciliation_per_cr(rabbitmq)),
 {
+    // There are two specs we wish to deal with: one, `spec`, has `cluster.init()` true,
+    // while the other spec, `stable_spec`, has it false.
+    let stable_spec = stable_spec(cluster, controller_id);
     assumption_and_invariants_of_all_phases_is_stable(controller_id, cluster, rabbitmq);
-    lemma_true_leads_to_always_current_state_matches(controller_id, cluster, rabbitmq);
+    stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(controller_id, cluster, rabbitmq);
+
+    lemma_true_leads_to_always_current_state_matches(stable_spec, controller_id, cluster, rabbitmq);
     reveal_with_fuel(spec_before_phase_n, 8);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 7, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 6, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 5, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 4, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 3, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 2, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id, cluster, 1, rabbitmq);
+
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 7, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 6, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 5, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 4, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 3, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 2, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 1, rabbitmq);
 
     let assumption = always(lift_state(Cluster::desired_state_is(rabbitmq)));
-    unpack_conditions_from_spec(invariants(controller_id, cluster, rabbitmq), assumption, true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+    temp_pred_equality(
+        stable_spec.and(spec_before_phase_n(controller_id, 1, cluster, rabbitmq)),
+        stable_spec.and(invariants(controller_id, cluster, rabbitmq))
+            .and(assumption)
+    );
+    unpack_conditions_from_spec(stable_spec.and(invariants(controller_id, cluster, rabbitmq)), assumption, true_pred(), always(lift_state(current_state_matches(rabbitmq))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
+    // Annoying non-automatic unpacking of the spec for one precondition.
     entails_trans(
-        spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)), invariants(controller_id, cluster, rabbitmq),
-        always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lift_action(cluster.next()))
     );
     sm_spec_entails_all_invariants(controller_id, cluster, spec, rabbitmq);
     simplify_predicate(spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq));
+
+    spec_and_invariants_entails_stable_spec_and_invariants(spec, controller_id, cluster, rabbitmq);
+    entails_trans(
+        spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)),
+        stable_spec.and(invariants(controller_id, cluster, rabbitmq)),
+        always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
+    );
 }
 
 #[verifier(external_body)]
-proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
+proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
+        valid(stable(spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
+        spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        valid(stable(spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
-        spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq)))))
-    ensures spec_before_phase_n(controller_id, i, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
-    temp_pred_equality(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq), spec_before_phase_n(controller_id, i, cluster, rabbitmq).and(invariants_since_phase_n(controller_id, i, cluster, rabbitmq)));
-    spec_of_previous_phases_entails_eventually_new_invariants(controller_id, cluster, i, rabbitmq);
-    unpack_conditions_from_spec(spec_before_phase_n(controller_id, i, cluster, rabbitmq), invariants_since_phase_n(controller_id, i, cluster, rabbitmq), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
-    temp_pred_equality(true_pred().and(invariants_since_phase_n(controller_id, i, cluster, rabbitmq)), invariants_since_phase_n(controller_id, i, cluster, rabbitmq));
-    leads_to_trans(spec_before_phase_n(controller_id, i, cluster, rabbitmq), true_pred(), invariants_since_phase_n(controller_id, i, cluster, rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
+    temp_pred_equality(
+        spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)),
+        spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq))
+            .and(invariants_since_phase_n(controller_id, i, cluster, rabbitmq))
+    );
+    spec_of_previous_phases_entails_eventually_new_invariants(spec, controller_id, cluster, i, rabbitmq);
+    unpack_conditions_from_spec(spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)), invariants_since_phase_n(controller_id, i, cluster, rabbitmq), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+    temp_pred_equality(
+        true_pred().and(invariants_since_phase_n(controller_id, i, cluster, rabbitmq)),
+        invariants_since_phase_n(controller_id, i, cluster, rabbitmq)
+    );
+    leads_to_trans(spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)), true_pred(), invariants_since_phase_n(controller_id, i, cluster, rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
 }
 
 #[verifier(external_body)]
-proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
     requires
+        provided_spec.entails(next_with_wf(cluster, controller_id)),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
+        provided_spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures
+        provided_spec.and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
 {
-    let spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
-    assert forall |sub_resource: SubResource|assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+    let spec = provided_spec.and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq));
+    // Assert rely condition on combined spec.
+    entails_and_different_temp(
+        provided_spec,
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
+        always(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        true_pred()
+    );
+    temp_pred_equality(
+        always(lift_state(rmq_rely_conditions(cluster, controller_id))).and(true_pred()),
+        always(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+
+    assert forall |sub_resource: SubResource| spec
         .entails(true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))) by {
-        lemma_true_leads_to_always_state_matches_for_all(cluster, controller_id, rabbitmq);
+        lemma_true_leads_to_always_state_matches_for_all(spec, cluster, controller_id, rabbitmq);
     }
     let a_to_p = |res: SubResource| lift_state(resource_state_matches(res, rabbitmq));
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
@@ -105,16 +155,16 @@ proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cl
 }
 
 #[verifier(external_body)]
-proof fn lemma_true_leads_to_always_state_matches_for_all(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
+proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures
         forall |sub_resource: SubResource|
-            assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))),
+            spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))),
 {
-    let spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
-
     assert forall |action: ActionKind, sub_resource: SubResource| #![auto] spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource)))))) by {
         always_tla_forall_apply(spec, |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))), (action, sub_resource));
     }
@@ -129,8 +179,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(cluster: Cluster, cont
 
     // After applying this lemma, we get spec |= init /\ no_pending_req ~> create_headless_service /\ pending_req.
     lemma_from_init_step_to_after_create_headless_service_step(controller_id, cluster, spec, rabbitmq);
-
-    // always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, rabbitmq)), SubResource::ServerConfigMap);
 
     // We first show that the reconciler can go to at_after_get_resource_step(next_resource) from at_after_get_resource_step(sub_resource)
     // where sub_resource cannot be StatefulSet because it's the last resource to be processed and doesn't have its next_resource.
