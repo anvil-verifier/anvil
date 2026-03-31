@@ -62,66 +62,43 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         RabbitmqClusterView::marshal_preserves_integrity();
         RabbitmqReconcileState::marshal_preserves_integrity();
 
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-        match step {
-            Step::APIServerStep(req_msg_opt) => {
-                let req_msg = req_msg_opt.unwrap();
+        assert forall |msg| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+        } implies match msg.content->APIRequest_0 {
+            APIRequest::GetRequest(_) => true,
+            APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
+            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            _ => false,
+        } by {
+            if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
 
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::GetRequest(_) => true,
-                    APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-                    APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
-                    _ => false,
-                } by {
-                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-                }
-            }
-            Step::ControllerStep((id, _, cr_key_opt)) => {
-                let cr_key = cr_key_opt->0;
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::GetRequest(_) => true,
-                    APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-                    APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
-                    _ => false,
-                } by {
-                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            match step {
+                Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
                     if id == controller_id && new_msgs.contains(msg) {
+                        let cr_key = cr_key_opt->0;
                         let triggering_cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
                         let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                        assert(msg.content->APIRequest_0 == reconcile_core(triggering_cr, None, local_state).1->0->KRequest_0);
-                        lemma_guarantee_from_reconcile_state(msg, local_state, triggering_cr);
+                        let resp_o: Option<ResponseView<VoidERespView>> = if resp_msg_opt is Some {
+                            if resp_msg_opt->0.content is APIResponse {
+                                Some(ResponseView::KResponse(resp_msg_opt->0.content->APIResponse_0))
+                            } else {
+                                // RMQ controller has no external model, so this case is unreachable
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        assert(msg.content->APIRequest_0 == reconcile_core(triggering_cr, resp_o, local_state).1->0->KRequest_0);
+                        lemma_guarantee_from_reconcile_state(msg, local_state, triggering_cr, resp_o);
                     }
-                }
-            }
-            _ => {
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::GetRequest(_) => true,
-                    APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-                    APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
-                    _ => false,
-                } by {
-                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-                }
+                },
+                _ => {}
             }
         }
     }
@@ -134,12 +111,13 @@ pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     state: RabbitmqReconcileState,
     rmq: RabbitmqClusterView,
+    resp_o: Option<ResponseView<VoidERespView>>,
 )
     requires
         msg.content is APIRequest,
-        reconcile_core(rmq, None, state).1 is Some,
-        reconcile_core(rmq, None, state).1->0 is KRequest,
-        msg.content->APIRequest_0 == reconcile_core(rmq, None, state).1->0->KRequest_0,
+        reconcile_core(rmq, resp_o, state).1 is Some,
+        reconcile_core(rmq, resp_o, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(rmq, resp_o, state).1->0->KRequest_0,
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
@@ -149,19 +127,80 @@ pub proof fn lemma_guarantee_from_reconcile_state(
         }
 {
     match state.reconcile_step {
-        AfterKRequestStep(ActionKind::Get, _) => {
+        RabbitmqReconcileStep::Init => {
+            // Init sends a GetRequest, which is always OK
             assert(msg.content.is_get_request());
         },
-        AfterKRequestStep(ActionKind::Create, _) => {
-            assert(msg.content.is_create_request());
-            assert(rmq_guarantee_create_req(msg.content.get_create_request()));
-        },
-        AfterKRequestStep(ActionKind::Update, _) => {
-            assert(msg.content.is_update_request());
-            assert(rmq_guarantee_update_req(msg.content.get_update_request()));
+        AfterKRequestStep(action, resource) => {
+            match action {
+                ActionKind::Get => {
+                    // AfterKRequestStep(Get, _) processes the Get response and sends
+                    // either a CreateRequest (if object not found) or UpdateRequest (if object exists).
+                    // Need to show both satisfy the guarantee.
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetResponse {
+                        let get_resp = resp_o->0->KResponse_0->GetResponse_0.res;
+                        if get_resp is Ok {
+                            // Update path: sends UpdateRequest
+                            // reconcile_helper calls Builder::update which sets owner_references
+                            assert(msg.content.is_update_request());
+                            let req = msg.content.get_update_request();
+                            // The update function for every resource builder sets
+                            // owner_references = Some(seq![rmq.controller_owner_ref()])
+                            assert(rmq_guarantee_update_req(req));
+                        } else if get_resp->Err_0 is ObjectNotFound {
+                            // Create path: sends CreateRequest
+                            // reconcile_helper calls Builder::make which sets owner_references
+                            assert(msg.content.is_create_request());
+                            let req = msg.content.get_create_request();
+                            // The make function for every resource builder sets
+                            // owner_references = Some(seq![rmq.controller_owner_ref()])
+                            assert(rmq_guarantee_create_req(req));
+                        } else {
+                            // Error case: no message sent (reconcile_core returns None)
+                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        }
+                    } else {
+                        // Invalid/missing response: no message sent
+                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                    }
+                },
+                ActionKind::Create => {
+                    // AfterKRequestStep(Create, _) processes the Create response and
+                    // calls state_after_create which sends a GetRequest for the next resource.
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is CreateResponse {
+                        let create_resp = resp_o->0->KResponse_0->CreateResponse_0.res;
+                        if create_resp is Ok {
+                            // state_after_create returns GetRequest for next subresource
+                            assert(msg.content.is_get_request());
+                        } else {
+                            // Error case: no message sent
+                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        }
+                    } else {
+                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                    }
+                },
+                ActionKind::Update => {
+                    // AfterKRequestStep(Update, _) processes the Update response and
+                    // calls state_after_update which sends a GetRequest for the next resource.
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is UpdateResponse {
+                        let update_resp = resp_o->0->KResponse_0->UpdateResponse_0.res;
+                        if update_resp is Ok {
+                            // state_after_update returns GetRequest for next subresource
+                            assert(msg.content.is_get_request());
+                        } else {
+                            // Error case: no message sent
+                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        }
+                    } else {
+                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                    }
+                },
+            }
         },
         _ => {
-            assume(reconcile_core(rmq, None, state).1 is None);
+            // Done/Error: no message sent
+            assert(reconcile_core(rmq, resp_o, state).1 is None);
         }
     }
 }
