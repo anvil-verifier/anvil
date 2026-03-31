@@ -265,4 +265,31 @@ ensures
     return resp_msg;
 }
 
+/// When an API server step processes a request whose key is different from `resource_key`,
+/// the resource at `resource_key` is unchanged. This is needed because compound operations
+/// like GetThenUpdate/GetThenUpdateStatus have complex specs that the verifier can't
+/// automatically reason through.
+#[verifier(external_body)]
+pub proof fn lemma_api_request_not_made_by_field_matches_maintains_resource(
+    s: ClusterState, s_prime: ClusterState, cluster: Cluster, msg: Message, resource_key: ObjectRef,
+)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    msg.content is APIRequest,
+    match msg.content->APIRequest_0 {
+        APIRequest::GetRequest(_) => true,
+        APIRequest::ListRequest(_) => true,
+        APIRequest::CreateRequest(req) => req.key() != resource_key || s.resources().contains_key(resource_key), // to strong, weaken later
+        APIRequest::DeleteRequest(req) => req.key != resource_key,
+        APIRequest::UpdateRequest(req) => req.key() != resource_key,
+        APIRequest::UpdateStatusRequest(req) => req.key() != resource_key,
+        APIRequest::GetThenDeleteRequest(req) => req.key() != resource_key,
+        APIRequest::GetThenUpdateRequest(req) => req.key() != resource_key,
+        APIRequest::GetThenUpdateStatusRequest(req) => req.key() != resource_key,
+    },
+ensures
+    s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key),
+    s.resources().contains_key(resource_key) ==> s.resources()[resource_key] == s_prime.resources()[resource_key],
+{}
+
 }
