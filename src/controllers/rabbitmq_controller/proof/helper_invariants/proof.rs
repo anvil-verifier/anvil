@@ -1115,6 +1115,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)(s)
@@ -1126,6 +1127,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1138,7 +1140,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1166,18 +1169,27 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                             // unwrap no_interfering_request_between_rmq
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
-                                    if !s.resources().contains_key(resource_key) && resource_create_request_msg(resource_key)(msg) {
-                                        let req = msg.content.get_create_request();
-                                        assert(exists |uid: Uid| #![auto] {
-                                            req.obj.metadata.owner_references == Some(seq![OwnerReferenceView {
-                                                block_owner_deletion: None,
-                                                controller: Some(true),
-                                                kind: RabbitmqClusterView::kind(),
-                                                name: rabbitmq.metadata.name->0,
-                                                uid: uid,
-                                            }])
-                                        });
-                                        assert(req.obj.metadata.finalizers is None);
+                                    if req.obj.metadata.name is Some {
+                                        if resource_create_request_msg(resource_key)(msg) && !s.resources().contains_key(resource_key) {
+                                            let req = msg.content.get_create_request();
+                                            assert(exists |uid: Uid| #![auto] {
+                                                req.obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                                                    block_owner_deletion: None,
+                                                    controller: Some(true),
+                                                    kind: RabbitmqClusterView::kind(),
+                                                    name: rabbitmq.metadata.name->0,
+                                                    uid: uid,
+                                                }])
+                                            });
+                                            assert(req.obj.metadata.finalizers is None);
+                                            assert(inv(s_prime));
+                                        } else {
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                            assert(inv(s_prime));
+                                        }
+                                    } else {
+                                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
+                                        assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
                                         assert(inv(s_prime));
                                     }
                                 },
@@ -1196,16 +1208,21 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                         assert(req.obj.metadata.finalizers is None);
                                         assert(req.obj.metadata.deletion_timestamp is None);
                                         assert(inv(s_prime));
+                                    } else {
+                                        assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        assert(inv(s_prime));
                                     }
                                 },
                                 APIRequest::GetRequest(_) => {
                                     assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
                                     assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                    assert(inv(s_prime));
                                 },
                                 _ => {
                                     assert(false);
                                 }
                             }
+                            assert(inv(s_prime));
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                             assert(rmq_rely(other_id)(s));
@@ -1257,7 +1274,9 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                     _ => {},
                                 }
                             }
+                            assert(inv(s_prime));
                         }
+                        assert(inv(s_prime));
                     },
                     HostId::BuiltinController => {
                         assert(msg.content.is_delete_request());
