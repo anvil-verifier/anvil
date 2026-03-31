@@ -84,6 +84,7 @@ pub open spec fn vsts_cluster_invariants(
     cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
     Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
     Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id),
+    Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts),
     Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id),
     Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id),
@@ -91,11 +92,19 @@ pub open spec fn vsts_cluster_invariants(
     Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id),
     Cluster::etcd_is_finite(),
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()),
+    Cluster::there_is_the_controller_state(controller_id),
+    Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
     Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id),
     Cluster::no_pending_request_to_api_server_from_non_controllers(),
     Cluster::desired_state_is(vsts),
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
+    helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts),
+    helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref(),
+    helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id),
+    helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts(),
+    helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref()),
     guarantee::vsts_internal_guarantee_conditions(controller_id),
+    guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id),
     vsts_rely_conditions(cluster, controller_id)
     )
 }

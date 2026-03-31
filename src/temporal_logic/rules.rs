@@ -106,7 +106,7 @@ proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempP
     always_unfold::<T>(ex, p);
 }
 
-proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
@@ -129,7 +129,7 @@ proof fn not_eventually_by_always_not<T>(ex: Execution<T>, p: TempPred<T>)
     always_unfold::<T>(ex, not(p));
 }
 
-proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+pub proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires always(p).satisfied_by(ex),
     ensures always(p).satisfied_by(ex.suffix(i)),
 {
@@ -2409,6 +2409,21 @@ pub proof fn eventually_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: 
 // pre:
 //     spec |= p ~> []q
 //     spec |= p ~> []r
+// If spec always satisfies q, then p leads to always q for any p.
+pub proof fn always_entails_leads_to_always<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires spec.entails(always(q)),
+    ensures spec.entails(p.leads_to(always(q))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q)).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, always(q));
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards(ex, q, i);
+            execution_equality::<T>(ex.suffix(i).suffix(0), ex.suffix(i));
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(q), 0);
+        }
+    }
+}
+
 // post:
 //     spec |= p ~> [](q /\ r)
 pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
