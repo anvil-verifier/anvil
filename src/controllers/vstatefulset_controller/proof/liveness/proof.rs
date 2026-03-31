@@ -264,12 +264,14 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
+        cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, vsts);
         leads_to_always_combine_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::req_drop_disabled()),
-            lift_state(Cluster::pod_monkey_disabled())
+            lift_state(Cluster::pod_monkey_disabled()),
+            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, cr))
         );
     } else {
         reconcile_eventually_terminates(spec, cluster, controller_id);
