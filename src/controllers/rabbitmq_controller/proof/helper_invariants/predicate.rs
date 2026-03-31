@@ -234,12 +234,6 @@ pub open spec fn no_delete_get_then_delete_get_then_update_get_then_update_statu
     }
 }
 
-pub open spec fn no_update_status_request_msg_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| #[trigger] s.in_flight().contains(msg) ==> !(resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg))
-    }
-}
-
 // We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
 pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
