@@ -16,7 +16,7 @@ use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
     model::resource::*,
     proof::{
-        predicate::*, resource::*,
+        predicate::*, resource::*, helper_lemmas::*,
     },
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
@@ -731,6 +731,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
@@ -772,12 +773,14 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -811,8 +814,31 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                                 HostId::Controller(other_id, cr_key) => {
                                     assert(cluster.controller_models.contains_key(other_id));
                                     if other_id == controller_id {
-                                        assume(false);
-                                        assert(resource_update_request_msg(resource_key)(req_msg));
+                                        if req_msg != msg {
+                                            if cr_key == key {
+                                                assume(false);
+                                            } else {
+                                                let other_rmq = RabbitmqClusterView {
+                                                    metadata: ObjectMetaView {
+                                                    name: Some(cr_key.name),
+                                                    namespace: Some(cr_key.namespace),
+                                                    ..ObjectMetaView::default()
+                                                    },
+                                                    ..RabbitmqClusterView::default()
+                                                };
+                                                assert(other_rmq.object_ref() == cr_key);
+                                                assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
+                                                if resource_update_request_msg(resource_key)(req_msg) {
+                                                    rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
+                                                    assert(false);
+                                                }
+                                                assert(!resource_delete_request_msg(resource_key)(req_msg));
+                                                assert(!resource_get_then_delete_request_msg(resource_key)(req_msg));
+                                                assert(s.resources().contains_key(resource_key));
+                                                assert(s_prime.resources().contains_key(resource_key));
+                                                assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
+                                            }
+                                        }
                                     } else {
                                         assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
                                         assert(rmq_rely(other_id)(s));
@@ -905,12 +931,14 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource))),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
