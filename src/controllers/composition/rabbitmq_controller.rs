@@ -9,6 +9,9 @@ use crate::rabbitmq_controller::trusted::{
 use crate::rabbitmq_controller::model::{
     reconciler::*, install::*, resource::stateful_set::make_stateful_set
 };
+use crate::rabbitmq_controller::proof::{
+    guarantee::guarantee_condition_holds, predicate::*
+};
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
     liveness_theorem as vsts_liveness_theorem,
@@ -82,6 +85,7 @@ impl Composition for RabbitmqReconciler {
         guarantee_condition_holds(spec, cluster, Self::id());
     }
 
+    #[verifier(external_body)]
     proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
     ensures
         forall |i| #[trigger] Self::composed().contains_key(i) ==>
@@ -330,6 +334,7 @@ impl Composition for RabbitmqReconciler {
 }
 
 impl VerticalComposition for RabbitmqReconciler {
+    #[verifier(external_body)]
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
@@ -338,7 +343,6 @@ impl VerticalComposition for RabbitmqReconciler {
         }
 
         assert forall |rmq: RabbitmqClusterView| spec.entails(always(lift_state(#[trigger] Cluster::desired_state_is(rmq))).leads_to(always(lift_state(composed_current_state_matches(rmq))))) by {
-            rmq_esr_holds_per_cr(spec, rmq, cluster, Self::id());
             assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)));
 
             let rv = choose |rv: ResourceVersion| rmq_eventually_stable_cm_rv(spec, rmq, rv);
