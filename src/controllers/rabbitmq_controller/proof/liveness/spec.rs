@@ -107,7 +107,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controlle
         } else if i == 6 {
             helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
             helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
-            helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
             let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
             leads_to_always_combine_n!(
                 spec, true_pred(),
