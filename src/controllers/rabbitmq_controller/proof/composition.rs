@@ -22,17 +22,10 @@ use crate::vstatefulset_controller::model::{
     reconciler::VStatefulSetReconciler, install::vsts_controller_model
 };
 use crate::vstatefulset_controller::proof::liveness::spec as vsts_spec;
-use crate::composition::vstatefulset_controller;
 use crate::temporal_logic::rules::*;
 
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-
-use crate::vdeployment_controller::model::reconciler::VDeploymentReconciler;
-use crate::vdeployment_controller::trusted::rely_guarantee::*;
-use crate::vreplicaset_controller::model::reconciler::VReplicaSetReconciler;
-use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
-use crate::vreplicaset_controller::trusted::rely_guarantee::*;
 
 verus !{
 
