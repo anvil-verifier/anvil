@@ -8,168 +8,152 @@ PROOF_COL = 4
 EXEC_COL = 5
 PROOF_AND_EXEC_COL = 6
 
+# Map from short name to directory name fragment
+CONTROLLER_DIR = {
+    "vreplicaset": "vreplicaset_controller",
+    "vdeployment": "vdeployment_controller",
+    "vstatefulset": "vstatefulset_controller",
+    "rabbitmq": "rabbitmq_controller",
+    "composition": "composition",
+}
 
-def empty_counting_map():
+
+def empty_row():
+    """6-column row: trusted_spec, trusted_unverified, exec, proof_conformance, proof_guarantee, proof_esr."""
     return {
-        "Trusted": 0,
-        "Exec": 0,
-        "Proof": 0,
+        "trusted_spec": 0,
+        "trusted_unverified": 0,
+        "exec": 0,
+        "proof_conformance": 0,
+        "proof_guarantee": 0,
+        "proof_esr": 0,
     }
 
 
+def all_lines(cols):
+    """Sum all code-line columns (Trusted + Spec + Proof + Exec + Proof+Exec)."""
+    return (
+        int(cols[TRUSTED_COL])
+        + int(cols[SPEC_COL])
+        + int(cols[PROOF_COL])
+        + int(cols[EXEC_COL])
+        + int(cols[PROOF_AND_EXEC_COL])
+    )
+
+
+def exec_lines(cols):
+    """Executable lines: Exec + Proof+Exec."""
+    return int(cols[EXEC_COL]) + int(cols[PROOF_AND_EXEC_COL])
+
+
+def proof_lines(cols):
+    """Proof/spec lines: Spec + Proof + Proof+Exec."""
+    return int(cols[SPEC_COL]) + int(cols[PROOF_COL]) + int(cols[PROOF_AND_EXEC_COL])
+
+
+def is_exec_reconciler_file(fname, controller_name):
+    """Check if a file belongs to the exec/reconciler category for a controller.
+
+    For rabbitmq: exec/reconciler.rs and exec/resource/*.rs
+    For others: all files under exec/ (reconciler.rs, validation.rs, mod.rs, etc.)
+    """
+    if "/exec/" not in fname:
+        return False
+    if controller_name == "rabbitmq":
+        # Include exec/reconciler and exec/resource/
+        return "/exec/reconciler" in fname or "/exec/resource/" in fname
+    else:
+        # Include exec/reconciler
+        return "/exec/reconciler" in fname
+
+
 def parse_table_and_collect_lines(file_path, controller_name):
-    liveness_theorem_lines = empty_counting_map()
-    model_lines = empty_counting_map()
-    impl_lines = empty_counting_map()
-    liveness_proof_lines = empty_counting_map()
-    liveness_inv_lines = empty_counting_map()
-    safety_theorem_lines = empty_counting_map()
-    safety_proof_lines = empty_counting_map()
-    external_model_lines = empty_counting_map()
-    composition_lines = empty_counting_map()
-    wrapper_lines = empty_counting_map()
-    entry_lines = empty_counting_map()
-    other_lines = empty_counting_map()
-    # total_lines = empty_counting_map()
+    row = empty_row()
 
     with open(file_path, "r") as file:
         lines = file.readlines()
         line_num = 0
         line_len = len(lines)
         for line in lines:
-            # print(line)
-            line_num = line_num + 1  # We start from 1
+            line_num += 1
             cols = line.strip().split("|")
-            # print(cols)
             stripped_cols = [col.strip() for col in cols]
-            # print(stripped_cols)
+
             if line_num == 1:
                 # Sanity check the schema of the table
-                assert stripped_cols[FILE_COL] == "file", print(stripped_cols[FILE_COL])
-                assert stripped_cols[TRUSTED_COL] == "Trusted", print(
-                    stripped_cols[TRUSTED_COL]
-                )
-                assert stripped_cols[SPEC_COL] == "Spec", print(stripped_cols[SPEC_COL])
-                assert stripped_cols[PROOF_COL] == "Proof", print(
-                    stripped_cols[PROOF_COL]
-                )
-                assert stripped_cols[EXEC_COL] == "Exec", print(stripped_cols[EXEC_COL])
-                assert stripped_cols[PROOF_AND_EXEC_COL] == "Proof+Exec", print(
-                    stripped_cols[PROOF_AND_EXEC_COL]
-                )
+                assert stripped_cols[FILE_COL] == "file", stripped_cols[FILE_COL]
+                assert stripped_cols[TRUSTED_COL] == "Trusted", stripped_cols[TRUSTED_COL]
+                assert stripped_cols[SPEC_COL] == "Spec", stripped_cols[SPEC_COL]
+                assert stripped_cols[PROOF_COL] == "Proof", stripped_cols[PROOF_COL]
+                assert stripped_cols[EXEC_COL] == "Exec", stripped_cols[EXEC_COL]
+                assert stripped_cols[PROOF_AND_EXEC_COL] == "Proof+Exec", stripped_cols[PROOF_AND_EXEC_COL]
             elif line_num == line_len - 1:
-                assert "----------------" in stripped_cols[FILE_COL], print(
-                    stripped_cols[FILE_COL]
-                )
+                assert "----------------" in stripped_cols[FILE_COL], stripped_cols[FILE_COL]
             elif line_num == line_len:
-                assert "total" in stripped_cols[FILE_COL], print(
-                    stripped_cols[FILE_COL]
-                )
+                assert "total" in stripped_cols[FILE_COL], stripped_cols[FILE_COL]
+
             if line_num <= 2 or line_num >= line_len - 1:
-                # Skip the first two lines and the last two lines
                 continue
+
+            fname = stripped_cols[FILE_COL]
+
+            # --- Composition ---
+            # Composition has trusted_spec (spec functions) and proof_esr;
+            # no guarantee, conformance, trusted_unverified, or exec.
             if controller_name == "composition":
-                if "controllers/composition/" not in stripped_cols[FILE_COL]:
+                if "controllers/composition/" not in fname:
                     continue
-                # All composition files are proof
-                composition_lines["Proof"] += int(stripped_cols[SPEC_COL])
-                composition_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                composition_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                composition_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                composition_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                row["trusted_spec"] += int(stripped_cols[SPEC_COL])
+                row["proof_esr"] += int(stripped_cols[PROOF_COL])
                 continue
-            if controller_name + "_controller" not in stripped_cols[FILE_COL]:
-                # Skip the files that don't belong to this controller
+
+            if CONTROLLER_DIR[controller_name] not in fname:
                 continue
-            if "controllers/composition/" in stripped_cols[FILE_COL]:
-                # Skip composition files from individual controller counts
+            if "controllers/composition/" in fname:
                 continue
-            if controller_name + "_controller.rs" == stripped_cols[FILE_COL]:
-                entry_lines["Trusted"] += int(stripped_cols[EXEC_COL])
-                entry_lines["Trusted"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                entry_lines["Trusted"] += int(stripped_cols[PROOF_COL])
-                entry_lines["Trusted"] += int(stripped_cols[SPEC_COL])
-            elif (
-                controller_name == "rabbitmq"
-                and "/proof/safety/" in stripped_cols[FILE_COL]
+
+            # --- trusted_spec: trusted/{rely_guarantee|liveness_theorem} ---
+            if (
+                "/trusted/rely_guarantee.rs" in fname
+                or "/trusted/liveness_theorem.rs" in fname
             ):
-                safety_proof_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                safety_proof_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                safety_proof_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                safety_proof_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                safety_proof_lines["Proof"] += int(stripped_cols[SPEC_COL])
+                row["trusted_spec"] += all_lines(stripped_cols)
+
+            # --- trusted_unverified: trusted/{spec_types|exec_types|step|reconciler} ---
             elif (
-                "/trusted/spec_types.rs" in stripped_cols[FILE_COL]
-                or "/trusted/exec_types.rs" in stripped_cols[FILE_COL]
-                or "/trusted/step.rs" in stripped_cols[FILE_COL]
+                "/trusted/spec_types.rs" in fname
+                or "/trusted/exec_types.rs" in fname
+                or "/trusted/step.rs" in fname
+                or "/trusted/reconciler.rs" in fname
             ):
-                wrapper_lines["Trusted"] += int(stripped_cols[EXEC_COL])
-                wrapper_lines["Trusted"] += int(stripped_cols[PROOF_COL])
-                wrapper_lines["Trusted"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                wrapper_lines["Trusted"] += int(stripped_cols[SPEC_COL])
-            elif "/exec/" in stripped_cols[FILE_COL]:
-                impl_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                impl_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                impl_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                impl_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                impl_lines["Proof"] += int(stripped_cols[SPEC_COL])
-            elif "/model/" in stripped_cols[FILE_COL]:
-                model_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                model_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                model_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                model_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                model_lines["Proof"] += int(stripped_cols[SPEC_COL])
-            elif (
-                "/trusted/liveness_theorem.rs" in stripped_cols[FILE_COL]
-            ):
-                liveness_theorem_lines["Trusted"] += int(stripped_cols[EXEC_COL])
-                liveness_theorem_lines["Trusted"] += int(stripped_cols[PROOF_COL])
-                liveness_theorem_lines["Trusted"] += int(
-                    stripped_cols[PROOF_AND_EXEC_COL]
-                )
-                liveness_theorem_lines["Trusted"] += int(stripped_cols[SPEC_COL])
-            elif "/trusted/safety_theorem.rs" in stripped_cols[FILE_COL]:
-                safety_theorem_lines["Trusted"] += int(stripped_cols[EXEC_COL])
-                safety_theorem_lines["Trusted"] += int(stripped_cols[PROOF_COL])
-                safety_theorem_lines["Trusted"] += int(
-                    stripped_cols[PROOF_AND_EXEC_COL]
-                )
-                safety_theorem_lines["Trusted"] += int(stripped_cols[SPEC_COL])
-            elif "/proof/" in stripped_cols[FILE_COL]:
-                if "/proof/helper_invariants" in stripped_cols[FILE_COL]:
-                    liveness_inv_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                    liveness_inv_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                    liveness_inv_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                    liveness_inv_lines["Proof"] += int(
-                        stripped_cols[PROOF_AND_EXEC_COL]
-                    )
-                    liveness_inv_lines["Proof"] += int(stripped_cols[SPEC_COL])
-                liveness_proof_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                liveness_proof_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                liveness_proof_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                liveness_proof_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                liveness_proof_lines["Proof"] += int(stripped_cols[SPEC_COL])
-            else:
-                # print(line)  # Print out the lines that are hard to classify
-                other_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                other_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                other_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                other_lines["Proof"] += int(stripped_cols[SPEC_COL])
-    all_lines = {
-        "liveness_theorem": liveness_theorem_lines,
-        "reconcile_model": model_lines,
-        "reconcile_impl": impl_lines,
-        "liveness_proof": liveness_proof_lines,
-        "liveness_inv": liveness_inv_lines,
-        "safety_theorem": safety_theorem_lines,
-        "safety_proof": safety_proof_lines,
-        "external_model": external_model_lines,
-        "composition_proof": composition_lines,
-        "wrapper": wrapper_lines,
-        "entry": entry_lines,
-        "other": other_lines,
-    }
-    json.dump(all_lines, open(controller_name + "-loc.json", "w"), indent=4)
+                row["trusted_unverified"] += all_lines(stripped_cols)
+
+            # --- exec + proof_conformance: exec/reconciler (+ resource/*.rs for rabbitmq) ---
+            elif is_exec_reconciler_file(fname, controller_name):
+                row["exec"] += exec_lines(stripped_cols)
+                row["proof_conformance"] += proof_lines(stripped_cols)
+
+            # --- proof_guarantee: proof/guarantee ---
+            elif "/proof/guarantee.rs" in fname:
+                row["proof_guarantee"] += proof_lines(stripped_cols)
+                row["proof_guarantee"] += exec_lines(stripped_cols)
+
+            # --- proof_esr: all other proofs in controller path ---
+            elif "/proof/" in fname or "/model/" in fname:
+                row["proof_esr"] += proof_lines(stripped_cols)
+
+            # else: uncategorized (e.g. trusted/safety_theorem.rs, trusted/mod.rs,
+            # trusted/util.rs, trusted/reconciler.rs, controller root mod.rs) - skip
+
+    json.dump(row, open(controller_name + "-loc.json", "w"), indent=4)
+
+    # Print summary
+    total = sum(row.values())
+    print(f"[{controller_name}] LOC breakdown:")
+    for k, v in row.items():
+        print(f"  {k:>20}: {v}")
+    print(f"  {'total':>20}: {total}")
+    print()
 
 
 def main():
