@@ -13,8 +13,8 @@ pub open spec fn vsts_eventually_stable_reconciliation() -> TempPred<ClusterStat
     Cluster::eventually_stable_reconciliation(|vrs| current_state_matches(vrs))
 }
 
-pub open spec fn vsts_eventually_stable_reconciliation_per_cr(vrs: VStatefulSetView) -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))
+pub open spec fn vsts_eventually_stable_reconciliation_per_cr(vsts: VStatefulSetView) -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation_per_cr(vsts, |vsts| current_state_matches(vsts))
 }
 
 pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<ClusterState> {
