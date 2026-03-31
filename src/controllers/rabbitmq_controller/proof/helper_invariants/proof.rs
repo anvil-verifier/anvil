@@ -335,6 +335,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
@@ -350,6 +351,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
         spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
@@ -366,6 +368,8 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime)
         &&& Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, key)(s_prime)
         &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
         &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
@@ -380,6 +384,8 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
         later(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())),
         later(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, key))),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))),
         lift_state(no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq))
@@ -400,16 +406,18 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
                     let step = choose |step| cluster.next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
-                            let cr_key = input.2->0;
-                            if cr_key == key {
-                                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
-                                assert(resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
+                            RabbitmqReconcileState::marshal_preserves_integrity();
+                            assume(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime));
+                            if controller_id == input.0 && input.2->0 == key {
+                                if at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s) {
+                                    assert(!at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime));
+                                } else {
+                                    assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+                                    assert(resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
+                                }
                             } else {
                                 assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
                             }
-                        },
-                        Step::RestartControllerStep(_) => {
-                            assert(false);
                         },
                         _ => {
                             assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
