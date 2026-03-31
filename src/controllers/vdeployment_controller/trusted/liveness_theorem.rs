@@ -78,51 +78,6 @@ pub open spec fn current_state_matches_with_new_vrs_key(vd: VDeploymentView, new
     }
 }
 
-pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        let etcd_obj = s.resources()[new_vrs_key];
-        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        &&& current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s)
-        &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-            // if vd has 0 replicas, local new vrs can have 0 replicas or not
-            // if the new_vrs in etcd has > 0 replicas, it will be chosen at after list step
-            &&& local_state.reconcile_step == AfterScaleNewVRS || local_state.reconcile_step == AfterEnsureNewVRS ==> {
-                &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
-                    &&& local_state.new_vrs->0.object_ref() == new_vrs_key
-                    &&& local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
-                }
-                &&& local_state.new_vrs is Some && local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
-                    &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
-                    &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
-                }
-                &&& local_state.old_vrs_index == 0
-            }
-            &&& at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s)
-            &&& if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-                &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg, s)
-                &&& forall |msg| {
-                    &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src is APIServer
-                    &&& resp_msg_matches_req_msg(msg, req_msg)
-                } ==> resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s)
-            } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s) {
-                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                &&& local_state.new_vrs is Some
-                // only when vd.replicas = 0 and both new_vrs_with_key and local.new_vrs have 0 replicas their key can differ
-                // but then AfterScaleNewVRS is not reachable
-                &&& local_state.new_vrs->0.object_ref() == new_vrs_key
-                &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some
-                &&& ru_req_msg_is_scale_new_vrs_by_one_req(vd, controller_id, req_msg)(s)
-            } else {
-                s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is None
-            }
-        }
-    }
-}
-
 pub open spec fn composed_current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.resources().values().filter(valid_owned_pods(vd, s)).len() == vd.spec.replicas.unwrap_or(1)
