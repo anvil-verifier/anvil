@@ -1016,7 +1016,22 @@ pub proof fn lemma_always_every_in_flight_msg_from_controller_has_kind_as<T: Cus
     };
     self.lemma_always_there_is_the_controller_state(spec, controller_id);
     self.lemma_always_cr_objects_in_reconcile_have_correct_kind::<T>(spec, controller_id);
-
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| {
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.src.is_controller_id(controller_id)
+            &&& msg.dst is APIServer
+        } implies match msg.src {
+            HostId::Controller(id, key) => {
+                &&& key.kind == T::kind()
+            },
+            _ => {
+                false
+            }
+        } by {
+            if s.in_flight().contains(msg) {} else {}
+        }
+    }
     T::marshal_preserves_integrity();
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
