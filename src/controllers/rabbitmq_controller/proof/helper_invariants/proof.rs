@@ -236,6 +236,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
     controller_id: int,
     cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView

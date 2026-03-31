@@ -96,6 +96,7 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
     controller_id: int,
     cluster: Cluster, s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message

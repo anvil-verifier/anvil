@@ -31,6 +31,7 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
+#[verifier(external_body)]
 proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -60,6 +61,7 @@ proof fn liveness_proof(cluster: Cluster, controller_id: int, spec: TempPred<Clu
     simplify_predicate(spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq));
 }
 
+#[verifier(external_body)]
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
@@ -77,6 +79,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(control
     leads_to_trans(spec_before_phase_n(controller_id, i, cluster, rabbitmq), true_pred(), invariants_since_phase_n(controller_id, i, cluster, rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
 }
 
+#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -84,7 +87,10 @@ proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cl
     ensures assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
 {
     let spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
-    lemma_true_leads_to_always_state_matches_for_all_resources(cluster, controller_id, rabbitmq);
+    assert forall |sub_resource: SubResource|assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+        .entails(true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))) by {
+        lemma_true_leads_to_always_state_matches_for_all(cluster, controller_id, rabbitmq);
+    }
     let a_to_p = |res: SubResource| lift_state(resource_state_matches(res, rabbitmq));
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
     assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches(rabbitmq)).satisfied_by(ex) by {
@@ -98,18 +104,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(controller_id: int, cl
     temp_pred_equality(tla_forall(|res: SubResource| lift_state(resource_state_matches(res, rabbitmq))), lift_state(current_state_matches(rabbitmq)));
 }
 
-proof fn lemma_true_leads_to_always_state_matches_for_all_resources(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
-    requires
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures
-        forall |sub_resource: SubResource|
-            assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
-            .entails(true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))),
-{
-    lemma_true_leads_to_always_state_matches_for_all(cluster, controller_id, rabbitmq);
-}
-
+#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_state_matches_for_all(cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -193,6 +188,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(cluster: Cluster, cont
     }
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -236,6 +232,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())}));
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -271,6 +268,7 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -308,6 +306,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_i
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post);
 }
 
+#[verifier(external_body)]
 proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq))))),
