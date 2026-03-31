@@ -1132,8 +1132,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let req_msg = input->0;
-                match req_msg.src {
+                let msg = input->0;
+                match msg.src {
                     HostId::Controller(other_id, cr_key) => {
                         if other_id == controller_id {
                             assume(false);
