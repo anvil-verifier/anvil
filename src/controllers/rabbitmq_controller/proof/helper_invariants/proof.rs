@@ -1110,6 +1110,10 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    // never thought I would use them again, caused by scability problem
+    cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
+    cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, rabbitmq)(s)
@@ -1117,6 +1121,9 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
+        &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1125,7 +1132,10 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
         lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
+        lift_state(rmq_rely_conditions(cluster, controller_id)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
+        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1135,6 +1145,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                 let msg = input->0;
                 match msg.src {
                     HostId::Controller(other_id, cr_key) => {
+                        assume(false);
                         if other_id == controller_id {
                             assume(false);
                         } else {
@@ -1189,7 +1200,11 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                 }
                             }
                         }
-                    }
+                    },
+                    HostId::BuiltinController => {
+                        assert(msg.content.is_delete_request());
+                    }, // must be delete requests     
+                    HostId::PodMonkey => {},
                     _ => {}
                 }
             }
