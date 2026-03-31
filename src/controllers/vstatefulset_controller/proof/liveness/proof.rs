@@ -16,7 +16,6 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int, cluster: Cluster)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -636,27 +635,60 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
         .and(pending_request_invariants(cluster, controller_id))
     );
 
-    assert(terminate::vsts_terminate_invariants(spec2, vsts, cluster, controller_id)) by {
-        assume(terminate::vsts_terminate_invariants(spec2, vsts, cluster, controller_id));
-    }
+    assume(terminate::vsts_terminate_invariants(spec2, vsts, cluster, controller_id));
     terminate::reconcile_eventually_terminates_on_vsts_object(spec2, vsts, cluster, controller_id);
 
     assert(spec2.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))))) by {
-        assume(spec2.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))));
+        let body = lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))
+            .and(next_with_wf(cluster, controller_id))
+            .and(pending_request_invariants(cluster, controller_id));
+        entails_preserved_by_always(body, lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)));
+        entails_preserved_by_always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)), lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
+        entails_trans(spec2, always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))), always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))));
     }
-    assume(spec2.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))));
-    assume(spec2.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
-    assume(spec2.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
-    assume(spec2.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))));
-    assume(spec2.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))));
-    assume(spec2.entails(always(lift_action(cluster.next()))));
+    assert(spec2.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))))) by {
+        let body = lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))
+            .and(next_with_wf(cluster, controller_id))
+            .and(pending_request_invariants(cluster, controller_id));
+        entails_preserved_by_always(body, lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)));
+        entails_preserved_by_always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)), lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)));
+        entails_trans(spec2, always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))), always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))));
+    };
+    assert(spec2.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id))))) by {
+        let body = lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))
+            .and(next_with_wf(cluster, controller_id))
+            .and(pending_request_invariants(cluster, controller_id));
+        entails_preserved_by_always(body, lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)));
+        entails_preserved_by_always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)), lift_state(vsts_rely_conditions(cluster, controller_id)));
+        entails_trans(spec2, always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))), always(lift_state(vsts_rely_conditions(cluster, controller_id))));
+    };
+    assert(spec2.entails(next_with_wf(cluster, controller_id))) by {
+        let body = lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))
+            .and(next_with_wf(cluster, controller_id))
+            .and(pending_request_invariants(cluster, controller_id));
+        always_entails_current(body);
+        entails_and_temp(spec2, lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)).and(next_with_wf(cluster, controller_id)), pending_request_invariants(cluster, controller_id));
+        entails_and_temp(spec2, lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)), next_with_wf(cluster, controller_id));
+    };
+    assert(spec2.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))) by {
+        entails_trans(spec2, next_with_wf(cluster, controller_id), tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
+    };
+    assert(spec2.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))) by {
+        entails_trans(spec2, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
+    };
+    assert(spec2.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))))) by {
+        entails_trans(spec2, next_with_wf(cluster, controller_id), tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))));
+    };
+    assert(spec2.entails(always(lift_action(cluster.next())))) by {
+        entails_trans(spec2, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
+    };
     resource_match::lemma_spec_entails_reconcile_idle_leads_to_inductive_current_state_matches(vsts, spec2, cluster, controller_id);
     leads_to_trans_n!(spec2, 
         true_pred(), 
         lift_state(reconcile_idle(vsts, controller_id)), 
         lift_state(inductive_current_state_matches(vsts, controller_id))
     );
-    resource_match::lemma_inductive_current_state_matches_to_current_state_matches(spec2, vsts, cluster, controller_id);
+    resource_match::lemma_inductive_current_state_matches_to_always_current_state_matches(spec2, vsts, cluster, controller_id);
     assert(spec2.entails(true_pred().leads_to(always(lift_state(current_state_matches(vsts))))));
     
     // DON'T FIX FOR NOW
@@ -666,15 +698,13 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     let p = always(lift_state(Cluster::desired_state_is(vsts)));
     next_with_wf_is_stable(cluster, controller_id);
     assert(spec.entails(always(next_with_wf(cluster, controller_id)))) by {
-        assume(spec.entails(always(next_with_wf(cluster, controller_id))));
+        stable_to_always(next_with_wf(cluster, controller_id));
     }
     always_entails_leads_to_always(spec, p, next_with_wf(cluster, controller_id));
 
     entails_trans(spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
 
-    assert(spec.entails(always(pending_request_invariants(cluster, controller_id)))) by {
-        assume(spec.entails(always(pending_request_invariants(cluster, controller_id))));
-    }
+    assume(spec.entails(always(pending_request_invariants(cluster, controller_id))));
     always_entails_leads_to_always(spec, p, pending_request_invariants(cluster, controller_id));
 
     leads_to_always_combine(spec, p,

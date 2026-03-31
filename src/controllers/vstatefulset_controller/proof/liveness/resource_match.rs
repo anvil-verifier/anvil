@@ -4339,7 +4339,7 @@ ensures
     }
 }
 
-pub proof fn lemma_inductive_current_state_matches_to_current_state_matches(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+pub proof fn lemma_inductive_current_state_matches_to_always_current_state_matches(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
