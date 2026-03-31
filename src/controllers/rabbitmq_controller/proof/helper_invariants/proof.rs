@@ -312,7 +312,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
 
 #[verifier(spinoff_prover)]
 #[verifier(external_body)]
-proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
+pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
@@ -803,7 +803,29 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                                     if other_id == controller_id {
                                         if req_msg != msg {
                                             if cr_key == key {
-                                                assume(false);
+                                                // req_msg is from the same controller reconciling the same key,
+                                                // but req_msg != msg. Since msg is the pending request,
+                                                // req_msg must be a stale request from a previous step.
+                                                //
+                                                // API server step doesn't change ongoing_reconciles,
+                                                // so at_rabbitmq_step and pending_req_msg_is are preserved.
+                                                //
+                                                // For the resource version condition: if req_msg modifies
+                                                // resource_key, the rv changes, making the antecedent false.
+                                                // If req_msg doesn't modify resource_key, resources are unchanged.
+                                                assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                                                assert(Cluster::pending_req_msg_is(controller_id, s_prime, key, msg));
+                                                assert(at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime));
+                                                // rv_counter only increases
+                                                assert(s.api_server.resource_version_counter <= s_prime.api_server.resource_version_counter);
+                                                if s_prime.resources().contains_key(resource_key)
+                                                && msg.content.get_update_request().obj.metadata.resource_version == s_prime.resources()[resource_key].metadata.resource_version {
+                                                    // The rv matches in s_prime, so resources must not have changed at resource_key
+                                                    // (if they did, the rv would be s.api_server.resource_version_counter which is
+                                                    // strictly greater than the old rv)
+                                                    assert(s.resources().contains_key(resource_key));
+                                                    assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                                }
                                             } else {
                                                 let other_rmq = RabbitmqClusterView {
                                                     metadata: ObjectMetaView {
