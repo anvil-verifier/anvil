@@ -236,7 +236,6 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
     controller_id: int,
     cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView
@@ -279,6 +278,9 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
+                    assert(!resource_get_then_delete_request_msg(resource_key)(req_msg));
+                    assert(!resource_get_then_update_request_msg(resource_key)(req_msg));
+                    assert(!resource_get_then_update_status_request_msg(resource_key)(req_msg));
                     match req_msg.content->APIRequest_0 {
                         APIRequest::CreateRequest(_) => {
                             if !s.in_flight().contains(msg) {
@@ -287,13 +289,15 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                                 assert(msg.content.get_create_response().res->Ok_0.object_ref() == resource_key);
                                 assert(msg.content.get_create_response().res->Ok_0 == s_prime.resources()[req.content.get_create_request().key()]);
                                 assert(resource_create_request_msg(resource_key)(req));
+                                assert(resource_create_response_msg(resource_key, s)(msg));
                             } else {
                                 assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                                 assert(resource_create_response_msg(resource_key, s_prime)(msg));
                             }
-                        }
+                        },
                         _ => {
                             assert(resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
                         }
                     }
                 },
