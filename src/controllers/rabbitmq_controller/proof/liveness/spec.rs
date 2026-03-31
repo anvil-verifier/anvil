@@ -17,6 +17,7 @@ use crate::rabbitmq_controller::{
     proof::{helper_invariants, liveness::terminate, predicate::*, resource::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
@@ -68,11 +69,11 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
     }
 }
 
-#[verifier(external_body)]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec_before_phase_n(controller_id, i, cluster, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(controller_id, i, cluster, rabbitmq))),
 {
@@ -392,7 +393,6 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     });
 }
 
-#[verifier(external_body)]
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),

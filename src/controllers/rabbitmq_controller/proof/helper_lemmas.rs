@@ -15,6 +15,7 @@ use crate::rabbitmq_controller::{
     proof::{predicate::*, resource::*, guarantee::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
+use crate::rabbitmq_controller::proof::helper_invariants::no_interfering_request_between_rmq_forall_rmq;
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
