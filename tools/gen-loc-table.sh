@@ -11,7 +11,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-VERUS_BIN="$(which verus)"
+VERUS_BIN="$(which verus 2>/dev/null || echo "${VERUS_DIR}/source/target-verus/release/verus")"
 LINE_COUNT_DIR="$VERUS_DIR/source/tools/line_count"
 
 VERUS_COMMON_ARGS=(
