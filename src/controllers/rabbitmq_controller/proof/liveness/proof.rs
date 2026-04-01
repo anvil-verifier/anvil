@@ -517,15 +517,9 @@ proof fn lemma_from_init_step_to_after_get_headless_service_step(controller_id: 
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post);
 }
 
-proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: TempPred<ClusterState>, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq))))),
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq))))),
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(res, rabbitmq))))),
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq))))),
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq))))),
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq))))),
-        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(res, rabbitmq))))),
+        spec.entails(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)),
     ensures
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))),
@@ -535,6 +529,15 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
 {
+    let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq)))));
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq)))));
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(res, rabbitmq)))));
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq)))));
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq)))));
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)))));
+    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)))));
+    
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq)), sub_resource);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq)), sub_resource);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(res, rabbitmq)), sub_resource);
@@ -555,8 +558,47 @@ ensures
     spec.entails(always(lift_state(#[trigger] cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
-    always_tla_forall_apply_for_sub_resource(controller_id, spec, sub_resource, rabbitmq);
+    always_tla_forall_apply_for_sub_resource(controller_id, spec, cluster, sub_resource, rabbitmq);
+    // FIXME
     assume(stable_spec.entails(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)))));
+
+    assert(stable_spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::req_drop_disabled()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::etcd_objects_have_unique_uids()))));
+    assert(stable_spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))));
+    assert(stable_spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))));
+    assert(stable_spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::etcd_is_finite()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))));
+    assert(stable_spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))));
+    assert(stable_spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref())))));
+    assert(stable_spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))));
+    assert(stable_spec.entails(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)))));
     // Combine all extracted invariants into cluster_invariants_since_reconciliation
     combine_spec_entails_always_n!(stable_spec,
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
