@@ -21,6 +21,42 @@ use vstd::prelude::*;
 
 verus! {
 
+pub open spec fn make_resource_key(cr_key: ObjectRef, sub_resource: SubResource) -> ObjectRef {
+    let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    match sub_resource {
+        SubResource::HeadlessService => ObjectRef {
+            kind: ServiceView::kind(), name: prefix + cr_key.name + "-nodes"@, namespace: cr_key.namespace,
+        },
+        SubResource::Service => ObjectRef {
+            kind: ServiceView::kind(), name: prefix + cr_key.name + "-client"@, namespace: cr_key.namespace,
+        },
+        SubResource::ErlangCookieSecret => ObjectRef {
+            kind: SecretView::kind(), name: prefix + cr_key.name + "-erlang-cookie"@, namespace: cr_key.namespace,
+        },
+        SubResource::DefaultUserSecret => ObjectRef {
+            kind: SecretView::kind(), name: prefix + cr_key.name + "-default-user"@, namespace: cr_key.namespace,
+        },
+        SubResource::PluginsConfigMap => ObjectRef {
+            kind: ConfigMapView::kind(), name: prefix + cr_key.name + "-plugins-conf"@, namespace: cr_key.namespace,
+        },
+        SubResource::ServerConfigMap => ObjectRef {
+            kind: ConfigMapView::kind(), name: prefix + cr_key.name + "-server-conf"@, namespace: cr_key.namespace,
+        },
+        SubResource::ServiceAccount => ObjectRef {
+            kind: ServiceAccountView::kind(), name: prefix + cr_key.name + "-server"@, namespace: cr_key.namespace,
+        },
+        SubResource::Role => ObjectRef {
+            kind: RoleView::kind(), name: prefix + cr_key.name + "-peer-discovery"@, namespace: cr_key.namespace,
+        },
+        SubResource::RoleBinding => ObjectRef {
+            kind: RoleBindingView::kind(), name: prefix + cr_key.name + "-server"@, namespace: cr_key.namespace,
+        },
+        SubResource::VStatefulSetView => ObjectRef {
+            kind: VStatefulSetView::kind(), name: prefix + cr_key.name + "-server"@, namespace: cr_key.namespace,
+        },
+    }
+}
+
 pub open spec fn at_rabbitmq_step(key: ObjectRef, controller_id: int, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
     recommends
         key.kind is CustomResourceKind
@@ -540,7 +576,9 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
-        &&& no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rmq)(s)
+        &&& every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s)
+        &&& no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s)
@@ -588,19 +626,6 @@ pub open spec fn inductive_current_state_matches(rmq: RabbitmqClusterView, sub_r
             }
         }
     }
-}    
-
-pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
-    always(lift_action(cluster.next()))
-    .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
-    .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
-    .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
-    .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
-    .and(cluster.disable_crash().weak_fairness(controller_id))
-    .and(cluster.disable_req_drop().weak_fairness(()))
-    .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
 
 }

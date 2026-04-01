@@ -19,14 +19,14 @@ CONTROLLER_DIR = {
 
 
 def empty_row():
-    """6-column row: trusted_spec, trusted_unverified, exec, proof_conformance, proof_guarantee, proof_esr."""
+    """6-column row: trusted_spec, trusted_unverified, exec, model, proof_guarantee, core_esr"""
     return {
         "trusted_spec": 0,
         "trusted_unverified": 0,
         "exec": 0,
-        "proof_conformance": 0,
+        "model": 0,
         "proof_guarantee": 0,
-        "proof_esr": 0,
+        "core_esr": 0,
     }
 
 
@@ -39,6 +39,11 @@ def all_lines(cols):
         + int(cols[EXEC_COL])
         + int(cols[PROOF_AND_EXEC_COL])
     )
+
+
+def spec_lines(cols):
+    """Spec lines: Spec + Proof + Proof+Exec."""
+    return int(cols[SPEC_COL])
 
 
 def exec_lines(cols):
@@ -104,7 +109,7 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 if "controllers/composition/" not in fname:
                     continue
                 row["trusted_spec"] += int(stripped_cols[SPEC_COL])
-                row["proof_esr"] += int(stripped_cols[PROOF_COL])
+                row["core_esr"] += int(stripped_cols[PROOF_COL])
                 continue
 
             if CONTROLLER_DIR[controller_name] not in fname:
@@ -128,19 +133,23 @@ def parse_table_and_collect_lines(file_path, controller_name):
             ):
                 row["trusted_unverified"] += all_lines(stripped_cols)
 
-            # --- exec + proof_conformance: exec/reconciler (+ resource/*.rs for rabbitmq) ---
+            # --- exec + model: exec/reconciler (+ resource/*.rs for rabbitmq) ---
             elif is_exec_reconciler_file(fname, controller_name):
                 row["exec"] += exec_lines(stripped_cols)
-                row["proof_conformance"] += proof_lines(stripped_cols)
+                # conformance proofs go to model
+                row["model"] += proof_lines(stripped_cols)
 
-            # --- proof_guarantee: proof/guarantee ---
+            # --- model: models in controller path ---
+            elif "/model" in fname:
+                row["model"] += spec_lines(stripped_cols)
+
+            # --- proof_guarantee: proof/guarantee (spec+proof only) ---
             elif "/proof/guarantee.rs" in fname:
                 row["proof_guarantee"] += proof_lines(stripped_cols)
-                row["proof_guarantee"] += exec_lines(stripped_cols)
 
-            # --- proof_esr: all other proofs in controller path ---
-            elif "/proof/" in fname or "/model/" in fname:
-                row["proof_esr"] += proof_lines(stripped_cols)
+            # --- core_esr: all other proofs ---
+            elif "/proof" in fname:
+                row["core_esr"] += proof_lines(stripped_cols)
 
             # else: uncategorized (e.g. trusted/safety_theorem.rs, trusted/mod.rs,
             # trusted/util.rs, trusted/reconciler.rs, controller root mod.rs) - skip

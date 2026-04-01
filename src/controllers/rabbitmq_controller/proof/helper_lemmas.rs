@@ -17,7 +17,7 @@ use crate::rabbitmq_controller::{
 };
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
+use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
@@ -29,6 +29,155 @@ requires
 ensures
     get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
 {}
+
+pub proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
+    cr_name_a: StringView, cr_name_b: StringView, suffix: StringView,
+)
+    requires cr_name_a != cr_name_b,
+    ensures
+        RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name_a + suffix
+        != RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name_b + suffix,
+{
+    let prefix_dash = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    // prefix_dash + cr_name_a != prefix_dash + cr_name_b  (since cr_name_a != cr_name_b)
+    seq_unequal_preserved_by_add_prefix(prefix_dash, cr_name_a, cr_name_b);
+    // (prefix_dash + cr_name_a) + suffix != (prefix_dash + cr_name_b) + suffix
+    seq_unequal_preserved_by_add(prefix_dash + cr_name_a, prefix_dash + cr_name_b, suffix);
+}
+
+pub proof fn lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(
+    cr_key_a: ObjectRef, cr_key_b: ObjectRef, sub_resource_a: SubResource, sub_resource_b: SubResource
+)
+requires
+    sub_resource_a != sub_resource_b,
+ensures
+    make_resource_key(cr_key_a, sub_resource_a) != make_resource_key(cr_key_b, sub_resource_b),
+{
+    let key_a = make_resource_key(cr_key_a, sub_resource_a);
+    let key_b = make_resource_key(cr_key_b, sub_resource_b);
+    // If the kinds differ, the keys trivially differ.
+    if key_a.kind == key_b.kind {
+        // Same Kind => one of three pairs (Service, Secret, ConfigMap).
+        // We show key_a.name != key_b.name by examining a character near the end
+        // that differs between the two suffixes.
+        match key_a.kind {
+            Kind::ServiceKind => {
+                // HeadlessService: suffix "-nodes" (last char 's')
+                // Service: suffix "-client" (last char 't')
+                reveal_strlit("-nodes");
+                reveal_strlit("-client");
+                if sub_resource_a == SubResource::HeadlessService {
+                    assert(key_a.name[key_a.name.len() - 1] == 's');
+                    assert(key_b.name[key_b.name.len() - 1] == 't');
+                } else {
+                    assert(key_a.name[key_a.name.len() - 1] == 't');
+                    assert(key_b.name[key_b.name.len() - 1] == 's');
+                }
+            },
+            Kind::SecretKind => {
+                // ErlangCookieSecret: suffix "-erlang-cookie" (last char 'e')
+                // DefaultUserSecret: suffix "-default-user" (last char 'r')
+                reveal_strlit("-erlang-cookie");
+                reveal_strlit("-default-user");
+                if sub_resource_a == SubResource::ErlangCookieSecret {
+                    assert(key_a.name[key_a.name.len() - 1] == 'e');
+                    assert(key_b.name[key_b.name.len() - 1] == 'r');
+                } else {
+                    assert(key_a.name[key_a.name.len() - 1] == 'r');
+                    assert(key_b.name[key_b.name.len() - 1] == 'e');
+                }
+            },
+            Kind::ConfigMapKind => {
+                // PluginsConfigMap: suffix "-plugins-conf" (char at len-6 is 's')
+                // ServerConfigMap: suffix "-server-conf" (char at len-6 is 'r')
+                reveal_strlit("-plugins-conf");
+                reveal_strlit("-server-conf");
+                if sub_resource_a == SubResource::PluginsConfigMap {
+                    assert(key_a.name[key_a.name.len() - 6] == 's');
+                    assert(key_b.name[key_b.name.len() - 6] == 'r');
+                } else {
+                    assert(key_a.name[key_a.name.len() - 6] == 'r');
+                    assert(key_b.name[key_b.name.len() - 6] == 's');
+                }
+            },
+            _ => {
+                // No other Kind has two different sub-resources mapping to it.
+                assert(false);
+            }
+        }
+    }
+}
+
+pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
+    rabbitmq: RabbitmqClusterView, sub_resource_a: SubResource, sub_resource_b: SubResource
+)
+    requires
+        sub_resource_a != sub_resource_b,
+    ensures
+        get_request(sub_resource_a, rabbitmq).key != get_request(sub_resource_b, rabbitmq).key,
+{
+    let res_key_a = get_request(sub_resource_a, rabbitmq).key;
+    let res_key_b = get_request(sub_resource_b, rabbitmq).key;
+    if res_key_a.kind == res_key_b.kind {
+        // When two different sub-resources share the same Kind, they must have different name suffixes.
+        // We prove name inequality by showing the suffixes differ (via reveal_strlit + character comparison),
+        // then use seq_unequal_preserved_by_add_prefix to lift that to the full names.
+        let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.object_ref().name;
+        match res_key_a.kind {
+            Kind::ServiceKind => {
+                // HeadlessService: prefix + "-nodes", Service: prefix + "-client"
+                assert_by("-nodes"@ != "-client"@, {
+                    reveal_strlit("-nodes");
+                    reveal_strlit("-client");
+                    if "-nodes"@.len() == "-client"@.len() {
+                        assert("-nodes"@[1] != "-client"@[1]);
+                    }
+                });
+                seq_unequal_preserved_by_add_prefix(prefix, "-nodes"@, "-client"@);
+                if sub_resource_a == SubResource::HeadlessService {
+                    assert(sub_resource_b == SubResource::Service);
+                } else {
+                    assert(sub_resource_b == SubResource::HeadlessService);
+                }
+            },
+            Kind::SecretKind => {
+                // ErlangCookieSecret: prefix + "-erlang-cookie", DefaultUserSecret: prefix + "-default-user"
+                assert_by("-erlang-cookie"@ != "-default-user"@, {
+                    reveal_strlit("-erlang-cookie");
+                    reveal_strlit("-default-user");
+                    if "-erlang-cookie"@.len() == "-default-user"@.len() {
+                        assert("-erlang-cookie"@[1] != "-default-user"@[1]);
+                    }
+                });
+                seq_unequal_preserved_by_add_prefix(prefix, "-erlang-cookie"@, "-default-user"@);
+                if sub_resource_a == SubResource::ErlangCookieSecret {
+                    assert(sub_resource_b == SubResource::DefaultUserSecret);
+                } else {
+                    assert(sub_resource_b == SubResource::ErlangCookieSecret);
+                }
+            },
+            Kind::ConfigMapKind => {
+                // PluginsConfigMap: prefix + "-plugins-conf", ServerConfigMap: prefix + "-server-conf"
+                assert_by("-plugins-conf"@ != "-server-conf"@, {
+                    reveal_strlit("-plugins-conf");
+                    reveal_strlit("-server-conf");
+                    if "-plugins-conf"@.len() == "-server-conf"@.len() {
+                        assert("-plugins-conf"@[1] != "-server-conf"@[1]);
+                    }
+                });
+                seq_unequal_preserved_by_add_prefix(prefix, "-plugins-conf"@, "-server-conf"@);
+                if sub_resource_a == SubResource::PluginsConfigMap {
+                    assert(sub_resource_b == SubResource::ServerConfigMap);
+                } else {
+                    assert(sub_resource_b == SubResource::PluginsConfigMap);
+                }
+            },
+            _ => {
+                assert(false);
+            }
+        }
+    }
+}
 
 pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
@@ -135,7 +284,6 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
-    no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
 ensures

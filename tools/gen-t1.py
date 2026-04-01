@@ -17,9 +17,9 @@ LOC_COLUMNS = [
     "trusted_spec",
     "trusted_unverified",
     "exec",
-    "proof_conformance",
+    "model",
     "proof_guarantee",
-    "proof_esr",
+    "core_esr",
 ]
 
 
@@ -105,6 +105,19 @@ def gen_for_anvil():
     return table
 
 
+DISPLAY_COLUMNS = ["trusted_spec", "trusted_unverified", "exec", "model"]
+
+
+def make_display_row(label, loc_data):
+    """Build a display row: 4 base columns + Core (guarantee + core_esr) + ESR (core_esr)."""
+    row = [label]
+    for col in DISPLAY_COLUMNS:
+        row.append(str(loc_data[col]))
+    row.append(str(loc_data["proof_guarantee"] + loc_data["core_esr"]))
+    row.append(str(loc_data["core_esr"]))
+    return row
+
+
 def gen_for_controller(controller):
     table = []
     verus_lc_dir = os.path.join(os.environ["VERUS_DIR"], "source/tools/line_count")
@@ -114,15 +127,7 @@ def gen_for_controller(controller):
         )
     )
     loc_data = json.load(open("{}-loc.json".format(controller)))
-
-    total = sum(loc_data[col] for col in LOC_COLUMNS)
-
-    row = [cap_controllers[controller]]
-    for col in LOC_COLUMNS:
-        row.append(str(loc_data[col]))
-    row.append(str(total))
-    table.append(row)
-
+    table.append(make_display_row(cap_controllers[controller], loc_data))
     return loc_data, table
 
 
@@ -136,15 +141,7 @@ def gen_for_composition(base_controller):
         )
     )
     loc_data = json.load(open("composition-loc.json"))
-
-    total = sum(loc_data[col] for col in LOC_COLUMNS)
-
-    row = ["Composition proofs"]
-    for col in LOC_COLUMNS:
-        row.append(str(loc_data[col]))
-    row.append(str(total))
-    table.append(row)
-
+    table.append(make_display_row("Composition proofs", loc_data))
     return loc_data, table
 
 
@@ -161,14 +158,13 @@ def main():
 
     # Grand totals row
     all_keys = controllers + ["composition"]
-    grand_row = ["Total(all)"]
-    grand_total = 0
-    for col in LOC_COLUMNS:
-        col_sum = sum(totals[c][col] for c in all_keys)
-        grand_row.append(str(col_sum))
-        grand_total += col_sum
-    grand_row.append(str(grand_total))
-    table.append(grand_row)
+    grand = {col: sum(totals[c][col] for c in all_keys) for col in LOC_COLUMNS}
+    grand = make_display_row("Total(all)", grand)
+    # remove grand ESR and grand/total = model + core proof
+    total_cnt = int(grand[4]) + int(grand[5])
+    grand[5] = str(total_cnt)
+    grand[6] = "--"
+    table.append(grand)
 
     if print_anvil:
         table += gen_for_anvil()
@@ -177,14 +173,12 @@ def main():
         "Trusted Spec",
         "Trusted Unverified",
         "Exec",
-        "Proof Conformance",
-        "Proof Guarantee",
-        "Proof ESR",
-        "Total",
+        "Model",
+        "Core",
+        "ESR",
     ]
     print(tabulate(table, headers, tablefmt="github"))
 
 
 if __name__ == "__main__":
     main()
-
