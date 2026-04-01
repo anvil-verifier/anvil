@@ -171,7 +171,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     temp_pred_equality(tla_forall(|res: SubResource| lift_state(resource_state_matches(res, rabbitmq))), lift_state(current_state_matches(rabbitmq)));
 }
 
-#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -404,7 +403,6 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())}));
 }
 
-#[verifier(external_body)]
 proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -449,7 +447,6 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
 }
 
-#[verifier(external_body)]
 proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
