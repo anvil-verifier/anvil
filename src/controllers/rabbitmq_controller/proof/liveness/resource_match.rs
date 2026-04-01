@@ -817,7 +817,7 @@ ensures
     match step {
         Step::APIServerStep(input) => {
             let msg = input->0;
-            assert(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource, rabbitmq)(s));
+            assert(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)(s));
             assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)(s));
             assert(s.in_flight().contains(msg));
             assert(!resource_delete_request_msg(resource_key)(msg));
@@ -868,7 +868,7 @@ ensures
     match step {
         Step::APIServerStep(input) => {
             let msg = input->0;
-            assert(helper_invariants::no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(SubResource::ServerConfigMap, rabbitmq)(s));
+            assert(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s));
             assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s));
             assert(s.in_flight().contains(msg));
             assert(!resource_delete_request_msg(resource_key)(msg));

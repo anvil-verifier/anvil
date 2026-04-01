@@ -221,16 +221,10 @@ pub open spec fn no_create_resource_request_msg_without_name_in_flight(sub_resou
     Cluster::no_create_msg_that_uses_generate_name(resource_key.kind, resource_key.namespace)
 }
 
-pub open spec fn no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| #[trigger] s.in_flight().contains(msg)
-        ==> !{
-            ||| resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_get_then_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_get_then_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-        }
+        ==> !resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
     }
 }
 
