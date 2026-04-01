@@ -4416,12 +4416,9 @@ requires
 ensures
     inductive_current_state_matches(vsts, controller_id)(s_prime),
 {
-    VStatefulSetReconcileState::marshal_preserves_integrity();
     PodView::marshal_preserves_integrity();
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
-        VStatefulSetReconcileState::marshal_preserves_integrity();
-        VStatefulSetView::marshal_preserves_integrity();
         let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let vsts_name = vsts.metadata.name->0;
@@ -4578,13 +4575,13 @@ requires
 ensures
     inductive_current_state_matches(vsts, controller_id)(s_prime),
 {
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+    VStatefulSetView::marshal_preserves_integrity();
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
         let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-        VStatefulSetReconcileState::marshal_preserves_integrity();
-        VStatefulSetView::marshal_preserves_integrity();
         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) { // same controller, same cr
             let resp_msg = input.1->0;
             match local_state.reconcile_step {
