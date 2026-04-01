@@ -876,18 +876,39 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                                                 // targeting get_request(sub_resource, other_rmq).key != resource_key
                                                 // Case-split to show req_msg doesn't modify resources[resource_key]
                                                 if req_msg.content is APIRequest {
+                                                    assert(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s));
                                                     match (req_msg.content->APIRequest_0) {
                                                         APIRequest::CreateRequest(req) => {
+                                                            // TODO: This case is harder to prove because of generate_name.
+                                                            // The create request from a different cr_key may use generate_name
+                                                            // instead of an explicit name, so resource_create_request_msg
+                                                            // (which checks the name matches) can't be directly contradicted
+                                                            // without reasoning about the generated name space.
                                                             if resource_create_request_msg(resource_key)(req_msg) {
+                                                                assert(req.key() == resource_key);
+                                                                assert(req.key().kind == resource_key.kind);
                                                                 assert(false);
                                                             }
                                                         },
                                                         APIRequest::UpdateRequest(req) => {
                                                             if resource_update_request_msg(resource_key)(req_msg) {
+                                                                assert(req.key() == resource_key);
                                                                 assert(false);
                                                             }
                                                         },
-                                                        // Get/List requests do not interfere
+                                                        APIRequest::GetThenDeleteRequest(req) => {
+                                                            assert(!resource_get_then_delete_request_msg(resource_key)(req_msg));
+                                                        },
+                                                        APIRequest::GetThenUpdateRequest(req) => {
+                                                            assert(!resource_get_then_update_request_msg(resource_key)(req_msg));
+                                                        },
+                                                        APIRequest::GetThenUpdateStatusRequest(req) => {
+                                                            assert(!resource_get_then_update_status_request_msg(resource_key)(req_msg));
+                                                        },
+                                                        APIRequest::UpdateStatusRequest(req) => {
+                                                            assert(!resource_update_status_request_msg(resource_key)(req_msg));
+                                                        },
+                                                        // Get/List/Delete requests do not interfere
                                                         _ => {},
                                                     }
                                                 }
@@ -980,6 +1001,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, sub_resource, rabbitmq)),
         lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
