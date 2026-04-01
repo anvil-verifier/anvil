@@ -167,9 +167,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
-        assert forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))) by {
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)), sub_resource);
-        }
         if i == 2 {
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, rabbitmq);
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
@@ -374,7 +371,6 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id))))
     .and(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())))
     .and(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))))
-    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -386,7 +382,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(controller_id, res, rabbitmq));
     let a_to_p_5 = |res: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key));
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq));
-    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     stable_and_always_n!(
@@ -416,8 +411,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
-        tla_forall(a_to_p_7)
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
     );
 }
 
@@ -593,8 +587,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
-    // Prove no_interfering_request early since several invariants below depend on it.
-    helper_invariants::lemma_always_for_all_sub_resource_no_interfering_request_between_rmq_forall_rmq(controller_id, cluster, spec, rabbitmq);
+
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq));
     assert_by(spec.entails(always(tla_forall(a_to_p_1))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_1(sub_resource))) by {
@@ -647,14 +640,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
-    helper_invariants::lemma_always_for_all_sub_resource_no_interfering_request_between_rmq_forall_rmq(controller_id, cluster, spec, rabbitmq);
-    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource));
-    assert_by(spec.entails(always(tla_forall(a_to_p_7))), {
-        assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_7(sub_resource))) by {
-            helper_invariants::lemma_always_no_interfering_request_between_rmq_forall_rmq(controller_id, cluster, spec, sub_resource);
-        }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_7);
-    });
 
     entails_always_and_n!(
         spec,
@@ -684,8 +669,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
-        tla_forall(a_to_p_7)
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
     );
 }
 

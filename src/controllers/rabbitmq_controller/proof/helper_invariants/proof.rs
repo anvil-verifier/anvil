@@ -27,45 +27,6 @@ use crate::reconciler::spec::io::*;
 
 verus! {
 
-// TODO: prove using internal_rely_guarantee and rely_conditions
-#[verifier(external_body)]
-pub proof fn lemma_always_no_interfering_request_between_rmq_forall_rmq(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
-{}
-
-proof fn lemma_always_no_interfering_request_between_rmq(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures spec.entails(always(lift_state(no_interfering_request_between_rmq(controller_id, sub_resource, rabbitmq)))),
-{}
-
-pub proof fn lemma_always_for_all_sub_resource_no_interfering_request_between_rmq_forall_rmq(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
-{
-    assert forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))) by {
-        lemma_always_no_interfering_request_between_rmq_forall_rmq(controller_id, cluster, spec, sub_resource);
-    }
-}
-
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -741,7 +702,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))) by {
@@ -791,7 +751,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))),
 {
     let key = rabbitmq.object_ref();
@@ -830,8 +789,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
@@ -906,9 +863,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
                                                     ..RabbitmqClusterView::default()
                                                 };
                                                 assert(other_rmq.object_ref() == cr_key);
-                                                assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
                                                 rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
-                                                // no_interfering_request_between_rmq says req_msg is Get/Create/Update
                                                 // targeting get_request(sub_resource, other_rmq).key != resource_key
                                                 // Case-split to show req_msg doesn't modify resources[resource_key]
                                                 if req_msg.content is APIRequest {
@@ -999,7 +954,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
     }
     always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    always_to_always_later(spec, lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)));
     invariant_n!(spec,
         lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -1021,8 +975,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
-        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource))),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
@@ -1060,7 +1012,6 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))) by {
@@ -1093,7 +1044,6 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
 {
     let key = rabbitmq.object_ref();
@@ -1114,7 +1064,6 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)(s)
         &&& Cluster::desired_state_is(rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
@@ -1135,7 +1084,6 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
             }
         }
     }
-    always_to_always_later(spec, lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)));
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     invariant_n!(spec,
         lift_action(stronger_next),
@@ -1148,7 +1096,6 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
         lift_state(Cluster::desired_state_is(rabbitmq)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource))),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id))
@@ -1184,7 +1131,6 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))) by {
@@ -1217,7 +1163,6 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))),
 {
     let key = rabbitmq.object_ref();
@@ -1241,7 +1186,6 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
@@ -1261,7 +1205,6 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         }
     }
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    always_to_always_later(spec, lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)));
     invariant_n!(spec,
         lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -1275,8 +1218,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
-        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))
+        later(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -1305,7 +1247,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1326,7 +1267,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& cluster.next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
@@ -1340,7 +1280,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         lift_action(cluster.next()),
         lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
-        lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
@@ -1371,8 +1310,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                             assert(msg.content is APIRequest);
                             assert(s.in_flight().contains(msg));
                             assert(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)(s));
-                            assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s));
-                            // unwrap no_interfering_request_between_rmq
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
                                     if req.obj.metadata.name is Some {
@@ -1534,7 +1471,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        spec.entails(always(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
     ensures spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)))),
 {
     let inv = resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq);
@@ -1545,7 +1481,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s_prime)
     };
     let resource_key = get_request(sub_resource, rabbitmq).key;
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
@@ -1553,7 +1488,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    always_to_always_later(spec, lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1561,8 +1495,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
-        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        later(lift_state(no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))
+        later(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
     let create_msg_pred = |msg: Message| {
         resource_create_request_msg(resource_key)(msg)
@@ -1591,7 +1524,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                             RabbitmqClusterView::marshal_preserves_integrity();
                             let cr_key = cr_key_opt->0;
                             let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                            assert(no_interfering_request_between_rmq(controller_id, sub_resource, cr)(s_prime));
                             if cr_key == rabbitmq.object_ref() {
                                 RabbitmqReconcileState::marshal_preserves_integrity();
                                 let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
@@ -1814,7 +1746,6 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
-        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s_prime),
         !s.in_flight().contains(msg),
         s_prime.in_flight().contains(msg),
         cluster.next_step(s, s_prime, step),
@@ -1842,8 +1773,6 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
                         ..RabbitmqClusterView::default()
                     };
                     assert(other_rmq.object_ref() == cr_key);
-                    // msg IS in s_prime.in_flight(), so no_interfering_request_between_rmq(s_prime) applies
-                    assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s_prime));
                     assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
                         // no_interfering gives: msg's create key == make_{sub_resource}_key(other_rmq)
                         assert(get_request(sub_resource, other_rmq).key == msg.content.get_create_request().key());

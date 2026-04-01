@@ -268,33 +268,5 @@ pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq:
     }
 }
 
-pub open spec fn no_interfering_request_between_rmq_forall_rmq(controller_id: int, sub_resource: SubResource) -> StatePred<ClusterState> {
-    |s: ClusterState| forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s)
-}
-
-// internal guarantee
-// don't be confused by the argument name, other_rmq can be the current CR in reconciliation if you need
-pub open spec fn no_interfering_request_between_rmq(controller_id: int, sub_resource: SubResource, other_rmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.content is APIRequest
-            &&& msg.src == HostId::Controller(controller_id, other_rmq.object_ref())
-        } ==> match msg.content->APIRequest_0 {
-            APIRequest::GetRequest(req) => {
-                req.key() == get_request(sub_resource, other_rmq).key
-            },
-            APIRequest::CreateRequest(req) => {
-                req.key() == get_request(sub_resource, other_rmq).key
-            },
-            APIRequest::UpdateRequest(req)=> {
-                req.key() == get_request(sub_resource, other_rmq).key
-            },
-            // RMQ controller doesn't send other requests
-            _ => false
-        }
-    }
-}
-
 
 }

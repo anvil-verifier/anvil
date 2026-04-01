@@ -42,7 +42,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -259,7 +258,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -284,14 +282,12 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
@@ -387,7 +383,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -405,14 +400,12 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
@@ -447,7 +440,6 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -474,14 +466,12 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
@@ -537,7 +527,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -561,14 +550,12 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
@@ -617,7 +604,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures
         spec.entails(
@@ -634,14 +620,12 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
@@ -739,7 +723,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
-        spec.entails(always(lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -757,7 +740,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
-        &&& helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
 
@@ -765,7 +747,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 

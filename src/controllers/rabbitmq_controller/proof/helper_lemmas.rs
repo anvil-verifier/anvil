@@ -15,7 +15,6 @@ use crate::rabbitmq_controller::{
     proof::{predicate::*, resource::*, guarantee::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
-use crate::rabbitmq_controller::proof::helper_invariants::no_interfering_request_between_rmq_forall_rmq;
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
@@ -285,7 +284,6 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
-    no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
 ensures
