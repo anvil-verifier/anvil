@@ -148,7 +148,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     );
 
     // Derive cluster_invariants_since_reconciliation for each sub_resource from the combined spec.
-    assert forall |sub_resource: SubResource| spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))) by {
+    assert forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))) by {
         spec_entails_assumptions_and_invariants_of_all_phases_implies_cluster_invariants_since_reconciliation(
             spec, controller_id, cluster, sub_resource, rabbitmq
         );
@@ -488,26 +488,22 @@ proof fn lemma_from_init_step_to_after_get_headless_service_step(controller_id: 
         &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
-        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
-        later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))
     );
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         RabbitmqReconcileState::marshal_preserves_integrity();
-        RabbitmqClusterView::marshal_preserves_integrity();
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.2->0 != rabbitmq.object_ref() {
-                    assert(pre(s_prime));
-                } else {
+                if input.0 == controller_id && input.2->0 == rabbitmq.object_ref() {
                     assert(post(s_prime));
+                } else {
+                    assert(pre(s_prime));
                 }
             },
             _ => {
@@ -517,7 +513,6 @@ proof fn lemma_from_init_step_to_after_get_headless_service_step(controller_id: 
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
         RabbitmqReconcileState::marshal_preserves_integrity();
-        RabbitmqClusterView::marshal_preserves_integrity();
     }
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post);
 }
