@@ -778,6 +778,76 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
+proof fn lemma_from_after_update_resource_step_to_after_get_next_resource_step(
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView,
+    resp_msg: Message
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+    spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    next_resource_after(sub_resource) == after_get_k_request_step(next_resource),
+ensures
+    spec.entails(
+        lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg))
+            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
+    )
+{
+    let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg);
+    let post = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
+    let key = rabbitmq.object_ref();
+    let input = (Some(resp_msg), Some(key));
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+        lift_state(rmq_rely_conditions(cluster, controller_id))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                    s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
+                );
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.2 == Some(key) {
+                    RabbitmqReconcileState::marshal_preserves_integrity();
+                    RabbitmqClusterView::marshal_preserves_integrity();
+                    match sub_resource {
+                        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+                        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+                        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+                        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+                        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+                        SubResource::Role => RoleView::marshal_preserves_integrity(),
+                        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+                        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next,
+        ControllerStep::ContinueReconcile, pre, post
+    );
+}
+
 proof fn lemma_from_after_create_resource_step_to_after_get_next_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView,
     resp_msg: Message
@@ -790,16 +860,14 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    next_resource_after(sub_resource) == after_get_k_request_step(next_resource),
 ensures
-    next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-        lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg))
+    spec.entails(
+        lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg))
             .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
     )
 {
-    if next_resource_after(sub_resource) != after_get_k_request_step(next_resource) {
-        return;
-    }
-    let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg);
+    let pre = resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg);
     let post = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
     let key = rabbitmq.object_ref();
     let input = (Some(resp_msg), Some(key));
