@@ -1684,6 +1684,17 @@ pub proof fn entails_implies_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: T
     always_implies_to_leads_to(spec, p, q);
 }
 
+pub proof fn entails_implies_eventually<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires spec.entails(p),
+    ensures spec.entails(eventually(p)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(p).satisfied_by(ex) by {
+        entails_apply(ex, spec, p);
+        execution_equality(ex, ex.suffix(0));
+        eventually_proved_by_witness(ex, p, 0);
+    };
+}
+
 pub proof fn entails_exists_intro<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, a_witness: A)
     ensures a_to_p(a_witness).entails(tla_exists(a_to_p)),
 {
