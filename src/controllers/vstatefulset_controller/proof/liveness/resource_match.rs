@@ -4579,6 +4579,9 @@ ensures
     VStatefulSetView::marshal_preserves_integrity();
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
+        if !s_prime.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
+            return; // trivial
+        }
         let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
         let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
         let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
@@ -4599,9 +4602,14 @@ ensures
                             if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                         }
                     }
+                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
                 },
-                AfterListPod => {},
-                UpdateNeeded => {}, // slow
+                AfterListPod => {
+                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
+                },
+                UpdateNeeded => {
+                    PodView::marshal_preserves_integrity();
+                }, // slow
                 DeleteOutdated => {
                     assert(get_largest_unmatched_pods(vsts, local_state.needed) ==
                         get_largest_unmatched_pods(triggering_cr, local_state.needed)) by {
@@ -4616,9 +4624,13 @@ ensures
                         assert(false);
                     }
                     assert(next_local_state.reconcile_step == Error || next_local_state.reconcile_step == Done);
+                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
                 },
-                _ => {}
+                _ => {
+                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
+                }
             }
+            assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         } else { // same controller, different cr
             assert(s.ongoing_reconciles(controller_id)[vsts.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()]);
             assert(s.resources() == s_prime.resources());
@@ -4643,6 +4655,7 @@ ensures
         } else {
             assert(s_prime.resources() == s.resources());
         }
+        assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
     }
     assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
 }
