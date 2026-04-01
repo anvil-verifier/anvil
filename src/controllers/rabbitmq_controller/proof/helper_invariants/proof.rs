@@ -21,7 +21,7 @@ use crate::rabbitmq_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
+use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
 use crate::reconciler::spec::io::*;
 
@@ -1694,9 +1694,9 @@ proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
 {
     let prefix_dash = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
     // prefix_dash + cr_name_a != prefix_dash + cr_name_b  (since cr_name_a != cr_name_b)
-    seq_lib::seq_unequal_preserved_by_add_prefix(prefix_dash, cr_name_a, cr_name_b);
+    seq_unequal_preserved_by_add_prefix(prefix_dash, cr_name_a, cr_name_b);
     // (prefix_dash + cr_name_a) + suffix != (prefix_dash + cr_name_b) + suffix
-    seq_lib::seq_unequal_preserved_by_add(prefix_dash + cr_name_a, prefix_dash + cr_name_b, suffix);
+    seq_unequal_preserved_by_add(prefix_dash + cr_name_a, prefix_dash + cr_name_b, suffix);
 }
 
 proof fn lemma_sub_resource_neq_implies_resource_key_neq(
@@ -1724,7 +1724,7 @@ proof fn lemma_sub_resource_neq_implies_resource_key_neq(
                         assert("-nodes"@[1] != "-client"@[1]);
                     }
                 });
-                seq_lib::seq_unequal_preserved_by_add_prefix(prefix, "-nodes"@, "-client"@);
+                seq_unequal_preserved_by_add_prefix(prefix, "-nodes"@, "-client"@);
                 if sub_resource_a == SubResource::HeadlessService {
                     assert(sub_resource_b == SubResource::Service);
                 } else {
@@ -1740,7 +1740,7 @@ proof fn lemma_sub_resource_neq_implies_resource_key_neq(
                         assert("-erlang-cookie"@[1] != "-default-user"@[1]);
                     }
                 });
-                seq_lib::seq_unequal_preserved_by_add_prefix(prefix, "-erlang-cookie"@, "-default-user"@);
+                seq_unequal_preserved_by_add_prefix(prefix, "-erlang-cookie"@, "-default-user"@);
                 if sub_resource_a == SubResource::ErlangCookieSecret {
                     assert(sub_resource_b == SubResource::DefaultUserSecret);
                 } else {
@@ -1756,7 +1756,7 @@ proof fn lemma_sub_resource_neq_implies_resource_key_neq(
                         assert("-plugins-conf"@[1] != "-server-conf"@[1]);
                     }
                 });
-                seq_lib::seq_unequal_preserved_by_add_prefix(prefix, "-plugins-conf"@, "-server-conf"@);
+                seq_unequal_preserved_by_add_prefix(prefix, "-plugins-conf"@, "-server-conf"@);
                 if sub_resource_a == SubResource::PluginsConfigMap {
                     assert(sub_resource_b == SubResource::ServerConfigMap);
                 } else {
@@ -1788,13 +1788,13 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
-        forall |rmq: RabbitmqClusterView| #[trigger] no_interfering_request_between_rmq(controller_id, sub_resource, rmq)(s_prime),
         !s.in_flight().contains(msg),
         s_prime.in_flight().contains(msg),
         cluster.next_step(s, s_prime, step),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
         step is ControllerStep,
+        step->ControllerStep_0.0 == controller_id,
         step->ControllerStep_0.2->0 == rabbitmq.object_ref(),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
@@ -1803,106 +1803,103 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
-    match msg.src {
-        HostId::Controller(other_id, cr_key) => {
-            if other_id == controller_id {
-                RabbitmqReconcileState::marshal_preserves_integrity();
-                RabbitmqClusterView::marshal_preserves_integrity();
-                if cr_key != rabbitmq.object_ref() {
-                    // construct another rmq that has such cr_key and prove the request from that reconciliation shan't have such req.key()
-                    let other_rmq = RabbitmqClusterView {
-                        metadata: ObjectMetaView {
-                            name: Some(cr_key.name),
-                            namespace: Some(cr_key.namespace),
-                            ..ObjectMetaView::default()
-                        },
-                        ..RabbitmqClusterView::default()
-                    };
-                    assert(other_rmq.object_ref() == cr_key);
-                    assert(no_interfering_request_between_rmq(controller_id, sub_resource, other_rmq)(s_prime));
-                    assert(s_prime.in_flight().contains(msg));
-                    assert(get_request(sub_resource, other_rmq).key == msg.content.get_update_request().key());
-                    assert(false) by {
-                        if cr_key.namespace != rabbitmq.object_ref().namespace {} else {
-                            assert(cr_key.name != rabbitmq.object_ref().name);
-                            match sub_resource {
-                                SubResource::HeadlessService => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-nodes"@);
-                                },
-                                SubResource::Service => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-client"@);
-                                },
-                                SubResource::ErlangCookieSecret => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-erlang-cookie"@);
-                                },
-                                SubResource::DefaultUserSecret => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-default-user"@);
-                                },
-                                SubResource::PluginsConfigMap => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-plugins-conf"@);
-                                },
-                                SubResource::ServerConfigMap => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server-conf"@);
-                                },
-                                SubResource::ServiceAccount => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                },
-                                SubResource::Role => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-peer-discovery"@);
-                                },
-                                SubResource::RoleBinding => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                },
-                                SubResource::VStatefulSetView => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                },
-                            }
-                        }
-                    }
-                } else { // same reconciliation
-                    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].triggering_cr).unwrap();
-                    let resource_key = get_request(sub_resource, rabbitmq).key;
-                    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
-                    assert(no_interfering_request_between_rmq(controller_id, sub_resource, cr)(s_prime));
-                    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
-                    let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
-                    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
-                    match local_step_prime {
-                        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
-                            match action {
-                                ActionKind::Update => {
-                                    if res != sub_resource {
-                                        lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, sub_resource, res);
-                                        assert(get_request(sub_resource, rabbitmq).key != get_request(res, rabbitmq).key);
-                                        assert(get_request(res, rabbitmq).key == get_request(res, cr).key);
-                                        assert(resource_update_request_msg(get_request(res, cr).key)(msg));
-                                        assert(false);
-                                    }
-                                    assert(at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s));
-                                    assert(at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime));
-                                },
-                                _ => {
-                                    assert(!(msg.content.is_update_request()));
-                                    assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                                },
-                            };
-                        },
-                        _ => {
-                            assert(!msg.content.is_update_request());
-                            assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                        }
-                    }
-                    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
-                }
-            } else { // other controller, call rely condition
-                assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
-                // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
-                assert(rmq_rely(other_id)(s_prime));
-                assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                assert(false);
+    assert(step is ControllerStep);
+    let (id, _, cr_key_opt) = step->ControllerStep_0;
+    if id != controller_id { // other controller, call rely condition
+        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+        // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
+        assert(rmq_rely(id)(s_prime));
+        assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+        assert(false);
+    }
+    let cr_key = cr_key_opt->0;
+    let key = rabbitmq.object_ref();
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
+    match local_step_prime {
+        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
+            match action {
+                ActionKind::Update => {},
+                _ => {
+                    assert(!msg.content.is_update_request());
+                    assert(!resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+                },
             }
         },
         _ => {}
+    }
+    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
+    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
+    match sub_resource {
+        SubResource::ServerConfigMap => {
+            // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
+            // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
+            // such a post state.
+            assert(cr_key.name + "-plugins-conf"@ != key.name + "-server-conf"@) by {
+                let str1 = cr_key.name + "-plugins-conf"@;
+                reveal_strlit("-server-conf");
+                reveal_strlit("-plugins-conf");
+                assert(str1[str1.len() - 6] == 's');
+            }
+            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-server-conf"@);
+        },
+        SubResource::PluginsConfigMap => {
+            assert(key.name + "-plugins-conf"@ != cr_key.name + "-server-conf"@) by {
+                let str1 = key.name + "-plugins-conf"@;
+                reveal_strlit("-server-conf");
+                reveal_strlit("-plugins-conf");
+                assert(str1[str1.len() - 6] == 's');
+            }
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-plugins-conf"@);
+        },
+        SubResource::ErlangCookieSecret => {
+            assert(cr_key.name + "-default-user"@ != key.name + "-erlang-cookie"@) by {
+                let str1 = cr_key.name + "-default-user"@;
+                reveal_strlit("-erlang-cookie");
+                reveal_strlit("-default-user");
+                assert(str1[str1.len() - 1] == 'r');
+            }
+            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-erlang-cookie"@);
+        },
+        SubResource::DefaultUserSecret => {
+            assert(key.name + "-default-user"@ != cr_key.name + "-erlang-cookie"@) by {
+                let str1 = key.name + "-default-user"@;
+                reveal_strlit("-erlang-cookie");
+                reveal_strlit("-default-user");
+                assert(str1[str1.len() - 1] == 'r');
+            }
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-default-user"@);
+        },
+        SubResource::HeadlessService => {
+            assert(key.name + "-nodes"@ != cr_key.name + "-client"@) by {
+                let str1 = key.name + "-nodes"@;
+                reveal_strlit("-client");
+                reveal_strlit("-nodes");
+                assert(str1[str1.len() - 1] == 's');
+            }
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-nodes"@);
+        },
+        SubResource::Service => {
+            assert(cr_key.name + "-nodes"@ != key.name + "-client"@) by {
+                let str1 = cr_key.name + "-nodes"@;
+                reveal_strlit("-client");
+                reveal_strlit("-nodes");
+                assert(str1[str1.len() - 1] == 's');
+            }
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-client"@);
+        },
+        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => {
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-server"@);
+        },
+        SubResource::Role => {
+            seq_equal_preserved_by_add(key.name, cr_key.name, "-peer-discovery"@);
+        },
     }
 }
 
