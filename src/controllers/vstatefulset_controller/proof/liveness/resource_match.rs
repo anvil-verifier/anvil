@@ -702,6 +702,94 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+pub proof fn lemma_after_list_pod_state_preserves_from_s_to_s_prime_at_api_server_step(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat, api_input: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(api_input))),
+    at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
+    resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, msg, condemned_len)(s),
+    n_outdated_pods_in_etcd(vsts, outdated_len)(s),
+ensures
+    at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s_prime),
+    resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, msg, condemned_len)(s_prime),
+    n_outdated_pods_in_etcd(vsts, outdated_len)(s_prime),
+{
+    let resp_objs = msg.content.get_list_response().res.unwrap();
+    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+    let owned_obj_keys = s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref());
+    let owned_obj_keys_prime = s_prime.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref());
+    assert(owned_obj_keys == owned_obj_keys_prime) by {
+        if exists |key: ObjectRef| owned_obj_keys.contains(key) && !owned_obj_keys_prime.contains(key) {
+            let key = choose |key: ObjectRef| owned_obj_keys.contains(key) && !owned_obj_keys_prime.contains(key);
+            let obj = s.resources()[key];
+            assert({
+                &&& s.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            }); // pre of lemma_no_interference
+            if s_prime.resources().contains_key(key) {
+                let obj_prime = s_prime.resources()[key];
+                if(valid_owned_object_filter(vsts)(obj_prime)) {
+                    assert(s_prime.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj_prime));
+                    assert(owned_obj_keys_prime.contains(key));
+                    assert(false);
+                }
+                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, api_input);
+                assert(false);
+            } else {
+                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, api_input);
+                assert(false);
+            }
+        }
+        if exists |key: ObjectRef| owned_obj_keys_prime.contains(key) && !owned_obj_keys.contains(key) {
+            let key = choose |key: ObjectRef| owned_obj_keys_prime.contains(key) && !owned_obj_keys.contains(key);
+            let obj_prime = s_prime.resources()[key];
+            assert({
+                &&& s_prime.resources().contains_key(key)
+                &&& key.kind == Kind::PodKind
+                &&& key.namespace == vsts.metadata.namespace->0
+                &&& obj_prime.metadata.owner_references_contains(vsts.controller_owner_ref())
+            }); // pre of lemma_no_interference
+            if s.resources().contains_key(key) {
+                let obj = s.resources()[key];
+                if (valid_owned_object_filter(vsts)(obj)) {
+                    assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
+                    assert(owned_obj_keys.contains(key));
+                    assert(false);
+                }
+                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, api_input);
+                assert(false);
+            } else {
+                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, api_input);
+                assert(false);
+            }
+        }
+    }
+    assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies
+        s_prime.resources().contains_key(obj.object_ref()) && weakly_eq(obj, s_prime.resources()[obj.object_ref()]) by {
+        let key = obj.object_ref();
+        seq_filter_contains_implies_seq_contains(
+            resp_objs, |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()), obj
+        );
+        assert({
+            &&& s.resources().contains_key(key)
+            &&& key.kind == Kind::PodKind
+            &&& key.namespace == vsts.metadata.namespace->0
+            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+        });
+        internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, api_input);
+    }
+    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, api_input);
+}
+
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -745,74 +833,9 @@ ensures
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
-                    let resp_objs = msg.content.get_list_response().res.unwrap();
-                    let owned_objs = resp_objs.filter(|obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
-                    let owned_obj_keys = s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref());
-                    let owned_obj_keys_prime = s_prime.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref());
-                    assert(owned_obj_keys == owned_obj_keys_prime) by {
-                        if exists |key: ObjectRef| owned_obj_keys.contains(key) && !owned_obj_keys_prime.contains(key) {
-                            let key = choose |key: ObjectRef| owned_obj_keys.contains(key) && !owned_obj_keys_prime.contains(key);
-                            let obj = s.resources()[key];
-                            assert({
-                                &&& s.resources().contains_key(key)
-                                &&& key.kind == Kind::PodKind
-                                &&& key.namespace == vsts.metadata.namespace->0
-                                &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                            }); // pre of lemma_no_interference
-                            if s_prime.resources().contains_key(key) {
-                                let obj_prime = s_prime.resources()[key];
-                                if(valid_owned_object_filter(vsts)(obj_prime)) {
-                                    assert(s_prime.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj_prime));
-                                    assert(owned_obj_keys_prime.contains(key));
-                                    assert(false);
-                                }
-                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
-                                assert(false);
-                            } else {
-                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
-                                assert(false);
-                            }
-                        }
-                        if exists |key: ObjectRef| owned_obj_keys_prime.contains(key) && !owned_obj_keys.contains(key) {
-                            let key = choose |key: ObjectRef| owned_obj_keys_prime.contains(key) && !owned_obj_keys.contains(key);
-                            let obj_prime = s_prime.resources()[key];
-                            assert({
-                                &&& s_prime.resources().contains_key(key)
-                                &&& key.kind == Kind::PodKind
-                                &&& key.namespace == vsts.metadata.namespace->0
-                                &&& obj_prime.metadata.owner_references_contains(vsts.controller_owner_ref())
-                            }); // pre of lemma_no_interference
-                            if s.resources().contains_key(key) {
-                                let obj = s.resources()[key];
-                                if (valid_owned_object_filter(vsts)(obj)) {
-                                    assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
-                                    assert(owned_obj_keys.contains(key));
-                                    assert(false);
-                                }
-                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
-                                assert(false);
-                            } else {
-                                internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
-                                assert(false);
-                            }
-                        }
-                    }
-                    assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies
-                        s_prime.resources().contains_key(obj.object_ref()) && weakly_eq(obj, s_prime.resources()[obj.object_ref()]) by {
-                        let key = obj.object_ref();
-                        seq_filter_contains_implies_seq_contains(
-                            resp_objs, |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()), obj
-                        );
-                        assert({
-                            &&& s.resources().contains_key(key)
-                            &&& key.kind == Kind::PodKind
-                            &&& key.namespace == vsts.metadata.namespace->0
-                            &&& obj.metadata.owner_references_contains(vsts.controller_owner_ref())
-                        });
-                        internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
-                    }
-                    lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, input->0);
-                    assert(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(s_prime));
+                    lemma_after_list_pod_state_preserves_from_s_to_s_prime_at_api_server_step(
+                        s, s_prime, vsts, cluster, controller_id, msg, condemned_len, outdated_len, input->0
+                    );
                 },
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
