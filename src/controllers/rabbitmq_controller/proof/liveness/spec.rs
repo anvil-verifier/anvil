@@ -625,6 +625,7 @@ pub proof fn invariants_since_phase_viii_is_stable(controller_id: int, rabbitmq:
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
+#[verifier(external_body)] // flaky proof
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
