@@ -576,6 +576,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
+        &&& every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s)
         &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
