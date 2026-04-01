@@ -109,12 +109,12 @@ DISPLAY_COLUMNS = ["trusted_spec", "trusted_unverified", "exec", "model"]
 
 
 def make_display_row(label, loc_data):
-    """Build a display row: 4 base columns + Core (core_esr) + ESR (core_esr - guarantee)."""
+    """Build a display row: 4 base columns + Core (guarantee + core_esr) + ESR (core_esr)."""
     row = [label]
     for col in DISPLAY_COLUMNS:
         row.append(str(loc_data[col]))
+    row.append(str(loc_data["proof_guarantee"] + loc_data["core_esr"]))
     row.append(str(loc_data["core_esr"]))
-    row.append(str(loc_data["core_esr"] - loc_data["proof_guarantee"]))
     return row
 
 
