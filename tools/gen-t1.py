@@ -159,7 +159,12 @@ def main():
     # Grand totals row
     all_keys = controllers + ["composition"]
     grand = {col: sum(totals[c][col] for c in all_keys) for col in LOC_COLUMNS}
-    table.append(make_display_row("Total(all)", grand))
+    grand = make_display_row("Total(all)", grand)
+    # remove grand ESR and grand/total = model + core proof
+    total_cnt = int(grand[4]) + int(grand[5])
+    grand[5] = str(total_cnt)
+    grand[6] = "--"
+    table.append(grand)
 
     if print_anvil:
         table += gen_for_anvil()
