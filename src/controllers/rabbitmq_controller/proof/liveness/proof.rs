@@ -32,7 +32,6 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-#[verifier(external_body)]
 proof fn liveness_proof(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -52,7 +51,6 @@ proof fn liveness_proof(spec: TempPred<ClusterState>, cluster: Cluster, controll
     lemma_true_leads_to_always_current_state_matches(stable_spec, controller_id, cluster, rabbitmq);
     reveal_with_fuel(spec_before_phase_n, 9);
 
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 8, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 7, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 6, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 5, rabbitmq);
@@ -87,7 +85,6 @@ proof fn liveness_proof(spec: TempPred<ClusterState>, cluster: Cluster, controll
     );
 }
 
-#[verifier(external_body)]
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 7,
@@ -114,7 +111,6 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(spec: T
     leads_to_trans(spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)), true_pred(), invariants_since_phase_n(controller_id, i, cluster, rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
 }
 
-#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
     requires
         provided_spec.entails(next_with_wf(cluster, controller_id)),
@@ -136,6 +132,18 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     temp_pred_equality(
         always(lift_state(rmq_rely_conditions(cluster, controller_id))).and(true_pred()),
         always(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+
+    // spec = provided_spec /\ assumption_and_invariants_of_all_phases => assumption_and_invariants_of_all_phases
+    entails_and_different_temp(
+        provided_spec,
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
+        true_pred(),
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+    );
+    temp_pred_equality(
+        true_pred().and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)),
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
     );
 
     // Derive cluster_invariants_since_reconciliation for each sub_resource from the combined spec.
@@ -167,6 +175,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        spec.entails(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)),
         forall |sub_resource: SubResource|
             spec.entails(always(lift_state(#[trigger] cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
     ensures
