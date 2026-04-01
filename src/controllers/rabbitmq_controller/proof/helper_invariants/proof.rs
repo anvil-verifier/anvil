@@ -255,6 +255,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
         Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())(s_prime),
         Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())(s),
         no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
+        no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
         resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
@@ -331,6 +332,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())))),
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
+        spec.entails(always(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)))),
@@ -351,6 +353,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s)
@@ -370,6 +373,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)),
@@ -454,6 +458,7 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
         Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
         Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())(s_prime),
         no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
+        no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
         resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
@@ -698,6 +703,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))),
+        spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
         // rely
@@ -708,6 +714,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         always_tla_forall_apply(spec, |res: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(no_delete_resource_request_msg_in_flight(res, rabbitmq)), sub_resource);
+        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)), sub_resource);
         lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(controller_id, cluster, spec, sub_resource, rabbitmq);
@@ -741,6 +748,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -785,6 +793,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         &&& Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(controller_id, sub_resource, rabbitmq)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
@@ -1256,6 +1265,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
+    lemma_always_no_get_then_requests_and_update_resource_status_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
+    guarantee_condition_holds(spec, cluster, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     // never thought I would use them again, caused by scability problem
@@ -1268,6 +1279,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
+        &&& rmq_guarantee(controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
@@ -1281,6 +1294,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)),
+        lift_state(rmq_guarantee(controller_id)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
@@ -1361,9 +1376,24 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                     assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
                                     assert(inv(s_prime));
                                 },
-                                _ => {
-                                    assert(false);
-                                }
+                                APIRequest::DeleteRequest(req) => {
+                                    // no_get_then_requests predicate excludes delete via no_delete on etcd-level
+                                    // but our rmq_guarantee shows we never send delete
+                                    assert(rmq_guarantee(controller_id)(s));
+                                },
+                                APIRequest::GetThenDeleteRequest(req) => {
+                                    assert(!resource_get_then_delete_request_msg(resource_key)(msg));
+                                },
+                                APIRequest::GetThenUpdateRequest(req) => {
+                                    assert(!resource_get_then_update_request_msg(resource_key)(msg));
+                                },
+                                APIRequest::GetThenUpdateStatusRequest(req) => {
+                                    assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
+                                },
+                                APIRequest::UpdateStatusRequest(req) => {
+                                    assert(!resource_update_status_request_msg(resource_key)(msg));
+                                },
+                                _ => {}
                             }
                             assert(inv(s_prime));
                         } else {
@@ -2005,11 +2035,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(contro
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let requirements = |msg: Message, s: ClusterState| !{
-        ||| resource_delete_request_msg(resource_key)(msg)
-        ||| resource_update_status_request_msg(resource_key)(msg)
-        ||| resource_get_then_delete_request_msg(resource_key)(msg)
-        ||| resource_get_then_update_request_msg(resource_key)(msg)
-        ||| resource_get_then_update_status_request_msg(resource_key)(msg)
+        resource_delete_request_msg(resource_key)(msg)
     };
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -2141,7 +2167,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))))),
-        spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))),
+        spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))) by {
@@ -2149,7 +2175,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         always_tla_forall_apply(spec, |res: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)), sub_resource);
-        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_delete_resource_request_msg_in_flight(res, rabbitmq)), sub_resource);
+        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq)), sub_resource);
         lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(controller_id, cluster, spec, sub_resource, rabbitmq);
     }
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
@@ -2174,38 +2200,39 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
 {
     let key = get_request(sub_resource, rabbitmq).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
     assert forall |s: ClusterState|
         #[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
-        && no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)(s)
+        && no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
         implies Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s) by {
         assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg)
             implies eventual_owner_ref(msg.content.get_update_request().obj.metadata.owner_references) by {
         }
         assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_get_then_update_request_msg(key)(msg)
             implies eventual_owner_ref(msg.content.get_get_then_update_request().obj.metadata.owner_references) by {
+            assert(!resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
         }
     }
     assert(spec.entails(always(
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))
-        .and(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))
+        .and(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)))
     ))) by {
         entails_and_temp(spec,
             always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))),
-            always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))
+            always(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)))
         );
         always_and_equality(
             lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)),
-            lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))
+            lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))
         );
     }
     always_weaken(spec,
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))
-            .and(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))),
+            .and(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))),
         lift_state(Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref))
     );
     always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
