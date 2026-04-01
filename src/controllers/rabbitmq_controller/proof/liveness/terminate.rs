@@ -193,4 +193,77 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
     );
 }
 
+pub proof fn reconcile_eventually_terminates_forall_key(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(tla_forall(|key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key))))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+        spec.entails(always(tla_forall(|key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+            controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)))))),
+        spec.entails(always(tla_forall(|step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))
+        ))))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)))),
+    ensures
+        spec.entails(tla_forall(|key: ObjectRef|
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
+        )),
+{
+    let post = |key: ObjectRef| lift_state(
+            |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
+        );
+
+    assert forall |key: ObjectRef| spec.entails(true_pred().leads_to(#[trigger] post(key))) by {
+        if key.kind == RabbitmqClusterView::kind() {
+            let rabbitmq = RabbitmqClusterView {
+                metadata: ObjectMetaView {
+                    name: Some(key.name),
+                    namespace: Some(key.namespace),
+                    ..ObjectMetaView::default()
+                },
+                ..RabbitmqClusterView::default()
+            };
+            always_tla_forall_apply(spec,
+                |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_closure(RabbitmqReconcileStep::Init))),
+                rabbitmq.object_ref()
+            );
+            always_tla_forall_apply(spec,
+                |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)),
+                rabbitmq.object_ref()
+            );
+            reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+        } else {
+            // For any key that is not rabbitmq.object_ref(), the controller never reconciles it
+            // because cr_objects_in_reconcile_have_correct_kind ensures only the correct kind is reconciled,
+            // and the controller only processes one specific CR.
+            assert forall |ex: Execution<ClusterState>| lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)).satisfied_by(ex)
+                implies post(key).satisfied_by(ex) by {
+                let s = ex.head();
+                if s.ongoing_reconciles(controller_id).contains_key(key) {
+                    assert(key.kind != RabbitmqClusterView::kind());
+                    assert(false);
+                }
+            }
+            entails_preserved_by_always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)), post(key));
+            entails_trans(spec, always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))), always(post(key)));
+            entails_implies_eventually(spec, always(post(key)));
+            true_leads_to_eventually_always_equality(spec, post(key));
+            leads_to_eliminate_always(spec, true_pred(), post(key));
+        }
+    }
+
+    spec_entails_tla_forall(spec, post);
+}
+
 }

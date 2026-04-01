@@ -171,10 +171,12 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         if i == 2 {
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, rabbitmq);
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
+            cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, rabbitmq.object_ref());
             leads_to_always_combine_n!(
                 spec, true_pred(),
                 lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
-                lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())
+                lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+                lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref()))
             );
         } else if i == 3 {
             helper_invariants::lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(controller_id, cluster, spec, rabbitmq);
@@ -384,6 +386,7 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))))
     .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
+    .and(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -434,7 +437,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())
     );
 }
 
@@ -468,6 +472,7 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, rabbitmq: Ra
 pub open spec fn invariants_since_phase_ii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)))
     .and(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())))
+    .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref()))))
 }
 
 
@@ -476,9 +481,11 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, rabbitmq: R
 {
     always_p_is_stable(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)));
     always_p_is_stable(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
+    always_p_is_stable(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref())));
     stable_and_always_n!(
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
-        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref()))
     );
 }
 
@@ -674,6 +681,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_etcd_is_finite(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
+    cluster.lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(spec);
 
     entails_always_and_n!(
         spec,
@@ -713,7 +721,8 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())
     );
 }
 
