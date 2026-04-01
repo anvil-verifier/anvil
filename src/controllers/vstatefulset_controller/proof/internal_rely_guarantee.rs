@@ -189,6 +189,13 @@ ensures
                             }
                         }
                     },
+                    HostId::BuiltinController => {
+                        if resource_delete_request_msg(k)(msg) {
+                            assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                                && obj.kind == PodView::kind()
+                                && obj.metadata.namespace == vsts.metadata.namespace);
+                        }
+                    }, // buildin_controllers_do_not_delete_pods_owned_by_vsts
                     _ => {
                         assert(post);
                     },

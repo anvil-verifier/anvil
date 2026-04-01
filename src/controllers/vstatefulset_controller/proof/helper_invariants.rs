@@ -1065,7 +1065,7 @@ ensures
         assert forall |ex: Execution<ClusterState>|
             (lift_state(Cluster::objects_owner_references_satisfies_for_all(cond, req))
             .and(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))).satisfied_by(ex)
-            implies lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)).satisfied_by(ex) by {
+            implies #[trigger] lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)).satisfied_by(ex) by {
             let s = ex.head();
             assert forall |pod_key: ObjectRef| {
                 &&& #[trigger] s.resources().contains_key(pod_key)
@@ -1335,13 +1335,19 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts: VSta
             &&& msg.dst is APIServer
             &&& msg.content is APIRequest
         } ==> {
-            let key = msg.content.get_delete_request().key;
+            let req = msg.content.get_delete_request();
             &&& msg.content.is_delete_request()
-            &&& !{
-                &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts.object_ref().namespace
-                &&& (pod_name_match(key.name, vsts.object_ref().name)
-                    || s.resources()[key].metadata.owner_references_contains(vsts.controller_owner_ref()))
+            &&& req.preconditions is Some
+            &&& req.preconditions.unwrap().uid is Some
+            &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key) ==> {
+                let obj = s.resources()[req.key];
+                // this object is not owned by vsts
+                ||| !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                        && obj.kind == PodView::kind()
+                        && obj.metadata.namespace == vsts.metadata.namespace)
+                // this object is created later with different uid, deletion fails
+                ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
             }
         }
     }
@@ -1356,6 +1362,7 @@ requires
     spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
     spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
     spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
@@ -1368,17 +1375,22 @@ ensures
         &&& msg.dst is APIServer
         &&& msg.content is APIRequest
     } ==> {
-        let key = msg.content.get_delete_request().key;
+        let req = msg.content.get_delete_request();
         &&& msg.content.is_delete_request()
-        &&& !{
-            &&& key.kind == Kind::PodKind
-            &&& key.namespace == vsts.object_ref().namespace
-            &&& (pod_name_match(key.name, vsts.object_ref().name)
-                || s.resources()[key].metadata.owner_references_contains(vsts.controller_owner_ref()))
+        &&& req.preconditions is Some
+        &&& req.preconditions.unwrap().uid is Some
+        &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+        &&& s.resources().contains_key(req.key) ==> {
+            let obj = s.resources()[req.key];
+            // this object is not owned by vsts
+            ||| !(obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                    && obj.kind == PodView::kind()
+                    && obj.metadata.namespace == vsts.metadata.namespace)
+            // this object is created later with different uid, deletion fails
+            ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
         }
     };
     let requirements_antecedent = |msg: Message, s: ClusterState| {
-        &&& s.in_flight().contains(msg)
         &&& msg.src is BuiltinController
         &&& msg.dst is APIServer
         &&& msg.content is APIRequest
@@ -1392,24 +1404,85 @@ ensures
     assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
-            if !s.in_flight().contains(msg) && requirements_antecedent(msg, s_prime) {
-                let key = msg.content.get_delete_request().key;
-                if {
-                    &&& key.kind == Kind::PodKind
-                    &&& key.namespace == vsts.object_ref().namespace
-                    &&& (pod_name_match(key.name, vsts.object_ref().name)
-                        || s.resources()[key].metadata.owner_references_contains(vsts.controller_owner_ref()))
-                    &&& s.resources().contains_key(key)
-                } {
-                    if pod_name_match(key.name, vsts.object_ref().name) {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::BuiltinControllersStep(..) => {
+                    if (!s.in_flight().contains(msg) && requirements_antecedent(msg, s_prime)) {
+                        let req = msg.content.get_delete_request();
+                        let key = req.key;
                         let obj = s.resources()[key];
-                        assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
-                            assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
-                            assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+                        let owner_references = obj.metadata.owner_references->0;
+                        assert(forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {
+                            // the referred owner object does not exist in the cluster state
+                            ||| !s.resources().contains_key(owner_reference_to_object_reference(owner_references[i], key.namespace))
+                            // or it exists but has a different uid
+                            // (which means the actual owner was deleted and another object with the same name gets created again)
+                            ||| s.resources()[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
+                        });
+                        if obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+                            && obj.kind == Kind::PodKind
+                            && obj.metadata.namespace == vsts.metadata.namespace {
+                            let idx = choose |i| 0 <= i < owner_references.len() && owner_references[i] == vsts.controller_owner_ref();
+                            assert(s.resources().contains_key(vsts.object_ref()));
                         }
                     }
-                    assert(false);
-                }
+                },
+                Step::APIServerStep(req_msg_opt) => {
+                    let req_msg = req_msg_opt.unwrap();
+
+                    if requirements_antecedent(msg, s_prime) {
+                        if req_msg.content is APIRequest
+                            && req_msg.content->APIRequest_0 is UpdateRequest {
+                            let req = msg.content.get_delete_request();
+                            if req_msg.src is Controller {
+                                let id = req_msg.src->Controller_0;
+                                let key = req_msg.src->Controller_1;
+                                if id != controller_id {
+                                    assert(rely_guarantee::vsts_rely(id)(s_prime));
+                                } else if key == vsts.object_ref() {
+                                    assert(req_msg.src == HostId::Controller(controller_id, vsts.object_ref()));
+                                    assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
+                                } else {
+                                    let havoc_vd = make_vsts();
+                                    let vsts_with_key = VStatefulSetView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(key.name),
+                                            namespace: Some(key.namespace),
+                                            ..havoc_vd.metadata
+                                        },
+                                        ..havoc_vd
+                                    };
+                                    assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
+                                }
+                            }
+                        } else if req_msg.content is APIRequest
+                            && req_msg.content->APIRequest_0 is GetThenUpdateRequest {
+                            if req_msg.src is Controller {
+                                let id = req_msg.src->Controller_0;
+                                let key = req_msg.src->Controller_1;
+                                if id != controller_id {
+                                    assert(rely_guarantee::vsts_rely(id)(s_prime));
+                                } else if key == vsts.object_ref() {
+                                    // the proof requires no body now, but I had to 'debug'
+                                    // along different lines from other cases, so I leave this case
+                                    // marked.
+                                } else {
+                                    let havoc_vd = make_vsts(); // havoc for VStatefulSetView
+                                    let vsts_with_key = VStatefulSetView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(key.name),
+                                            namespace: Some(key.namespace),
+                                            ..havoc_vd.metadata
+                                        },
+                                        ..havoc_vd
+                                    };
+                                    assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
+                                }
+                            }
+                        }
+                    }
+                },
+                _ => {}
             }
         }
     };
@@ -1497,6 +1570,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions_pod_monkey()))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
