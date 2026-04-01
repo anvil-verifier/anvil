@@ -1873,40 +1873,6 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)));
 }
 
-// This lemma demonstrates how to use kubernetes_cluster::proof::api_server_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
-// (referred to as lemma_X) to prove that the system will eventually enter a state where delete stateful set request messages
-// will never appear in flight.
-//
-// As an example, we can look at how this lemma is proved.
-// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
-//     the newly generated messages are as expected. ("expected" means not delete stateful set request messages in this lemma. Therefore,
-//     we provide an invariant stateful_set_has_owner_reference_pointing_to_current_cr so that the grabage collector won't try
-//     to send a delete request to delete the messsage.)
-// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
-// - Proof body: The proof consists of three parts.
-//   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and
-//     s.in_flight().contains(msg) in the statepred of final state (no_delete_sts_req_is_in_flight in this lemma, so we can
-//     get the requirements in this lemma).
-//   + Show that spec |= every_new_req_msg_if_in_flight_then_satisfies. Basically, use two assert forall to show that forall state and
-//     its next state and forall messages, if the messages are newly generated, they must satisfy the "requirements" and always satisfies it
-//     as long as it is in flight.
-//   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
-//     and the original statepred.
-// TODO: prove using rely_conditions
-#[verifier(external_body)]
-pub proof fn lemma_always_no_delete_resource_request_msg_in_flight(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
-{
-
-}
-
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
 proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
