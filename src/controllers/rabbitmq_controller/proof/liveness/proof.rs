@@ -50,8 +50,9 @@ proof fn liveness_proof(spec: TempPred<ClusterState>, cluster: Cluster, controll
     stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(controller_id, cluster, rabbitmq);
 
     lemma_true_leads_to_always_current_state_matches(stable_spec, controller_id, cluster, rabbitmq);
-    reveal_with_fuel(spec_before_phase_n, 8);
+    reveal_with_fuel(spec_before_phase_n, 9);
 
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 8, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 7, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 6, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 5, rabbitmq);
