@@ -194,7 +194,20 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         );
     }
     // The use of termination property ensures spec |= true ~> reconcile_idle.
-    terminate::reconcile_eventually_terminates(stable_spec, cluster, controller_id, rabbitmq);
+    // Help the spinoff prover decompose stable_spec for the forall_key preconditions
+    entails_trans(stable_spec,
+        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
+        always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
+    );
+    entails_trans(stable_spec,
+        derived_invariants_since_beginning(controller_id, cluster, rabbitmq), 
+        always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))
+    );
+    terminate::reconcile_eventually_terminates_forall_key(stable_spec, cluster, controller_id);
+    let reconcile_idle_fn = |key: ObjectRef|
+        true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)));
+    tla_forall_apply::<ClusterState, ObjectRef>(reconcile_idle_fn, rabbitmq.object_ref());
+    entails_trans(stable_spec, tla_forall(reconcile_idle_fn), reconcile_idle_fn(rabbitmq.object_ref()));
     entails_trans(spec,
         stable_spec,
         true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())))
@@ -547,7 +560,7 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)), sub_resource);
 }
 
-#[verifier(rlimit(300))]
+#[verifier(rlimit(500))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_assumptions_and_invariants_of_all_phases_implies_cluster_invariants_since_reconciliation(
     spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView

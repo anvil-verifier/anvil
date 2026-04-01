@@ -130,6 +130,7 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
     }
 }
 
+#[verifier::rlimit(100)]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 8,
@@ -190,8 +191,17 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             helper_invariants::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
             let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq));
             let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq));
+            // Prove every_msg_from_key_is_pending_req_msg_of using the cluster-level liveness lemma.
+            // Extract single-key no_pending_req for Done and Error from forall-key versions in derived_invariants_since_beginning.
+            always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+                controller_id, key, cluster.reconcile_model(controller_id).done)), rabbitmq.object_ref());
+            always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+                controller_id, key, cluster.reconcile_model(controller_id).error)), rabbitmq.object_ref());
+            always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
+            cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, rabbitmq.object_ref());
             leads_to_always_combine_n!(
-                spec, true_pred(), tla_forall(a_to_p_1), tla_forall(a_to_p_2)
+                spec, true_pred(), tla_forall(a_to_p_1), tla_forall(a_to_p_2),
+                lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))
             );
         } else if i == 4 {
             helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
@@ -397,6 +407,10 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
         controller_id, key, at_step_closure(RabbitmqReconcileStep::Init))))))
     .and(always(tla_forall(|step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2)))))))
+    .and(always(tla_forall(|key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).done)))))
+    .and(always(tla_forall(|key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).error)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -412,6 +426,10 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)));
     let a_to_p_pending_in_flight = |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))));
+    let a_to_p_no_pending_done = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).done));
+    let a_to_p_no_pending_error = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).error));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     stable_and_always_n!(
@@ -452,7 +470,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
         tla_forall(a_to_p_key_unique),
         tla_forall(a_to_p_no_pending),
-        tla_forall(a_to_p_pending_in_flight)
+        tla_forall(a_to_p_pending_in_flight),
+        tla_forall(a_to_p_no_pending_done),
+        tla_forall(a_to_p_no_pending_error)
     );
 }
 
@@ -506,6 +526,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, rabbitmq: R
 pub open spec fn invariants_since_phase_iii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))))
+    .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))))
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
@@ -513,7 +534,10 @@ pub proof fn invariants_since_phase_iii_is_stable(controller_id: int, rabbitmq: 
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq));
-    stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
+    stable_and_always_n!(
+        tla_forall(a_to_p_1), tla_forall(a_to_p_2),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))
+    );
 }
 
 // Invariants since this phase ensure that certain objects only have owner references that point to current cr.
@@ -697,6 +721,24 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_pending_in_flight);
     });
+    let a_to_p_no_pending_done = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).done));
+    assert_by(spec.entails(always(tla_forall(a_to_p_no_pending_done))), {
+        assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending_done(key))) by {
+            RabbitmqReconcileState::marshal_preserves_integrity();
+            cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
+        }
+        spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_done);
+    });
+    let a_to_p_no_pending_error = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).error));
+    assert_by(spec.entails(always(tla_forall(a_to_p_no_pending_error))), {
+        assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending_error(key))) by {
+            RabbitmqReconcileState::marshal_preserves_integrity();
+            cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).error);
+        }
+        spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_error);
+    });
 
     entails_always_and_n!(
         spec,
@@ -737,7 +779,9 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
         tla_forall(a_to_p_key_unique),
         tla_forall(a_to_p_no_pending),
-        tla_forall(a_to_p_pending_in_flight)
+        tla_forall(a_to_p_pending_in_flight),
+        tla_forall(a_to_p_no_pending_done),
+        tla_forall(a_to_p_no_pending_error)
     );
 }
 
