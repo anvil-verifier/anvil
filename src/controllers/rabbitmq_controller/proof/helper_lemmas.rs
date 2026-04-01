@@ -46,15 +46,67 @@ pub proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
     seq_unequal_preserved_by_add(prefix_dash + cr_name_a, prefix_dash + cr_name_b, suffix);
 }
 
-pub proof fn lemma_sub_resource_neq_implies_resource_key_neq_given_cr_name(
-    cr_name_a: StringView, cr_name_b: StringView, sub_resource_a: SubResource, sub_resource_b: SubResource
+pub proof fn lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(
+    cr_key_a: ObjectRef, cr_key_b: ObjectRef, sub_resource_a: SubResource, sub_resource_b: SubResource
 )
 requires
     sub_resource_a != sub_resource_b,
 ensures
-    get_request(sub_resource_a, cr_name_a).key != get_request(sub_resource_b, cr_name_b).key,
+    make_resource_key(cr_key_a, sub_resource_a) != make_resource_key(cr_key_b, sub_resource_b),
 {
-    
+    let key_a = make_resource_key(cr_key_a, sub_resource_a);
+    let key_b = make_resource_key(cr_key_b, sub_resource_b);
+    // If the kinds differ, the keys trivially differ.
+    if key_a.kind == key_b.kind {
+        // Same Kind => one of three pairs (Service, Secret, ConfigMap).
+        // We show key_a.name != key_b.name by examining a character near the end
+        // that differs between the two suffixes.
+        match key_a.kind {
+            Kind::ServiceKind => {
+                // HeadlessService: suffix "-nodes" (last char 's')
+                // Service: suffix "-client" (last char 't')
+                reveal_strlit("-nodes");
+                reveal_strlit("-client");
+                if sub_resource_a == SubResource::HeadlessService {
+                    assert(key_a.name[key_a.name.len() - 1] == 's');
+                    assert(key_b.name[key_b.name.len() - 1] == 't');
+                } else {
+                    assert(key_a.name[key_a.name.len() - 1] == 't');
+                    assert(key_b.name[key_b.name.len() - 1] == 's');
+                }
+            },
+            Kind::SecretKind => {
+                // ErlangCookieSecret: suffix "-erlang-cookie" (last char 'e')
+                // DefaultUserSecret: suffix "-default-user" (last char 'r')
+                reveal_strlit("-erlang-cookie");
+                reveal_strlit("-default-user");
+                if sub_resource_a == SubResource::ErlangCookieSecret {
+                    assert(key_a.name[key_a.name.len() - 1] == 'e');
+                    assert(key_b.name[key_b.name.len() - 1] == 'r');
+                } else {
+                    assert(key_a.name[key_a.name.len() - 1] == 'r');
+                    assert(key_b.name[key_b.name.len() - 1] == 'e');
+                }
+            },
+            Kind::ConfigMapKind => {
+                // PluginsConfigMap: suffix "-plugins-conf" (char at len-6 is 's')
+                // ServerConfigMap: suffix "-server-conf" (char at len-6 is 'r')
+                reveal_strlit("-plugins-conf");
+                reveal_strlit("-server-conf");
+                if sub_resource_a == SubResource::PluginsConfigMap {
+                    assert(key_a.name[key_a.name.len() - 6] == 's');
+                    assert(key_b.name[key_b.name.len() - 6] == 'r');
+                } else {
+                    assert(key_a.name[key_a.name.len() - 6] == 'r');
+                    assert(key_b.name[key_b.name.len() - 6] == 's');
+                }
+            },
+            _ => {
+                // No other Kind has two different sub-resources mapping to it.
+                assert(false);
+            }
+        }
+    }
 }
 
 pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(

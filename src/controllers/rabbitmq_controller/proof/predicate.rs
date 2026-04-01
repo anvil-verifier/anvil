@@ -21,6 +21,42 @@ use vstd::prelude::*;
 
 verus! {
 
+pub open spec fn make_resource_key(cr_key: ObjectRef, sub_resource: SubResource) -> ObjectRef {
+    let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    match sub_resource {
+        SubResource::HeadlessService => ObjectRef {
+            kind: ServiceView::kind(), name: prefix + cr_key.name + "-nodes"@, namespace: cr_key.namespace,
+        },
+        SubResource::Service => ObjectRef {
+            kind: ServiceView::kind(), name: prefix + cr_key.name + "-client"@, namespace: cr_key.namespace,
+        },
+        SubResource::ErlangCookieSecret => ObjectRef {
+            kind: SecretView::kind(), name: prefix + cr_key.name + "-erlang-cookie"@, namespace: cr_key.namespace,
+        },
+        SubResource::DefaultUserSecret => ObjectRef {
+            kind: SecretView::kind(), name: prefix + cr_key.name + "-default-user"@, namespace: cr_key.namespace,
+        },
+        SubResource::PluginsConfigMap => ObjectRef {
+            kind: ConfigMapView::kind(), name: prefix + cr_key.name + "-plugins-conf"@, namespace: cr_key.namespace,
+        },
+        SubResource::ServerConfigMap => ObjectRef {
+            kind: ConfigMapView::kind(), name: prefix + cr_key.name + "-server-conf"@, namespace: cr_key.namespace,
+        },
+        SubResource::ServiceAccount => ObjectRef {
+            kind: ServiceAccountView::kind(), name: prefix + cr_key.name + "-server"@, namespace: cr_key.namespace,
+        },
+        SubResource::Role => ObjectRef {
+            kind: RoleView::kind(), name: prefix + cr_key.name + "-peer-discovery"@, namespace: cr_key.namespace,
+        },
+        SubResource::RoleBinding => ObjectRef {
+            kind: RoleBindingView::kind(), name: prefix + cr_key.name + "-server"@, namespace: cr_key.namespace,
+        },
+        SubResource::VStatefulSetView => ObjectRef {
+            kind: VStatefulSetView::kind(), name: prefix + cr_key.name + "-server"@, namespace: cr_key.namespace,
+        },
+    }
+}
+
 pub open spec fn at_rabbitmq_step(key: ObjectRef, controller_id: int, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
     recommends
         key.kind is CustomResourceKind
