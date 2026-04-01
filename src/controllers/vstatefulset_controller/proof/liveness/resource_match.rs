@@ -4602,11 +4602,8 @@ ensures
                             if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                         }
                     }
-                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
                 },
-                AfterListPod => {
-                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
-                },
+                AfterListPod => {},
                 UpdateNeeded => {
                     PodView::marshal_preserves_integrity();
                 }, // slow
@@ -4624,13 +4621,9 @@ ensures
                         assert(false);
                     }
                     assert(next_local_state.reconcile_step == Error || next_local_state.reconcile_step == Done);
-                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
                 },
-                _ => {
-                    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
-                }
+                _ => {}
             }
-            assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
         } else { // same controller, different cr
             assert(s.ongoing_reconciles(controller_id)[vsts.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()]);
             assert(s.resources() == s_prime.resources());
@@ -4655,9 +4648,7 @@ ensures
         } else {
             assert(s_prime.resources() == s.resources());
         }
-        assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
     }
-    assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
 }
 
 }
