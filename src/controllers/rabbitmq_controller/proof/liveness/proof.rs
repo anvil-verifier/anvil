@@ -51,6 +51,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     lemma_true_leads_to_always_current_state_matches(stable_spec, controller_id, cluster, rabbitmq);
     reveal_with_fuel(spec_before_phase_n, 9);
 
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 8, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 7, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 6, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 5, rabbitmq);
@@ -87,7 +88,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
 
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
-        1 <= i <= 7,
+        1 <= i <= 8,
         valid(stable(spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
         spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -96,7 +97,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(spec: T
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
 {
-    reveal_with_fuel(spec_before_phase_n, 8);
+    reveal_with_fuel(spec_before_phase_n, 9);
     temp_pred_equality(
         spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)),
         spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq))
@@ -356,9 +357,10 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
     }
 }
 
-#[verifier(external_body)]
 proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
@@ -403,11 +405,14 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
 #[verifier(external_body)]
 proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq)))),
+        spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
     ensures
         spec.entails(lift_state(|s: ClusterState| {
             &&& !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())
@@ -425,23 +430,32 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
+        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq)),
+        later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))
     );
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        RabbitmqReconcileState::marshal_preserves_integrity();
+    }
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
 }
 
 #[verifier(external_body)]
 proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
     ensures
         spec.entails(lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, RabbitmqReconcileStep::Init))
             .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq, controller_id)))),
@@ -452,11 +466,20 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_i
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
     combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next), lift_action(cluster.next()), lift_state(Cluster::crash_disabled(controller_id))
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))
     );
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        RabbitmqReconcileState::marshal_preserves_integrity();
+        RabbitmqClusterView::marshal_preserves_integrity();
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
@@ -471,10 +494,13 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_i
             }
         }
     }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        RabbitmqReconcileState::marshal_preserves_integrity();
+        RabbitmqClusterView::marshal_preserves_integrity();
+    }
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post);
 }
 
-#[verifier(external_body)]
 proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq))))),

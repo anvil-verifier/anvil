@@ -34,6 +34,7 @@ pub open spec fn assumption_and_invariants_of_all_phases(controller_id: int, clu
     .and(invariants_since_phase_v(rabbitmq))
     .and(invariants_since_phase_vi(controller_id, rabbitmq))
     .and(invariants_since_phase_vii(controller_id, rabbitmq))
+    .and(invariants_since_phase_viii(controller_id, rabbitmq))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -203,6 +204,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
         } else if i == 8 {
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
@@ -371,6 +373,17 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id))))
     .and(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())))
     .and(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))))
+    // Additional invariants needed by cluster_invariants_since_reconciliation
+    .and(always(lift_state(Cluster::etcd_objects_have_unique_uids())))
+    .and(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
+    .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())))
+    .and(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())))
+    .and(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id))))
+    .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
+    .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
+    .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))))
+    .and(always(lift_state(Cluster::etcd_is_finite())))
+    .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -411,7 +424,17 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::etcd_objects_have_unique_uids()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
+        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))
     );
 }
 
@@ -640,6 +663,17 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
+    // Additional invariants needed by cluster_invariants_since_reconciliation
+    cluster.lemma_always_etcd_objects_have_unique_uids(spec);
+    cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
+    cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(spec);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
+    cluster.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_every_ongoing_reconcile_has_lower_id_than_allocator(spec, controller_id);
+    cluster.lemma_always_ongoing_reconciles_is_finite(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_etcd_is_finite(spec);
+    cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
 
     entails_always_and_n!(
         spec,
@@ -669,7 +703,17 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::etcd_objects_have_unique_uids()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
+        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::etcd_is_finite()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))
     );
 }
 
