@@ -56,7 +56,7 @@ requires
     helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s),
     helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s_prime),
-    helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())(s),
+    helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)(s),
     // 1. rely conditions for other controllers
     forall |other_id| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> vsts_rely(other_id)(s),
@@ -113,6 +113,7 @@ ensures
             assert(obj.metadata.owner_references->0.contains(obj.metadata.owner_references->0[0]));
             assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
         }
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
         PodView::marshal_preserves_integrity();
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop
@@ -146,11 +147,12 @@ ensures
                                     _ => OwnerReferenceView::default(),
                                 };
                                 if cr_key.namespace == vsts.metadata.namespace->0 {
-                                    assert(!obj.metadata.owner_references_contains(req_owner_ref)) by {
-                                        if obj.metadata.owner_references_contains(req_owner_ref) {
-                                            assert(req_owner_ref != vsts.controller_owner_ref());
-                                            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req_owner_ref));
-                                        }
+                                    if obj.metadata.owner_references_contains(req_owner_ref) {
+                                        assert(req_owner_ref != vsts.controller_owner_ref());
+                                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req_owner_ref));
+                                        lemma_singleton_contains_at_most_one_element(
+                                            obj.metadata.owner_references->0.filter(controller_owner_filter()), req_owner_ref, vsts.controller_owner_ref()
+                                        );
                                     }
                                 } // or else, namespace is different, so should not be touched at all
                             }
@@ -169,6 +171,7 @@ ensures
                                             assert(!obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                         }
                                     }
+                                    assert(post);
                                 },
                                 APIRequest::GetThenUpdateRequest(req) => {
                                     if req.obj.kind == Kind::PodKind {
@@ -179,13 +182,16 @@ ensures
                                             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                         }
                                     }
+                                    assert(post);
                                 },
                                 APIRequest::UpdateStatusRequest(req) => {}, // only status and RV updated
                                 _ => {}, // Read-only requests
                             }
                         }
                     },
-                    _ => {},
+                    _ => {
+                        assert(post);
+                    },
                 }
             }
         }
@@ -210,8 +216,9 @@ ensures
             assert(obj.metadata.owner_references == Some(Seq::empty().push(vsts.controller_owner_ref())));
             assert(obj.metadata.owner_references->0.contains(obj.metadata.owner_references->0[0]));
             assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref()));
+            pod_name_match_implies_has_vsts_prefix(obj.metadata.name->0);
         }
-        pod_name_match_implies_has_vsts_prefix(obj.metadata.name->0);
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vsts.controller_owner_ref()));
         PodView::marshal_preserves_integrity();
         if msg.content is APIRequest && msg.dst is APIServer {
             if !{ // if request fails, noop

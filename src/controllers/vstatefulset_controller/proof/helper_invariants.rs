@@ -1327,7 +1327,7 @@ pub open spec fn buildin_controllers_do_not_delete_pvcs_owned_by_vsts() -> State
     }
 }
 
-pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts_key: ObjectRef) -> StatePred<ClusterState> {
+pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts: VStatefulSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -1339,8 +1339,9 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts_key: 
             &&& msg.content.is_delete_request()
             &&& !{
                 &&& key.kind == Kind::PodKind
-                &&& key.namespace == vsts_key.namespace
-                &&& pod_name_match(key.name, vsts_key.name)
+                &&& key.namespace == vsts.object_ref().namespace
+                &&& (pod_name_match(key.name, vsts.object_ref().name)
+                    || s.resources()[key].metadata.owner_references_contains(vsts.controller_owner_ref()))
             }
         }
     }
@@ -1359,7 +1360,7 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref()))))),
+    spec.entails(true_pred().leads_to(always(lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))))),
 {
     let requirements = |msg: Message, s: ClusterState| {
         &&& s.in_flight().contains(msg)
@@ -1372,7 +1373,8 @@ ensures
         &&& !{
             &&& key.kind == Kind::PodKind
             &&& key.namespace == vsts.object_ref().namespace
-            &&& pod_name_match(key.name, vsts.object_ref().name)
+            &&& (pod_name_match(key.name, vsts.object_ref().name)
+                || s.resources()[key].metadata.owner_references_contains(vsts.controller_owner_ref()))
         }
     };
     let requirements_antecedent = |msg: Message, s: ClusterState| {
@@ -1395,13 +1397,16 @@ ensures
                 if {
                     &&& key.kind == Kind::PodKind
                     &&& key.namespace == vsts.object_ref().namespace
-                    &&& pod_name_match(key.name, vsts.object_ref().name)
+                    &&& (pod_name_match(key.name, vsts.object_ref().name)
+                        || s.resources()[key].metadata.owner_references_contains(vsts.controller_owner_ref()))
                     &&& s.resources().contains_key(key)
                 } {
-                    let obj = s.resources()[key];
-                    assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
-                        assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
-                        assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+                    if pod_name_match(key.name, vsts.object_ref().name) {
+                        let obj = s.resources()[key];
+                        assert(obj.metadata.owner_references->0.contains(vsts.controller_owner_ref())) by {
+                            assert(obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
+                            assert(obj.metadata.owner_references->0[0] == vsts.controller_owner_ref());
+                        }
                     }
                     assert(false);
                 }
@@ -1418,7 +1423,7 @@ ensures
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
     temp_pred_equality(
-        lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts.object_ref())),
+        lift_state(buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
