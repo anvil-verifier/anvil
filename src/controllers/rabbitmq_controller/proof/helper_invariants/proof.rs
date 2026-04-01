@@ -1748,110 +1748,49 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
     }
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
-    // Resource names now have the form: prefix_dash + cr_name + suffix
-    // where prefix_dash = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"
-    // We use lemma_cr_name_neq_implies_resource_key_name_neq in contrapositive:
-    // if the full resource key names are equal, then cr_key.name == key.name.
-    let prefix_dash = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    // We use two helper lemmas:
+    // 1. lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key: eliminates the "wrong sub-resource"
+    //    case for sub-resources sharing the same Kind (e.g., PluginsConfigMap vs ServerConfigMap).
+    // 2. lemma_cr_name_neq_implies_resource_key_name_neq (contrapositive): if the resource key names
+    //    are equal, then cr_key.name == key.name.
+    let local_step_sub_resource = local_step->AfterKRequestStep_1;
+    // Eliminate the case where the controller creates a different sub-resource type.
+    if local_step_sub_resource != sub_resource {
+        lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(cr_key, key, local_step_sub_resource, sub_resource);
+    }
+    // Now local_step_sub_resource == sub_resource. Prove cr_key.name == key.name by contrapositive.
     match sub_resource {
         SubResource::ServerConfigMap => {
-            assume(false);
-            // Eliminate PluginsConfigMap (same Kind, different suffix).
-            assert(prefix_dash + cr_key.name + "-plugins-conf"@ != prefix_dash + key.name + "-server-conf"@) by {
-                let str1 = cr_key.name + "-plugins-conf"@;
-                reveal_strlit("-server-conf");
-                reveal_strlit("-plugins-conf");
-                assert(str1[str1.len() - 6] == 's');
-                seq_unequal_preserved_by_add_prefix(prefix_dash, cr_key.name + "-plugins-conf"@, key.name + "-server-conf"@);
-            }
-            // Must be ServerConfigMap. Prove cr_key.name == key.name by contrapositive.
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server-conf"@);
             }
-            assert(cr_key.namespace == key.namespace);
-            assert(cr_key.kind == key.kind);
-            assert(cr_key.name == key.name);
-            assert(cr_key == key);
         },
         SubResource::PluginsConfigMap => {
-            assume(false);
-            // Eliminate ServerConfigMap (same Kind, different suffix).
-            assert(prefix_dash + cr_key.name + "-server-conf"@ != prefix_dash + key.name + "-plugins-conf"@) by {
-                let str1 = cr_key.name + "-server-conf"@;
-                let str2 = key.name + "-plugins-conf"@;
-                reveal_strlit("-server-conf");
-                reveal_strlit("-plugins-conf");
-                if str1.len() == str2.len() {
-                    assert(str1[str1.len() - 6] == 'r');
-                    assert(str2[str2.len() - 6] == 'c');
-                }
-                seq_unequal_preserved_by_add_prefix(prefix_dash, cr_key.name + "-server-conf"@, key.name + "-plugins-conf"@);
-            }
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-plugins-conf"@);
             }
         },
         SubResource::ErlangCookieSecret => {
-            // Eliminate DefaultUserSecret (same Kind, different suffix).
-            assert(prefix_dash + cr_key.name + "-default-user"@ != prefix_dash + key.name + "-erlang-cookie"@) by {
-                let str1 = cr_key.name + "-default-user"@;
-                let str2 = key.name + "-erlang-cookie"@;
-                assert(str1 != str2) by {
-                    // reveal_strlit("-erlang-cookie");
-                    // reveal_strlit("-default-user");
-                    assert(str1[str1.len() - 1] == 'r');
-                    assert(str2[str2.len() - 1] == 'e');
-                }
-                seq_unequal_preserved_by_add_prefix(prefix_dash, str1, str2);
-            }
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-erlang-cookie"@);
             }
         },
         SubResource::DefaultUserSecret => {
-            assume(false);
-            // Eliminate ErlangCookieSecret (same Kind, different suffix).
-            assert(prefix_dash + cr_key.name + "-erlang-cookie"@ != prefix_dash + key.name + "-default-user"@) by {
-                let str1 = key.name + "-default-user"@;
-                reveal_strlit("-erlang-cookie");
-                reveal_strlit("-default-user");
-                assert(str1[str1.len() - 1] == 'r');
-                seq_unequal_preserved_by_add_prefix(prefix_dash, cr_key.name + "-erlang-cookie"@, key.name + "-default-user"@);
-            }
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-default-user"@);
             }
         },
         SubResource::HeadlessService => {
-            assume(false);
-            // Eliminate Service (same Kind, different suffix).
-            assert(prefix_dash + cr_key.name + "-client"@ != prefix_dash + key.name + "-nodes"@) by {
-                let str1 = key.name + "-nodes"@;
-                reveal_strlit("-client");
-                reveal_strlit("-nodes");
-                assert(str1[str1.len() - 1] == 's');
-                seq_unequal_preserved_by_add_prefix(prefix_dash, cr_key.name + "-client"@, key.name + "-nodes"@);
-            }
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-nodes"@);
             }
         },
         SubResource::Service => {
-            assume(false);
-            // Eliminate HeadlessService (same Kind, different suffix).
-            assert(prefix_dash + cr_key.name + "-nodes"@ != prefix_dash + key.name + "-client"@) by {
-                let str1 = cr_key.name + "-nodes"@;
-                reveal_strlit("-client");
-                reveal_strlit("-nodes");
-                assert(str1[str1.len() - 1] == 's');
-                seq_unequal_preserved_by_add_prefix(prefix_dash, cr_key.name + "-nodes"@, key.name + "-client"@);
-            }
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-client"@);
             }
         },
         SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => {
-            // Unique Kind — no same-Kind disambiguation needed.
             if cr_key.name != key.name {
                 lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server"@);
             }
@@ -1862,7 +1801,6 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(c
             }
         },
     }
-    assume(false);
 }
 
 #[verifier(spinoff_prover)]
