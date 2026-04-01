@@ -4345,6 +4345,8 @@ ensures
     }
 }
 
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_inductive_current_state_matches_to_current_state_matches(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
