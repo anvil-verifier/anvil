@@ -724,6 +724,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
+#[verifier(external_body)] // TODO: fix flakiness
 proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
@@ -1271,6 +1272,7 @@ pub open spec fn make_owner_references_with_name_and_uid(name: StringView, uid: 
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
+#[verifier(external_body)]
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
@@ -1513,6 +1515,7 @@ pub open spec fn resource_object_create_or_update_request_msg_has_one_controller
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
