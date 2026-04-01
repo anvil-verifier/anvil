@@ -130,9 +130,9 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
         spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
             controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))))),
-        spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
-            ))))),
+        forall |step: (ActionKind, SubResource)| spec.entails(always(lift_state(#[trigger] Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
+        )))),
     ensures spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())))),
 {
     RabbitmqReconcileState::marshal_preserves_integrity();
@@ -140,11 +140,10 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource))
     )))) by {
-        always_tla_forall_apply::<ClusterState, (ActionKind, SubResource)>(
-            spec, |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
-            )), (action, sub_resource)
-        );
+        let step = (action, sub_resource);
+        assert(spec.entails(always(lift_state(#[trigger] Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
+        )))));
     }
     let reconcile_idle = |s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()) };
 
@@ -220,11 +219,8 @@ pub proof fn reconcile_eventually_terminates_forall_key(
             true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
         )),
 {
-    let post = |key: ObjectRef| lift_state(
-            |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
-        );
-
-    assert forall |key: ObjectRef| spec.entails(true_pred().leads_to(#[trigger] post(key))) by {
+    let post = |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)));
+    assert forall |key: ObjectRef| spec.entails(#[trigger] post(key)) by {
         if key.kind == RabbitmqClusterView::kind() {
             let rabbitmq = RabbitmqClusterView {
                 metadata: ObjectMetaView {
@@ -242,24 +238,39 @@ pub proof fn reconcile_eventually_terminates_forall_key(
                 |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)),
                 rabbitmq.object_ref()
             );
+            assert forall |step: (ActionKind, SubResource)| spec.entails(always(lift_state(#[trigger] Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
+            )))) by {
+                always_tla_forall_apply(spec,
+                    |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                        controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))
+                    )),
+                    (rabbitmq.object_ref(), step.0, step.1)
+                );
+            }
             reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
         } else {
+            let idle_state = lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key));
             // For any key that is not rabbitmq.object_ref(), the controller never reconciles it
             // because cr_objects_in_reconcile_have_correct_kind ensures only the correct kind is reconciled,
             // and the controller only processes one specific CR.
             assert forall |ex: Execution<ClusterState>| lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)).satisfied_by(ex)
-                implies post(key).satisfied_by(ex) by {
+                implies #[trigger] idle_state.satisfied_by(ex) by {
                 let s = ex.head();
                 if s.ongoing_reconciles(controller_id).contains_key(key) {
                     assert(key.kind != RabbitmqClusterView::kind());
                     assert(false);
                 }
             }
-            entails_preserved_by_always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)), post(key));
-            entails_trans(spec, always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))), always(post(key)));
-            entails_implies_eventually(spec, always(post(key)));
-            true_leads_to_eventually_always_equality(spec, post(key));
-            leads_to_eliminate_always(spec, true_pred(), post(key));
+            entails_preserved_by_always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)), idle_state);
+            entails_trans(spec, always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))), always(idle_state));
+            entails_implies_eventually(spec, always(idle_state));
+            true_leads_to_eventually_always_equality(spec, idle_state);
+            leads_to_eliminate_always(spec, true_pred(), idle_state);
+            temp_pred_equality(
+                true_pred().leads_to(idle_state),
+                post(key)
+            );
         }
     }
 
