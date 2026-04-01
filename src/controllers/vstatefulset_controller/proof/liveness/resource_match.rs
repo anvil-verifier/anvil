@@ -702,7 +702,6 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
 )
@@ -4523,11 +4522,16 @@ ensures
                                         name: pod_name(vsts_name, ord),
                                         namespace: vsts.metadata.namespace->0
                                     };
+                                    // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
                                     assert(s.resources().contains_key(key));
                                     let obj = s.resources()[key];
                                     assert(list_req_filter(obj));
                                     assert(s.resources().values().filter(list_req_filter).contains(obj));
                                     assert(objs.contains(obj));
+                                    assert(obj.metadata.owner_references_contains(vsts.controller_owner_ref())) by {
+                                        let owner_ref = obj.metadata.owner_references->0;
+                                        assert(owner_ref.contains(owner_ref[0]));
+                                    }
                                     let i = choose |i: int| 0 <= i < objs.len() && objs[i] == obj;
                                     let pod = PodView::unmarshal(obj)->Ok_0;
                                     PodView::marshal_preserves_integrity();
