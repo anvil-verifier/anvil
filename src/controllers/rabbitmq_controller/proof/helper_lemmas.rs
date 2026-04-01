@@ -18,7 +18,7 @@ use crate::rabbitmq_controller::{
 use crate::rabbitmq_controller::proof::helper_invariants::no_interfering_request_between_rmq_forall_rmq;
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
+use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
@@ -30,6 +30,92 @@ requires
 ensures
     get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
 {}
+
+pub proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
+    cr_name_a: StringView, cr_name_b: StringView, suffix: StringView,
+)
+    requires cr_name_a != cr_name_b,
+    ensures
+        RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name_a + suffix
+        != RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + cr_name_b + suffix,
+{
+    let prefix_dash = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    // prefix_dash + cr_name_a != prefix_dash + cr_name_b  (since cr_name_a != cr_name_b)
+    seq_unequal_preserved_by_add_prefix(prefix_dash, cr_name_a, cr_name_b);
+    // (prefix_dash + cr_name_a) + suffix != (prefix_dash + cr_name_b) + suffix
+    seq_unequal_preserved_by_add(prefix_dash + cr_name_a, prefix_dash + cr_name_b, suffix);
+}
+
+pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
+    rabbitmq: RabbitmqClusterView, sub_resource_a: SubResource, sub_resource_b: SubResource
+)
+    requires
+        sub_resource_a != sub_resource_b,
+    ensures
+        get_request(sub_resource_a, rabbitmq).key != get_request(sub_resource_b, rabbitmq).key,
+{
+    let res_key_a = get_request(sub_resource_a, rabbitmq).key;
+    let res_key_b = get_request(sub_resource_b, rabbitmq).key;
+    if res_key_a.kind == res_key_b.kind {
+        // When two different sub-resources share the same Kind, they must have different name suffixes.
+        // We prove name inequality by showing the suffixes differ (via reveal_strlit + character comparison),
+        // then use seq_unequal_preserved_by_add_prefix to lift that to the full names.
+        let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.object_ref().name;
+        match res_key_a.kind {
+            Kind::ServiceKind => {
+                // HeadlessService: prefix + "-nodes", Service: prefix + "-client"
+                assert_by("-nodes"@ != "-client"@, {
+                    reveal_strlit("-nodes");
+                    reveal_strlit("-client");
+                    if "-nodes"@.len() == "-client"@.len() {
+                        assert("-nodes"@[1] != "-client"@[1]);
+                    }
+                });
+                seq_unequal_preserved_by_add_prefix(prefix, "-nodes"@, "-client"@);
+                if sub_resource_a == SubResource::HeadlessService {
+                    assert(sub_resource_b == SubResource::Service);
+                } else {
+                    assert(sub_resource_b == SubResource::HeadlessService);
+                }
+            },
+            Kind::SecretKind => {
+                // ErlangCookieSecret: prefix + "-erlang-cookie", DefaultUserSecret: prefix + "-default-user"
+                assert_by("-erlang-cookie"@ != "-default-user"@, {
+                    reveal_strlit("-erlang-cookie");
+                    reveal_strlit("-default-user");
+                    if "-erlang-cookie"@.len() == "-default-user"@.len() {
+                        assert("-erlang-cookie"@[1] != "-default-user"@[1]);
+                    }
+                });
+                seq_unequal_preserved_by_add_prefix(prefix, "-erlang-cookie"@, "-default-user"@);
+                if sub_resource_a == SubResource::ErlangCookieSecret {
+                    assert(sub_resource_b == SubResource::DefaultUserSecret);
+                } else {
+                    assert(sub_resource_b == SubResource::ErlangCookieSecret);
+                }
+            },
+            Kind::ConfigMapKind => {
+                // PluginsConfigMap: prefix + "-plugins-conf", ServerConfigMap: prefix + "-server-conf"
+                assert_by("-plugins-conf"@ != "-server-conf"@, {
+                    reveal_strlit("-plugins-conf");
+                    reveal_strlit("-server-conf");
+                    if "-plugins-conf"@.len() == "-server-conf"@.len() {
+                        assert("-plugins-conf"@[1] != "-server-conf"@[1]);
+                    }
+                });
+                seq_unequal_preserved_by_add_prefix(prefix, "-plugins-conf"@, "-server-conf"@);
+                if sub_resource_a == SubResource::PluginsConfigMap {
+                    assert(sub_resource_b == SubResource::ServerConfigMap);
+                } else {
+                    assert(sub_resource_b == SubResource::PluginsConfigMap);
+                }
+            },
+            _ => {
+                assert(false);
+            }
+        }
+    }
+}
 
 pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
