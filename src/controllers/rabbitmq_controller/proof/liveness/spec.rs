@@ -167,10 +167,17 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
         );
     } else {
-        terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+        terminate::reconcile_eventually_terminates_forall_key(spec, cluster, controller_id);
+        // Extract single-key termination for rabbitmq.object_ref() from the forall-key version
+        let reconcile_idle = |key: ObjectRef|
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)));
+        tla_forall_apply::<ClusterState, ObjectRef>(reconcile_idle, rabbitmq.object_ref());
+        entails_trans(spec, tla_forall(reconcile_idle), reconcile_idle(rabbitmq.object_ref()));
         if i == 2 {
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, rabbitmq);
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
+            // Extract single-key pending_req_of_key_is_unique for the xor lemma
+            always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, rabbitmq.object_ref());
             leads_to_always_combine_n!(
                 spec, true_pred(),
@@ -353,7 +360,6 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
-    .and(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
     .and(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())))
@@ -361,8 +367,6 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))))
     .and(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))))
-    .and(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
-    .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq)))))
     .and(always(lift_state(Cluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref()))))
     .and(always(lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref()))))
@@ -387,17 +391,27 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())))
+    // Forall-key versions needed by reconcile_eventually_terminates_forall_key
+    .and(always(tla_forall(|key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))))
+    .and(always(tla_forall(|key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, at_step_closure(RabbitmqReconcileStep::Init))))))
+    .and(always(tla_forall(|step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2)))))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
     ensures valid(stable(derived_invariants_since_beginning(controller_id, cluster, rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq));
-    let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
     let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq));
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(controller_id, res, rabbitmq));
     let a_to_p_5 = |res: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key));
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq));
+    let a_to_p_key_unique = |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key));
+    let a_to_p_no_pending = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)));
+    let a_to_p_pending_in_flight = |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     stable_and_always_n!(
@@ -406,7 +420,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
@@ -414,8 +427,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         tla_forall(a_to_p_1),
-        lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
-        tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(Cluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
@@ -438,7 +449,10 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())
+        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
+        tla_forall(a_to_p_key_unique),
+        tla_forall(a_to_p_no_pending),
+        tla_forall(a_to_p_pending_in_flight)
     );
 }
 
@@ -565,30 +579,6 @@ pub proof fn invariants_since_phase_viii_is_stable(controller_id: int, rabbitmq:
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)));
 }
 
-pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))),
-    ensures
-        spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))))),
-{
-    // TODO (xudong): investigate the performance of this lemma
-    // Somehow the reasoning inside the assert forall block below is very slow (takes more than 8 seconds!)
-    // I suspect it is related to the precondition of lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state
-    let a_to_p = |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
-    assert_by(spec.entails(always(tla_forall(a_to_p))), {
-        assert forall |step: (ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p(step))) by {
-            RabbitmqReconcileState::marshal_preserves_integrity();
-            RabbitmqClusterView::marshal_preserves_integrity();
-            cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
-            );
-        }
-        spec_entails_always_tla_forall_equality(spec, a_to_p);
-    });
-}
-
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
@@ -610,7 +600,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
-    cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
@@ -626,13 +615,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec_entails_always_tla_forall_equality(spec, a_to_p_1);
     });
     RabbitmqReconcileState::marshal_preserves_integrity();
-    cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
-
-    // Different from other a_to_p_x, we encapsulate a_to_p_2 inside the lemma below because we find its reasoning is
-    // surprisingly slow in this context. Encapsulating the reasoning reduces the verification time of this function
-    // from more than 40 seconds to 2 seconds.
-    let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
-    lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cluster, spec, rabbitmq);
 
     let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(res, rabbitmq));
     assert_by(spec.entails(always(tla_forall(a_to_p_3))), {
@@ -683,6 +665,39 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(spec);
 
+    // Forall-key versions needed by reconcile_eventually_terminates_forall_key
+    let a_to_p_key_unique = |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key));
+    assert_by(spec.entails(always(tla_forall(a_to_p_key_unique))), {
+        assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_key_unique(key))) by {
+            cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, key);
+        }
+        spec_entails_always_tla_forall_equality(spec, a_to_p_key_unique);
+    });
+    let a_to_p_no_pending = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)));
+    assert_by(spec.entails(always(tla_forall(a_to_p_no_pending))), {
+        assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending(key))) by {
+            RabbitmqReconcileState::marshal_preserves_integrity();
+            cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_closure(RabbitmqReconcileStep::Init));
+        }
+        spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending);
+    });
+    let a_to_p_pending_in_flight = |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))));
+    assert_by(spec.entails(always(tla_forall(a_to_p_pending_in_flight))), {
+        assert forall |step: (ObjectRef, ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p_pending_in_flight(step))) by {
+            RabbitmqReconcileState::marshal_preserves_integrity();
+            RabbitmqClusterView::marshal_preserves_integrity();
+            // Extract single-key pending_req_of_key_is_unique for step.0 from the forall-key version
+            always_tla_forall_apply(spec, a_to_p_key_unique, step.0);
+            cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                spec, controller_id, step.0,
+                at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))
+            );
+        }
+        spec_entails_always_tla_forall_equality(spec, a_to_p_pending_in_flight);
+    });
+
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -690,7 +705,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
@@ -698,8 +712,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         tla_forall(a_to_p_1),
-        lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
-        tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(Cluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
         lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
@@ -722,7 +734,10 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())
+        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
+        tla_forall(a_to_p_key_unique),
+        tla_forall(a_to_p_no_pending),
+        tla_forall(a_to_p_pending_in_flight)
     );
 }
 

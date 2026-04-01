@@ -187,7 +187,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
     assert forall |action: ActionKind, sub_resource: SubResource| #![auto] spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource)))))) by {
-        always_tla_forall_apply(stable_spec, |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))), (action, sub_resource));
+        always_tla_forall_apply(stable_spec, |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2)))), (rabbitmq.object_ref(), action, sub_resource));
         entails_trans(spec,
             stable_spec,
             always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource)))))
@@ -583,6 +583,8 @@ ensures
     assert(stable_spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::etcd_is_finite()))));
+    // Extract single-key pending_req_of_key_is_unique from the forall-key version
+    always_tla_forall_apply(stable_spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
     assert(stable_spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, rabbitmq.object_ref())))));
     assert(stable_spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))));
