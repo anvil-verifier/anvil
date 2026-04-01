@@ -334,7 +334,9 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
             // Weaken sub_mat /\ always(cm_mat) to lift_state(combined)
             // sub_mat /\ always(cm_mat) entails lift_state(combined) (at the current state)
             assert(sub_mat.and(always(cm_mat)).entails(lift_state(combined))) by {
-                assert forall |ex| #[trigger] sub_mat.and(always(cm_mat)).satisfied_by(ex) implies lift_state(combined).satisfied_by(ex) by {}
+                assert forall |ex| #[trigger] sub_mat.and(always(cm_mat)).satisfied_by(ex) implies lift_state(combined).satisfied_by(ex) by {
+                    always_to_current(ex, cm_mat);
+                }
             }
             entails_implies_leads_to(spec, sub_mat.and(always(cm_mat)), lift_state(combined));
             leads_to_trans(spec, true_pred(), sub_mat.and(always(cm_mat)), lift_state(combined));
