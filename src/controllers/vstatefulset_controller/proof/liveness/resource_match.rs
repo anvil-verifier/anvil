@@ -714,6 +714,7 @@ requires
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s),
     resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, msg, condemned_len)(s),
     n_outdated_pods_in_etcd(vsts, outdated_len)(s),
+    api_input.src != HostId::Controller(controller_id, vsts.object_ref()),
 ensures
     at_vsts_step(vsts, controller_id, at_step![AfterListPod])(s_prime),
     resp_msg_is_pending_list_pod_resp_in_flight_with_n_condemned_pods(vsts, controller_id, msg, condemned_len)(s_prime),
