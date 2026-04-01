@@ -1752,117 +1752,100 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
         step is ControllerStep,
+        step->ControllerStep_0.0 == controller_id,
         step->ControllerStep_0.2->0 == rabbitmq.object_ref(),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
 {
-    match msg.src {
-        HostId::Controller(other_id, cr_key) => {
-            if other_id == controller_id {
-                RabbitmqReconcileState::marshal_preserves_integrity();
-                RabbitmqClusterView::marshal_preserves_integrity();
-                if cr_key != rabbitmq.object_ref() {
-                    // construct another rmq that has such cr_key and prove the request from that reconciliation shan't have such req.key()
-                    let other_rmq = RabbitmqClusterView {
-                        metadata: ObjectMetaView {
-                            name: Some(cr_key.name),
-                            namespace: Some(cr_key.namespace),
-                            ..ObjectMetaView::default()
-                        },
-                        ..RabbitmqClusterView::default()
-                    };
-                    assert(other_rmq.object_ref() == cr_key);
-                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)) by {
-                        // no_interfering gives: msg's create key == make_{sub_resource}_key(other_rmq)
-                        assert(get_request(sub_resource, other_rmq).key == msg.content.get_create_request().key());
-                        // cr_key != rabbitmq.object_ref() => either namespace or name differs
-                        if cr_key.namespace != rabbitmq.object_ref().namespace {
-                            // namespaces differ so keys differ
-                        } else {
-                            assert(cr_key.name != rabbitmq.object_ref().name);
-                            // use string lemma to show key names differ for each sub_resource
-                            match sub_resource {
-                                SubResource::HeadlessService => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-nodes"@);
-                                },
-                                SubResource::Service => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-client"@);
-                                },
-                                SubResource::ErlangCookieSecret => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-erlang-cookie"@);
-                                },
-                                SubResource::DefaultUserSecret => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-default-user"@);
-                                },
-                                SubResource::PluginsConfigMap => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-plugins-conf"@);
-                                },
-                                SubResource::ServerConfigMap => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server-conf"@);
-                                },
-                                SubResource::ServiceAccount => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                },
-                                SubResource::Role => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-peer-discovery"@);
-                                },
-                                SubResource::RoleBinding => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                },
-                                SubResource::VStatefulSetView => {
-                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                },
-                            }
-                        }
-                    }
-                    assert(false);
-                } else { // same reconciliation
-                    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].triggering_cr).unwrap();
-                    let resource_key = get_request(sub_resource, rabbitmq).key;
-                    assert(step is ControllerStep);
-                    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
-                    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
-                    let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
-                    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
-                    match local_step_prime {
-                        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
-                            match action {
-                                ActionKind::Create => {
-                                    if res != sub_resource {
-                                        lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, sub_resource, res);
-                                        assert(get_request(sub_resource, rabbitmq).key != get_request(res, rabbitmq).key);
-                                        assert(get_request(res, rabbitmq).key == get_request(res, cr).key);
-                                        assert(resource_create_request_msg(get_request(res, cr).key)(msg));
-                                        assert(false);
-                                    }
-                                    assert(at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s));
-                                    assert(at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime));
-                                },
-                                _ => {
-                                    assert(!(msg.content.is_create_request()));
-                                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                                },
-                            };
-                        },
-                        _ => {
-                            assert(!(msg.content.is_create_request()));
-                            assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                        }
-                    }
-                    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
-                }
-            } else { // other controller, call rely condition
-                assert(cluster.controller_models.remove(controller_id).contains_key(other_id));
-                // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
-                assert(rmq_rely(other_id)(s_prime));
-                assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                assert(false);
+    // Since we know that this step creates a sub resource create request message, it is easy to see that it's a controller action.
+    // This action creates a resource, and there may be sub-resources sharing the same Kind, so we have to show that only the correct sub-resource
+    // is possible by extra reasoning about the strings.
+    assert(step is ControllerStep);
+    let (id, _, cr_key_opt) = step->ControllerStep_0;
+    
+    if id != controller_id { // other controller, call rely condition
+        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+        // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
+        assert(rmq_rely(id)(s_prime));
+        assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+        assert(false);
+    }
+    let cr_key = cr_key_opt->0;
+    let key = rabbitmq.object_ref();
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
+    match local_step_prime {
+        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
+            match action {
+                ActionKind::Create => {},
+                _ => {
+                    assert(!msg.content.is_create_request());
+                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+                },
             }
         },
         _ => {}
     }
-    let cr_key = step->ControllerStep_0.2->0;
+    assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
+    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
+    // We use two helper lemmas:
+    // 1. lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key: eliminates the "wrong sub-resource"
+    //    case for sub-resources sharing the same Kind (e.g., PluginsConfigMap vs ServerConfigMap).
+    // 2. lemma_cr_name_neq_implies_resource_key_name_neq (contrapositive): if the resource key names
+    //    are equal, then cr_key.name == key.name.
+    let local_step_sub_resource = local_step->AfterKRequestStep_1;
+    // Eliminate the case where the controller creates a different sub-resource type.
+    if local_step_sub_resource != sub_resource {
+        lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(cr_key, key, local_step_sub_resource, sub_resource);
+    }
+    // Now local_step_sub_resource == sub_resource. Prove cr_key.name == key.name by contrapositive.
+    match sub_resource {
+        SubResource::ServerConfigMap => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server-conf"@);
+            }
+        },
+        SubResource::PluginsConfigMap => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-plugins-conf"@);
+            }
+        },
+        SubResource::ErlangCookieSecret => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-erlang-cookie"@);
+            }
+        },
+        SubResource::DefaultUserSecret => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-default-user"@);
+            }
+        },
+        SubResource::HeadlessService => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-nodes"@);
+            }
+        },
+        SubResource::Service => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-client"@);
+            }
+        },
+        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server"@);
+            }
+        },
+        SubResource::Role => {
+            if cr_key.name != key.name {
+                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-peer-discovery"@);
+            }
+        },
+    }
 }
 
 pub proof fn lemma_eventually_always_no_delete_get_then_delete_get_then_update_get_then_update_status_req_in_flight_forall(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
