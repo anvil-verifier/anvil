@@ -1848,6 +1848,115 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
     }
 }
 
+#[verifier(spinoff_prover)]
+pub proof fn lemma_always_no_get_then_requests_and_update_resource_status_requests_in_flight(
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures spec.entails(always(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)))),
+{
+    let inv = no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq);
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    guarantee_condition_holds(spec, cluster, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
+    cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& rmq_guarantee(controller_id)(s_prime)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
+    };
+    always_to_always_later(spec, lift_state(rmq_guarantee(controller_id)));
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        later(lift_state(rmq_guarantee(controller_id))),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests())
+    );
+
+    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg)
+        implies !{
+            ||| resource_get_then_delete_request_msg(resource_key)(msg)
+            ||| resource_get_then_update_request_msg(resource_key)(msg)
+            ||| resource_get_then_update_status_request_msg(resource_key)(msg)
+            ||| resource_update_status_request_msg(resource_key)(msg)
+        } by {
+            if !s.in_flight().contains(msg) {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep((id, _, _)) => {
+                        if id == controller_id {
+                            // rmq_guarantee says: msgs from controller_id are Get/Create/Update only
+                            assert(rmq_guarantee(controller_id)(s_prime));
+                            assert(msg.src.is_controller_id(controller_id));
+                            assert(msg.content is APIRequest);
+                            // The guarantee says _ => false for other request types,
+                            // so none of the forbidden types can appear.
+                        } else {
+                            // Other controller: rely says no rmq-managed kinds
+                            assert(msg.src.is_controller_id(id));
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                            assert(rmq_rely(id)(s_prime));
+                            if msg.content is APIRequest {
+                                match (msg.content->APIRequest_0) {
+                                    APIRequest::GetThenDeleteRequest(req) => {
+                                        if resource_get_then_delete_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::GetThenUpdateRequest(req) => {
+                                        if resource_get_then_update_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::GetThenUpdateStatusRequest(req) => {
+                                        if resource_get_then_update_status_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    APIRequest::UpdateStatusRequest(req) => {
+                                        if resource_update_status_request_msg(resource_key)(msg) {
+                                            assert(!is_rmq_managed_kind(req.key().kind));
+                                            assert(false);
+                                        }
+                                    },
+                                    _ => {},
+                                }
+                            }
+                        }
+                    },
+                    Step::BuiltinControllersStep(_) => {
+                        // Builtin controllers only send DeleteRequest, not any of the forbidden types
+                        assert(msg.content.is_delete_request());
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
