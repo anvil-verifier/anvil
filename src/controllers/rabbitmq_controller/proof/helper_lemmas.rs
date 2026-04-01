@@ -46,6 +46,17 @@ pub proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
     seq_unequal_preserved_by_add(prefix_dash + cr_name_a, prefix_dash + cr_name_b, suffix);
 }
 
+pub proof fn lemma_sub_resource_neq_implies_resource_key_neq_given_cr_name(
+    cr_name_a: StringView, cr_name_b: StringView, sub_resource_a: SubResource, sub_resource_b: SubResource
+)
+requires
+    sub_resource_a != sub_resource_b,
+ensures
+    get_request(sub_resource_a, cr_name_a).key != get_request(sub_resource_b, cr_name_b).key,
+{
+    
+}
+
 pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
     rabbitmq: RabbitmqClusterView, sub_resource_a: SubResource, sub_resource_b: SubResource
 )
