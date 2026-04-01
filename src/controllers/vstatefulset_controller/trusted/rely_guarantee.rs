@@ -22,7 +22,7 @@ pub open spec fn vsts_rely_conditions_pod_monkey() -> StatePred<ClusterState> {
             &&& msg.content is APIRequest
         } ==> match (msg.content->APIRequest_0) {
             APIRequest::CreateRequest(req) => rely_create_req(req),
-            APIRequest::UpdateRequest(req) => rely_update_req(req),
+            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
             _ => true, // Deletion/UpdateStatus requests are allowed
         }
     }
@@ -44,9 +44,9 @@ pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
             &&& msg.src.is_controller_id(other_id)
         } ==> match (msg.content->APIRequest_0) {
             APIRequest::CreateRequest(req) => rely_create_req(req),
-            APIRequest::UpdateRequest(req) => rely_update_req(req),
+            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
-            APIRequest::DeleteRequest(req) => rely_delete_req(req),
+            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
             // Get/List/UpdateStatus requests are unconstrained
             _ => true,
@@ -56,36 +56,61 @@ pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
 
 pub open spec fn rely_create_req(req: CreateRequest) -> bool {
     match req.obj.kind {
-        Kind::PodKind | Kind::PersistentVolumeClaimKind => !{
-            if req.obj.metadata.name is Some {
-                has_vsts_prefix(req.obj.metadata.name->0)
-            } else {
-                &&& req.obj.metadata.generate_name is Some
-                &&& has_vsts_prefix(req.obj.metadata.generate_name->0)
-            }
+        Kind::PodKind | Kind::PersistentVolumeClaimKind => {
+            // no name conflict
+            &&& !if req.obj.metadata.name is Some {
+                    has_vsts_prefix(req.obj.metadata.name->0)
+                } else {
+                    &&& req.obj.metadata.generate_name is Some
+                    &&& has_vsts_prefix(req.obj.metadata.generate_name->0)
+                }
+            // no ownership interference
+            &&& !exists |vsts: VStatefulSetView|
+                #[trigger] req.obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         },
         _ => true,
     }
 }
 
-pub open spec fn rely_update_req(req: UpdateRequest) -> bool {
-    match req.obj.kind {
-        Kind::PodKind | Kind::PersistentVolumeClaimKind => !has_vsts_prefix(req.name),
-        _ => true,
+pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        match req.obj.kind {
+            Kind::PodKind | Kind::PersistentVolumeClaimKind => {
+                &&& !has_vsts_prefix(req.name)
+                // Prevents 1): where other controllers update pod already owned by a VSTS.
+                &&& !exists |vsts: VStatefulSetView|
+                    #[trigger] s.resources()[req.key()].metadata.owner_references_contains(vsts.controller_owner_ref())
+                // Prevents 2): where other controllers update pod so they become owned by a VSTS.
+                &&& !exists |vsts: VStatefulSetView| #[trigger] req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()) 
+            }
+            _ => true,
+        }
     }
 }
 
 pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     match req.obj.kind {
-        Kind::PodKind | Kind::PersistentVolumeClaimKind => !has_vsts_prefix(req.name),
+        Kind::PodKind | Kind::PersistentVolumeClaimKind => {
+            &&& !has_vsts_prefix(req.name)
+            // Prevents 1): where other controllers update pod already owned by a VSTS.
+            &&& req.owner_ref.kind != VStatefulSetView::kind()
+            // Prevents 2): where other controllers update pod so they become owned by a VSTS.
+            &&& !exists |vsts: VStatefulSetView| #[trigger] req.obj.metadata.owner_references_contains(vsts.controller_owner_ref()) 
+        }
         _ => true,
     }
 }
 
-pub open spec fn rely_delete_req(req: DeleteRequest) -> bool {
-    match req.key.kind {
-        Kind::PodKind | Kind::PersistentVolumeClaimKind => !has_vsts_prefix(req.key.name),
-        _ => true,
+pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        match req.key.kind {
+            Kind::PodKind | Kind::PersistentVolumeClaimKind => {
+                &&& !has_vsts_prefix(req.key.name)
+                // Prevents 1): where other controllers delete pod already owned by a VSTS.
+                &&& !exists |vsts: VStatefulSetView| #[trigger] s.resources()[req.key()].metadata.owner_references_contains(vsts.controller_owner_ref())
+            }
+            _ => true,
+        }
     }
 }
 
@@ -93,7 +118,11 @@ pub open spec fn rely_delete_req(req: DeleteRequest) -> bool {
 // but to simplify the proof, we still disallow GetThenDelete on PVC with vsts prefix
 pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
     match req.key.kind {
-        Kind::PodKind | Kind::PersistentVolumeClaimKind => !has_vsts_prefix(req.key.name),
+        Kind::PodKind | Kind::PersistentVolumeClaimKind => {
+            &&& !has_vsts_prefix(req.key.name)
+            // Prevents 1): where other controllers delete pod already owned by a VSTS.
+            &&& req.owner_ref.kind != VStatefulSetView::kind()
+        }
         _ => true,
     }
 }
