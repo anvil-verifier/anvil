@@ -23,7 +23,7 @@ verus! {
 // about VSTS controller itself and other non-controller components in the cluster
 // So in total we have
 // 1. rely conditions for other controllers (rely::vsts_rely)
-// 2. VSTS internal rely-guarantee (guarantee::no_interfering_request_between_vsts)
+// 2. VSTS internal rely-guarantee (internal_rely_guarantee::no_interfering_request_between_vsts)
 // 3.a rely conditions for builtin controllers (buildin_controllers_do_not_delete_{pods|pvcs}_owned_by_vsts)
 // 3.b pod monkey, API server and external controllers (Cluster::no_pending_request_to_api_server_from_non_controllers)
 

@@ -8,8 +8,15 @@ use crate::kubernetes_cluster::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, rely::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*},
-    proof::{predicate::*, helper_invariants, helper_lemmas::*, guarantee, liveness::{spec::*, terminate, resource_match, state_predicates::*}},
+    trusted::{
+        liveness_theorem::*, spec_types::*, step::*, step::VStatefulSetReconcileStepView::*,
+        rely_guarantee::*,
+    },
+    proof::{
+        predicate::*, helper_invariants, helper_lemmas::*, guarantee,
+        liveness::{spec::*, terminate, resource_match, state_predicates::*},
+        internal_rely_guarantee,
+    },
 };
 use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
@@ -644,7 +651,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     assert(spec2.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))))) by {
         assume(spec2.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))));
     }
-    assume(spec2.entails(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))));
+    assume(spec2.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))));
     assume(spec2.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
     assume(spec2.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
     assume(spec2.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))));
