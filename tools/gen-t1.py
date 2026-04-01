@@ -17,9 +17,8 @@ LOC_COLUMNS = [
     "trusted_spec",
     "trusted_unverified",
     "exec",
-    "proof_conformance",
-    "proof_guarantee",
-    "proof_esr",
+    "model",
+    "core_esr",
 ]
 
 
@@ -177,9 +176,8 @@ def main():
         "Trusted Spec",
         "Trusted Unverified",
         "Exec",
-        "Proof Conformance",
-        "Proof Guarantee",
-        "Proof ESR",
+        "Model",
+        "Core ESR",
         "Total",
     ]
     print(tabulate(table, headers, tablefmt="github"))

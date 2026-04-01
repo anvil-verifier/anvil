@@ -10,7 +10,7 @@ use crate::rabbitmq_controller::model::{
     reconciler::*, install::*, resource::stateful_set::make_stateful_set
 };
 use crate::rabbitmq_controller::proof::{
-    guarantee::guarantee_condition_holds, predicate::*
+    guarantee::guarantee_condition_holds, predicate::*, liveness::spec::next_with_wf
 };
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
