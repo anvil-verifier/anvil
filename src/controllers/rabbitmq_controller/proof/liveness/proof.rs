@@ -197,7 +197,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
     lemma_from_scheduled_to_init_step(controller_id, cluster, spec, rabbitmq);
 
     // After applying this lemma, we get spec |= init /\ no_pending_req ~> create_headless_service /\ pending_req.
-    lemma_from_init_step_to_after_create_headless_service_step(controller_id, cluster, spec, rabbitmq);
+    lemma_from_init_step_to_after_get_headless_service_step(controller_id, cluster, spec, rabbitmq);
 
     // We first show that the reconciler can go to at_after_get_resource_step(next_resource) from at_after_get_resource_step(sub_resource)
     // where sub_resource cannot be StatefulSet because it's the last resource to be processed and doesn't have its next_resource.
@@ -447,7 +447,7 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, pre, post);
 }
 
-proof fn lemma_from_init_step_to_after_create_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_from_init_step_to_after_get_headless_service_step(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
