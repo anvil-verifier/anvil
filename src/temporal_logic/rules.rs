@@ -876,6 +876,22 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
     }
 }
 
+pub proof fn leads_to_eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires spec.entails(p.leads_to(always(q))),
+    ensures spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        implies_apply(ex, spec, p.leads_to(always(q)));
+        leads_to_unfold(ex, p, always(q));
+        assert forall |i: nat| p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(#[trigger] ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p, eventually(always(q)));
+            let witness = eventually_choose_witness(ex.suffix(i), always(q));
+            always_to_current(ex.suffix(i).suffix(witness), q);
+            eventually_proved_by_witness(ex.suffix(i), q, witness);
+        };
+    };
+}
+
 // Always p entails p
 // post:
 //     []p |= p
