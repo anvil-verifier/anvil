@@ -32,7 +32,7 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-proof fn liveness_proof(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
+proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(next_with_wf(cluster, controller_id)),
