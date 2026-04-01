@@ -624,7 +624,7 @@ pub proof fn invariants_since_phase_viii_is_stable(controller_id: int, rabbitmq:
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
+#[verifier(rlimit(300))]
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -637,8 +637,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
 {
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.
     // And then the verifier doesn't have to infer it every time applying those lemmas.
-    assert(spec.entails(lift_state(cluster.init())));
-    assert(spec.entails(always(lift_action(cluster.next()))));
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
@@ -760,6 +758,46 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_error);
     });
 
+    assert(spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))));
+    assert(spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))));
+    assert(spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))));
+    assert(spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())))));
+    assert(spec.entails(always(lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))));
+    assert(spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))));
+    assert(spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))));
+    assert(spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))));
+    assert(spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))));
+    assert(spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))));
+    assert(spec.entails(always(tla_forall(a_to_p_1))));
+    assert(spec.entails(always(tla_forall(a_to_p_3))));
+    assert(spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())))));
+    assert(spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())))));
+    assert(spec.entails(always(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())))));
+    assert(spec.entails(always(tla_forall(a_to_p_4))));
+    assert(spec.entails(always(tla_forall(a_to_p_5))));
+    assert(spec.entails(always(tla_forall(a_to_p_6))));
+    assert(spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))));
+    assert(spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::etcd_objects_have_unique_uids()))));
+    assert(spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))));
+    assert(spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))));
+    assert(spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))));
+    assert(spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::etcd_is_finite()))));
+    assert(spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))));
+    assert(spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()))));
+    assert(spec.entails(always(tla_forall(a_to_p_key_unique))));
+    assert(spec.entails(always(tla_forall(a_to_p_no_pending))));
+    assert(spec.entails(always(tla_forall(a_to_p_pending_in_flight))));
+    assert(spec.entails(always(tla_forall(a_to_p_no_pending_done))));
+    assert(spec.entails(always(tla_forall(a_to_p_no_pending_error))));
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
