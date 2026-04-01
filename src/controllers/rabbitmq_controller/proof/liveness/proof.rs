@@ -171,6 +171,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     temp_pred_equality(tla_forall(|res: SubResource| lift_state(resource_state_matches(res, rabbitmq))), lift_state(current_state_matches(rabbitmq)));
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -184,20 +185,39 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         forall |sub_resource: SubResource|
             spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))),
 {
+    let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
     assert forall |action: ActionKind, sub_resource: SubResource| #![auto] spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource)))))) by {
-        always_tla_forall_apply(spec, |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))), (action, sub_resource));
+        always_tla_forall_apply(stable_spec, |step: (ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))), (action, sub_resource));
+        entails_trans(spec,
+            stable_spec,
+            always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource)))))
+        );
     }
-
     // The use of termination property ensures spec |= true ~> reconcile_idle.
-    terminate::reconcile_eventually_terminates(spec, cluster, controller_id, rabbitmq);
+    terminate::reconcile_eventually_terminates(stable_spec, cluster, controller_id, rabbitmq);
+    entails_trans(spec,
+        stable_spec,
+        true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())))
+    );
     // Then we can continue to show that spec |= reconcile_idle ~> []current_state_matches(rabbitmq).
 
+    let idle_state = lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()));
+    let scheduled_state = lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()) && s.scheduled_reconciles(controller_id).contains_key(rabbitmq.object_ref()));
+    let init_state = lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, RabbitmqReconcileStep::Init));
     // The following two lemmas show that spec |= reconcile_idle ~> init /\ no_pending_req.
-    lemma_from_reconcile_idle_to_scheduled(controller_id, cluster, spec, rabbitmq);
-    lemma_from_scheduled_to_init_step(controller_id, cluster, spec, rabbitmq);
+    lemma_from_reconcile_idle_to_scheduled(controller_id, cluster, stable_spec, rabbitmq);
+    lemma_from_scheduled_to_init_step(controller_id, cluster, stable_spec, rabbitmq);
 
     // After applying this lemma, we get spec |= init /\ no_pending_req ~> create_headless_service /\ pending_req.
-    lemma_from_init_step_to_after_get_headless_service_step(controller_id, cluster, spec, rabbitmq);
+    lemma_from_init_step_to_after_get_headless_service_step(controller_id, cluster, stable_spec, rabbitmq);
+
+    leads_to_trans_n!(stable_spec, true_pred(), idle_state, scheduled_state, init_state);
+    entails_trans(spec, stable_spec, true_pred().leads_to(init_state));
+    entails_trans(spec, stable_spec, init_state.leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq, controller_id))));
+
+    entails_trans(spec, stable_spec, always(lift_action(cluster.next())));
+    entails_trans(spec, stable_spec, tla_forall(|i| cluster.api_server_next().weak_fairness(i)));
+    entails_trans(spec, stable_spec, tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))));
 
     // We first show that the reconciler can go to at_after_get_resource_step(next_resource) from at_after_get_resource_step(sub_resource)
     // where sub_resource cannot be StatefulSet because it's the last resource to be processed and doesn't have its next_resource.
@@ -208,15 +228,13 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
             .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource)->AfterKRequestStep_1, rabbitmq, controller_id)))
     ) by {
-        always_tla_forall_apply_for_sub_resource(controller_id, spec, sub_resource, rabbitmq);
         let next_resource = next_resource_after(sub_resource)->AfterKRequestStep_1;
         lemma_from_after_get_resource_step_to_resource_matches(controller_id, cluster, spec, rabbitmq, sub_resource, next_resource);
     }
     // Thanks to the recursive construction of macro.
     leads_to_trans_n!(
-        spec, true_pred(), lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()) }),
-        lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()) && s.scheduled_reconciles(controller_id).contains_key(rabbitmq.object_ref())}),
-        lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, RabbitmqReconcileStep::Init)),
+        spec, true_pred(),
+        init_state,
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq, controller_id)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::Service, rabbitmq, controller_id)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ErlangCookieSecret, rabbitmq, controller_id)),
@@ -225,18 +243,24 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServerConfigMap, rabbitmq, controller_id)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, rabbitmq, controller_id)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::Role, rabbitmq, controller_id)),
-        lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::RoleBinding, rabbitmq, controller_id))
+        lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::RoleBinding, rabbitmq, controller_id)),
+        lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::VStatefulSetView, rabbitmq, controller_id))
     );
 
     // Since we already have true ~> at_after_get_resource_step(sub_resource), and we can get at_after_get_resource_step(sub_resource)
     // ~> resource_state_matches(sub_resource, rabbitmq) by applying lemma lemma_from_after_get_resource_step_to_resource_matches,
     // we now have true ~> resource_state_matches(sub_resource, rabbitmq).
-    assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView implies
+    assert forall |sub_resource: SubResource|
     spec.entails(
         true_pred().leads_to(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq)))
     ) by {
-        always_tla_forall_apply_for_sub_resource(controller_id, spec, sub_resource, rabbitmq);
-        let next_resource = next_resource_after(sub_resource)->AfterKRequestStep_1;
+        // For non-VStatefulSetView resources, next_resource is used but the first ensures still applies to all.
+        // We pass VStatefulSetView as a dummy next_resource for VStatefulSetView itself (the second ensures won't fire).
+        let next_resource = if sub_resource != SubResource::VStatefulSetView {
+            next_resource_after(sub_resource)->AfterKRequestStep_1
+        } else {
+            SubResource::VStatefulSetView
+        };
         lemma_from_after_get_resource_step_to_resource_matches(controller_id, cluster, spec, rabbitmq, sub_resource, next_resource);
         leads_to_trans(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id)),
@@ -250,7 +274,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
     // The proof proceeds in two stages:
     // 1. First prove CM stability: true ~> []resource_state_matches(ServerConfigMap, rabbitmq)
     //    The CM lemma does not need cm_rv_stays_unchanged as a precondition.
-    // 2. Then prove all other non-VSTS resources are stable, borrowing CM's always-true property
+    // 2. Then prove all other resources are stable, borrowing CM's always-true property
     //    to obtain cm_rv_stays_unchanged.
 
     // Stage 1: CM stability
@@ -260,7 +284,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
     };
-    always_tla_forall_apply_for_sub_resource(controller_id, spec, SubResource::ServerConfigMap, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(cm_stronger_next),
         lift_action(cluster.next()),
@@ -278,23 +301,20 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq))
     );
 
-    // Stage 2: Other non-VSTS resources.
-    // For each sub_resource != CM and != VSTS:
+    // Stage 2: Other resources.
+    // For each sub_resource != CM:
     // 1. Use leads_to_with_always to get (true /\ []cm_mat) ~> (sub_mat /\ []cm_mat) from true ~> sub_mat
     // 2. Chain with true ~> []cm_mat to get true ~> (sub_mat /\ []cm_mat)
     // 3. Weaken to get true ~> (sub_mat /\ cm_mat) = true ~> combined
     // 4. Show combined is preserved (leads_to_stable) to get true ~> []combined
     // 5. Weaken to get true ~> []sub_mat
-    assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView implies
+    assert forall |sub_resource: SubResource|
     spec.entails(
         true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))
     ) by {
-        always_tla_forall_apply_for_sub_resource(controller_id, spec, sub_resource, rabbitmq);
         if sub_resource == SubResource::ServerConfigMap {
             // Already proved above in Stage 1.
         } else {
-            let next_resource = next_resource_after(sub_resource)->AfterKRequestStep_1;
-            lemma_from_after_get_resource_step_to_resource_matches(controller_id, cluster, spec, rabbitmq, sub_resource, next_resource);
 
             // Define the combined predicate.
             let sub_mat = lift_state(resource_state_matches(sub_resource, rabbitmq));
