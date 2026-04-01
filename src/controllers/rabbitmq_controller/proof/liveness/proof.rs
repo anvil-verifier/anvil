@@ -572,8 +572,7 @@ ensures
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
     always_tla_forall_apply_for_sub_resource(controller_id, spec, cluster, sub_resource, rabbitmq);
-    // FIXME
-    assume(stable_spec.entails(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)))));
+    entails_trans(stable_spec, invariants_since_phase_viii(controller_id, rabbitmq), always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))));
 
     assert(stable_spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::req_drop_disabled()))));

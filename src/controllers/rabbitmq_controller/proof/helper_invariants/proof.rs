@@ -2389,6 +2389,16 @@ pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-
+#[verifier(external_body)]
+pub proof fn lemma_eventually_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))))),
+{}
 
 }
