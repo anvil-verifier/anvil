@@ -651,7 +651,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_interfering_request_between_rmq_forall_rmq(controller_id, sub_resource));
     assert_by(spec.entails(always(tla_forall(a_to_p_7))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_7(sub_resource))) by {
-            helper_invariants::lemma_always_no_interfering_request_between_rmq_forall_rmq(controller_id, cluster, spec, sub_resource, rabbitmq);
+            helper_invariants::lemma_always_no_interfering_request_between_rmq_forall_rmq(controller_id, cluster, spec, sub_resource);
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_7);
     });
