@@ -141,7 +141,9 @@ def gen_for_composition(base_controller):
         )
     )
     loc_data = json.load(open("composition-loc.json"))
-    table.append(make_display_row("Composition proofs", loc_data))
+    row = make_display_row("Composition proofs", loc_data)
+    row[6] = "--"  # ESR not applicable for composition
+    table.append(row)
     return loc_data, table
 
 
@@ -160,8 +162,9 @@ def main():
     all_keys = controllers + ["composition"]
     grand = {col: sum(totals[c][col] for c in all_keys) for col in LOC_COLUMNS}
     grand = make_display_row("Total(all)", grand)
-    # remove grand ESR and grand/total = model + core proof
+    # fold model into core; total = model + core proof; ESR n/a
     total_cnt = int(grand[4]) + int(grand[5])
+    grand[4] = "--"
     grand[5] = str(total_cnt)
     grand[6] = "--"
     table.append(grand)
