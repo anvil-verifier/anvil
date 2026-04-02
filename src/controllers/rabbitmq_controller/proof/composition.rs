@@ -10,7 +10,7 @@ use crate::rabbitmq_controller::model::{
     reconciler::*, install::*, resource::stateful_set::{make_stateful_set, make_stateful_set_key, make_stateful_set_name}
 };
 use crate::rabbitmq_controller::proof::{
-    guarantee::guarantee_condition_holds, liveness::spec::next_with_wf, predicate::*,
+    guarantee::guarantee_condition_holds, liveness::spec::{next_with_wf, next_with_wf_is_stable}, predicate::*,
     helper_invariants, helper_lemmas::*,
 };
 use crate::vstatefulset_controller::trusted::{
@@ -265,6 +265,32 @@ ensures
         tla_exists(lifted_always_vsts_post).and(always(stable_rmq_post)),
         lifted_always_composed_post
     );
+}
+
+// Wrapper: universally quantify over rmq to get the full ESR theorem.
+pub proof fn lemma_rmq_composed_eventually_stable_reconciliation(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+requires
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    spec.entails(next_with_wf(cluster, controller_id)),
+ensures
+    spec.entails(rmq_composed_eventually_stable_reconciliation()),
+{
+    // next_with_wf is stable, so spec |= next_with_wf ==> spec |= always(next_with_wf)
+    next_with_wf_is_stable(cluster, controller_id);
+    stable_to_always(next_with_wf(cluster, controller_id));
+    assert forall |rmq: RabbitmqClusterView| spec.entails(
+        always(lift_state(#[trigger] Cluster::desired_state_is(rmq))).leads_to(
+            always(lift_state(composed_current_state_matches(rmq))))
+    ) by {
+        composed_rmq_eventually_stable_reconciliation(spec, cluster, controller_id, rmq);
+    }
+    let composed_csm = |rmq: RabbitmqClusterView| composed_current_state_matches(rmq);
+    spec_entails_tla_forall(spec, |rmq: RabbitmqClusterView|
+        always(lift_state(Cluster::desired_state_is(rmq))).leads_to(
+            always(lift_state(composed_csm(rmq)))));
+    assert(spec.entails(rmq_composed_eventually_stable_reconciliation()));
 }
 
 // Proves that Cluster::desired_state_is(vsts) is preserved from s to s_prime,

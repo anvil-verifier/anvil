@@ -10,8 +10,9 @@ use crate::rabbitmq_controller::model::{
     reconciler::*, install::*, resource::stateful_set::make_stateful_set
 };
 use crate::rabbitmq_controller::proof::{
-    guarantee::guarantee_condition_holds, predicate::*, liveness::spec::next_with_wf
+    guarantee::guarantee_condition_holds, predicate::*, liveness::spec::{next_with_wf, next_with_wf_is_stable}
 };
+use crate::rabbitmq_controller::proof::composition::lemma_rmq_composed_eventually_stable_reconciliation;
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
     liveness_theorem as vsts_liveness_theorem,
@@ -83,7 +84,6 @@ impl Composition for RabbitmqReconciler {
         guarantee_condition_holds(spec, cluster, Self::id());
     }
 
-    #[verifier(external_body)]
     proof fn safety_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
     ensures
         forall |i| #[trigger] Self::composed().contains_key(i) ==>
@@ -154,7 +154,6 @@ impl Composition for RabbitmqReconciler {
                         match msg.content->APIRequest_0 {
                             APIRequest::CreateRequest(req) => {
                                 assert(rmq_guarantee_create_req(req));
-                                // RMQ creates rmq-managed kinds (not Pod or PVC)
                                 assert(is_rmq_managed_kind(req.obj.kind));
                                 assert(req.obj.kind != Kind::PodKind);
                                 assert(req.obj.kind != Kind::PersistentVolumeClaimKind);
@@ -198,10 +197,12 @@ impl Composition for RabbitmqReconciler {
                             APIRequest::CreateRequest(req) => {
                                 assert(vrs_guarantee_create_req(req)(s));
                                 assert(req.obj.kind == Kind::PodKind);
+                                assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenDeleteRequest(req) => {
                                 assert(vrs_guarantee_get_then_delete_req(req)(s));
                                 assert(req.key.kind == Kind::PodKind);
+                                assert(!is_rmq_managed_kind(req.key.kind));
                             }
                             _ => {}
                         }
@@ -274,10 +275,12 @@ impl Composition for RabbitmqReconciler {
                             APIRequest::CreateRequest(req) => {
                                 assert(vd_guarantee_create_req(req)(s));
                                 assert(req.obj.kind == VReplicaSetView::kind());
+                                assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenUpdateRequest(req) => {
                                 assert(vd_guarantee_get_then_update_req(req)(s));
                                 assert(req.obj.kind == VReplicaSetView::kind());
+                                assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenDeleteRequest(req) => {
                                 assert(vd_guarantee_get_then_delete_req(req)(s));
@@ -332,10 +335,13 @@ impl Composition for RabbitmqReconciler {
 }
 
 impl VerticalComposition for RabbitmqReconciler {
-    #[verifier(external_body)]
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
-    {}
+    {
+        lemma_rmq_composed_eventually_stable_reconciliation(
+            spec, cluster, Self::id()
+        );
+    }
 
     proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_rely),

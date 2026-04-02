@@ -42,18 +42,13 @@ pub open spec fn rmq_rely(other_id: int) -> StatePred<ClusterState> {
 
 // Helper to check if a kind is managed by the RMQ controller
 pub open spec fn is_rmq_managed_kind(kind: Kind) -> bool {
-    // err: `fn` calls are not allowed in patterns
-    let vsts_kind = VStatefulSetView::kind();
-    match kind {
-        Kind::ServiceKind => true,
-        Kind::SecretKind => true,
-        Kind::ConfigMapKind => true,
-        Kind::ServiceAccountKind => true,
-        Kind::RoleKind => true,
-        Kind::RoleBindingKind => true,
-        vsts_kind => true,
-        _ => false,
-    }
+    ||| kind == Kind::ServiceKind
+    ||| kind == Kind::SecretKind
+    ||| kind == Kind::ConfigMapKind
+    ||| kind == Kind::ServiceAccountKind
+    ||| kind == Kind::RoleKind
+    ||| kind == Kind::RoleBindingKind
+    ||| kind == VStatefulSetView::kind()
 }
 
 // RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name,
