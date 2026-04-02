@@ -1542,6 +1542,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions_pod_monkey()))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
