@@ -15,6 +15,7 @@ use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
+    vstatefulset_controller::trusted::liveness_theorem as liveness_theorem,
     vstatefulset_controller::trusted::step::*, vstd_ext::string_view::usize_to_string,
 };
 use vstd::{prelude::*, seq_lib::*};
@@ -1455,7 +1456,7 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
 
 pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
     ensures
-        result@ == model_reconciler::pod_name(parent_name@, ordinal as nat),
+        result@ == liveness_theorem::pod_name(parent_name@, ordinal as nat),
 {
     // we don't have executable CustomResource kind, hardcoded as a temporary solution
     let prefix = "vstatefulset".to_string().concat("-"); // "vstatefulset-" fails proof
@@ -1482,7 +1483,7 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
 // and the real Kubernetes API server
 pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
-    ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)
+    ensures res == liveness_theorem::pod_spec_matches(vsts@, pod@)
 {
     if let Some(mut spec) = pod.spec() {
         let mut vsts_spec = vsts.spec().template().spec().unwrap();

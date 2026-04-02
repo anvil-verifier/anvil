@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_api_objects::spec::{
+    container::*, volume::*, resource_requirements::*,
+};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::{reconciler::*, install::rabbitmq_controller_model, resource::*};
 use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};
@@ -37,9 +40,27 @@ pub open spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePr
 
 pub open spec fn composed_current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& forall |sub_resource: SubResource| #[trigger] resource_state_matches(sub_resource, rabbitmq)(s)
-        &&& composed_vsts_match(rabbitmq)(s)
+        &&& forall |ord: nat| ord < rabbitmq.spec.replicas ==> {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] vsts_liveness_theorem::pod_name(make_stateful_set_name(rabbitmq), ord),
+                namespace: rabbitmq.metadata.namespace->0
+            };
+            let obj = s.resources()[key];
+            &&& s.resources().contains_key(key)
+            // spec is updated
+            &&& PodView::unmarshal(obj) is Ok
+            &&& pod_spec_matches_rmq(rabbitmq, PodView::unmarshal(obj)->Ok_0)
+        }
     }
+}
+
+pub open spec fn pod_spec_matches_rmq(rabbitmq: RabbitmqClusterView, pod: PodView) -> bool {
+    // TODO: define pod spec matching for composed RMQ liveness
+    // Needs to compare pod spec against the VSTS template spec derived from rabbitmq
+    &&& pod.spec is Some
+    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == make_rabbitmq_pod_spec(rabbitmq).without_volumes().without_hostname().without_subdomain()
 }
 
 pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
@@ -198,16 +219,6 @@ pub open spec fn config_map_rv_match(rabbitmq: RabbitmqClusterView, rv: Resource
         let obj = resources[key];
         &&& obj.metadata.resource_version is Some
         &&& obj.metadata.resource_version->0 == rv
-    }
-}
-
-pub open spec fn composed_vsts_match(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let resources = s.resources();
-        let cm_key = make_server_config_map_key(rabbitmq);
-        let cm_obj = resources[cm_key];
-        let desired_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));   
-        vsts_liveness_theorem::current_state_matches(desired_sts)(s)
     }
 }
 

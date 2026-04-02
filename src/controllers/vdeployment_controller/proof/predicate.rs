@@ -655,30 +655,6 @@ pub open spec fn vd_reconcile_request_only_interferes_with_itself_condition(cont
     |s: ClusterState| forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
 }
 
-// same as vrs, similar to rely condition. Yet we talk about owner_ref here
-pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.src is BuiltinController
-            &&& msg.dst is APIServer
-            &&& msg.content is APIRequest
-        } ==> {
-            let req_msg = msg.content.get_delete_request(); 
-            &&& msg.content.is_delete_request()
-            &&& req_msg.preconditions is Some
-            &&& req_msg.preconditions.unwrap().uid is Some
-            &&& req_msg.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
-            &&& s.resources().contains_key(req_msg.key) ==> {
-                let etcd_obj = s.resources()[req_msg.key];
-                let owner_references = etcd_obj.metadata.owner_references->0;
-                ||| (!(etcd_obj.metadata.owner_references is Some) && owner_references.contains(vd.controller_owner_ref()))
-                ||| etcd_obj.metadata.uid.unwrap() > req_msg.preconditions.unwrap().uid.unwrap()
-            }
-        }
-    }
-}
-
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     and!(
         Cluster::crash_disabled(controller_id),

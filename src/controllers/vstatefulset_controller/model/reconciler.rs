@@ -1,6 +1,8 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::spec::{io::*, reconciler::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, liveness_theorem::{
+    pod_spec_matches, pod_name
+}};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -603,10 +605,6 @@ pub open spec fn pod_name_without_vsts_prefix(parent_name: StringView, ordinal: 
     parent_name + "-"@ + int_to_string_view(ordinal as int)
 }
 
-pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
-    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(parent_name, ordinal)
-}
-
 pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool {
     |pod: PodView| {
         // See https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/controller_ref_manager.go#L72-L82
@@ -787,14 +785,6 @@ pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
                     && volumes[j].persistent_volume_claim is Some
                     && ordinal is Some
                     && volumes[j].persistent_volume_claim->0.claim_name == pvc_name(claims[i].metadata.name->0, vsts.metadata.name->0, ordinal->0)
-}
-
-// TODO: compare other fields of the pod if necessary
-pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
-    // from validation we know vsts.spec.template.spec is Some
-    &&& pod.spec is Some
-    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
-        == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain()
 }
 
 pub open spec fn outdated_pod_filter(vsts: VStatefulSetView) -> spec_fn(Option<PodView>) -> bool {

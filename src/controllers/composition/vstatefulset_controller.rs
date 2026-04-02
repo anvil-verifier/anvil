@@ -17,7 +17,8 @@ use crate::vstatefulset_controller::model::{
     reconciler::*, install::*
 };
 use crate::vstatefulset_controller::proof::{
-    guarantee::*, liveness::spec::*
+    guarantee::*, liveness::spec::*,
+    liveness::proof::lemma_vsts_eventually_stable_reconciliation,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -43,11 +44,7 @@ proof fn vsts_prefix_not_vrs_prefix(name: StringView)
     }
 }
 
-// Helper lemma: VRS and VD controllers have distinct IDs
-#[verifier(external_body)]
-proof fn vrs_id_ne_vd_id()
-    ensures VReplicaSetReconciler::id() != VDeploymentReconciler::id(),
-{}
+
 
 impl Composition for VStatefulSetReconciler {
     open spec fn c() -> ControllerSpec {
@@ -64,7 +61,7 @@ impl Composition for VStatefulSetReconciler {
         }
     }
 
-    uninterp spec fn id() -> int;
+    open spec fn id() -> int { 3 }
 
     open spec fn composed() -> Map<int, ControllerSpec> {
         Map::empty().insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c()).insert(VDeploymentReconciler::id(), VDeploymentReconciler::c())
@@ -93,9 +90,9 @@ impl Composition for VStatefulSetReconciler {
                 assert forall |msg| #[trigger] s.in_flight().contains(msg) && msg.content is APIRequest && msg.src.is_controller_id(VReplicaSetReconciler::id()) implies (
                     match msg.content->APIRequest_0 {
                         APIRequest::CreateRequest(req) => rely_create_req(req),
-                        APIRequest::UpdateRequest(req) => rely_update_req(req),
+                        APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
                         APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
-                        APIRequest::DeleteRequest(req) => rely_delete_req(req),
+                        APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
                         APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
                         _ => true,
                     }
@@ -116,7 +113,6 @@ impl Composition for VStatefulSetReconciler {
             };
         }
         assert(spec.entails(always(lift_state(vrs_guar)))) by {
-            vrs_id_ne_vd_id();
             assert(Self::composed()[VReplicaSetReconciler::id()] == VReplicaSetReconciler::c());
         }
         always_weaken(spec, lift_state(vrs_guar), lift_state(vsts_rely_vrs));
@@ -164,7 +160,6 @@ impl Composition for VStatefulSetReconciler {
         assert(Self::composed().contains_key(VDeploymentReconciler::id())); // trigger
         assert(lift_state(vsts_guar).and(lift_state(vd_guar)).entails(lift_state(vsts_rely_vd).and(lift_state(vd_rely_vsts))));
         assert(spec.entails(always(lift_state(vd_guar)))) by {
-            vrs_id_ne_vd_id();
             assert(Self::composed()[VDeploymentReconciler::id()] == VDeploymentReconciler::c());
         }
         entails_and_temp(spec, always(lift_state(vsts_guar)), always(lift_state(vd_guar)));
@@ -186,7 +181,7 @@ impl HorizontalComposition for VStatefulSetReconciler {
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
-        assume(false);
+        lemma_vsts_eventually_stable_reconciliation(spec, cluster, Self::id());
     }
 }
 
