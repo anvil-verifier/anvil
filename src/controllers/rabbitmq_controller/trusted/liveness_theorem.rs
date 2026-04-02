@@ -43,7 +43,7 @@ pub open spec fn composed_current_state_matches(rabbitmq: RabbitmqClusterView) -
         &&& forall |ord: nat| ord < rabbitmq.spec.replicas ==> {
             let key = ObjectRef {
                 kind: Kind::PodKind,
-                name: #[trigger] vsts_liveness_theorem::pod_name(rabbitmq.metadata.name->0, ord),
+                name: #[trigger] vsts_liveness_theorem::pod_name(make_stateful_set_name(rabbitmq), ord),
                 namespace: rabbitmq.metadata.namespace->0
             };
             let obj = s.resources()[key];
