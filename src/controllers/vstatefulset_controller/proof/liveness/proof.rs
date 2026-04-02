@@ -758,16 +758,22 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
 }
 
 // Wrapper: universally quantify over vsts to get the full ESR theorem.
+// Takes per-id rely preconditions (matching composition trait interface)
+// and derives always(vsts_rely_conditions) internally.
 pub proof fn lemma_vsts_eventually_stable_reconciliation(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
 requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(next_with_wf(cluster, controller_id)),
-    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+        ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
     spec.entails(vsts_eventually_stable_reconciliation()),
 {
+    // Derive always(vsts_rely_conditions) from per-id rely conditions
+    vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(spec, cluster, controller_id);
+
     assert forall |vsts: VStatefulSetView| spec.entails(
         always(lift_state(#[trigger] Cluster::desired_state_is(vsts))).leads_to(
             always(lift_state(current_state_matches(vsts))))
