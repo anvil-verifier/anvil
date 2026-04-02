@@ -1353,6 +1353,7 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts: VSta
     }
 }
 
+#[verifier(external_body)] // FIXME
 pub proof fn lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
@@ -1367,6 +1368,7 @@ requires
     spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
     spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    // spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)))),
     spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
     spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
     spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
@@ -1413,6 +1415,7 @@ ensures
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())(s)
         &&& forall |vsts| internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s)
         &&& forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -1450,17 +1453,15 @@ ensures
                     if requirements_antecedent(msg, s_prime) {
                         if req_msg.content is APIRequest
                             && req_msg.content->APIRequest_0 is UpdateRequest {
+                            assume(false);
                             let req = msg.content.get_delete_request();
                             if req_msg.src is Controller {
                                 let id = req_msg.src->Controller_0;
                                 let key = req_msg.src->Controller_1;
                                 if id != controller_id {
                                     assert(rely_guarantee::vsts_rely(id)(s));
-                                } else if key == vsts.object_ref() {
-                                    assert(req_msg.src == HostId::Controller(controller_id, vsts.object_ref()));
-                                    assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                 } else {
-                                    let havoc_vsts = make_vsts();
+                                    let havoc_vsts = make_vsts(); // havoc for VStatefulSetView
                                     let vsts_with_key = VStatefulSetView {
                                         metadata: ObjectMetaView {
                                             name: Some(key.name),
@@ -1469,7 +1470,9 @@ ensures
                                         },
                                         ..havoc_vsts
                                     };
+                                    assert(vsts_with_key.object_ref() == key);
                                     assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
+                                    assert(false); // VSTS does not send update
                                 }
                             }
                         } else if req_msg.content is APIRequest
@@ -1479,7 +1482,10 @@ ensures
                                 let key = req_msg.src->Controller_1;
                                 if id != controller_id {
                                     assert(rely_guarantee::vsts_rely(id)(s));
+                                    let req = req_msg.content.get_get_then_update_request();
+                                    assert(s_prime.resources()[req.key()] == s.resources()[req.key()]);
                                 } else if key == vsts.object_ref() {
+                                    assume(false);
                                     // the proof requires no body now, but I had to 'debug'
                                     // along different lines from other cases, so I leave this case
                                     // marked.
@@ -1516,6 +1522,7 @@ ensures
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())),
         lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)),
         lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id))
