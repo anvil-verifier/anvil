@@ -152,7 +152,6 @@ ensures
 //      updated_object(req, old_obj) == old_obj, so spec is unchanged.
 // 4. API step from same controller for different rmq':
 //    - rmq_with_different_key_implies_request_with_different_key shows keys differ.
-#[verifier(external_body)]
 pub proof fn desired_state_is_vsts_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, rmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState
@@ -165,45 +164,66 @@ requires
     rmq_rely_conditions(cluster, controller_id)(s),
     cluster.next()(s, s_prime),
     resource_state_matches(SubResource::VStatefulSetView, rmq)(s),
-    cm_rv_stays_unchanged(rmq)(s, s_prime),
+
+    // The key invariant: any in-flight update with matching rv has the same spec as etcd
+    helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)(s),
 ensures
-    resource_state_matches(SubResource::VStatefulSetView, rmq)(s_prime),
-    vsts == VStatefulSetView::unmarshal(s_prime.resources()[make_stateful_set_key(rmq)])->Ok_0
+    Cluster::desired_state_is(vsts)(s),
+    Cluster::desired_state_is(vsts)(s_prime),
+    vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq)),
 {
     let sts_key = make_stateful_set_key(rmq);
     let etcd_sts = VStatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0;
 
+    // From resource_state_matches(VStatefulSetView, rmq)(s), we know:
+    //   - desired_state_is(etcd_sts)(s) holds
+    //   - etcd_sts.spec.template == make_stateful_set(rmq, int_to_string_view(cm_rv)).spec.template
+    //   - which means etcd_sts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq))
+    assert(Cluster::desired_state_is(etcd_sts)(s));
+
+    // Now show desired_state_is(etcd_sts)(s_prime) by case-splitting on the step
     let step = choose |step| cluster.next_step(s, s_prime, step);
     match step {
         Step::APIServerStep(input) => {
             let msg = input->0;
-            // Case 1: msg from another controller — rely condition blocks writes to rmq-managed kinds
-            // Case 2: msg from rmq controller for the same rmq
-            if msg.src == HostId::Controller(controller_id, rmq.object_ref()) {
-                // From every_resource_update_request_implies_at_after_update_resource_step:
-                // if msg is an update to sts_key, the controller is at AfterUpdate step,
-                // and the update obj == update(VStatefulSetView, rmq, ..., etcd_obj).
-                // Since resource_state_matches already holds, applying update again is idempotent.
-                assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(
-                    controller_id, SubResource::VStatefulSetView, rmq
-                )(s));
-                // After update, etcd obj spec is unchanged => desired_state_is preserved
-            } else if msg.src != HostId::Controller(controller_id, rmq.object_ref()) {
-                // Either from another controller (rely blocks it) or from same controller for different cr
-                // For different cr: rmq_with_different_key_implies_request_with_different_key
-                // shows the resource key differs, so sts_key is unchanged
-                lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
-                    s, s_prime, rmq, cluster, controller_id, SubResource::VStatefulSetView, msg
-                );
-                assert(s.resources()[sts_key] == s_prime.resources()[sts_key]);
+            // We need to show s_prime.resources()[sts_key] preserves the spec
+
+            // From rely conditions + no_delete + no_get_then, the only way sts_key can change
+            // is via a plain UpdateRequest to sts_key from this controller.
+            assert(!resource_delete_request_msg(sts_key)(msg));
+            assert(!resource_get_then_update_request_msg(sts_key)(msg));
+            assert(!resource_get_then_update_status_request_msg(sts_key)(msg));
+            assert(!resource_get_then_delete_request_msg(sts_key)(msg));
+            assert(!resource_update_status_request_msg(sts_key)(msg));
+
+            if resource_update_request_msg(sts_key)(msg)
+            && s.resources().contains_key(sts_key)
+            && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version {
+                // The update succeeds (rv matches).
+                // From vsts_spec_in_update_request_is_the_same_as_etcd_server:
+                //   msg.content.get_update_request().obj.spec == s.resources()[sts_key].spec
+                // So after the update, the new etcd object has the same spec.
+                // The API server sets s_prime.resources()[sts_key].spec = msg.obj.spec = s.resources()[sts_key].spec
+                // Therefore VStatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec() == etcd_sts.spec()
+                // And desired_state_is(etcd_sts)(s_prime) holds.
+                assert(helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)(s));
+            } else if resource_update_request_msg(sts_key)(msg) {
+                // Update targets sts_key but rv doesn't match => API server rejects, etcd unchanged.
+                // desired_state_is(etcd_sts)(s_prime) trivially holds.
+            } else {
+                // msg doesn't update sts_key.
+                // sts_key is unchanged: s_prime.resources()[sts_key] == s.resources()[sts_key].
+                lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, msg, sts_key);
             }
         },
         _ => {
-            // Non-API steps: resources unchanged
+            // Non-API steps don't change resources.
             assert(s_prime.resources() == s.resources());
         },
     }
-    VStatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0
+
+    // Return the etcd_sts which satisfies all three ensures clauses.
+    etcd_sts
 }
 
 }

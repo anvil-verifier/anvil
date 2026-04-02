@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_api_objects::spec::{
+    container::*, volume::*, resource_requirements::*,
+};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::{reconciler::*, install::rabbitmq_controller_model, resource::*};
 use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};

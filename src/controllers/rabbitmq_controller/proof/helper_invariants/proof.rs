@@ -119,7 +119,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
     leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
-#[verifier(external_body)]
+#[verifier(external_body)] // FIXME
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_etcd_server(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
@@ -191,20 +191,6 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
         spec, true_pred(), lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())),
         true_pred(), lift_state(inv)
     );
-    // Stability: inv(s) && next(s, s_prime) ==> inv(s_prime)
-    // For each msg in s_prime.in_flight() that is an update request for sts_key with matching rv:
-    //   Case 1: msg was in s.in_flight() with matching rv in s => msg.obj.spec == s.resources()[sts_key].spec
-    //     - If sts_key unchanged (non-update API step or non-API step): s_prime.resources()[sts_key] == s.resources()[sts_key], done
-    //     - If sts_key changed by API processing another update: rv changed, so msg's rv no longer matches => vacuously true
-    //   Case 2: msg is new (from ControllerStep issuing update)
-    //     - From every_resource_update_request_implies_at_after_update_resource_step(s_prime),
-    //       when rv matches: msg.obj == update(VStatefulSetView, rmq, state, s_prime.resources()[sts_key])->Ok_0
-    //     - update_stateful_set(rmq, found_sts, cm_rv) uses ..found_sts.spec for unchanged fields
-    //       and sets replicas/template/pvcrp from make_stateful_set(rmq, cm_rv)
-    //     - Since found_sts IS the current etcd VSTS, the unchanged fields trivially match
-    //     - For the three updated fields, we need them to already match etcd
-    //       (this is where resource_state_matches or a prior reconciliation round guarantees it)
-    //     - ControllerStep doesn't change resources, so s_prime.resources() == s.resources()
     assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg: Message| {
             &&& #[trigger] s_prime.in_flight().contains(msg)
@@ -224,9 +210,6 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
                         // After update, rv is bumped. So msg (if still in flight) now has stale rv.
                         // The new rv != old rv, so msg's rv != s_prime's rv => vacuously true.
                     } else if resource_update_request_msg(sts_key)(req_msg) {
-                        // Update request targets sts_key but rv doesn't match or key doesn't exist.
-                        // API server rejects, etcd unchanged for sts_key.
-                        // msg was in s.in_flight(), from inv(s): msg.obj.spec == s.resources()[sts_key].spec
                     } else {
                         // req_msg doesn't target sts_key for update.
                         // Check other request types are also blocked.
@@ -256,15 +239,6 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
                     if s.in_flight().contains(msg) {
                         // msg was already in flight, spec matched in s, resources unchanged
                     } else {
-                        // msg is newly added by controller
-                        // From every_resource_update_request_implies_at_after_update_resource_step(s_prime):
-                        //   msg.obj == update(VStatefulSetView, rmq, state, s.resources()[sts_key])->Ok_0
-                        //   = update_stateful_set(rmq, found_sts, cm_rv).marshal()
-                        // where found_sts = VStatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0
-                        // update_stateful_set uses ..found_sts.spec for unchanged fields
-                        // and sets replicas/template/pvcrp from make_stateful_set(rmq, cm_rv)
-                        // Since found_sts IS the current etcd VSTS, the marshalled spec should match
-                        // when replicas/template/pvcrp already equal what make_stateful_set would set.
                         RabbitmqReconcileState::marshal_preserves_integrity();
                     }
                 },
