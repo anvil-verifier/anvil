@@ -204,7 +204,19 @@ impl Composition for RabbitmqReconciler {
                                 assert(req.key.kind == Kind::PodKind);
                                 assert(!is_rmq_managed_kind(req.key.kind));
                             }
-                            _ => {}
+                            APIRequest::GetThenUpdateStatusRequest(req) => {
+                                assert(vrs_guarantee_get_then_update_status_req(req));
+                                assert(req.obj.kind == VReplicaSetView::kind());
+                                reveal_strlit("vreplicaset");
+                                reveal_strlit("vstatefulset");
+                                assert("vreplicaset"@.len() != "vstatefulset"@.len());
+                                assert(!is_rmq_managed_kind(req.obj.kind));
+                            }
+                            APIRequest::ListRequest(_) => {}
+                            _ => {
+                                // VRS guarantee says false for all other request types
+                                assert(false);
+                            }
                         }
                     };
                 };
@@ -275,11 +287,18 @@ impl Composition for RabbitmqReconciler {
                             APIRequest::CreateRequest(req) => {
                                 assert(vd_guarantee_create_req(req)(s));
                                 assert(req.obj.kind == VReplicaSetView::kind());
+                                // Prove VReplicaSetView::kind() != VStatefulSetView::kind()
+                                reveal_strlit("vreplicaset");
+                                reveal_strlit("vstatefulset");
+                                assert("vreplicaset"@.len() != "vstatefulset"@.len());
                                 assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenUpdateRequest(req) => {
                                 assert(vd_guarantee_get_then_update_req(req)(s));
                                 assert(req.obj.kind == VReplicaSetView::kind());
+                                reveal_strlit("vreplicaset");
+                                reveal_strlit("vstatefulset");
+                                assert("vreplicaset"@.len() != "vstatefulset"@.len());
                                 assert(!is_rmq_managed_kind(req.obj.kind));
                             }
                             APIRequest::GetThenDeleteRequest(req) => {
@@ -316,12 +335,17 @@ impl Composition for RabbitmqReconciler {
                             APIRequest::CreateRequest(req) => {
                                 assert(rmq_guarantee_create_req(req));
                                 assert(is_rmq_managed_kind(req.obj.kind));
-                                // VReplicaSetView::kind() is a custom resource kind, not rmq-managed
+                                reveal_strlit("vreplicaset");
+                                reveal_strlit("vstatefulset");
+                                assert("vreplicaset"@.len() != "vstatefulset"@.len());
                                 assert(req.obj.kind != VReplicaSetView::kind());
                             }
                             APIRequest::UpdateRequest(req) => {
                                 assert(rmq_guarantee_update_req(req));
                                 assert(is_rmq_managed_kind(req.obj.kind));
+                                reveal_strlit("vreplicaset");
+                                reveal_strlit("vstatefulset");
+                                assert("vreplicaset"@.len() != "vstatefulset"@.len());
                                 assert(req.obj.kind != VReplicaSetView::kind());
                             }
                             _ => {}
