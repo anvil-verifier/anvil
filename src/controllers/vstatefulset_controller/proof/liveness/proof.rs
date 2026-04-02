@@ -24,87 +24,31 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 verus! {
 
 #[verifier(external_body)]
-pub proof fn spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int, cluster: Cluster)
+pub proof fn spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int, cluster: Cluster)
     requires
         spec.entails(lift_state(cluster.init())),
-        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
         spec.entails(next_with_wf(cluster, controller_id)),
-        // The vsts type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        // The vsts controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-        // No other controllers interfere with the vsts controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))),
     ensures
-        spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))),
 {
     spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
+    assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
     
-    assume(spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
-
-    always_tla_forall_apply(
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())),
-        vsts
-    );
-    
-    // First prove leads_to for vsts_cluster_invariants_without_rely
-    combine_spec_entails_always_n!(
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        lift_state(vsts_cluster_invariants_without_rely(vsts, cluster, controller_id)),
-        lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(Cluster::etcd_objects_have_unique_uids()),
-        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
-        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)),
-        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)),
-        lift_state(Cluster::etcd_is_finite()),
-        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())),
-        lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)),
-        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(Cluster::desired_state_is(vsts)),
-        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
-        lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))
-    );
-
     entails_implies_leads_to(
         spec,
         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        always(lift_state(vsts_cluster_invariants_without_rely(vsts, cluster, controller_id)))
+        always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))
     );
 
     leads_to_trans(
         spec,
         always(lift_state(Cluster::desired_state_is(vsts))),
         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        always(lift_state(vsts_cluster_invariants_without_rely(vsts, cluster, controller_id)))
-    );
-
-    let p = always(lift_state(Cluster::desired_state_is(vsts)));
-    let q_without_rely = lift_state(vsts_cluster_invariants_without_rely(vsts, cluster, controller_id));
-    let q_rely = lift_state(vsts_rely_conditions(cluster, controller_id));
-    let q_full = lift_state(vsts_cluster_invariants(vsts, cluster, controller_id));
-
-    leads_to_always_enhance(
-        spec,
-        q_rely,
-        p,
-        q_without_rely,
-        q_full
+        always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))
     );
 }
 
@@ -731,11 +675,11 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     ensures
         spec.entails(vsts_eventually_stable_reconciliation_per_cr(vsts)),
 {
-
+    // spec2 = always(assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning)
+    // This gives us all the invariants we need in a single conjunction.
     let spec2 = always(
-        lift_state(vsts_cluster_invariants(vsts, cluster, controller_id))
-        .and(next_with_wf(cluster, controller_id))
-        .and(pending_request_invariants(cluster, controller_id))
+        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)
+        .and(derived_invariants_since_beginning(vsts, cluster, controller_id))
     );
 
     assert(terminate::vsts_terminate_invariants(spec2, vsts, cluster, controller_id)) by {
@@ -743,7 +687,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     }
 
     // Extract preconditions needed by reconcile_eventually_terminates from spec2.
-    // spec2 = always(vsts_cluster_invariants ∧ next_with_wf ∧ pending_request_invariants),
+    // spec2 contains assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning,
     // so these all hold but the solver needs help decomposing the conjunction.
     assume(spec2.entails(always(lift_action(cluster.next()))));
     assume(spec2.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
@@ -804,28 +748,28 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     // DON'T FIX FOR NOW
     assume(spec.entails(spec2.leads_to(always(lift_state(current_state_matches(vsts))))));
 
-    spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec, vsts, controller_id, cluster);
+    spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec, vsts, controller_id, cluster);
     let p = always(lift_state(Cluster::desired_state_is(vsts)));
-    next_with_wf_is_stable(cluster, controller_id);
-    assert(spec.entails(always(next_with_wf(cluster, controller_id)))) by {
-        assume(spec.entails(always(next_with_wf(cluster, controller_id))));
-    }
-    always_entails_leads_to_always(spec, p, next_with_wf(cluster, controller_id));
 
+    // spec leads_to always(assumption_and_invariants_of_all_phases) from the above lemma.
+    // We need to show spec leads_to always(spec2).
+    // Since derived_invariants_since_beginning is stable and derivable from spec:
     entails_trans(spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
+    spec_entails_all_invariants(spec, vsts, cluster, controller_id);
 
-    assert(spec.entails(always(pending_request_invariants(cluster, controller_id)))) by {
-        assume(spec.entails(always(pending_request_invariants(cluster, controller_id))));
-    }
-    always_entails_leads_to_always(spec, p, pending_request_invariants(cluster, controller_id));
+    // spec entails derived_invariants_since_beginning
+    assume(spec.entails(derived_invariants_since_beginning(vsts, cluster, controller_id)));
+    derived_invariants_since_beginning_is_stable(vsts, cluster, controller_id);
+    assume(spec.entails(always(derived_invariants_since_beginning(vsts, cluster, controller_id))));
 
+    // Combine: p leads_to always(assumption_and_invariants_of_all_phases)
+    //          and always(derived_invariants_since_beginning) holds
+    // => p leads_to always(assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning) = spec2
+    always_entails_leads_to_always(spec, p, derived_invariants_since_beginning(vsts, cluster, controller_id));
     leads_to_always_combine(spec, p,
-        lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)),
-        next_with_wf(cluster, controller_id));
-    leads_to_always_combine(spec, p,
-        lift_state(vsts_cluster_invariants(vsts, cluster, controller_id)).and(next_with_wf(cluster, controller_id)),
-        pending_request_invariants(cluster, controller_id));
-    
+        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
+        derived_invariants_since_beginning(vsts, cluster, controller_id));
+
     leads_to_trans(spec, p, spec2, always(lift_state(current_state_matches(vsts))));
 }
 }
