@@ -6,6 +6,7 @@ use crate::vstatefulset_controller::{
     trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*},
 };
 use vstd::prelude::*;
+use crate::vstd_ext::string_view::StringView;
 
 verus !{
 
@@ -59,6 +60,10 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             &&& s.resources().contains_key(key)
         }
     }
+}
+
+pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
+    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(parent_name, ordinal)
 }
 
 // TODO: compare other fields of the pod if necessary

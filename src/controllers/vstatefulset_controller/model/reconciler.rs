@@ -1,6 +1,8 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::spec::{io::*, reconciler::*};
-use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, liveness_theorem::pod_spec_matches};
+use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, liveness_theorem::{
+    pod_spec_matches, pod_name
+}};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -601,10 +603,6 @@ pub open spec fn objects_to_pods(objs: Seq<DynamicObjectView>) -> Option<Seq<Pod
 
 pub open spec fn pod_name_without_vsts_prefix(parent_name: StringView, ordinal: nat) -> StringView {
     parent_name + "-"@ + int_to_string_view(ordinal as int)
-}
-
-pub open spec fn pod_name(parent_name: StringView, ordinal: nat) -> StringView {
-    VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + pod_name_without_vsts_prefix(parent_name, ordinal)
 }
 
 pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool {

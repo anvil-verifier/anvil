@@ -1456,7 +1456,7 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
 
 pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
     ensures
-        result@ == model_reconciler::pod_name(parent_name@, ordinal as nat),
+        result@ == liveness_theorem::pod_name(parent_name@, ordinal as nat),
 {
     // we don't have executable CustomResource kind, hardcoded as a temporary solution
     let prefix = "vstatefulset".to_string().concat("-"); // "vstatefulset-" fails proof

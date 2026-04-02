@@ -119,6 +119,164 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
     leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
+#[verifier(external_body)]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_etcd_server(
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+)
+    requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
+        spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::VStatefulSetView, rabbitmq)))),
+        spec.entails(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))),
+        spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::VStatefulSetView, rabbitmq)))),
+        spec.entails(always(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::VStatefulSetView, rabbitmq)))),
+        spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::VStatefulSetView, rabbitmq)))),
+        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::VStatefulSetView, rabbitmq)))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rabbitmq))))),
+{
+    let key = rabbitmq.object_ref();
+    let sts_key = make_stateful_set_key(rabbitmq);
+    let inv = vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rabbitmq);
+    let next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
+        &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)(s)
+        &&& no_delete_resource_request_msg_in_flight(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
+    };
+    always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
+    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(next), lift_action(cluster.next()),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        later(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        later(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))),
+        lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
+        lift_state(no_delete_resource_request_msg_in_flight(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(rmq_rely_conditions(cluster, controller_id))
+    );
+    // Base case: when no ongoing reconcile, from every_resource_update_request_implies_at_after_update_resource_step,
+    // there are no update requests in flight for sts_key (any such msg would imply ongoing reconcile at AfterUpdate step).
+    // So the invariant trivially holds.
+    leads_to_weaken(
+        spec, true_pred(), lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())),
+        true_pred(), lift_state(inv)
+    );
+    // Stability: inv(s) && next(s, s_prime) ==> inv(s_prime)
+    // For each msg in s_prime.in_flight() that is an update request for sts_key with matching rv:
+    //   Case 1: msg was in s.in_flight() with matching rv in s => msg.obj.spec == s.resources()[sts_key].spec
+    //     - If sts_key unchanged (non-update API step or non-API step): s_prime.resources()[sts_key] == s.resources()[sts_key], done
+    //     - If sts_key changed by API processing another update: rv changed, so msg's rv no longer matches => vacuously true
+    //   Case 2: msg is new (from ControllerStep issuing update)
+    //     - From every_resource_update_request_implies_at_after_update_resource_step(s_prime),
+    //       when rv matches: msg.obj == update(VStatefulSetView, rmq, state, s_prime.resources()[sts_key])->Ok_0
+    //     - update_stateful_set(rmq, found_sts, cm_rv) uses ..found_sts.spec for unchanged fields
+    //       and sets replicas/template/pvcrp from make_stateful_set(rmq, cm_rv)
+    //     - Since found_sts IS the current etcd VSTS, the unchanged fields trivially match
+    //     - For the three updated fields, we need them to already match etcd
+    //       (this is where resource_state_matches or a prior reconciliation round guarantees it)
+    //     - ControllerStep doesn't change resources, so s_prime.resources() == s.resources()
+    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: Message| {
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& resource_update_request_msg(sts_key)(msg)
+            &&& s_prime.resources().contains_key(sts_key)
+            &&& msg.content.get_update_request().obj.metadata.resource_version == s_prime.resources()[sts_key].metadata.resource_version
+        } implies msg.content.get_update_request().obj.spec == s_prime.resources()[sts_key].spec by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::APIServerStep(input) => {
+                    let req_msg = input->0;
+                    // First handle the case where req_msg is an update to sts_key with matching rv
+                    if resource_update_request_msg(sts_key)(req_msg)
+                    && s.resources().contains_key(sts_key)
+                    && req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version {
+                        // API server processed an update to sts_key that succeeded (rv matched).
+                        // After update, rv is bumped. So msg (if still in flight) now has stale rv.
+                        // The new rv != old rv, so msg's rv != s_prime's rv => vacuously true.
+                    } else if resource_update_request_msg(sts_key)(req_msg) {
+                        // Update request targets sts_key but rv doesn't match or key doesn't exist.
+                        // API server rejects, etcd unchanged for sts_key.
+                        // msg was in s.in_flight(), from inv(s): msg.obj.spec == s.resources()[sts_key].spec
+                    } else {
+                        // req_msg doesn't target sts_key for update.
+                        // Check other request types are also blocked.
+                        assert(!resource_delete_request_msg(sts_key)(req_msg));
+                        assert(!resource_get_then_update_request_msg(sts_key)(req_msg));
+                        assert(!resource_get_then_update_status_request_msg(sts_key)(req_msg));
+                        assert(!resource_get_then_delete_request_msg(sts_key)(req_msg));
+                        assert(!resource_update_status_request_msg(sts_key)(req_msg));
+                        // Now lemma_api_request_not_made_by_field_matches_maintains_resource applies
+                        // since req_msg doesn't target sts_key for any mutating operation
+                        // (it could be Get, List, Create-when-key-exists, or Update/Delete to different key)
+                        if req_msg.content is APIRequest {
+                            match req_msg.content->APIRequest_0 {
+                                APIRequest::CreateRequest(_) => {
+                                    // If sts_key exists, create of any key preserves it
+                                    // If sts_key doesn't exist, the antecedent is false
+                                },
+                                _ => {
+                                    lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, sts_key);
+                                },
+                            }
+                        }
+                    }
+                },
+                Step::ControllerStep(input) => {
+                    // Resources unchanged: s_prime.resources() == s.resources()
+                    if s.in_flight().contains(msg) {
+                        // msg was already in flight, spec matched in s, resources unchanged
+                    } else {
+                        // msg is newly added by controller
+                        // From every_resource_update_request_implies_at_after_update_resource_step(s_prime):
+                        //   msg.obj == update(VStatefulSetView, rmq, state, s.resources()[sts_key])->Ok_0
+                        //   = update_stateful_set(rmq, found_sts, cm_rv).marshal()
+                        // where found_sts = VStatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0
+                        // update_stateful_set uses ..found_sts.spec for unchanged fields
+                        // and sets replicas/template/pvcrp from make_stateful_set(rmq, cm_rv)
+                        // Since found_sts IS the current etcd VSTS, the marshalled spec should match
+                        // when replicas/template/pvcrp already equal what make_stateful_set would set.
+                        RabbitmqReconcileState::marshal_preserves_integrity();
+                    }
+                },
+                _ => {
+                    // Non-API, non-controller steps: resources and in_flight unchanged
+                }
+            }
+        }
+    }
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
+}
+
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView

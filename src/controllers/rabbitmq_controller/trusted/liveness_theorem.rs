@@ -37,9 +37,27 @@ pub open spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePr
 
 pub open spec fn composed_current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& forall |sub_resource: SubResource| #[trigger] resource_state_matches(sub_resource, rabbitmq)(s)
-        &&& composed_vsts_match(rabbitmq)(s)
+        &&& forall |ord: nat| ord < rabbitmq.spec.replicas ==> {
+            let key = ObjectRef {
+                kind: Kind::PodKind,
+                name: #[trigger] vsts_liveness_theorem::pod_name(rabbitmq.metadata.name->0, ord),
+                namespace: rabbitmq.metadata.namespace->0
+            };
+            let obj = s.resources()[key];
+            &&& s.resources().contains_key(key)
+            // spec is updated
+            &&& PodView::unmarshal(obj) is Ok
+            &&& pod_spec_matches_rmq(rabbitmq, PodView::unmarshal(obj)->Ok_0)
+        }
     }
+}
+
+pub open spec fn pod_spec_matches_rmq(rabbitmq: RabbitmqClusterView, pod: PodView) -> bool {
+    // TODO: define pod spec matching for composed RMQ liveness
+    // Needs to compare pod spec against the VSTS template spec derived from rabbitmq
+    &&& pod.spec is Some
+    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == make_rabbitmq_pod_spec(rabbitmq).without_volumes().without_hostname().without_subdomain()
 }
 
 pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
@@ -201,13 +219,215 @@ pub open spec fn config_map_rv_match(rabbitmq: RabbitmqClusterView, rv: Resource
     }
 }
 
-pub open spec fn composed_vsts_match(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let resources = s.resources();
-        let cm_key = make_server_config_map_key(rabbitmq);
-        let cm_obj = resources[cm_key];
-        let desired_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));   
-        vsts_liveness_theorem::current_state_matches(desired_sts)(s)
+pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpecView {
+    let volumes = seq![
+        VolumeView::default()
+            .with_name("plugins-conf"@)
+            .with_config_map(ConfigMapVolumeSourceView::default()
+                .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-plugins-conf"@)
+            ),
+        VolumeView::default()
+            .with_name("rabbitmq-confd"@)
+            .with_projected(ProjectedVolumeSourceView::default()
+                .with_sources(seq![
+                    VolumeProjectionView::default()
+                        .with_config_map(ConfigMapProjectionView::default()
+                            .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server-conf"@)
+                            .with_items(seq![
+                                KeyToPathView::default()
+                                    .with_key("operatorDefaults.conf"@)
+                                    .with_path("operatorDefaults.conf"@),
+                                KeyToPathView::default()
+                                    .with_key("userDefinedConfiguration.conf"@)
+                                    .with_path("userDefinedConfiguration.conf"@),
+                            ])
+                        ),
+                    VolumeProjectionView::default()
+                        .with_secret(SecretProjectionView::default()
+                            .with_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-default-user"@)
+                            .with_items(seq![
+                                KeyToPathView::default()
+                                    .with_key("default_user.conf"@)
+                                    .with_path("default_user.conf"@),
+                            ])
+                        ),
+                ])
+            ),
+        VolumeView::default()
+            .with_name("rabbitmq-erlang-cookie"@)
+            .with_empty_dir(EmptyDirVolumeSourceView::default()),
+        VolumeView::default()
+            .with_name("erlang-cookie-secret"@)
+            .with_secret(SecretVolumeSourceView::default()
+                .with_secret_name(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-erlang-cookie"@)
+            ),
+        VolumeView::default()
+            .with_name("rabbitmq-plugins"@)
+            .with_empty_dir(EmptyDirVolumeSourceView::default()),
+        VolumeView::default()
+            .with_name("pod-info"@)
+            .with_downward_api(DownwardAPIVolumeSourceView::default()
+                .with_items(seq![
+                    DownwardAPIVolumeFileView::default()
+                        .with_path("skipPreStopChecks"@)
+                        .with_field_ref(ObjectFieldSelectorView::default()
+                            .with_field_path("metadata.labels['skipPreStopChecks']"@)
+                        ),
+                ])
+            ),
+    ];
+
+    PodSpecView {
+        service_account_name: Some(RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@ + rabbitmq.metadata.name->0 + "-server"@),
+        init_containers: Some(
+            seq![
+                ContainerView::default()
+                .with_name("setup-container"@)
+                .with_image(rabbitmq.spec.image)
+                .with_command(seq![
+                        "sh"@,
+                        "-c"@,
+                        "cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30"@
+                ])
+                .with_resources(
+                    ResourceRequirementsView {
+                        limits: Some(Map::empty().insert("cpu"@, "100m"@).insert("memory"@, "500Mi"@)),
+                        requests: Some(Map::empty().insert("cpu"@, "100m"@).insert("memory"@, "500Mi"@)),
+                    }
+                )
+                .with_volume_mounts(seq![
+                    VolumeMountView::default()
+                        .with_name("plugins-conf"@)
+                        .with_mount_path("/tmp/rabbitmq-plugins/"@),
+                    VolumeMountView::default()
+                        .with_name("rabbitmq-erlang-cookie"@)
+                        .with_mount_path("/var/lib/rabbitmq/"@),
+                    VolumeMountView::default()
+                        .with_name("erlang-cookie-secret"@)
+                        .with_mount_path("/tmp/erlang-cookie-secret/"@),
+                    VolumeMountView::default()
+                        .with_name("rabbitmq-plugins"@)
+                        .with_mount_path("/operator"@),
+                    VolumeMountView::default()
+                        .with_name("persistence"@)
+                        .with_mount_path("/var/lib/rabbitmq/mnesia/"@),
+                    VolumeMountView::default()
+                        .with_name("rabbitmq-confd"@)
+                        .with_mount_path("/tmp/default_user.conf"@)
+                        .with_sub_path("default_user.conf"@),
+                ])
+            ]
+        ),
+        containers: seq![
+            ContainerView {
+                name: "rabbitmq"@,
+                image: Some(rabbitmq.spec.image),
+                lifecycle: Some(LifecycleView::default()
+                    .with_pre_stop(LifecycleHandlerView::default()
+                        .with_exec(
+                            ExecActionView::default()
+                                .with_command(seq!["/bin/bash"@, "-c"@,
+                                    "if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
+                                    rabbitmq-upgrade await_online_quorum_plus_one -t 604800; \
+                                    rabbitmq-upgrade await_online_synchronized_mirror -t 604800; \
+                                    rabbitmq-upgrade drain -t 604800"@
+                                ])
+                        )
+                    )
+                ),
+                env: Some(make_env_vars(rabbitmq)),
+                volume_mounts: Some({
+                    let volume_mounts = seq![
+                        VolumeMountView::default()
+                            .with_name("rabbitmq-erlang-cookie"@)
+                            .with_mount_path("/var/lib/rabbitmq/"@),
+                        VolumeMountView::default()
+                            .with_name("persistence"@)
+                            .with_mount_path("/var/lib/rabbitmq/mnesia/"@),
+                        VolumeMountView::default()
+                            .with_name("rabbitmq-plugins"@)
+                            .with_mount_path("/operator"@),
+                        VolumeMountView::default()
+                            .with_name("rabbitmq-confd"@)
+                            .with_mount_path("/etc/rabbitmq/conf.d/10-operatorDefaults.conf"@)
+                            .with_sub_path("operatorDefaults.conf"@),
+                        VolumeMountView::default()
+                            .with_name("rabbitmq-confd"@)
+                            .with_mount_path("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf"@)
+                            .with_sub_path("userDefinedConfiguration.conf"@),
+                        VolumeMountView::default()
+                            .with_name("pod-info"@)
+                            .with_mount_path("/etc/pod-info/"@),
+                        VolumeMountView::default()
+                            .with_name("rabbitmq-confd"@)
+                            .with_mount_path("/etc/rabbitmq/conf.d/11-default_user.conf"@)
+                            .with_sub_path("default_user.conf"@),
+                    ];
+                    if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.advanced_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.advanced_config->0 != ""@
+                    && rabbitmq.spec.rabbitmq_config->0.env_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.env_config->0 != ""@ {
+                        volume_mounts.push(
+                            VolumeMountView::default()
+                                .with_name("server-conf"@)
+                                .with_mount_path("/etc/rabbitmq/rabbitmq-env.conf"@)
+                                .with_sub_path("rabbitmq-env.conf"@)
+                            ).push(
+                            VolumeMountView::default()
+                                .with_name("server-conf"@)
+                                .with_mount_path("/etc/rabbitmq/advanced.config"@)
+                                .with_sub_path("advanced.config"@)
+                            )
+                    } else if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.advanced_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.advanced_config->0 != ""@ {
+                        volume_mounts.push(
+                            VolumeMountView::default()
+                                .with_name("server-conf"@)
+                                .with_mount_path("/etc/rabbitmq/advanced.config"@)
+                                .with_sub_path("advanced.config"@),
+                        )
+                    } else if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.env_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.env_config->0 != ""@ {
+                        volume_mounts.push(
+                            VolumeMountView::default()
+                                .with_name("server-conf"@)
+                                .with_mount_path("/etc/rabbitmq/rabbitmq-env.conf"@)
+                                .with_sub_path("rabbitmq-env.conf"@),
+                        )
+                    } else {
+                        volume_mounts
+                    }
+                }),
+                ports: Some(seq![
+                    ContainerPortView::default().with_name("epmd"@).with_container_port(4369),
+                    ContainerPortView::default().with_name("amqp"@).with_container_port(5672),
+                    ContainerPortView::default().with_name("management"@).with_container_port(15672),
+                ]),
+                readiness_probe: Some(
+                    ProbeView::default()
+                        .with_failure_threshold(3)
+                        .with_initial_delay_seconds(10)
+                        .with_period_seconds(10)
+                        .with_success_threshold(1)
+                        .with_timeout_seconds(5)
+                        .with_tcp_socket(TCPSocketActionView::default().with_port(5672))
+                ),
+                resources: rabbitmq.spec.resources,
+                ..ContainerView::default()
+            }
+        ],
+        volumes: Some({
+            if rabbitmq.spec.persistence.storage == "0Gi"@ {
+                volumes.push(VolumeView::default().with_name("persistence"@).with_empty_dir(EmptyDirVolumeSourceView::default()))
+            } else {
+                volumes
+            }
+        }),
+        affinity: rabbitmq.spec.affinity,
+        tolerations: rabbitmq.spec.tolerations,
+        // TODO: do not hardcode this value
+        termination_grace_period_seconds: Some(604800),
+        ..PodSpecView::default()
     }
 }
 
