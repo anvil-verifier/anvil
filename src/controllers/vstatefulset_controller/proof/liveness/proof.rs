@@ -675,84 +675,77 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     ensures
         spec.entails(vsts_eventually_stable_reconciliation_per_cr(vsts)),
 {
-    // spec2 = always(assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning)
+    // stable_spec = always(assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning)
     // This gives us all the invariants we need in a single conjunction.
-    let spec2 = always(
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)
-        .and(derived_invariants_since_beginning(vsts, cluster, controller_id))
-    );
+    let stable_spec = assumption_and_invariants_of_all_phases(vsts, cluster, controller_id);
 
-    assert(terminate::vsts_terminate_invariants(spec2, vsts, cluster, controller_id)) by {
-        assume(terminate::vsts_terminate_invariants(spec2, vsts, cluster, controller_id));
-    }
-
-    // Extract preconditions needed by reconcile_eventually_terminates from spec2.
-    // spec2 contains assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning,
+    // Extract preconditions needed by reconcile_eventually_terminates from stable_spec.
+    // stable_spec contains assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning,
     // so these all hold but the solver needs help decomposing the conjunction.
-    assume(spec2.entails(always(lift_action(cluster.next()))));
-    assume(spec2.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
-    assume(spec2.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))));
-    assume(spec2.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))));
-    assume(spec2.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))));
-    assume(spec2.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))));
-    assume(spec2.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))));
-    assume(spec2.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))));
-    assume(spec2.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
-    assume(spec2.entails(always(lift_state(Cluster::req_drop_disabled()))));
-    assume(spec2.entails(always(lift_state(Cluster::pod_monkey_disabled()))));
-    assume(spec2.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))));
-    assume(spec2.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))));
-    assume(spec2.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))));
-    assume(spec2.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))));
-    assume(spec2.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))));
-    assume(spec2.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))))));
-    assume(spec2.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))));
+    assume(stable_spec.entails(always(lift_action(cluster.next()))));
+    assume(stable_spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
+    assume(stable_spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))));
+    assume(stable_spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))));
+    assume(stable_spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))));
+    assume(stable_spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))));
+    assume(stable_spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))));
+    assume(stable_spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))));
+    assume(stable_spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
+    assume(stable_spec.entails(always(lift_state(Cluster::req_drop_disabled()))));
+    assume(stable_spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))));
+    assume(stable_spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))));
+    assume(stable_spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))));
+    assume(stable_spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))));
+    assume(stable_spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))));
+    assume(stable_spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))));
+    assume(stable_spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))))));
+    assume(stable_spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))));
 
-    terminate::reconcile_eventually_terminates(spec2, cluster, controller_id);
+    terminate::reconcile_eventually_terminates(stable_spec, cluster, controller_id);
 
-    assert(spec2.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))))) by {
-        assume(spec2.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))));
+    assert(stable_spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))))) by {
+        assume(stable_spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))));
     }
-    assume(spec2.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))));
-    assume(spec2.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
-    assume(spec2.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
-    assume(spec2.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))));
-    assume(spec2.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))));
-    assume(spec2.entails(always(lift_action(cluster.next()))));
-    resource_match::lemma_spec_entails_reconcile_idle_leads_to_inductive_current_state_matches(vsts, spec2, cluster, controller_id);
-    leads_to_trans_n!(spec2, 
+    assume(stable_spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))));
+    assume(stable_spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
+    assume(stable_spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))));
+    assume(stable_spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))));
+    assume(stable_spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))));
+    assume(stable_spec.entails(always(lift_action(cluster.next()))));
+    resource_match::lemma_spec_entails_reconcile_idle_leads_to_inductive_current_state_matches(vsts, stable_spec, cluster, controller_id);
+    leads_to_trans_n!(stable_spec, 
         true_pred(), 
         lift_state(reconcile_idle(vsts, controller_id)), 
         lift_state(inductive_current_state_matches(vsts, controller_id))
     );
-    resource_match::lemma_inductive_current_state_matches_to_current_state_matches(spec2, vsts, cluster, controller_id);
-    assert(spec2.entails(true_pred().leads_to(always(lift_state(current_state_matches(vsts))))));
+    resource_match::lemma_inductive_current_state_matches_to_current_state_matches(stable_spec, vsts, cluster, controller_id);
+    assert(stable_spec.entails(true_pred().leads_to(always(lift_state(current_state_matches(vsts))))));
     
     // DON'T FIX FOR NOW
-    assume(spec.entails(spec2.leads_to(always(lift_state(current_state_matches(vsts))))));
+    assume(spec.entails(stable_spec.leads_to(always(lift_state(current_state_matches(vsts))))));
 
     spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec, vsts, controller_id, cluster);
     let p = always(lift_state(Cluster::desired_state_is(vsts)));
 
     // spec leads_to always(assumption_and_invariants_of_all_phases) from the above lemma.
-    // We need to show spec leads_to always(spec2).
+    // We need to show spec leads_to always(stable_spec).
     // Since derived_invariants_since_beginning is stable and derivable from spec:
     entails_trans(spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
     spec_entails_all_invariants(spec, vsts, cluster, controller_id);
@@ -764,12 +757,12 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
 
     // Combine: p leads_to always(assumption_and_invariants_of_all_phases)
     //          and always(derived_invariants_since_beginning) holds
-    // => p leads_to always(assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning) = spec2
+    // => p leads_to always(assumption_and_invariants_of_all_phases ∧ derived_invariants_since_beginning) = stable_spec
     always_entails_leads_to_always(spec, p, derived_invariants_since_beginning(vsts, cluster, controller_id));
     leads_to_always_combine(spec, p,
         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
         derived_invariants_since_beginning(vsts, cluster, controller_id));
 
-    leads_to_trans(spec, p, spec2, always(lift_state(current_state_matches(vsts))));
+    leads_to_trans(spec, p, stable_spec, always(lift_state(current_state_matches(vsts))));
 }
 }
