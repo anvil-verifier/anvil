@@ -19,7 +19,7 @@ CONTROLLER_DIR = {
 
 
 def empty_row():
-    """6-column row: trusted_spec, trusted_unverified, exec, model, proof_guarantee, core_esr"""
+    """7-column row: trusted_spec, trusted_unverified, exec, model, proof_guarantee, core_esr, conformance_proof"""
     return {
         "trusted_spec": 0,
         "trusted_unverified": 0,
@@ -27,6 +27,7 @@ def empty_row():
         "model": 0,
         "proof_guarantee": 0,
         "core_esr": 0,
+        "conformance_proof": 0,
     }
 
 
@@ -138,6 +139,7 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 row["exec"] += exec_lines(stripped_cols)
                 # conformance proofs go to model
                 row["model"] += proof_lines(stripped_cols)
+                row["conformance_proof"] += int(stripped_cols[PROOF_COL])
 
             # --- model: models in controller path ---
             elif "/model" in fname:
