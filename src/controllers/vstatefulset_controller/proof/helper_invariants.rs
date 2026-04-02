@@ -992,7 +992,7 @@ ensures
     );
 }
 
-pub proof fn lemma_eventually_always_all_objects_only_have_vsts_owner_references(
+pub proof fn lemma_eventually_always_all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -1358,11 +1358,18 @@ pub proof fn lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vs
 )
 requires
     spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
     spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
     spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
     spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-    spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))),
-    spec.entails(always(lift_state(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)))),
+    spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+    spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
@@ -1397,9 +1404,19 @@ ensures
     };
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
-        &&& all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())(s)
+        &&& forall |vsts| internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s)
+        &&& forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] rely_guarantee::vsts_rely(other_id)(s)
     };
     assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
@@ -1438,19 +1455,19 @@ ensures
                                 let id = req_msg.src->Controller_0;
                                 let key = req_msg.src->Controller_1;
                                 if id != controller_id {
-                                    assert(rely_guarantee::vsts_rely(id)(s_prime));
+                                    assert(rely_guarantee::vsts_rely(id)(s));
                                 } else if key == vsts.object_ref() {
                                     assert(req_msg.src == HostId::Controller(controller_id, vsts.object_ref()));
                                     assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts)(s));
                                 } else {
-                                    let havoc_vd = make_vsts();
+                                    let havoc_vsts = make_vsts();
                                     let vsts_with_key = VStatefulSetView {
                                         metadata: ObjectMetaView {
                                             name: Some(key.name),
                                             namespace: Some(key.namespace),
-                                            ..havoc_vd.metadata
+                                            ..havoc_vsts.metadata
                                         },
-                                        ..havoc_vd
+                                        ..havoc_vsts
                                     };
                                     assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                 }
@@ -1461,20 +1478,20 @@ ensures
                                 let id = req_msg.src->Controller_0;
                                 let key = req_msg.src->Controller_1;
                                 if id != controller_id {
-                                    assert(rely_guarantee::vsts_rely(id)(s_prime));
+                                    assert(rely_guarantee::vsts_rely(id)(s));
                                 } else if key == vsts.object_ref() {
                                     // the proof requires no body now, but I had to 'debug'
                                     // along different lines from other cases, so I leave this case
                                     // marked.
                                 } else {
-                                    let havoc_vd = make_vsts(); // havoc for VStatefulSetView
+                                    let havoc_vsts = make_vsts(); // havoc for VStatefulSetView
                                     let vsts_with_key = VStatefulSetView {
                                         metadata: ObjectMetaView {
                                             name: Some(key.name),
                                             namespace: Some(key.namespace),
-                                            ..havoc_vd.metadata
+                                            ..havoc_vsts.metadata
                                         },
-                                        ..havoc_vd
+                                        ..havoc_vsts
                                     };
                                     assert(internal_rely_guarantee::no_interfering_request_between_vsts(controller_id, vsts_with_key)(s));
                                 }
@@ -1490,9 +1507,18 @@ ensures
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(cluster.next()),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::desired_state_is(vsts)),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))
+        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())),
+        lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)),
+        lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id))
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
     temp_pred_equality(
