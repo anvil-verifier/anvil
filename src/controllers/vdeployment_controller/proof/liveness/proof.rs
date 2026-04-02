@@ -9,7 +9,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
 use crate::vdeployment_controller::proof::helper_invariants;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::trusted::{spec_types::*, liveness_theorem as vrs_liveness};
 use vstd::{prelude::*, multiset::*};
 
 verus! {
@@ -639,6 +639,61 @@ ensures
             assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
         }
     }
+}
+
+// Wrapper: takes per-id rely conditions (matching composition trait interface),
+// derives always(lifted_vd_rely_condition) and always(lifted_vd_reconcile_request_only_interferes_with_itself) internally,
+// calls the per-CR proof and rolling update composition,
+// and universally quantifies over vd to produce the full composed ESR.
+pub proof fn lemma_vd_composed_eventually_stable_reconciliation(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(next_with_wf(cluster, controller_id)),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
+        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+        spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
+    ensures
+        spec.entails(composed_vd_eventually_stable_reconciliation()),
+{
+    // Derive always(lifted_vd_rely_condition)
+    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
+
+    // Extract always(lift_action(cluster.next())) from next_with_wf
+    entails_trans(spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
+
+    // Derive always(lifted_vd_reconcile_request_only_interferes_with_itself)
+    assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))) by {
+        assert forall |vd| #[trigger] spec.entails(always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))) by {
+            helper_invariants::lemma_always_vd_reconcile_request_only_interferes_with_itself(spec, cluster, controller_id, vd);
+        }
+        spec_entails_tla_forall(spec, |vd| always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
+        spec_entails_always_tla_forall_equality(spec, |vd| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)));
+        only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself(spec, cluster, controller_id);
+    }
+
+    assert forall |vd: VDeploymentView| #[trigger] spec.entails(
+        always(lift_state(desired_state_is(vd))).leads_to(
+            always(lift_state(composed_current_state_matches(vd))))
+    ) by {
+        // Per-CR ESR proof
+        eventually_stable_reconciliation_holds_per_cr(spec, vd, cluster, controller_id);
+        // Composition with VRS ESR via rolling update
+        spec_entails_always_cluster_invariants_since_reconciliation_holds_pre_cr(spec, vd, controller_id, cluster);
+        spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vd, cluster, controller_id);
+        rolling_update_leads_to_composed_current_state_matches_vd(spec, vd, controller_id, cluster);
+    }
+    spec_entails_tla_forall(spec, |vd: VDeploymentView|
+        always(lift_state(desired_state_is(vd))).leads_to(
+            always(lift_state(composed_current_state_matches(vd)))));
+    tla_forall_p_tla_forall_q_equality(
+        |vd: VDeploymentView| composed_vd_eventually_stable_reconciliation_per_cr()(vd),
+        |vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))
+    );
 }
 
 }
