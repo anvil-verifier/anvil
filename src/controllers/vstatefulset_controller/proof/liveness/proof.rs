@@ -756,4 +756,30 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     // ============================================================
     leads_to_trans(spec, p, stable_spec, always_csm);
 }
+
+// Wrapper: universally quantify over vsts to get the full ESR theorem.
+pub proof fn lemma_vsts_eventually_stable_reconciliation(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(next_with_wf(cluster, controller_id)),
+    spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(vsts_eventually_stable_reconciliation()),
+{
+    assert forall |vsts: VStatefulSetView| spec.entails(
+        always(lift_state(#[trigger] Cluster::desired_state_is(vsts))).leads_to(
+            always(lift_state(current_state_matches(vsts))))
+    ) by {
+        eventually_stable_reconciliation_holds_per_cr(spec, vsts, cluster, controller_id);
+    }
+    spec_entails_tla_forall(spec, |vsts: VStatefulSetView|
+        always(lift_state(Cluster::desired_state_is(vsts))).leads_to(
+            always(lift_state(current_state_matches(vsts)))));
+    tla_forall_p_tla_forall_q_equality(
+        |vsts: VStatefulSetView| vsts_eventually_stable_reconciliation_per_cr(vsts),
+        |vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches(vsts))))
+    );
+}
 }

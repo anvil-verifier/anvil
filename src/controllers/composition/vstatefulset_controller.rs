@@ -17,7 +17,8 @@ use crate::vstatefulset_controller::model::{
     reconciler::*, install::*
 };
 use crate::vstatefulset_controller::proof::{
-    guarantee::*, liveness::spec::*
+    guarantee::*, liveness::spec::*,
+    liveness::proof::lemma_vsts_eventually_stable_reconciliation,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -186,7 +187,25 @@ impl HorizontalComposition for VStatefulSetReconciler {
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
-        assume(false);
+        // Derive spec |= always(vsts_rely_conditions(cluster, Self::id()))
+        // from: forall |other_id| cluster.controller_models.remove(Self::id()).contains_key(other_id)
+        //       ==> spec.entails(always(lift_state(vsts_rely(other_id))))
+        assert(spec.entails(always(lift_state(vsts_rely_conditions(cluster, Self::id()))))) by {
+            assert forall |ex| #[trigger] spec.satisfied_by(ex)
+                implies always(lift_state(vsts_rely_conditions(cluster, Self::id()))).satisfied_by(ex) by {
+                assert forall |i: nat| #[trigger] lift_state(vsts_rely_conditions(cluster, Self::id())).satisfied_by(ex.suffix(i)) by {
+                    assert forall |other_id: int|
+                        #[trigger] cluster.controller_models.remove(Self::id()).contains_key(other_id)
+                        implies vsts_rely(other_id)(ex.suffix(i).head()) by {
+                        // From the precondition: spec |= always(lift_state(vsts_rely(other_id)))
+                        // So for every execution satisfying spec, at every suffix, vsts_rely(other_id) holds
+                        assert(spec.entails(always(lift_state(vsts_rely(other_id)))));
+                        entails_apply(ex, spec, always(lift_state(vsts_rely(other_id))));
+                    }
+                }
+            }
+        }
+        lemma_vsts_eventually_stable_reconciliation(spec, cluster, Self::id());
     }
 }
 
