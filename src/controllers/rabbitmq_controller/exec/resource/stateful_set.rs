@@ -11,7 +11,6 @@ use crate::rabbitmq_controller::trusted::exec_types::*;
 use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::vstatefulset_controller::trusted::exec_types::*;
-use crate::rabbitmq_controller::trusted::liveness_theorem;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -271,7 +270,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace is Some,
-    ensures pod_spec@ == liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@),
+    ensures pod_spec@ == model_resource::make_rabbitmq_pod_spec(rabbitmq@),
 {
     let mut volumes = Vec::new();
     volumes.push({
@@ -313,7 +312,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                             proof {
                                 assert_seqs_equal!(
                                     items.deep_view(),
-                                    liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
+                                    model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
                                     .sources->0[0].config_map->0.items->0
                                 );
                             }
@@ -339,7 +338,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                             proof {
                                 assert_seqs_equal!(
                                     items.deep_view(),
-                                    liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
+                                    model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
                                     .sources->0[1].secret->0.items->0
                                 );
                             }
@@ -352,7 +351,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         sources.deep_view(),
-                        liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
+                        model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[1].projected->0
                         .sources->0
                     );
                 }
@@ -404,7 +403,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         items.deep_view(),
-                        liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[5].downward_api->0.items->0
+                        model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0[5].downward_api->0.items->0
                     );
                 }
                 items
@@ -424,7 +423,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     proof {
         assert_seqs_equal!(
             volumes.deep_view(),
-            liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).volumes->0
+            model_resource::make_rabbitmq_pod_spec(rabbitmq@).volumes->0
         );
     }
     let mut pod_spec = PodSpec::default();
@@ -511,7 +510,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         volume_mounts.deep_view(),
-                        liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()[0].volume_mounts->0
+                        model_resource::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()[0].volume_mounts->0
                     );
                 }
                 volume_mounts
@@ -521,7 +520,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 containers.deep_view(),
-                liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()
+                model_resource::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()
             );
         }
         containers
@@ -555,7 +554,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                             proof {
                                 assert_seqs_equal!(
                                     command.deep_view(),
-                                    liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).containers[0].lifecycle->0.pre_stop->0.exec_->0.command->0
+                                    model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].lifecycle->0.pre_stop->0.exec_->0.command->0
                                 );
                             }
 
@@ -641,7 +640,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         volume_mounts.deep_view(),
-                        liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).containers[0].volume_mounts->0
+                        model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].volume_mounts->0
                     );
                 }
                 volume_mounts
@@ -655,7 +654,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         ports.deep_view(),
-                        liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).containers[0].ports->0
+                        model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].ports->0
                     );
                 }
 
@@ -680,7 +679,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 containers.deep_view(),
-                liveness_theorem::make_rabbitmq_pod_spec(rabbitmq@).containers
+                model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers
             );
         }
         containers

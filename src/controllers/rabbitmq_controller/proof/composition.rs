@@ -7,7 +7,7 @@ use crate::rabbitmq_controller::trusted::{
     spec_types::*, rely_guarantee::*, liveness_theorem::*, step::*
 };
 use crate::rabbitmq_controller::model::{
-    reconciler::*, install::*, resource::stateful_set::{make_stateful_set, make_stateful_set_key, make_stateful_set_name}
+    reconciler::*, install::*, resource::stateful_set::*
 };
 use crate::rabbitmq_controller::proof::{
     guarantee::guarantee_condition_holds, liveness::spec::{next_with_wf, next_with_wf_is_stable}, predicate::*,
