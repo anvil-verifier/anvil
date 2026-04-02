@@ -706,7 +706,94 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     assert(stable_spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))))) by {
         assume(stable_spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))));
     }
+
+    // ============================================================
+    // Part B: stable_spec |= true ~> □(current_state_matches)
+    // Chain: true ~> reconcile_idle ~> inductive_csm ~> □(csm)
+    // ============================================================
+
+    // B1: true ~> reconcile_idle (instantiate from reconcile_eventually_terminates)
+    use_tla_forall(
+        stable_spec,
+        |key: ObjectRef|
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
+        vsts.object_ref()
+    );
+
+    // B2: reconcile_idle ~> inductive_current_state_matches
+    resource_match::lemma_spec_entails_reconcile_idle_leads_to_current_state_matches(
+        vsts, stable_spec, cluster, controller_id
+    );
+
+    // B3: Chain true ~> reconcile_idle ~> inductive_current_state_matches
+    leads_to_trans(stable_spec,
+        true_pred(),
+        lift_state(reconcile_idle(vsts, controller_id)),
+        lift_state(inductive_current_state_matches(vsts, controller_id))
+    );
+
+    // B4: true ~> inductive_csm ~> □(csm)
+    resource_match::lemma_spec_entails_p_leads_to_always_current_state_matches(
+        stable_spec, true_pred(), vsts, cluster, controller_id
+    );
+    // Now: stable_spec |= true ~> □(csm)
+
+    // ============================================================
+    // Part C: Convert stable_spec |= true ~> □(csm)
+    //         to     spec |= stable_spec ~> □(csm)
+    // ============================================================
+    let always_csm = always(lift_state(current_state_matches(vsts)));
+    // true ~> □(csm) ⟺ ◇□(csm)
+    true_leads_to_eventually_always_equality(stable_spec, lift_state(current_state_matches(vsts)));
+    // So stable_spec.entails(eventually(always_csm))
+    // This directly gives us spec |= stable_spec ~> always_csm:
+    // leads_to(p, q) = always(p => ◇q), and stable_spec => ◇□csm means at any suffix
+    // where stable_spec holds, eventually always_csm holds.
+    assert(spec.entails(stable_spec.leads_to(always_csm))) by {
+        assert forall |ex| #[trigger] spec.satisfied_by(ex)
+            implies stable_spec.leads_to(always_csm).satisfied_by(ex) by {
+            assert forall |i: nat| #[trigger] stable_spec.satisfied_by(ex.suffix(i))
+                implies eventually(always_csm).satisfied_by(ex.suffix(i)) by {
+                // stable_spec.entails(eventually(always_csm)) gives us this directly
+                entails_apply(ex.suffix(i), stable_spec, eventually(always_csm));
+            }
+        }
+    }
+    // Now: spec |= stable_spec ~> □(csm)
+
+    // ============================================================
+    // Part D: spec |= □(desired_state_is) ~> stable_spec
+    // ============================================================
+    let p = always(lift_state(Cluster::desired_state_is(vsts)));
+
+    // spec |= □(desired_state_is) ~> always(A)
     spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec, vsts, controller_id, cluster);
-    assume(false);
+    // Since A is stable, always(A) == A
+    assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
+    stable_to_always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id));
+    // So spec |= p ~> A (where p ~> always(A) and always(A) == A)
+
+    // spec |= always(rely), so spec |= p ~> always(rely)
+    always_entails_leads_to_always(spec, p, lift_state(vsts_rely_conditions(cluster, controller_id)));
+    // always(always(rely)) == always(rely), needed for leads_to_always_combine's second argument
+    always_double_equality(lift_state(vsts_rely_conditions(cluster, controller_id)));
+    // Combine: spec |= p ~> always(A ∧ always(rely))
+    leads_to_always_combine(spec, p,
+        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
+        always(lift_state(vsts_rely_conditions(cluster, controller_id)))
+    );
+    // always(stable_spec) == stable_spec (by stability)
+    always_p_is_stable(lift_state(vsts_rely_conditions(cluster, controller_id)));
+    stable_and_n!(
+        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
+        always(lift_state(vsts_rely_conditions(cluster, controller_id)))
+    );
+    stable_to_always(stable_spec);
+    // Now: spec |= p ~> stable_spec
+
+    // ============================================================
+    // Part E: Chain spec |= p ~> stable_spec ~> □(csm)
+    // ============================================================
+    leads_to_trans(spec, p, stable_spec, always_csm);
 }
 }

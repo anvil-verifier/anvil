@@ -10,11 +10,11 @@ use vstd::prelude::*;
 verus !{
 
 pub open spec fn vsts_eventually_stable_reconciliation() -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation(|vrs| current_state_matches(vrs))
+    tla_forall(|vsts: VStatefulSetView| vsts_eventually_stable_reconciliation_per_cr(vsts))
 }
 
 pub open spec fn vsts_eventually_stable_reconciliation_per_cr(vsts: VStatefulSetView) -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation_per_cr(vsts, |vsts| current_state_matches(vsts))
+    always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(current_state_matches(vsts))))
 }
 
 pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<ClusterState> {
