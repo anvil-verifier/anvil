@@ -145,9 +145,9 @@ impl Composition for RabbitmqReconciler {
                         && msg.src.is_controller_id(Self::id())
                         implies (match msg.content->APIRequest_0 {
                             APIRequest::CreateRequest(req) => vsts_rely_mod::rely_create_req(req),
-                            APIRequest::UpdateRequest(req) => vsts_rely_mod::rely_update_req(req),
+                            APIRequest::UpdateRequest(req) => vsts_rely_mod::rely_update_req(req)(s),
                             APIRequest::GetThenUpdateRequest(req) => vsts_rely_mod::rely_get_then_update_req(req),
-                            APIRequest::DeleteRequest(req) => vsts_rely_mod::rely_delete_req(req),
+                            APIRequest::DeleteRequest(req) => vsts_rely_mod::rely_delete_req(req)(s),
                             APIRequest::GetThenDeleteRequest(req) => vsts_rely_mod::rely_get_then_delete_req(req),
                             _ => true,
                         }) by {

@@ -93,9 +93,9 @@ impl Composition for VStatefulSetReconciler {
                 assert forall |msg| #[trigger] s.in_flight().contains(msg) && msg.content is APIRequest && msg.src.is_controller_id(VReplicaSetReconciler::id()) implies (
                     match msg.content->APIRequest_0 {
                         APIRequest::CreateRequest(req) => rely_create_req(req),
-                        APIRequest::UpdateRequest(req) => rely_update_req(req),
+                        APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
                         APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
-                        APIRequest::DeleteRequest(req) => rely_delete_req(req),
+                        APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
                         APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
                         _ => true,
                     }
