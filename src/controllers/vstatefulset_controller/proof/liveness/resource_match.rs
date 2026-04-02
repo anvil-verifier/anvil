@@ -25,25 +25,6 @@ use vstd::prelude::*;
 
 verus! {
 
-pub proof fn lemma_spec_entails_reconcile_idle_leads_to_inductive_current_state_matches(
-    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
-)
-requires
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
-    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
-ensures
-    spec.entails(lift_state(reconcile_idle(vsts, controller_id)).leads_to(lift_state(inductive_current_state_matches(vsts, controller_id))))
-{
-    assume(false);
-}
-
 pub proof fn lemma_spec_entails_reconcile_idle_leads_to_current_state_matches(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -58,12 +39,7 @@ requires
     spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
     spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
 ensures
-    spec.entails(lift_state(reconcile_idle(vsts, controller_id)).leads_to(lift_state(and!(
-        at_vsts_step(vsts, controller_id, at_step![Done]),
-        no_pending_req_in_cluster(vsts, controller_id),
-        n_outdated_pods_in_etcd(vsts, nat0!()),
-        current_state_matches(vsts)
-    )))),
+    spec.entails(lift_state(reconcile_idle(vsts, controller_id)).leads_to(lift_state(inductive_current_state_matches(vsts, controller_id)))),
 {
     let idle_state = reconcile_idle(vsts, controller_id);
     // Verus cannot properly recongnize the closure, so use the lifted version
@@ -145,11 +121,18 @@ ensures
             lift_state(done_state_and_current_state_matches)
         );
     }
+    assert forall |ex| lift_state(done_state_and_current_state_matches).satisfied_by(ex)
+        implies #[trigger] lift_state(inductive_current_state_matches(vsts, controller_id)).satisfied_by(ex) by {
+        let s = ex.head();
+        assert(inductive_current_state_matches(vsts, controller_id)(s));
+    }
+    entails_implies_leads_to(spec, lift_state(done_state_and_current_state_matches), lift_state(inductive_current_state_matches(vsts, controller_id)));
     leads_to_trans_n!(spec,
         lift_state(idle_state),
         tla_exists(lifted_idle_state_with_n_outdated_pods),
         lifted_idle_state_with_n_outdated_pods(nat0!()),
-        lift_state(done_state_and_current_state_matches)
+        lift_state(done_state_and_current_state_matches),
+        lift_state(inductive_current_state_matches(vsts, controller_id))
     );
 }
 
@@ -4369,15 +4352,15 @@ ensures
 
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
-pub proof fn lemma_inductive_current_state_matches_to_current_state_matches(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+pub proof fn lemma_spec_entails_p_leads_to_always_current_state_matches(spec: TempPred<ClusterState>, p: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(true_pred().leads_to(lift_state(inductive_current_state_matches(vsts, controller_id))))
+    spec.entails(p.leads_to(lift_state(inductive_current_state_matches(vsts, controller_id))))
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(current_state_matches(vsts)))))
+    spec.entails(p.leads_to(always(lift_state(current_state_matches(vsts)))))
 {
     let inductive = inductive_current_state_matches(vsts, controller_id);
     let stronger_next = |s, s_prime: ClusterState| {
@@ -4419,10 +4402,10 @@ ensures
             }
         }
     };
-    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(inductive));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(inductive));
     entails_preserved_by_always(lift_state(inductive), lift_state(current_state_matches(vsts)));
     entails_implies_leads_to(spec, always(lift_state(inductive)), always(lift_state(current_state_matches(vsts))));
-    leads_to_trans(spec, true_pred(), always(lift_state(inductive)), always(lift_state(current_state_matches(vsts))));
+    leads_to_trans(spec, p, always(lift_state(inductive)), always(lift_state(current_state_matches(vsts))));
 }
 
 #[verifier(rlimit(200))]
