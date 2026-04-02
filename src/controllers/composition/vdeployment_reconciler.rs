@@ -44,7 +44,7 @@ impl Composition for VDeploymentReconciler {
         }
     }
 
-    uninterp spec fn id() -> int;
+    open spec fn id() -> int { 2 }
 
     open spec fn composed() -> Map<int, ControllerSpec> {
         Map::<int, ControllerSpec>::empty().insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c())

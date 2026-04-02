@@ -32,7 +32,7 @@ impl Composition for VReplicaSetReconciler {
         }
     }
 
-    uninterp spec fn id() -> int;
+    open spec fn id() -> int { 1 }
 
     open spec fn composed() -> Map<int, ControllerSpec> {
         Map::empty()

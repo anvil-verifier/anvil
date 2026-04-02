@@ -36,20 +36,7 @@ use crate::vreplicaset_controller::trusted::rely_guarantee::*;
 
 verus !{
 
-#[verifier(external_body)]
-proof fn vrs_id_ne_vd_id()
-    ensures VReplicaSetReconciler::id() != VDeploymentReconciler::id(),
-{}
 
-#[verifier(external_body)]
-proof fn vsts_id_ne_vrs_id()
-    ensures VStatefulSetReconciler::id() != VReplicaSetReconciler::id(),
-{}
-
-#[verifier(external_body)]
-proof fn vsts_id_ne_vd_id()
-    ensures VStatefulSetReconciler::id() != VDeploymentReconciler::id(),
-{}
 
 impl Composition for RabbitmqReconciler {
     open spec fn c() -> ControllerSpec {
@@ -68,7 +55,7 @@ impl Composition for RabbitmqReconciler {
         }
     }
 
-    uninterp spec fn id() -> int;
+    open spec fn id() -> int { 4 }
 
     open spec fn composed() -> Map<int, ControllerSpec> {
         Map::<int, ControllerSpec>::empty()
@@ -132,8 +119,6 @@ impl Composition for RabbitmqReconciler {
                 };
             }
             assert(spec.entails(always(lift_state(vsts_guarantee)))) by {
-                vsts_id_ne_vrs_id();
-                vsts_id_ne_vd_id();
                 assert(Self::composed()[VStatefulSetReconciler::id()] == VStatefulSetReconciler::c());
             }
             always_weaken(spec, lift_state(vsts_guarantee), lift_state(rmq_rely_vsts));
@@ -222,8 +207,6 @@ impl Composition for RabbitmqReconciler {
                 };
             }
             assert(spec.entails(always(lift_state(vrs_guar)))) by {
-                vrs_id_ne_vd_id();
-                vsts_id_ne_vrs_id();
                 assert(Self::composed()[VReplicaSetReconciler::id()] == VReplicaSetReconciler::c());
             }
             always_weaken(spec, lift_state(vrs_guar), lift_state(rmq_rely_vrs));
@@ -311,8 +294,6 @@ impl Composition for RabbitmqReconciler {
                 };
             }
             assert(spec.entails(always(lift_state(vd_guarantee)))) by {
-                vrs_id_ne_vd_id();
-                vsts_id_ne_vd_id();
                 assert(Self::composed()[VDeploymentReconciler::id()] == VDeploymentReconciler::c());
             }
             always_weaken(spec, lift_state(vd_guarantee), lift_state(rmq_rely_vd));
@@ -371,8 +352,6 @@ impl VerticalComposition for RabbitmqReconciler {
         ensures spec.entails(Self::c().liveness_rely),
     {
         assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
-        vsts_id_ne_vrs_id();
-        vsts_id_ne_vd_id();
     }
 }
 
