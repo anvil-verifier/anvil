@@ -61,6 +61,14 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
     }
 }
 
+// TODO: compare other fields of the pod if necessary
+pub open spec fn pod_spec_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
+    // from validation we know vsts.spec.template.spec is Some
+    &&& pod.spec is Some
+    &&& pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain()
+}
+
 pub open spec fn pvc_cnt(vsts: VStatefulSetView) -> nat {
     match vsts.spec.volume_claim_templates {
         Some(pvc_templates) => pvc_templates.len(),
