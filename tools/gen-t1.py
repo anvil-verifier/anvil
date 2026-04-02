@@ -20,6 +20,7 @@ LOC_COLUMNS = [
     "model",
     "proof_guarantee",
     "core_esr",
+    "conformance_proof",
 ]
 
 
@@ -105,11 +106,11 @@ def gen_for_anvil():
     return table
 
 
-DISPLAY_COLUMNS = ["trusted_spec", "trusted_unverified", "exec", "model"]
+DISPLAY_COLUMNS = ["trusted_spec", "trusted_unverified", "exec", "conformance_proof", "model"]
 
 
 def make_display_row(label, loc_data):
-    """Build a display row: 4 base columns + Core (guarantee + core_esr) + ESR (core_esr)."""
+    """Build a display row: 5 base columns + Core (guarantee + core_esr) + ESR (core_esr)."""
     row = [label]
     for col in DISPLAY_COLUMNS:
         row.append(str(loc_data[col]))
@@ -142,7 +143,8 @@ def gen_for_composition(base_controller):
     )
     loc_data = json.load(open("composition-loc.json"))
     row = make_display_row("Composition proofs", loc_data)
-    row[6] = "--"  # ESR not applicable for composition
+    row[4] = "--"  # conformance_proof not applicable for composition
+    row[7] = "--"  # ESR not applicable for composition
     table.append(row)
     return loc_data, table
 
@@ -163,10 +165,10 @@ def main():
     grand = {col: sum(totals[c][col] for c in all_keys) for col in LOC_COLUMNS}
     grand = make_display_row("Total(all)", grand)
     # fold model into core; total = model + core proof; ESR n/a
-    total_cnt = int(grand[4]) + int(grand[5])
-    grand[4] = "--"
-    grand[5] = str(total_cnt)
-    grand[6] = "--"
+    total_cnt = int(grand[5]) + int(grand[6])
+    grand[5] = "--"
+    grand[6] = str(total_cnt)
+    grand[7] = "--"
     table.append(grand)
 
     if print_anvil:
@@ -176,6 +178,7 @@ def main():
         "Trusted Spec",
         "Trusted Unverified",
         "Exec",
+        "Conformance Proof",
         "Model",
         "Core",
         "ESR",
