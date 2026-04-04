@@ -72,6 +72,7 @@ pub open spec fn rely_create_req(req: CreateRequest) -> bool {
     }
 }
 
+// After we support orphan adoption, we need to talk about resource version
 pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         match req.obj.kind {
