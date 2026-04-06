@@ -309,7 +309,6 @@ ensures
     return resp_msg;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
@@ -326,7 +325,7 @@ ensures
     res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_matches_req_msg(res.0, req_msg),
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
-    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, if vd.spec.replicas.unwrap_or(1) > 0 {1} else {0})), n)(s_prime),
     filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime))
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(None, s)),
     // created obj has different key and uid from all old_vrs in local_state
@@ -428,7 +427,6 @@ ensures
     return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_scale_new_vrs_req_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
@@ -515,7 +513,6 @@ ensures
     return resp_msg;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
