@@ -214,6 +214,10 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
         } else if i == 3 {
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
+            let p = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)));
+            let q = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
+            always_weaken(spec, pending_request_invariants(cluster, controller_id), p);
+            always_weaken(spec, pending_request_invariants(cluster, controller_id), q);
             always_tla_forall_apply(
                 spec,
                 |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
@@ -631,7 +635,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))));
     entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))));
     entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))));
-    entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), pending_request_invariants(cluster, controller_id));
+    entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(pending_request_invariants(cluster, controller_id)));
 
     terminate::reconcile_eventually_terminates(stable_spec, cluster, controller_id);
 
