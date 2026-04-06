@@ -429,18 +429,18 @@ ensures
 
 pub proof fn lemma_scale_new_vrs_req_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat, etcd_replicas: int
+    req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_pending_scale_new_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key_replicas)(s),
+    req_msg_is_pending_scale_new_vrs_req_in_flight(vd, controller_id, req_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas)))(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, etcd_replicas)), n)(s),
+    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas)(s_prime),
-    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s_prime),
+    resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas)))(s_prime),
+    etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas))), n)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
     filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime))
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))
@@ -470,21 +470,21 @@ ensures
 
 pub proof fn lemma_scale_old_vrs_req_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
+    req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_pending_scale_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key.0)(s),
+    req_msg_is_pending_scale_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key_replicas.0)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0)(s_prime),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
+    resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0)(s_prime),
+    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), (n - nat1!()) as nat)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
-    filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))
-        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req_msg.content.get_get_then_update_request().key()),
+    filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime))
+        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s)).remove(req_msg.content.get_get_then_update_request().key()),
 {
     VReplicaSetView::marshal_preserves_integrity();
     // let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -498,16 +498,16 @@ ensures
     let updated_obj = s_prime.resources()[req.key()];
     let updated_vrs = VReplicaSetView::unmarshal(updated_obj)->Ok_0;
 
-    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req.key()) == 
-        filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))) by {
-        assert(!filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)(req.key())) by {
+    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s)).remove(req.key()) == 
+        filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime))) by {
+        assert(!filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)(req.key())) by {
             assert(updated_vrs.spec.replicas == Some(int0!())) by {
                 assert(updated_obj.spec == req.obj.spec);
             }
         }
     }
-    assert(filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)).len() == n - 1) by {
-        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(req.key()));
+    assert(filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)).len() == n - 1) by {
+        assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s)).contains(req.key()));
     }
     return resp_msg;
 }

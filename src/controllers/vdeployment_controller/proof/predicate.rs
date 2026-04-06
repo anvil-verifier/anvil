@@ -378,8 +378,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
-        &&& get_replicas(vd.spec.replicas) < get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
+        &&& req_vrs.spec.replicas.unwrap_or(1) == nv_uid_key_replicas.2
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
@@ -534,6 +533,22 @@ pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd: VDe
 // 194 |         Some(t) => t,
 pub open spec fn get_replicas(i: Option<int>) -> int {
     i.unwrap_or(int1!())
+}
+
+pub open spec fn updated_replicas(old_replicas: Option<int>, vd_replicas: Option<int>) -> int {
+    if get_replicas(vd_replicas) > get_replicas(old_replicas) {
+        get_replicas(old_replicas) + 1
+    } else {
+        get_replicas(old_replicas) - 1
+    }
+}
+
+pub open spec fn created_replicas(vd_replicas: Option<int>) -> int {
+    if get_replicas(vd_replicas) == 0 {
+        0
+    } else {
+        1
+    }
 }
 
 // when coherence breaks
