@@ -513,6 +513,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -537,7 +538,9 @@ ensures
         implies {
             let key = vds_prime.old_vrs_list[i].object_ref();
             &&& s_prime.resources().contains_key(key)
-            &&& s_prime.resources()[key] == s.resources()[key]
+            &&& VReplicaSetView::unmarshal(s_prime.resources()[key]) is Ok
+            &&& VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0.spec == VReplicaSetView::unmarshal(s.resources()[key])->Ok_0.spec
+            &&& VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0.metadata.without_resource_version() == VReplicaSetView::unmarshal(s.resources()[key])->Ok_0.metadata.without_resource_version()
             &&& valid_owned_obj_key(vd, s_prime)(key)
         } by {
             lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
@@ -828,6 +831,7 @@ ensures
 
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API req msg does not touch the object as the direct result of rely condition and non-interference property.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
