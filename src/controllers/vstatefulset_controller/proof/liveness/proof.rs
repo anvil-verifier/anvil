@@ -23,34 +23,6 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
-#[verifier(external_body)]
-pub proof fn spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int, cluster: Cluster)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(next_with_wf(cluster, controller_id)),
-        spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    ensures
-        spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))),
-{
-    spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
-    assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
-    
-    entails_implies_leads_to(
-        spec,
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))
-    );
-
-    leads_to_trans(
-        spec,
-        always(lift_state(Cluster::desired_state_is(vsts))),
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))
-    );
-}
-
 pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -727,8 +699,8 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     let p = always(lift_state(Cluster::desired_state_is(vsts)));
 
     // spec |= □(desired_state_is) ~> always(A)
-    spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec, vsts, controller_id, cluster);
     // Since A is stable, always(A) == A
+    spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
     assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
     stable_to_always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id));
     // So spec |= p ~> A (where p ~> always(A) and always(A) == A)
