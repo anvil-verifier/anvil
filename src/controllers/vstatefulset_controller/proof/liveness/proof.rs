@@ -23,34 +23,6 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
-#[verifier(external_body)]
-pub proof fn spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec: TempPred<ClusterState>, vsts: VStatefulSetView, controller_id: int, cluster: Cluster)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(next_with_wf(cluster, controller_id)),
-        spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    ensures
-        spec.entails(always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))),
-{
-    spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
-    assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
-    
-    entails_implies_leads_to(
-        spec,
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))
-    );
-
-    leads_to_trans(
-        spec,
-        always(lift_state(Cluster::desired_state_is(vsts))),
-        assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
-        always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))
-    );
-}
-
 pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -242,6 +214,10 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
         } else if i == 3 {
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
+            let p = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)));
+            let q = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
+            always_weaken(spec, pending_request_invariants(cluster, controller_id), p);
+            always_weaken(spec, pending_request_invariants(cluster, controller_id), q);
             always_tla_forall_apply(
                 spec,
                 |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
@@ -659,7 +635,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))));
     entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))));
     entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))));
-    entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), pending_request_invariants(cluster, controller_id));
+    entails_trans(stable_spec, derived_invariants_since_beginning(vsts, cluster, controller_id), always(pending_request_invariants(cluster, controller_id)));
 
     terminate::reconcile_eventually_terminates(stable_spec, cluster, controller_id);
 
@@ -727,8 +703,8 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     let p = always(lift_state(Cluster::desired_state_is(vsts)));
 
     // spec |= □(desired_state_is) ~> always(A)
-    spec_entails_always_desired_state_is_leads_to_always_assumption_and_invariants(spec, vsts, controller_id, cluster);
     // Since A is stable, always(A) == A
+    spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vsts, cluster, controller_id);
     assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
     stable_to_always(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id));
     // So spec |= p ~> A (where p ~> always(A) and always(A) == A)
