@@ -282,8 +282,8 @@ ensures
     VDeploymentView::marshal_preserves_integrity();
     VDeploymentReconcileState::marshal_preserves_integrity();
     let step = choose |step| cluster.next_step(s, s_prime, step);
-    assert(instantiated_etcd_state_is_with_zero_old_vrs(vd, controller_id)(s)) by {
-        lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s);
+    assert(instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s)) by {
+        lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(vd, cluster, controller_id, new_vrs_key, s);
     }
     let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
