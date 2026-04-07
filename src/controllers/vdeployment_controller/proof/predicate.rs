@@ -164,8 +164,8 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
 }
 
 // glue predicate that connects (new_vrs, n) and resp_objs
-pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
+pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs( 
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status_mismatch: Option<(Uid, ObjectRef, int, bool)>, n: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
@@ -174,14 +174,15 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
         &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         &&& {
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
-            &&& new_vrs is Some == nv_uid_key_replicas is Some
+            &&& new_vrs is Some == nv_uid_key_replicas_status_mismatch is Some
             &&& new_vrs is Some ==> {
                 &&& new_vrs->0.metadata.uid is Some
-                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key_replicas->0).0
+                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key_replicas_status_mismatch->0).0
                 &&& new_vrs->0.metadata.name is Some
                 &&& new_vrs->0.metadata.namespace is Some
-                &&& new_vrs->0.object_ref() == (nv_uid_key_replicas->0).1
-                &&& get_replicas(new_vrs->0.spec.replicas) == (nv_uid_key_replicas->0).2
+                &&& new_vrs->0.object_ref() == (nv_uid_key_replicas_status_mismatch->0).1
+                &&& get_replicas(new_vrs->0.spec.replicas) == (nv_uid_key_replicas_status_mismatch->0).2
+                &&& mismatch_replicas(vd, new_vrs->0) == (nv_uid_key_replicas_status_mismatch->0).3
             }
             &&& old_vrs_list.len() == n
         }
