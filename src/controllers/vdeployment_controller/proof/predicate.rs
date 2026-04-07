@@ -528,6 +528,10 @@ pub open spec fn get_replicas(i: Option<int>) -> int {
     i.unwrap_or(int1!())
 }
 
+pub open spec fn replicas_ok(vd: VDeploymentView, replicas: int) -> StatePred<ClusterState> {
+    |s: ClusterState| (get_replicas(vd.spec.replicas) == int0!()) || (replicas > int0!())
+}
+
 pub open spec fn updated_replicas(old_replicas: Option<int>, vd_replicas: Option<int>) -> int {
     if get_replicas(vd_replicas) > get_replicas(old_replicas) {
         get_replicas(old_replicas) + 1
