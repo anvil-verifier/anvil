@@ -632,6 +632,7 @@ ensures
 }
 
 // this lemma specifies how VD controller construct the internal cache from list response
+// TODO: talk about VRS status
 #[verifier(rlimit(100))]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
@@ -654,13 +655,13 @@ ensures
         &&& local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)
         &&& no_pending_req_in_cluster(vd, controller_id)(s_prime)
     }),
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 != vd.spec.replicas.unwrap_or(int1!()) ==> {
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) && (nv_uid_key_replicas is Some && (nv_uid_key_replicas->0).2 != vd.spec.replicas.unwrap_or(int1!()) ==> {
         let updated_replicas = updated_replicas(Some((nv_uid_key_replicas->0).2), vd.spec.replicas);
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, Some(((nv_uid_key_replicas->0).0, (nv_uid_key_replicas->0).1, updated_replicas)), n)(s_prime)
         &&& pending_scale_new_vrs_req_in_flight(vd, controller_id, ((nv_uid_key_replicas->0).0, (nv_uid_key_replicas->0).1, updated_replicas))(s_prime)
     }),
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> (nv_uid_key_replicas is None ==> {
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) && (nv_uid_key_replicas is None ==> {
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s_prime)
         &&& local_state_is(vd, controller_id, None, n)(s_prime)
         &&& pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime)
