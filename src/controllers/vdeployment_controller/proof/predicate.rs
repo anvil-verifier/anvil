@@ -255,7 +255,7 @@ pub open spec fn exists_create_resp_msg_containing_new_vrs_uid_key(
             &&& resp_msg_matches_req_msg(j.0, req_msg)
             // we don't need info on content of the response at the moment
             &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
-            &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, if vd.spec.replicas.unwrap_or(1) > 0 {1} else {0})), n)(s)
+            &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, created_replicas(vd.spec.replicas))), n)(s)
         }
     }
 }
@@ -278,7 +278,7 @@ pub open spec fn resp_msg_is_ok_create_resp_containing_new_vrs(
     // strengthen valid_owned_vrs, as only one controller owner is allowed
     &&& vrs.metadata.owner_references is Some
     &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-    &&& vrs.spec.replicas.unwrap_or(1) == if vd.spec.replicas.unwrap_or(1) > 0 {1 as int} else {0}
+    &&& vrs.spec.replicas.unwrap_or(1) == created_replicas(vd.spec.replicas)
     // this combined with all above ==> valid_owned_vrs
     &&& vrs.metadata.deletion_timestamp is None
     &&& s.resources().contains_key(key)

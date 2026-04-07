@@ -294,6 +294,7 @@ requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s),
+    vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_key_replicas.2 > 0,
 ensures
     current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)(s),
 {
@@ -315,13 +316,15 @@ ensures
         &&& s.resources().contains_key(k)
         &&& valid_owned_obj_key(vd, s)(k)
         &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-        &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        &&& etcd_vrs.metadata.uid is Some
+        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
         &&& !exists |k: ObjectRef| {
             &&& s.resources().contains_key(k)
             &&& valid_owned_obj_key(vd, s)(k)
             &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
         }
     };
+    assert(weakened_csm_pred(nv_uid_key_replicas.1));
 }
 
 pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
@@ -605,14 +608,14 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s),
-    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, created_replicas(vd.spec.replicas))), n)(s),
 {
     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
     assert(exists |j: (Message, (Uid, ObjectRef))| {
         &&& s.in_flight().contains(j.0)
         &&& resp_msg_matches_req_msg(j.0, req_msg)
         &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
-        &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
+        &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, created_replicas(vd.spec.replicas))), n)(s)
     }) by {
         assert(exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n)(s));
     }
@@ -621,7 +624,7 @@ ensures
         &&& s.in_flight().contains(j.0)
         &&& resp_msg_matches_req_msg(j.0, req_msg)
         &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
-        &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s)
+        &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, created_replicas(vd.spec.replicas))), n)(s)
     };
     return (resp_msg, nv_uid_key);
 }
