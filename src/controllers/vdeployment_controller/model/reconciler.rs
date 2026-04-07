@@ -354,8 +354,8 @@ pub open spec fn vrs_with_no_rv_status(vrs: VReplicaSetView) -> VReplicaSetView 
 }
 
 pub open spec fn mismatch_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
-    &&& vrs.status is Some
-    &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+    &&& vrs.spec.replicas == Some(0 as int) || // if it has 0 replicas, ignore ready status
+        (vrs.status is Some && vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1))
     &&& vrs.spec.replicas.unwrap_or(1) != vd.spec.replicas.unwrap_or(1)
 }
 
