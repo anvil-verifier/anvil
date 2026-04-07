@@ -295,46 +295,20 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         );
     }
     // init ~> done
-    let done = and!(
+    let lifted_done = |new_vrs_key: ObjectRef| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
         no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
-    );
-    assert(spec.entails(lift_state(init).leads_to(lift_state(done)))) by {
-        lemma_from_init_to_current_state_matches(vd, spec, cluster, controller_id);
+        current_state_matches_with_new_vrs_key(vd, new_vrs_key)
+    ));
+    assert(spec.entails(lift_state(init).leads_to(tla_exists(lifted_done)))) by {
+        lemma_from_init_to_current_state_matches_with_nv_key(vd, spec, cluster, controller_id);
     }
-    assert(spec.entails(lift_state(done).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))))) by {
-        let k_to_csm = |new_vrs_key: ObjectRef| inductive_current_state_matches(vd, controller_id, new_vrs_key);
-        let lifted_k_to_csm = |new_vrs_key: ObjectRef| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key));
-        tla_exists_p_tla_exists_q_equality(
-            |new_vrs_key: ObjectRef| lift_state(k_to_csm(new_vrs_key)),
-            lifted_k_to_csm
-        );
-        temp_pred_equality(
-            tla_exists(|new_vrs_key: ObjectRef| lift_state(k_to_csm(new_vrs_key))),
-            tla_exists(lifted_k_to_csm)
-        );
-        assert forall |ex| #[trigger] lift_state(done).satisfied_by(ex) implies exists |k| #[trigger] lifted_k_to_csm(k).satisfied_by(ex) by {
+    assert forall |new_vrs_key: ObjectRef| spec.entails(lifted_done(new_vrs_key).leads_to(always(lift_state(#[trigger] inductive_current_state_matches(vd, controller_id, new_vrs_key))))) by {
+        assert forall |ex| #[trigger] lifted_done(new_vrs_key).satisfied_by(ex) implies lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).satisfied_by(ex) by {
             let s = ex.head();
-            let nv_key = choose |new_vrs_key: ObjectRef| {
-                let etcd_obj = s.resources()[new_vrs_key];
-                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                &&& #[trigger] s.resources().contains_key(new_vrs_key)
-                &&& valid_owned_obj_key(vd, s)(new_vrs_key)
-                &&& filter_new_vrs_keys(vd.spec.template, s)(new_vrs_key)
-                &&& etcd_vrs.metadata.uid is Some
-                &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
-                // no old vrs, including the 2nd new vrs (if any)
-                &&& !exists |old_k: ObjectRef| {
-                    &&& #[trigger] s.resources().contains_key(old_k)
-                    &&& valid_owned_obj_key(vd, s)(old_k)
-                    &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
-                }
-            };
-            assert(current_state_matches_with_new_vrs_key(vd, nv_key)(s));
-            assert(lifted_k_to_csm(nv_key).satisfied_by(ex));
+            assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s));
         }
-        entails_implies_leads_to(spec, lift_state(done), tla_exists(lifted_k_to_csm));
+        entails_implies_leads_to(spec, lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
             &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
@@ -355,23 +329,19 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             lift_state(vd_reconcile_request_only_interferes_with_itself_condition(controller_id)),
             lift_state(vd_rely_condition(cluster, controller_id))
         );
-        assert forall |s, s_prime| (forall |nv_key: ObjectRef| #[trigger] k_to_csm(nv_key)(s) && #[trigger] stronger_next(s, s_prime) ==> k_to_csm(nv_key)(s_prime)) by {
-            assert forall |nv_key: ObjectRef| #[trigger] k_to_csm(nv_key)(s) && stronger_next(s, s_prime) implies k_to_csm(nv_key)(s_prime) by {
-                lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_with_nv_key(vd, controller_id, cluster, nv_key, s, s_prime);
-            }
+        assert forall |s, s_prime| inductive_current_state_matches(vd, controller_id, new_vrs_key)(s) && #[trigger] stronger_next(s, s_prime)
+            implies inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime) by {
+            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_with_nv_key(vd, controller_id, cluster, new_vrs_key, s, s_prime);
         }
-        leads_to_exists_stable(spec, stronger_next, lift_state(done), k_to_csm);
-        tla_exists_p_tla_exists_q_equality(
-            |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
-            |new_vrs_key: ObjectRef| always(lift_state(k_to_csm(new_vrs_key)))
-        );
+        leads_to_stable(spec, lift_action(stronger_next), lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
     }
+    leads_to_exists_intro2(spec, lifted_done, |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
     leads_to_trans_n!(spec,
         true_pred(),
         lift_state(reconcile_idle),
         lift_state(reconcile_scheduled),
         lift_state(init),
-        lift_state(done),
+        tla_exists(lifted_done),
         tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
     );
 }

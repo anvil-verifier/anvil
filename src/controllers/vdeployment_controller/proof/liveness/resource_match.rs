@@ -20,7 +20,7 @@ use vstd::prelude::*;
 
 verus !{
 
-pub proof fn lemma_from_init_to_current_state_matches(
+pub proof fn lemma_from_init_to_current_state_matches_with_nv_key(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
@@ -38,11 +38,11 @@ ensures
             at_vd_step_with_vd(vd, controller_id, at_step![Init]),
             no_pending_req_in_cluster(vd, controller_id)
         ))
-       .leads_to(lift_state(and!(
+       .leads_to(tla_exists(|nv_key: ObjectRef| lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![Done]),
             no_pending_req_in_cluster(vd, controller_id),
-            current_state_matches(vd)
-        )))),
+            current_state_matches_with_new_vrs_key(vd, nv_key)
+        ))))),
 {
     let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
     // Init ~> send list req
@@ -382,13 +382,13 @@ ensures
         list_resp,
         tla_exists(|i: (Uid, ObjectRef, int, nat)| after_ensure_vrs(i))
     );
-    let done = lift_state(and!(
+    let done = |nv_key: ObjectRef| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
         no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
+        current_state_matches_with_new_vrs_key(vd, nv_key)
     ));
     // AfterEnsureNewVRS ~> Done
-    assert forall |i: (Uid, ObjectRef, int, nat)| spec.entails(#[trigger] after_ensure_vrs(i).leads_to(done)) by {
+    assert forall |i: (Uid, ObjectRef, int, nat)| spec.entails(#[trigger] after_ensure_vrs(i).leads_to(tla_exists(done))) by {
         let (nv_uid_key, n) = ((i.0, i.1), i.3);
         let nv_uid_key_replicas = Some((i.0, i.1, i.2));
         if n == 0 {
@@ -500,7 +500,7 @@ ensures
                 }
                 temp_pred_equality(scale_down_resp(nat0!()), tla_exists(|msg| scale_down_resp_msg_zero(msg)));
             }
-            assert forall |msg: Message| spec.entails(#[trigger] scale_down_resp_msg_zero(msg).leads_to(done)) by {
+            assert forall |msg: Message| spec.entails(#[trigger] scale_down_resp_msg_zero(msg).leads_to(done(i.1))) by {
                 temp_pred_equality(scale_down_resp_msg_zero(msg), lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
                     resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, msg, nv_uid_key.0),
@@ -510,23 +510,25 @@ ensures
                 )));
                 lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(vd, spec, cluster, controller_id, msg, (nv_uid_key.0, nv_uid_key.1, i.2));
             }
-            leads_to_exists_intro(spec, |msg| scale_down_resp_msg_zero(msg), done);
+            leads_to_exists_intro(spec, |msg| scale_down_resp_msg_zero(msg), done(i.1));
             leads_to_trans_n!(
                 spec,
                 after_ensure_vrs(i),
                 scale_down_req,
                 scale_down_resp((n - nat1!()) as nat),
                 scale_down_resp(nat0!()),
-                done
+                done(i.1)
             );
         }
+        entails_implies_leads_to(spec, done(i.1), tla_exists(done));
+        leads_to_trans(spec, after_ensure_vrs(i), done(i.1), tla_exists(done));
     }
-    leads_to_exists_intro(spec, |i: (Uid, ObjectRef, int, nat)| after_ensure_vrs(i), done);
+    leads_to_exists_intro(spec, after_ensure_vrs, tla_exists(done));
     leads_to_trans_n!(
         spec,
         init,
         tla_exists(|i: (Uid, ObjectRef, int, nat)| after_ensure_vrs(i)),
-        done
+        tla_exists(done)
     );
 }
 
@@ -1900,7 +1902,7 @@ ensures
 #[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef, int)
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int)
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -1915,27 +1917,27 @@ ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
             no_pending_req_in_cluster(vd, controller_id),
-            etcd_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
-            local_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
+            etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+            local_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![Done]),
             no_pending_req_in_cluster(vd, controller_id),
-            current_state_matches(vd)
+            current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)
         )))),
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
         no_pending_req_in_cluster(vd, controller_id),
-        etcd_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
-        local_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
         local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
         no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
+        current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -1961,7 +1963,7 @@ ensures
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
-                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key), 0
+                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), 0
                 );
                 // trigger
                 assert(s.in_flight().contains(msg));
@@ -1970,8 +1972,8 @@ ensures
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // trigger
-                    assert(etcd_state_is(vd, controller_id, Some(nv_uid_key), 0)(s_prime));
-                    lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
+                    assert(etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s_prime));
+                    lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(vd, cluster, controller_id, nv_uid_key_replicas, s_prime);
                 }
             },
             _ => {}
@@ -1981,8 +1983,8 @@ ensures
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
         // trigger
-        assert(etcd_state_is(vd, controller_id, Some(nv_uid_key), 0)(s_prime));
-        lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
+        assert(etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s_prime));
+        lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(vd, cluster, controller_id, nv_uid_key_replicas, s_prime);
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
@@ -1992,7 +1994,7 @@ ensures
 #[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef, int)
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int)
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -2006,28 +2008,28 @@ requires
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-            resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0),
-            etcd_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
-            local_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
+            resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0),
+            etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+            local_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![Done]),
             no_pending_req_in_cluster(vd, controller_id),
-            current_state_matches(vd)
+            current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)
         )))),
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-        resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0),
-        etcd_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
-        local_state_is(vd, controller_id, Some(nv_uid_key), nat0!()),
+        resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
         local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
         no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
+        current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -2053,7 +2055,7 @@ ensures
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
-                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key), nat0!()
+                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), nat0!()
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                     s, s_prime, vd, cluster, controller_id, msg
@@ -2063,8 +2065,8 @@ ensures
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // trigger
-                    assert(etcd_state_is(vd, controller_id, Some(nv_uid_key), 0)(s_prime));
-                    lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
+                    assert(etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s_prime));
+                    lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(vd, cluster, controller_id, nv_uid_key_replicas, s_prime);
                 }
             },
             _ => {}
@@ -2074,8 +2076,8 @@ ensures
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
         // trigger
-        assert(etcd_state_is(vd, controller_id, Some(nv_uid_key), 0)(s_prime));
-        lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s_prime);
+        assert(etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s_prime));
+        lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(vd, cluster, controller_id, nv_uid_key_replicas, s_prime);
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post

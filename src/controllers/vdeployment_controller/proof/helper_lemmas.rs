@@ -287,86 +287,41 @@ pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_refere
     );
 }
 
-#[verifier(external_body)]
-// TODO: deprecate
-pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is(
-    vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState
+pub proof fn lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int), s: ClusterState
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s),
 ensures
-    current_state_matches(vd)(s) == instantiated_etcd_state_is_with_zero_old_vrs(vd, controller_id)(s),
+    current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)(s),
 {
-    // ==>
-    if current_state_matches(vd)(s) {
-        let nv_key = choose |k: ObjectRef| {
-            let etcd_obj = s.resources()[k];
-            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
-            &&& #[trigger] s.resources().contains_key(k)
-            &&& valid_owned_obj_key(vd, s)(k)
-            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-            &&& etcd_vrs.metadata.uid is Some
-            &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
-            // no old vrs, including the 2nd new vrs (if any)
-            &&& !exists |k: ObjectRef| {
-                &&& #[trigger] s.resources().contains_key(k)
-                &&& valid_owned_obj_key(vd, s)(k)
-                &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
-            }
-        };
-        let nv_uid = VReplicaSetView::unmarshal(s.resources()[nv_key])->Ok_0.metadata.uid->0;
-        assert(etcd_state_is(vd, controller_id, Some((nv_uid, nv_key, vd.spec.replicas.unwrap_or(1))), 0)(s)) by {
-            let filtered_old_vrs_keys = filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid), s));
-            if exists |k: ObjectRef| filtered_old_vrs_keys.contains(k) {
-                let k = choose |k: ObjectRef| filtered_old_vrs_keys.contains(k);
-                assert(filter_old_vrs_keys(Some(nv_uid), s)(k));
-                assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
-                assert(false);
-            } else {
-                if filtered_old_vrs_keys.len() != 0 {
-                    lemma_set_empty_equivalency_len(filtered_old_vrs_keys);
-                }
-            }
-        }
-        assert(exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)) by {
-            assert((|nv_uid_key: (Uid, ObjectRef)| etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s))((nv_uid, nv_key)));
+    let vrs_with_nv_key = VReplicaSetView::unmarshal(s.resources()[nv_uid_key_replicas.1])->Ok_0;
+    assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies
+    !({
+        &&& valid_owned_obj_key(vd, s)(k)
+        &&& filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s)(k)
+    }) by {
+        if valid_owned_obj_key(vd, s)(k) && filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s)(k) {
+            assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
+            assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s)).contains(k));
+            assert(false);
         }
     }
-    // <==
-    if exists |nv_uid_key: (Uid, ObjectRef)|
-        etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s) {
-        let nv_uid_key = choose |nv_uid_key: (Uid, ObjectRef)|
-            etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0)(s);
-        let vrs_with_nv_key = VReplicaSetView::unmarshal(s.resources()[nv_uid_key.1])->Ok_0;
-        assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies
-        !({
-            &&& valid_owned_obj_key(vd, s)(k)
-            &&& filter_old_vrs_keys(Some(nv_uid_key.0), s)(k)
-        }) by {
-            if valid_owned_obj_key(vd, s)(k) && filter_old_vrs_keys(Some(nv_uid_key.0), s)(k) {
-                assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
-                assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).contains(k));
-                assert(false);
-            }
-        }
-        let esr_pred = |k: ObjectRef| {
-            let etcd_obj = s.resources()[k];
-            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+    let weakened_csm_pred = |k: ObjectRef| {
+        let etcd_obj = s.resources()[k];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& s.resources().contains_key(k)
+        &&& valid_owned_obj_key(vd, s)(k)
+        &&& filter_new_vrs_keys(vd.spec.template, s)(k)
+        &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        &&& !exists |k: ObjectRef| {
             &&& s.resources().contains_key(k)
             &&& valid_owned_obj_key(vd, s)(k)
-            &&& filter_new_vrs_keys(vd.spec.template, s)(k)
-            &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
-            &&& !exists |k: ObjectRef| {
-                &&& s.resources().contains_key(k)
-                &&& valid_owned_obj_key(vd, s)(k)
-                &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
-            }
-        };
-        assert(exists |k: ObjectRef| #[trigger] esr_pred(k)) by {
-            assert(esr_pred(nv_uid_key.1));
+            &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(k)
         }
-    }
+    };
 }
 
 pub proof fn lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
