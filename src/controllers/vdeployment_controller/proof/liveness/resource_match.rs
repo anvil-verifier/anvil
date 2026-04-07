@@ -652,29 +652,32 @@ requires
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s),
     new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas_sm, n)(s),
+    etcd_state_is(vd, controller_id, match nv_uid_key_replicas_sm { Some((uid, key, replicas, _sm)) => Some((uid, key, replicas)), None => None }, n)(s),
 ensures
     ({
-        let nv_uid_key_replicas = if nv_uid_key_replicas_sm is Some { Some(((nv_uid_key_replicas_sm->0).0, (nv_uid_key_replicas_sm->0).1, (nv_uid_key_replicas_sm->0).2)) } else { None };
-        &&& local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)
-        &&& (etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime))
-        // this branch, without etcd_state_is, handles the case when vd.spec.replicas == 0 and instantiated new vrs differ from the one in etcd_state_is
-        // and is only used in ESR stability proof
-        &&& (nv_uid_key_replicas_sm is Some && (nv_uid_key_replicas_sm->0).2 == vd.spec.replicas.unwrap_or(int1!()) ==> {
+        let nv_uid_key_replicas = match nv_uid_key_replicas_sm {
+            Some((uid, key, replicas, _sm)) => Some((uid, key, replicas)),
+            None => None,
+        };
+        &&& local_state_is_valid_and_coherent_with_etcd(vd, controller_id)(s_prime)
+        // replicas match or status is not ready
+        &&& (nv_uid_key_replicas_sm is Some && !(nv_uid_key_replicas_sm->0).3 ==> {
             &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime)
             &&& local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)
             &&& no_pending_req_in_cluster(vd, controller_id)(s_prime)
         })
-        &&& (etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) && (nv_uid_key_replicas_sm is Some && (nv_uid_key_replicas_sm->0).2 != vd.spec.replicas.unwrap_or(int1!()) ==> {
+        // replicas mismatch and status is ready
+        &&& nv_uid_key_replicas_sm is Some && (nv_uid_key_replicas_sm->0).3 ==> {
             let updated_replicas = updated_replicas(Some((nv_uid_key_replicas_sm->0).2), vd.spec.replicas);
             &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime)
             &&& local_state_is(vd, controller_id, Some(((nv_uid_key_replicas_sm->0).0, (nv_uid_key_replicas_sm->0).1, updated_replicas)), n)(s_prime)
             &&& pending_scale_new_vrs_req_in_flight(vd, controller_id, ((nv_uid_key_replicas_sm->0).0, (nv_uid_key_replicas_sm->0).1, updated_replicas))(s_prime)
-        }))
-        &&& (etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) && (nv_uid_key_replicas_sm is None ==> {
+        }
+        &&& (nv_uid_key_replicas_sm is None ==> {
             &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s_prime)
             &&& local_state_is(vd, controller_id, None, n)(s_prime)
             &&& pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime)
-        }))
+        })
     }),
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
