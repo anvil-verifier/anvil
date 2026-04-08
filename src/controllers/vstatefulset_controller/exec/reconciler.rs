@@ -978,7 +978,7 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (res
                     assert(spec_pvcs[i as int] == model_reconciler::make_pvc(vsts@, ordinal as nat, i as int));
                 }
                 assert(spec_templates[i as int].metadata.name is Some) by {
-                    assert(vsts@.spec.volume_claim_templates->0[i as int].metadata.well_formed_for_namespaced());
+                    assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
                 }
             }
             let mut vol = Volume::default();
@@ -1011,10 +1011,10 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (res
         Seq::<VolumeView>::empty()
     };
     proof {
-        assert(forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some) by {
+        assert(forall|k: int| #![trigger spec_templates[k]] 0 <= k < spec_templates.len() ==> spec_templates[k].metadata.name is Some) by {
             if vsts@.spec.volume_claim_templates is Some {
                 assert forall|k: int| 0 <= k < spec_templates.len() implies #[trigger] spec_templates[k].metadata.name is Some by {
-                    assert(vsts@.spec.volume_claim_templates->0[k].metadata.well_formed_for_namespaced());
+                    assert(vsts@.spec.volume_claim_templates->0[k].state_validation());
                 }
             }
         }
@@ -1035,7 +1035,7 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (res
         let ghost vol_name = spec_current_volumes[i as int].name;
         for j in 0..templates.len()
             invariant
-                keep == (forall|k: int| 0 <= k < j ==> vol_name != #[trigger] spec_templates[k].metadata.name->0),
+                keep == (forall|k: int| #![trigger spec_templates[k]] 0 <= k < j ==> vol_name != spec_templates[k].metadata.name->0),
                 templates.deep_view() == spec_templates,
                 forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some,
                 i < current_volumes.len(),
