@@ -587,7 +587,7 @@ requires
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s),
     ru_new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas_status, new_vrs_key)(s),
 ensures
-    if nv_uid_key_replicas_status.3 is Some && (nv_uid_key_replicas_status.3->0 == nv_uid_key_replicas_status.2) && nv_uid_key_replicas_status.2 != vd.spec.replicas.unwrap_or(int1!()) { // mismatch_replicas
+    if (nv_uid_key_replicas_status.2 == 0 || (nv_uid_key_replicas_status.3 is Some && nv_uid_key_replicas_status.3->0 == nv_uid_key_replicas_status.2)) && nv_uid_key_replicas_status.2 != vd.spec.replicas.unwrap_or(int1!()) { // mismatch_replicas
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime)
         &&& local_state_at_after_scale_vrs(vd, controller_id, new_vrs_key)(s_prime)
         &&& ru_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id)(s_prime)
