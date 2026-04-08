@@ -22,13 +22,55 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn rmq_with_different_key_implies_request_with_different_key(rmq: RabbitmqClusterView, other_rmq: RabbitmqClusterView, sub_resource: SubResource)
 requires
     rmq.object_ref() != other_rmq.object_ref()
 ensures
     get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
-{}
+{
+    let key_a = get_request(sub_resource, rmq).key;
+    let key_b = get_request(sub_resource, other_rmq).key;
+    if rmq.metadata.namespace->0 != other_rmq.metadata.namespace->0 {
+    } else {
+        assert(rmq.metadata.name->0 != other_rmq.metadata.name->0);
+        let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+        let cr_name_a = rmq.metadata.name->0;
+        let cr_name_b = other_rmq.metadata.name->0;
+        seq_unequal_preserved_by_add_prefix(prefix, cr_name_a, cr_name_b);
+        match sub_resource {
+            SubResource::HeadlessService => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-nodes"@);
+            },
+            SubResource::Service => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-client"@);
+            },
+            SubResource::ErlangCookieSecret => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-erlang-cookie"@);
+            },
+            SubResource::DefaultUserSecret => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-default-user"@);
+            },
+            SubResource::PluginsConfigMap => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-plugins-conf"@);
+            },
+            SubResource::ServerConfigMap => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server-conf"@);
+            },
+            SubResource::ServiceAccount => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server"@);
+            },
+            SubResource::Role => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-peer-discovery"@);
+            },
+            SubResource::RoleBinding => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server"@);
+            },
+            SubResource::VStatefulSetView => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server"@);
+            },
+        }
+    }
+}
 
 pub proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
     cr_name_a: StringView, cr_name_b: StringView, suffix: StringView,
