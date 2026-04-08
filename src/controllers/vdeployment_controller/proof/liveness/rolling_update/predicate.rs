@@ -91,7 +91,7 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
 }
 
 // glue predicate that connects (new_vrs, n) and resp_objs
-pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
+pub open spec fn ru_new_vrs_and_no_old_vrs_from_resp_objs(
     vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status: (Uid, ObjectRef, int, Option<int>), new_vrs_key: ObjectRef
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -126,33 +126,6 @@ pub open spec fn new_vrs_and_no_old_vrs_from_resp_objs(
                 &&& new_vrs->0.spec.replicas.unwrap_or(1) == 0
                 &&& vd.spec.replicas.unwrap_or(1) == 0
             }
-        }
-    }
-}
-
-// in addition to new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs
-pub open spec fn ru_resp_objs_with_new_vrs_status_matching_replicas_and_no_old_vrs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key: Option<(Uid, ObjectRef)>
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-        let vrs_list = objects_to_vrs_list(resp_objs)->0;
-        let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
-        &&& {
-            let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
-            &&& new_vrs is Some == nv_uid_key is Some
-            &&& new_vrs is Some ==> {
-                &&& new_vrs->0.metadata.uid is Some
-                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key->0).0
-                &&& new_vrs->0.metadata.name is Some
-                &&& new_vrs->0.metadata.namespace is Some
-                &&& new_vrs->0.status is Some
-                &&& new_vrs->0.status->0.replicas == get_replicas(new_vrs->0.spec.replicas)
-                &&& new_vrs->0.object_ref() == (nv_uid_key->0).1
-                &&& get_replicas(new_vrs->0.spec.replicas) == get_replicas(vd.spec.replicas)
-            }
-            &&& old_vrs_list.len() == 0
         }
     }
 }

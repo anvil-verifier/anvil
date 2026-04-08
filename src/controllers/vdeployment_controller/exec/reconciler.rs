@@ -266,7 +266,6 @@ pub fn scale_new_vrs(state: &VDeploymentReconcileState, vd: &VDeployment) -> (re
 requires
     vd@.well_formed(),
     state@.new_vrs is Some,
-    state@.new_vrs->0.status is Some,
     esr_theorem::valid_owned_vrs(state@.new_vrs->0, vd@),
 ensures
     res.1@ is Some && model_reconciler::scale_new_vrs(state@, vd@).1 is Some,
@@ -334,8 +333,7 @@ requires
     esr_theorem::valid_owned_vrs(vrs@, vd@),
 ensures res == model_reconciler::mismatch_replicas(vd@, vrs@),
 {
-    vrs.status().is_some()
-    && vrs.status().unwrap().replicas() == vrs.spec().replicas().unwrap_or(1)
+    (vrs.spec().replicas() == Some(0i32) || (vrs.status().is_some() && vrs.status().unwrap().replicas() == vrs.spec().replicas().unwrap_or(1)))
     && vrs.spec().replicas().unwrap_or(1) != vd.spec().replicas().unwrap_or(1)
 }
 

@@ -256,14 +256,14 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
 //  scale new vrs to desired replicas
 pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = state.new_vrs->0;
-    let new_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
+    let updated_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
         new_vrs.spec.replicas.unwrap_or(1) + 1
     } else {
         new_vrs.spec.replicas.unwrap_or(1) - 1
     };
     let new_vrs = VReplicaSetView {
         spec: VReplicaSetSpecView {
-            replicas: Some(new_replicas),
+            replicas: Some(updated_replicas),
             ..new_vrs.spec
         },
         ..new_vrs
@@ -354,8 +354,8 @@ pub open spec fn vrs_with_no_rv_status(vrs: VReplicaSetView) -> VReplicaSetView 
 }
 
 pub open spec fn mismatch_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
-    &&& vrs.status is Some
-    &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+    &&& vrs.spec.replicas == Some(0 as int) || // if it has 0 replicas, ignore ready status
+        (vrs.status is Some && vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1))
     &&& vrs.spec.replicas.unwrap_or(1) != vd.spec.replicas.unwrap_or(1)
 }
 

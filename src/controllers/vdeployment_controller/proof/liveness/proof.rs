@@ -295,46 +295,20 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         );
     }
     // init ~> done
-    let done = and!(
+    let lifted_done = |new_vrs_key: ObjectRef| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
         no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
-    );
-    assert(spec.entails(lift_state(init).leads_to(lift_state(done)))) by {
-        lemma_from_init_to_current_state_matches(vd, spec, cluster, controller_id);
+        current_state_matches_with_new_vrs_key(vd, new_vrs_key)
+    ));
+    assert(spec.entails(lift_state(init).leads_to(tla_exists(lifted_done)))) by {
+        lemma_from_init_to_current_state_matches_with_nv_key(vd, spec, cluster, controller_id);
     }
-    assert(spec.entails(lift_state(done).leads_to(tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))))) by {
-        let k_to_csm = |new_vrs_key: ObjectRef| inductive_current_state_matches(vd, controller_id, new_vrs_key);
-        let lifted_k_to_csm = |new_vrs_key: ObjectRef| lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key));
-        tla_exists_p_tla_exists_q_equality(
-            |new_vrs_key: ObjectRef| lift_state(k_to_csm(new_vrs_key)),
-            lifted_k_to_csm
-        );
-        temp_pred_equality(
-            tla_exists(|new_vrs_key: ObjectRef| lift_state(k_to_csm(new_vrs_key))),
-            tla_exists(lifted_k_to_csm)
-        );
-        assert forall |ex| #[trigger] lift_state(done).satisfied_by(ex) implies exists |k| #[trigger] lifted_k_to_csm(k).satisfied_by(ex) by {
+    assert forall |new_vrs_key: ObjectRef| spec.entails(lifted_done(new_vrs_key).leads_to(always(lift_state(#[trigger] inductive_current_state_matches(vd, controller_id, new_vrs_key))))) by {
+        assert forall |ex| #[trigger] lifted_done(new_vrs_key).satisfied_by(ex) implies lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).satisfied_by(ex) by {
             let s = ex.head();
-            let nv_key = choose |new_vrs_key: ObjectRef| {
-                let etcd_obj = s.resources()[new_vrs_key];
-                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                &&& #[trigger] s.resources().contains_key(new_vrs_key)
-                &&& valid_owned_obj_key(vd, s)(new_vrs_key)
-                &&& filter_new_vrs_keys(vd.spec.template, s)(new_vrs_key)
-                &&& etcd_vrs.metadata.uid is Some
-                &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
-                // no old vrs, including the 2nd new vrs (if any)
-                &&& !exists |old_k: ObjectRef| {
-                    &&& #[trigger] s.resources().contains_key(old_k)
-                    &&& valid_owned_obj_key(vd, s)(old_k)
-                    &&& filter_old_vrs_keys(Some(etcd_vrs.metadata.uid->0), s)(old_k)
-                }
-            };
-            assert(current_state_matches_with_new_vrs_key(vd, nv_key)(s));
-            assert(lifted_k_to_csm(nv_key).satisfied_by(ex));
+            assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s));
         }
-        entails_implies_leads_to(spec, lift_state(done), tla_exists(lifted_k_to_csm));
+        entails_implies_leads_to(spec, lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
             &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
@@ -355,290 +329,21 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             lift_state(vd_reconcile_request_only_interferes_with_itself_condition(controller_id)),
             lift_state(vd_rely_condition(cluster, controller_id))
         );
-        assert forall |s, s_prime| (forall |nv_key: ObjectRef| #[trigger] k_to_csm(nv_key)(s) && #[trigger] stronger_next(s, s_prime) ==> k_to_csm(nv_key)(s_prime)) by {
-            assert forall |nv_key: ObjectRef| #[trigger] k_to_csm(nv_key)(s) && stronger_next(s, s_prime) implies k_to_csm(nv_key)(s_prime) by {
-                lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_with_nv_key(vd, controller_id, cluster, nv_key, s, s_prime);
-            }
+        assert forall |s, s_prime| inductive_current_state_matches(vd, controller_id, new_vrs_key)(s) && #[trigger] stronger_next(s, s_prime)
+            implies inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime) by {
+            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_with_nv_key(vd, controller_id, cluster, new_vrs_key, s, s_prime);
         }
-        leads_to_exists_stable(spec, stronger_next, lift_state(done), k_to_csm);
-        tla_exists_p_tla_exists_q_equality(
-            |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
-            |new_vrs_key: ObjectRef| always(lift_state(k_to_csm(new_vrs_key)))
-        );
+        leads_to_stable(spec, lift_action(stronger_next), lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
     }
+    leads_to_exists_intro2(spec, lifted_done, |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
     leads_to_trans_n!(spec,
         true_pred(),
         lift_state(reconcile_idle),
         lift_state(reconcile_scheduled),
         lift_state(init),
-        lift_state(done),
+        tla_exists(lifted_done),
         tla_exists(|new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))
     );
-}
-
-#[verifier(rlimit(10))]
-#[verifier(external)] // deprecated
-pub proof fn lemma_inductive_current_state_matches_is_stable(
-    spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef
-)
-requires
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
-    spec.entails(always(lift_action(cluster.next()))),
-    // spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
-    spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    spec.entails(p.leads_to(lift_state(and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![Done]),
-        no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
-    )))),
-ensures
-    spec.entails(p.leads_to(always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))))),
-{
-    let inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
-    // ESR -> etcd_state_is (which is easier to reason about)
-    let final_state = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![Done]),
-        no_pending_req_in_cluster(vd, controller_id),
-        current_state_matches(vd)
-    );
-    entails_implies_leads_to(spec, lift_state(final_state), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
-    leads_to_trans(spec, p, lift_state(final_state), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
-        &&& forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(cluster, controller_id)(s)
-    };
-    helper_invariants::lemma_spec_entails_lifted_cluster_invariants_since_reconciliation(spec, vd, cluster, controller_id);
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
-    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
-        lifted_vd_rely_condition(cluster, controller_id),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-        later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
-    );
-    assert forall |s, s_prime: ClusterState| inductive_current_state_matches(vd, controller_id, new_vrs_key)(s) && #[trigger] stronger_next(s, s_prime) implies inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(s, s_prime, vd, cluster, controller_id, step, new_vrs_key);
-    }
-    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
-    leads_to_always_enhance(spec, true_pred(), p, lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)), lift_state(current_state_matches(vd)));
-}
-
-// similar to lemma_from_list_resp_to_next_state, carved out to reduce flakiness and proof time for debugging
-#[verifier(external_body)]
-pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, step: Step, new_vrs_key: ObjectRef
-)
-requires
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
-    Cluster::etcd_objects_have_unique_uids()(s),
-    cluster.next_step(s, s_prime, step),
-    forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
-    vd_rely_condition(cluster, controller_id)(s),
-    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
-ensures
-    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
-{
-    VDeploymentView::marshal_preserves_integrity();
-    VDeploymentReconcileState::marshal_preserves_integrity();
-    assert(instantiated_etcd_state_is_with_zero_old_vrs(vd, controller_id)(s)) by {
-        lemma_esr_equiv_to_instantiated_etcd_state_is(vd, cluster, controller_id, s);
-    }
-    let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
-        &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
-    };
-    let new_msgs = s_prime.in_flight().sub(s.in_flight());
-    match step {
-        Step::APIServerStep(input) => {
-            let msg = input->0;
-            if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
-                if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
-                    lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
-                        s, s_prime, vd, cluster, controller_id, msg
-                    );
-                    if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                        assert(s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
-                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s));
-                        assert forall |resp_msg| {
-                            &&& #[trigger] s_prime.in_flight().contains(resp_msg)
-                            &&& resp_msg.src is APIServer
-                            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime) by {
-                            assert(s.in_flight().contains(resp_msg)) by {
-                                if !s.in_flight().contains(resp_msg) {
-                                    assert(new_msgs.contains(resp_msg));
-                                    assert(!resp_msg_matches_req_msg(resp_msg, req_msg));
-                                }
-                            }
-                            lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                                s, s_prime, vd, cluster, controller_id, msg, Some(uid)
-                            );
-                            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                            let vrs_list = objects_to_vrs_list(resp_objs)->0;
-                            let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-                            assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
-                                let key = vrs.object_ref();
-                                let etcd_vrs = VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0;
-                                &&& s_prime.resources().contains_key(key)
-                                &&& VReplicaSetView::unmarshal(s_prime.resources()[key]) is Ok
-                                &&& valid_owned_obj_key(vd, s_prime)(key)
-                                &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
-                                &&& etcd_vrs.spec == vrs.spec
-                            } by {
-                                let key = vrs.object_ref();
-                                let etcd_obj = s.resources()[key];
-                                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                                assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
-                                    assert(etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version());
-                                    VReplicaSetView::marshal_preserves_integrity();
-                                }
-                                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                                    s, s_prime, vd, cluster, controller_id, msg
-                                );
-                            }
-                        }
-                        assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s_prime));
-                        assert(current_state_matches(vd)(s_prime));
-                        assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime)); // sentry for debugging
-                    }
-                } else {
-                    assert(s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()));
-                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                    assert(input == Some(req_msg));
-                    if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        assert forall |msg| {
-                            &&& #[trigger] s_prime.in_flight().contains(msg)
-                            &&& msg.src is APIServer
-                            &&& resp_msg_matches_req_msg(msg, req_msg)
-                        } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
-                            if !new_msgs.contains(msg) {
-                                assert(s.in_flight().contains(msg));
-                            } else {
-                                lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
-                                    s, s_prime, vd, cluster, controller_id, req_msg,
-                                );
-                            }
-                        }
-                        assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-                    }
-                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-                }
-                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-            } else {
-                assert(msg.src != HostId::Controller(controller_id, vd.object_ref()));
-                lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches(
-                    s, s_prime, vd, cluster, controller_id, msg
-                );
-                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-            }
-            assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-        },
-        Step::ControllerStep(input) => {
-            if s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-                && input.0 == controller_id && input.2 == Some(vd.object_ref()) {
-                let resp_msg = input.1->0;
-                if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                    // similar to proof in lemma_from_init_to_current_state_matches, yet replicas and old_vrs_list_len are fixed
-                    assert(exists |nv_uid_key: (Uid, ObjectRef)| #[trigger] new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)) by {
-                        lemma_etcd_state_is_implies_filter_old_and_new_vrs_from_resp_objs(
-                            vd, cluster, controller_id, (uid, key), resp_msg, s
-                        );
-                    }
-                    let nv_uid_key = choose |nv_uid_key: (Uid, ObjectRef)| {
-                        &&& #[trigger] new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, resp_msg, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
-                    };
-                    lemma_from_list_resp_to_next_state(
-                        s, s_prime, vd, cluster, controller_id, resp_msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1))), 0
-                    );
-                    assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s_prime));
-                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert(vds_prime.old_vrs_index == 0);
-                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-                } else if at_vd_step_with_vd(vd, controller_id, at_step![Init])(s) {
-                    // prove that the newly sent message has no response.
-                    if s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
-                        assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
-                        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
-                            && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
-                            && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
-                            && msg != req_msg
-                            implies msg.rpc_id != req_msg.rpc_id by {
-                            if !s.in_flight().contains(msg) {} // need this to invoke trigger.
-                        }
-                    }
-                } else if at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS])(s) {
-                    // it directly goes to Done
-                }
-                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-            } else if !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) {
-                if s_prime.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) { // RunScheduledReconcile
-                    assert(s_prime.resources() == s.resources());
-                    assert(at_vd_step_with_vd(vd, controller_id, at_step![Init])(s_prime)) by {
-                        assert(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime));
-                        lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
-                    }
-                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-                } else {
-                    assert(s_prime.resources() == s.resources());
-                    assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-                }
-                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-            } else { // same controller_id, different CR
-                assert(s.ongoing_reconciles(controller_id)[vd.object_ref()] == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()]);
-                assert(s.resources() == s_prime.resources());
-                if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                    let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                    assert forall |msg| {
-                        &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& msg.src is APIServer
-                        &&& resp_msg_matches_req_msg(msg, req_msg)
-                    } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
-                        if !new_msgs.contains(msg) {
-                            assert(s.in_flight().contains(msg));
-                        }
-                    }
-                }
-                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-            }
-            assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-        },
-        _ => { // this branch is slow
-            // Maintain quantified invariant.
-            if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                assert forall |msg| {
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.src is APIServer
-                    &&& resp_msg_matches_req_msg(msg, req_msg)
-                } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, msg, s) by {
-                    if !new_msgs.contains(msg) {
-                        assert(s.in_flight().contains(msg));
-                    }
-                }
-                assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-            }
-            assert(inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime));
-        }
-    }
 }
 
 // Wrapper: takes per-id rely conditions (matching composition trait interface),

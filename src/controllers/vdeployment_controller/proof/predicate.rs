@@ -164,8 +164,8 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
 }
 
 // glue predicate that connects (new_vrs, n) and resp_objs
-pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
+pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs( 
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas_status_mismatch: Option<(Uid, ObjectRef, int, bool)>, n: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
@@ -174,14 +174,15 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
         &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s)
         &&& {
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
-            &&& new_vrs is Some == nv_uid_key_replicas is Some
+            &&& new_vrs is Some == nv_uid_key_replicas_status_mismatch is Some
             &&& new_vrs is Some ==> {
                 &&& new_vrs->0.metadata.uid is Some
-                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key_replicas->0).0
+                &&& new_vrs->0.metadata.uid->0 == (nv_uid_key_replicas_status_mismatch->0).0
                 &&& new_vrs->0.metadata.name is Some
                 &&& new_vrs->0.metadata.namespace is Some
-                &&& new_vrs->0.object_ref() == (nv_uid_key_replicas->0).1
-                &&& get_replicas(new_vrs->0.spec.replicas) == (nv_uid_key_replicas->0).2
+                &&& new_vrs->0.object_ref() == (nv_uid_key_replicas_status_mismatch->0).1
+                &&& get_replicas(new_vrs->0.spec.replicas) == (nv_uid_key_replicas_status_mismatch->0).2
+                &&& mismatch_replicas(vd, new_vrs->0) == (nv_uid_key_replicas_status_mismatch->0).3
             }
             &&& old_vrs_list.len() == n
         }
@@ -254,7 +255,7 @@ pub open spec fn exists_create_resp_msg_containing_new_vrs_uid_key(
             &&& resp_msg_matches_req_msg(j.0, req_msg)
             // we don't need info on content of the response at the moment
             &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
-            &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n)(s)
+            &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, created_replicas(vd.spec.replicas))), n)(s)
         }
     }
 }
@@ -277,7 +278,7 @@ pub open spec fn resp_msg_is_ok_create_resp_containing_new_vrs(
     // strengthen valid_owned_vrs, as only one controller owner is allowed
     &&& vrs.metadata.owner_references is Some
     &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-    &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+    &&& vrs.spec.replicas.unwrap_or(1) == created_replicas(vd.spec.replicas)
     // this combined with all above ==> valid_owned_vrs
     &&& vrs.metadata.deletion_timestamp is None
     &&& s.resources().contains_key(key)
@@ -338,7 +339,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
 }
 
 pub open spec fn req_msg_is_scale_new_vrs_req(
-    vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef)
+    vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
@@ -356,8 +357,8 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
         // so old vrs will not get affected, used as barrier for lemma_scale_new_vrs_req_returns_ok
-        &&& req_vrs.metadata.uid->0 == nv_uid_key.0
-        &&& req_vrs.object_ref() == nv_uid_key.1
+        &&& req_vrs.metadata.uid->0 == nv_uid_key_replicas.0
+        &&& req_vrs.object_ref() == nv_uid_key_replicas.1
         // updated vrs is valid and owned by vd
         &&& valid_owned_vrs(req_vrs, vd)
         // and can pass new vrs filter
@@ -378,10 +379,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& get_replicas(vd.spec.replicas) > get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) + 1)
-        &&& get_replicas(vd.spec.replicas) < get_replicas(etcd_vrs.spec.replicas) ==> req_vrs.spec.replicas == Some(get_replicas(etcd_vrs.spec.replicas) - 1)
-        // unreachable
-        &&& get_replicas(vd.spec.replicas) == get_replicas(etcd_vrs.spec.replicas) ==> false
+        &&& req_vrs.spec.replicas.unwrap_or(1) == nv_uid_key_replicas.2
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
@@ -398,12 +396,12 @@ pub open spec fn req_msg_is_pending_scale_old_vrs_req_in_flight(
 }
 
 pub open spec fn req_msg_is_pending_scale_new_vrs_req_in_flight(
-    vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef)
+    vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key)(s)
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key_replicas)(s)
     }
 }
 
@@ -419,13 +417,13 @@ pub open spec fn pending_scale_old_vrs_req_in_flight(
 }
 
 pub open spec fn pending_scale_new_vrs_req_in_flight(
-    vd: VDeploymentView, controller_id: int, nv_uid_key: (Uid, ObjectRef)
+    vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key)(s)
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key_replicas)(s)
     }
 }
 
@@ -443,12 +441,12 @@ pub open spec fn resp_msg_is_ok_scale_old_vrs_resp_in_flight(
 }
 
 pub open spec fn resp_msg_is_ok_scale_new_vrs_resp_in_flight(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef)
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key)(s)
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key_replicas)(s)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.get_get_then_update_response().res is Ok
@@ -471,12 +469,12 @@ pub open spec fn exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(
 }
 
 pub open spec fn exists_resp_msg_is_ok_scale_new_vrs_resp_in_flight(
-    vd: VDeploymentView, controller_id: int, nv_uid_key: (Uid, ObjectRef)
+    vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int)
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key)(s)
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid_key_replicas)(s)
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -512,14 +510,6 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_k
     }
 }
 
-// TODO: deprecate
-pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs(vd: VDeploymentView, controller_id: int)
--> StatePred<ClusterState> {
-    |s: ClusterState| exists |nv_uid_key: (Uid, ObjectRef)| {
-        &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
-    }
-}
-
 pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef)
 -> StatePred<ClusterState> {
     |s: ClusterState| exists |nv_uid_replicas: (Uid, int)| {
@@ -538,6 +528,26 @@ pub open spec fn get_replicas(i: Option<int>) -> int {
     i.unwrap_or(int1!())
 }
 
+pub open spec fn replicas_ok(vd: VDeploymentView, replicas: int) -> StatePred<ClusterState> {
+    |s: ClusterState| (get_replicas(vd.spec.replicas) == int0!()) || (replicas > int0!())
+}
+
+pub open spec fn updated_replicas(old_replicas: Option<int>, vd_replicas: Option<int>) -> int {
+    if get_replicas(vd_replicas) > get_replicas(old_replicas) {
+        get_replicas(old_replicas) + 1
+    } else {
+        get_replicas(old_replicas) - 1
+    }
+}
+
+pub open spec fn created_replicas(vd_replicas: Option<int>) -> int {
+    if get_replicas(vd_replicas) == 0 {
+        0
+    } else {
+        1
+    }
+}
+
 // when coherence breaks
 pub enum SpecialCase {
     None,
@@ -553,12 +563,13 @@ pub open spec fn local_state_is(
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& vds.old_vrs_index == n
         &&& match nv_uid_key_replicas {
-            Some((uid, key, _)) => {
+            Some((uid, key, replicas)) => {
                 let new_vrs = vds.new_vrs->0;
                 // new vrs in local cache exists and its fingerprint matchesnew_vrs
                 &&& vds.new_vrs is Some
                 &&& new_vrs.object_ref() == key
                 &&& new_vrs.metadata.uid->0 == uid
+                &&& get_replicas(new_vrs.spec.replicas) == replicas
             },
             None => {
                 &&& vds.new_vrs is None
@@ -638,6 +649,13 @@ pub open spec fn local_state_is_valid(vd: VDeploymentView, controller_id: int) -
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             &&& valid_owned_vrs(vrs, vd) // used in checks at AfterScaleDownOldVRS
+        }
+        &&& match vds.reconcile_step {
+            AfterScaleNewVRS | AfterEnsureNewVRS | AfterScaleDownOldVRS | Done => {
+                &&& vds.new_vrs is Some
+                &&& replicas_ok(vd, get_replicas(vds.new_vrs->0.spec.replicas))(s)
+            },
+            _ => {true}
         }
     }
 }

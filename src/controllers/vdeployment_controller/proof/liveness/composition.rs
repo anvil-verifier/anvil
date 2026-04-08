@@ -463,7 +463,6 @@ ensures
     }
 }
 
-// similar to lemma_inductive_current_state_matches_preserves_from_s_to_s_prime
 pub proof fn composed_desired_state_preserves_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, s: ClusterState, s_prime: ClusterState
 )
