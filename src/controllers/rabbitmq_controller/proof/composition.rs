@@ -334,9 +334,7 @@ ensures
                 assert(helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)(s));
             } else if resource_update_request_msg(sts_key)(msg) {
                 // rv mismatch => API server rejects
-            } else {
-                lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, msg, sts_key);
-            }
+            } else {}
         },
         _ => {
             assert(s_prime.resources() == s.resources());

@@ -218,7 +218,6 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
                         assert(!resource_get_then_update_status_request_msg(sts_key)(req_msg));
                         assert(!resource_get_then_delete_request_msg(sts_key)(req_msg));
                         assert(!resource_update_status_request_msg(sts_key)(req_msg));
-                        // Now lemma_api_request_not_made_by_field_matches_maintains_resource applies
                         // since req_msg doesn't target sts_key for any mutating operation
                         // (it could be Get, List, Create-when-key-exists, or Update/Delete to different key)
                         if req_msg.content is APIRequest {
@@ -227,9 +226,7 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
                                     // If sts_key exists, create of any key preserves it
                                     // If sts_key doesn't exist, the antecedent is false
                                 },
-                                _ => {
-                                    lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, sts_key);
-                                },
+                                _ => {},
                             }
                         }
                     }
@@ -651,7 +648,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                                 }
                                 assert(!resource_update_request_msg(resource_key)(req_msg));
                                 assert(req_msg.content.get_update_request().key() != resource_key);
-                                lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                                 assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                                 assert(!s.in_flight().contains(pending_req));
                                 assert(resource_update_response_msg(resource_key, s)(msg));
@@ -659,7 +655,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                         },
                         APIRequest::DeleteRequest(req) => {
                             assert(req.key != resource_key);
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
@@ -667,7 +662,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                         },
                         APIRequest::GetThenUpdateRequest(req) => {
                             assert(req.key() != resource_key);
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
@@ -675,7 +669,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                         },
                         APIRequest::GetThenDeleteRequest(req) => {
                             assert(req.key() != resource_key);
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
@@ -683,7 +676,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                         },
                         APIRequest::GetThenUpdateStatusRequest(req) => {
                             assert(req.key() != resource_key);
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
@@ -691,7 +683,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                         },
                         APIRequest::UpdateStatusRequest(req) => {
                             assert(req.key() != resource_key);
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
@@ -703,7 +694,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                             assert(s.in_flight().contains(msg));
                             assert(resource_update_response_msg(resource_key, s)(msg));
                             assert(s.resources().contains_key(resource_key));
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(s, s_prime, cluster, req_msg, resource_key);
                             assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                             assert(!s.in_flight().contains(pending_req));
                         },

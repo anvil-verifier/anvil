@@ -177,6 +177,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
             &&& #[trigger] s.in_flight().contains(msg)
             &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
+            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap()) is Ok
@@ -193,6 +194,7 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
             &&& #[trigger] s.in_flight().contains(msg)
             &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
+            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.resource_version is Some

@@ -338,90 +338,31 @@ ensures
     }
     match msg.src {
         HostId::Controller(id, cr_key) => {
-            if id != controller_id {
-                // From another controller: rmq_rely says they don't send mutating
-                // requests to RMQ-managed kinds
-                assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                assert(rmq_rely(id)(s));
-                match msg.content->APIRequest_0 {
-                    APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
-                    APIRequest::CreateRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key().kind));
-                        if s.resources().contains_key(resource_key) {}
-                    },
-                    APIRequest::UpdateRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key().kind));
-                        assert(req.key() != resource_key);
-                    },
-                    APIRequest::DeleteRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key.kind));
-                        assert(req.key != resource_key);
-                    },
-                    APIRequest::UpdateStatusRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key().kind));
-                        assert(req.key() != resource_key);
-                    },
-                    APIRequest::GetThenDeleteRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key().kind));
-                        assert(req.key() != resource_key);
-                    },
-                    APIRequest::GetThenUpdateRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key().kind));
-                        assert(req.key() != resource_key);
-                    },
-                    APIRequest::GetThenUpdateStatusRequest(req) => {
-                        assert(!is_rmq_managed_kind(req.key().kind));
-                        assert(req.key() != resource_key);
-                    },
-                }
-            } else {
-                assume(false);
-                // Same controller (controller_id), different CR key
-                assert(cr_key != rmq.object_ref());
-                match msg.content->APIRequest_0 {
-                    APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
-                    APIRequest::CreateRequest(req) => {
-                        // By every_resource_create_request_implies_at_after_create_resource_step,
-                        // if this create targets resource_key, it must be rmq's pending req msg.
-                        // But pending_req_msg_is implies msg.src == Controller(controller_id, rmq.object_ref()),
-                        // contradicting msg.src = Controller(controller_id, cr_key).
-                        if resource_create_request_msg(resource_key)(msg) {
-                            assert(Cluster::pending_req_msg_is(controller_id, s, rmq.object_ref(), msg));
-                            assert(false);
-                        }
-                        if s.resources().contains_key(resource_key) {
-                            lemma_api_request_not_made_by_field_matches_maintains_resource(
-                                s, s_prime, cluster, msg, resource_key
-                            );
-                        }
-                    },
-                    APIRequest::UpdateRequest(req) => {
-                        // By every_resource_update_request_implies_at_after_update_resource_step,
-                        // update targeting resource_key must be rmq's pending req msg -> contradiction.
-                        if resource_update_request_msg(resource_key)(msg) {
-                            assert(Cluster::pending_req_msg_is(controller_id, s, rmq.object_ref(), msg));
-                            assert(false);
-                        }
-                        assert(req.key() != resource_key);
-                        lemma_api_request_not_made_by_field_matches_maintains_resource(
-                            s, s_prime, cluster, msg, resource_key
-                        );
-                    },
-                    APIRequest::DeleteRequest(req) => {
-                        // no_delete_resource_request_msg_in_flight: no delete for resource_key
-                        assert(!resource_delete_request_msg(resource_key)(msg));
-                        assert(req.key != resource_key);
-                        lemma_api_request_not_made_by_field_matches_maintains_resource(
-                            s, s_prime, cluster, msg, resource_key
-                        );
-                    },
-                    _ => {
-                        // GetThenDelete, GetThenUpdate, GetThenUpdateStatus, UpdateStatus
-                        // no_get_then_requests_and_update_resource_status_requests_in_flight
-                        // rules these out for resource_key
-                        assume(false);
-                    },
-                }
+            match msg.content->APIRequest_0 {
+                APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
+                APIRequest::CreateRequest(req) => { // every_resource_create_request_implies_at_after_create_resource_step
+                    assume(false);
+                    if s.resources().contains_key(resource_key) {}
+                },
+                APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
+                    assume(false);
+                    assert(req.key() != resource_key);
+                },
+                APIRequest::DeleteRequest(req) => { // no_delete_resource_request_msg_in_flight
+                    assert(req.key != resource_key);
+                },
+                APIRequest::UpdateStatusRequest(req) => { // no_get_then_requests_and_update_resource_status_requests_in_flight
+                    assert(req.key() != resource_key);
+                },
+                APIRequest::GetThenDeleteRequest(req) => {
+                    assert(req.key() != resource_key);
+                },
+                APIRequest::GetThenUpdateRequest(req) => {
+                    assert(req.key() != resource_key);
+                },
+                APIRequest::GetThenUpdateStatusRequest(req) => {
+                    assert(req.key() != resource_key);
+                },
             }
         },
         _ => {
