@@ -915,10 +915,13 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: usize) -> (pod: Pod)
 pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         vsts@.well_formed(),
-        pod@.spec is Some,
     ensures
         result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat),
 {
+    if pod.spec().is_none() {
+        return pod;
+    }
+
     let pvcs = make_pvcs(vsts, ordinal as usize);
     let current_volumes = if pod.spec().unwrap().volumes().is_some() {
         pod.spec().unwrap().volumes().unwrap()
@@ -1010,7 +1013,7 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (res
     proof {
         assert(forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some) by {
             if vsts@.spec.volume_claim_templates is Some {
-                assert forall|k: int| 0 <= k < spec_templates.len() implies spec_templates[k].metadata.name is Some by {
+                assert forall|k: int| 0 <= k < spec_templates.len() implies #[trigger] spec_templates[k].metadata.name is Some by {
                     assert(vsts@.spec.volume_claim_templates->0[k].metadata.well_formed_for_namespaced());
                 }
             }

@@ -742,7 +742,7 @@ pub open spec fn make_pvcs(vsts: VStatefulSetView, ordinal: nat) -> Seq<Persiste
 }
 
 pub open spec fn vol_not_in_pvc_templates(vol: VolumeView, templates: Seq<PersistentVolumeClaimView>) -> bool {
-    forall|k: int| 0 <= k < templates.len() ==> vol.name != #[trigger] templates[k].metadata.name->0
+    forall |k: int| 0 <= k < templates.len() ==> vol.name != #[trigger] templates[k].metadata.name->0
 }
 
 pub open spec fn volume_filter(templates: Seq<PersistentVolumeClaimView>) -> spec_fn(VolumeView) -> bool {
@@ -750,31 +750,35 @@ pub open spec fn volume_filter(templates: Seq<PersistentVolumeClaimView>) -> spe
 }
 
 pub open spec fn update_storage(vsts: VStatefulSetView, pod: PodView, ordinal: nat) -> PodView {
-    let pvcs = make_pvcs(vsts, ordinal);
-    let templates = if vsts.spec.volume_claim_templates is Some { vsts.spec.volume_claim_templates->0 } else { Seq::empty() };
-    let current_volumes = if pod.spec->0.volumes is Some { pod.spec->0.volumes->0 } else { Seq::<VolumeView>::empty() };
-    let new_volumes = if vsts.spec.volume_claim_templates is Some {
-        Seq::new(templates.len(), |i| VolumeView {
-            name: templates[i].metadata.name->0,
-            persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
-                claim_name: pvcs[i].metadata.name->0,
-                read_only: Some(false),
-            }),
-            ..VolumeView::default()
-        })
+    if pod.spec is None {
+        pod
     } else {
-        Seq::empty()
-    };
+        let pvcs = make_pvcs(vsts, ordinal);
+        let templates = if vsts.spec.volume_claim_templates is Some { vsts.spec.volume_claim_templates->0 } else { Seq::empty() };
+        let current_volumes = if pod.spec->0.volumes is Some { pod.spec->0.volumes->0 } else { Seq::<VolumeView>::empty() };
+        let new_volumes = if vsts.spec.volume_claim_templates is Some {
+            Seq::new(templates.len(), |i| VolumeView {
+                name: templates[i].metadata.name->0,
+                persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+                    claim_name: pvcs[i].metadata.name->0,
+                    read_only: Some(false),
+                }),
+                ..VolumeView::default()
+            })
+        } else {
+            Seq::empty()
+        };
 
-    // We only want to keep the current volumes whose names don't appear in templates
-    let filtered_current_volumes = current_volumes.filter(volume_filter(templates));
+        // We only want to keep the current volumes whose names don't appear in templates
+        let filtered_current_volumes = current_volumes.filter(volume_filter(templates));
 
-    PodView {
-        spec: Some(PodSpecView {
-            volumes: Some(new_volumes.add(filtered_current_volumes)),
-            ..pod.spec->0
-        }),
-        ..pod
+        PodView {
+            spec: Some(PodSpecView {
+                volumes: Some(new_volumes.add(filtered_current_volumes)),
+                ..pod.spec->0
+            }),
+            ..pod
+        }
     }
 }
 
