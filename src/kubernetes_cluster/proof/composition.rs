@@ -127,11 +127,6 @@ pub trait VerticalComposition: Sized + Composition {
         ;
 }
 
-// A -> B {A, B}
-// C -> D {C, D}
-
-// 
-
 proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Cluster)
     where
         HC: HorizontalComposition,
