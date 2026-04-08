@@ -624,7 +624,6 @@ pub proof fn invariants_since_phase_viii_is_stable(controller_id: int, rabbitmq:
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -718,46 +717,32 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     let a_to_p_no_pending = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)));
     assert_by(spec.entails(always(tla_forall(a_to_p_no_pending))), {
-        assume(false);
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending(key))) by {
-            RabbitmqReconcileState::marshal_preserves_integrity();
-            cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_closure(RabbitmqReconcileStep::Init));
+            sm_spec_entails_no_pending_msg_at_init(cluster, spec, controller_id, key);
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending);
     });
     let a_to_p_pending_in_flight = |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))));
     assert_by(spec.entails(always(tla_forall(a_to_p_pending_in_flight))), {
-        assume(false);
         assert forall |step: (ObjectRef, ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p_pending_in_flight(step))) by {
-            RabbitmqReconcileState::marshal_preserves_integrity();
-            RabbitmqClusterView::marshal_preserves_integrity();
-            // Extract single-key pending_req_of_key_is_unique for step.0 from the forall-key version
-            always_tla_forall_apply(spec, a_to_p_key_unique, step.0);
-            cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                spec, controller_id, step.0,
-                at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))
-            );
+            sm_spec_entails_pending_req_in_flight_at_after_k_request_step(cluster, spec, controller_id, step.0, step.1, step.2);
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_pending_in_flight);
     });
     let a_to_p_no_pending_done = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, cluster.reconcile_model(controller_id).done));
     assert_by(spec.entails(always(tla_forall(a_to_p_no_pending_done))), {
-        assume(false);
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending_done(key))) by {
-            RabbitmqReconcileState::marshal_preserves_integrity();
-            cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
+            sm_spec_entails_no_pending_msg_at_done(cluster, spec, controller_id, key);
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_done);
     });
     let a_to_p_no_pending_error = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, cluster.reconcile_model(controller_id).error));
     assert_by(spec.entails(always(tla_forall(a_to_p_no_pending_error))), {
-        assume(false);
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending_error(key))) by {
-            RabbitmqReconcileState::marshal_preserves_integrity();
-            cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).error);
+            sm_spec_entails_no_pending_msg_at_error(cluster, spec, controller_id, key);
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_error);
     });
@@ -804,6 +789,79 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         tla_forall(a_to_p_no_pending_done),
         tla_forall(a_to_p_no_pending_error)
     );
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn sm_spec_entails_no_pending_msg_at_init(
+    cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef
+)
+requires
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+ensures
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_closure(RabbitmqReconcileStep::Init))))),
+{
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_closure(RabbitmqReconcileStep::Init));
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn sm_spec_entails_pending_req_in_flight_at_after_k_request_step(
+    cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, action: ActionKind, sub_resource: SubResource
+)
+requires
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+ensures
+    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id, key, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource)))))),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, key);
+    cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        spec, controller_id, key,
+        at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(action, sub_resource))
+    );
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn sm_spec_entails_no_pending_msg_at_done(
+    cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef
+)
+requires
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+ensures
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).done)))),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn sm_spec_entails_no_pending_msg_at_error(
+    cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef
+)
+requires
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+ensures
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+        controller_id, key, cluster.reconcile_model(controller_id).error)))),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).error);
 }
 
 }
