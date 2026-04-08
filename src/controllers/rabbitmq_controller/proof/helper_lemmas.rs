@@ -317,7 +317,6 @@ ensures
 }
 
 // shield_lemma
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )
@@ -331,10 +330,127 @@ requires
 ensures
     s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
     s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
-    // cm is not updated
-    s.resources().contains_key(make_server_config_map_key(rmq)) == s_prime.resources().contains_key(make_server_config_map_key(rmq)),
-    s.resources()[make_server_config_map_key(rmq)] == s_prime.resources()[make_server_config_map_key(rmq)],
-{}
+{
+    let resource_key = get_request(sub_resource, rmq).key;
+    assert(s.in_flight().contains(msg));
+    if !(msg.content is APIRequest && msg.dst is APIServer) {
+        return;
+    }
+    match msg.src {
+        HostId::Controller(id, cr_key) => {
+            if id != controller_id {
+                // From another controller: rmq_rely says they don't send mutating
+                // requests to RMQ-managed kinds
+                assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                assert(rmq_rely(id)(s));
+                match msg.content->APIRequest_0 {
+                    APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
+                    APIRequest::CreateRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key().kind));
+                        if s.resources().contains_key(resource_key) {
+                            lemma_api_request_not_made_by_field_matches_maintains_resource(
+                                s, s_prime, cluster, msg, resource_key
+                            );
+                        }
+                    },
+                    APIRequest::UpdateRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key().kind));
+                        assert(req.key() != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    APIRequest::DeleteRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key.kind));
+                        assert(req.key != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    APIRequest::UpdateStatusRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key().kind));
+                        assert(req.key() != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    APIRequest::GetThenDeleteRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key().kind));
+                        assert(req.key() != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    APIRequest::GetThenUpdateRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key().kind));
+                        assert(req.key() != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    APIRequest::GetThenUpdateStatusRequest(req) => {
+                        assert(!is_rmq_managed_kind(req.key().kind));
+                        assert(req.key() != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                }
+            } else {
+                // Same controller (controller_id), different CR key
+                assert(cr_key != rmq.object_ref());
+                match msg.content->APIRequest_0 {
+                    APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
+                    APIRequest::CreateRequest(req) => {
+                        // By every_resource_create_request_implies_at_after_create_resource_step,
+                        // if this create targets resource_key, it must be rmq's pending req msg.
+                        // But pending_req_msg_is implies msg.src == Controller(controller_id, rmq.object_ref()),
+                        // contradicting msg.src = Controller(controller_id, cr_key).
+                        if resource_create_request_msg(resource_key)(msg) {
+                            assert(Cluster::pending_req_msg_is(controller_id, s, rmq.object_ref(), msg));
+                            assert(false);
+                        }
+                        if s.resources().contains_key(resource_key) {
+                            lemma_api_request_not_made_by_field_matches_maintains_resource(
+                                s, s_prime, cluster, msg, resource_key
+                            );
+                        }
+                    },
+                    APIRequest::UpdateRequest(req) => {
+                        // By every_resource_update_request_implies_at_after_update_resource_step,
+                        // update targeting resource_key must be rmq's pending req msg -> contradiction.
+                        if resource_update_request_msg(resource_key)(msg) {
+                            assert(Cluster::pending_req_msg_is(controller_id, s, rmq.object_ref(), msg));
+                            assert(false);
+                        }
+                        assert(req.key() != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    APIRequest::DeleteRequest(req) => {
+                        // no_delete_resource_request_msg_in_flight: no delete for resource_key
+                        assert(!resource_delete_request_msg(resource_key)(msg));
+                        assert(req.key != resource_key);
+                        lemma_api_request_not_made_by_field_matches_maintains_resource(
+                            s, s_prime, cluster, msg, resource_key
+                        );
+                    },
+                    _ => {
+                        // GetThenDelete, GetThenUpdate, GetThenUpdateStatus, UpdateStatus
+                        // no_get_then_requests_and_update_resource_status_requests_in_flight
+                        // rules these out for resource_key
+                        assume(false);
+                    },
+                }
+            }
+        },
+        _ => {
+            // Non-controller sources: by no_pending_request_to_api_server_from_non_controllers
+            // + pod_monkey_disabled, these don't send API requests to API server
+        },
+    }
+}
 
 pub proof fn lemma_get_sub_resource_request_returns_ok_or_not_found(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message

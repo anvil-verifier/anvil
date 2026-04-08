@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::proof::{resource::*, helper_invariants::*};
 use crate::rabbitmq_controller::trusted::{
-    spec_types::*, step::*, liveness_theorem::*,
+    spec_types::*, step::*, liveness_theorem::*, rely_guarantee::*
 };
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::defs::*;
@@ -546,6 +546,7 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
 
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, controller_id: int, rmq: RabbitmqClusterView, sub_resource: SubResource) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        &&& rmq_guarantee(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
         &&& Cluster::pod_monkey_disabled()(s)

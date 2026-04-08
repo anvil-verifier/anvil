@@ -583,6 +583,10 @@ ensures
     );
     entails_trans(stable_spec,
         derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
+        always(lift_state(rmq_guarantee(controller_id)))
+    );
+    entails_trans(stable_spec,
+        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
         always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))
     );
     assert(stable_spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))));
@@ -628,6 +632,7 @@ ensures
     // Combine all extracted invariants into cluster_invariants_since_reconciliation
     combine_spec_entails_always_n!(stable_spec,
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+        lift_state(rmq_guarantee(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),

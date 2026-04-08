@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     model::reconciler::*,
-    proof::{helper_invariants, liveness::terminate, predicate::*, resource::*},
+    proof::{helper_invariants, liveness::terminate, predicate::*, resource::*, guarantee},
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
 use crate::reconciler::spec::io::*;
@@ -168,8 +168,8 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
         );
     } else {
-        entails_trans(spec,
-            spec_before_phase_n(controller_id, i, cluster, rabbitmq),
+        entails_trans_n!(spec,
+            derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
             always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
         );
         entails_trans(spec,
@@ -379,7 +379,8 @@ pub proof fn invariants_is_stable(controller_id: int, cluster: Cluster, rabbitmq
 
 // The safety invariants that are required to prove liveness.
 pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
-    always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
+    always(lift_state(rmq_guarantee(controller_id))) // guarantee is an invariant as well
+    .and(always(lift_state(Cluster::every_in_flight_msg_has_unique_id())))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id))))
     .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref()))))
@@ -447,6 +448,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     stable_and_always_n!(
+        lift_state(rmq_guarantee(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
@@ -634,8 +636,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.entails(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)),
 {
-    // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.
-    // And then the verifier doesn't have to infer it every time applying those lemmas.
+    guarantee::guarantee_condition_holds(spec, cluster, controller_id);
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
@@ -748,6 +749,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     });
     entails_always_and_n!(
         spec,
+        lift_state(rmq_guarantee(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
