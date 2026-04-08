@@ -106,8 +106,7 @@ ensures
         no_pending_req_in_cluster(vd, controller_id),
         etcd_state_is(vd, controller_id, Some((i.0, i.1, i.2)), i.3),
         local_state_is(vd, controller_id, Some((i.0, i.1, i.2)), i.3),
-        local_state_is_valid_and_coherent_with_etcd(vd, controller_id),
-        replicas_ok(vd, i.2)
+        local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
     ));
     // from list_resp with different etcd state to different transitions to AfterEnsureNewVRS
     // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs((nv_uid, nv_key, n)))
@@ -1924,7 +1923,6 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    get_replicas(vd.spec.replicas) > 0 ==> nv_uid_key_replicas.2 > 0,
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
@@ -2017,7 +2015,6 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))),
     spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
-    get_replicas(vd.spec.replicas) > 0 ==> nv_uid_key_replicas.2 > 0,
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),

@@ -563,12 +563,13 @@ pub open spec fn local_state_is(
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& vds.old_vrs_index == n
         &&& match nv_uid_key_replicas {
-            Some((uid, key, _)) => {
+            Some((uid, key, replicas)) => {
                 let new_vrs = vds.new_vrs->0;
                 // new vrs in local cache exists and its fingerprint matchesnew_vrs
                 &&& vds.new_vrs is Some
                 &&& new_vrs.object_ref() == key
                 &&& new_vrs.metadata.uid->0 == uid
+                &&& get_replicas(new_vrs.spec.replicas) == replicas
             },
             None => {
                 &&& vds.new_vrs is None
@@ -648,6 +649,13 @@ pub open spec fn local_state_is_valid(vd: VDeploymentView, controller_id: int) -
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             &&& valid_owned_vrs(vrs, vd) // used in checks at AfterScaleDownOldVRS
+        }
+        &&& match vds.reconcile_step {
+            AfterScaleNewVRS | AfterEnsureNewVRS | AfterScaleDownOldVRS | Done => {
+                &&& vds.new_vrs is Some
+                &&& replicas_ok(vd, get_replicas(vds.new_vrs->0.spec.replicas))(s)
+            },
+            _ => {true}
         }
     }
 }

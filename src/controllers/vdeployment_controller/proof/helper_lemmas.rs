@@ -294,7 +294,7 @@ requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s),
-    vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_key_replicas.2 > 0,
+    replicas_ok(vd, nv_uid_key_replicas.2)(s),
 ensures
     current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)(s),
 {
