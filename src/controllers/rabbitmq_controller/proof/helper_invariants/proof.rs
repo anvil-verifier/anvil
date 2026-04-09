@@ -874,8 +874,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-        // guarantee
-        spec.entails(always(lift_state(rmq_guarantee(controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))),
 {
     let key = rabbitmq.object_ref();
@@ -916,7 +914,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& rmq_guarantee(controller_id)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
@@ -1005,7 +1002,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        lift_state(rmq_guarantee(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
