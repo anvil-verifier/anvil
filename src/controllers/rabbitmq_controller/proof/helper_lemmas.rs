@@ -340,12 +340,14 @@ ensures
         HostId::Controller(id, cr_key) => {
             match msg.content->APIRequest_0 {
                 APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
-                APIRequest::CreateRequest(req) => { // every_resource_create_request_implies_at_after_create_resource_step
-                    if resource_create_request_msg(resource_key)(msg) {
-                        assert(false);
+                APIRequest::CreateRequest(req) => {
+                    if id == controller_id { // use guarantee
+                        if resource_create_request_msg(resource_key)(msg) {} // every_resource_create_request_implies_at_after_create_resource_step
+                    } else { // use rely
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        assert(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
                     }
-                    // TODO: reasoning over generate name
-                    assume(false);
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
                     if resource_update_request_msg(resource_key)(msg) {}
