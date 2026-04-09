@@ -249,8 +249,7 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
 }
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -278,8 +277,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
 #[verifier(external_body)]
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -367,8 +365,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
 #[verifier(spinoff_prover)]
 #[verifier(external_body)]
 proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
-    controller_id: int,
-    cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -445,8 +442,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
 #[verifier(rlimit(50))]
 #[verifier(external_body)]
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -769,8 +765,7 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         spec.entails(lift_state(cluster.init())),
@@ -796,8 +791,7 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
 }
 
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -848,8 +842,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 #[verifier(rlimit(300))]
 #[verifier(external_body)] // TODO: fix flakiness
 proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1145,8 +1138,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
 }
 
 pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1176,8 +1168,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1263,8 +1254,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
 }
 
 pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1295,8 +1285,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -1323,6 +1312,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let requirements = |msg: Message, s: ClusterState| {
         resource_create_request_msg(resource_key)(msg) ==> {
+            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap()) is Ok
@@ -1396,8 +1386,7 @@ pub open spec fn make_owner_references_with_name_and_uid(name: StringView, uid: 
 #[verifier(rlimit(300))]
 #[verifier(external_body)]
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         spec.entails(lift_state(cluster.init())),
@@ -1639,8 +1628,7 @@ pub open spec fn resource_object_create_or_update_request_msg_has_one_controller
 #[verifier(spinoff_prover)]
 #[verifier(external_body)]
 proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -2330,8 +2318,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 
 #[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
