@@ -341,15 +341,14 @@ ensures
             match msg.content->APIRequest_0 {
                 APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
                 APIRequest::CreateRequest(req) => { // every_resource_create_request_implies_at_after_create_resource_step
+                    if resource_create_request_msg(resource_key)(msg) {
+                        assert(false);
+                    }
+                    // TODO: reasoning over generate name
                     assume(false);
-                    if s.resources().contains_key(resource_key) {}
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
-                    assume(false);
-                    assert(req.key() != resource_key);
-                },
-                APIRequest::DeleteRequest(req) => { // no_delete_resource_request_msg_in_flight
-                    assert(req.key != resource_key);
+                    if resource_update_request_msg(resource_key)(msg) {}
                 },
                 _ => {},
             }
