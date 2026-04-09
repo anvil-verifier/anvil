@@ -351,25 +351,11 @@ ensures
                 APIRequest::DeleteRequest(req) => { // no_delete_resource_request_msg_in_flight
                     assert(req.key != resource_key);
                 },
-                APIRequest::UpdateStatusRequest(req) => { // no_get_then_requests_and_update_resource_status_requests_in_flight
-                    assert(req.key() != resource_key);
-                },
-                APIRequest::GetThenDeleteRequest(req) => {
-                    assert(req.key() != resource_key);
-                },
-                APIRequest::GetThenUpdateRequest(req) => {
-                    assert(req.key() != resource_key);
-                },
-                APIRequest::GetThenUpdateStatusRequest(req) => {
-                    assert(req.key() != resource_key);
-                },
+                _ => {},
             }
         },
-        _ => {
-            assume(false);
-            // Non-controller sources: by no_pending_request_to_api_server_from_non_controllers
-            // + pod_monkey_disabled, these don't send API requests to API server
-        },
+        HostId::BuiltinController => {},
+        _ => {},
     }
 }
 
