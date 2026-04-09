@@ -1506,7 +1506,7 @@ pub open spec fn resource_object_create_or_update_request_msg_has_one_controller
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
+#[verifier(rlimit(200))]
 proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -1528,6 +1528,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
     };
     let resource_key = get_request(sub_resource, rabbitmq).key;
+    cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
@@ -1536,6 +1537,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
@@ -1570,6 +1572,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                             let cr_key = cr_key_opt->0;
                             let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
                             if cr_key == rabbitmq.object_ref() {
+                                assume(false);
                                 RabbitmqReconcileState::marshal_preserves_integrity();
                                 let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                                 if resource_create_request_msg(resource_key)(msg) {
@@ -1599,46 +1602,27 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                             } else {
                                 assert(s_prime.in_flight().contains(msg));
                                 if resource_create_request_msg(resource_key)(msg) || resource_update_request_msg(resource_key)(msg) {
-                                    assert(false) by {
-                                        if cr_key.namespace != rabbitmq.object_ref().namespace {} else {
-                                            assert(cr_key.name != rabbitmq.object_ref().name);
-                                            match sub_resource {
-                                                SubResource::HeadlessService => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-nodes"@);
-                                                },
-                                                SubResource::Service => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-client"@);
-                                                },
-                                                SubResource::ErlangCookieSecret => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-erlang-cookie"@);
-                                                },
-                                                SubResource::DefaultUserSecret => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-default-user"@);
-                                                },
-                                                SubResource::PluginsConfigMap => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-plugins-conf"@);
-                                                },
-                                                SubResource::ServerConfigMap => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server-conf"@);
-                                                },
-                                                SubResource::ServiceAccount => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                                },
-                                                SubResource::Role => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-peer-discovery"@);
-                                                },
-                                                SubResource::RoleBinding => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                                },
-                                                SubResource::VStatefulSetView => {
-                                                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, rabbitmq.object_ref().name, "-server"@);
-                                                },
-                                            }
-                                        }
-                                    }
+                                    let key = if resource_create_request_msg(resource_key)(msg) {
+                                        msg.content.get_create_request().key()
+                                    } else {
+                                        msg.content.get_update_request().key()
+                                    };
+                                    let other_rmq = RabbitmqClusterView {
+                                        metadata: ObjectMetaView {
+                                            name: Some(cr_key.name),
+                                            namespace: Some(cr_key.namespace),
+                                            ..ObjectMetaView::default()
+                                        },
+                                        ..RabbitmqClusterView::default()
+                                    };
+                                    assert(other_rmq.object_ref() == cr_key);
+                                    rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
+                                    // we need stronger internal-rely-guarantee
+                                    assert(false);
                                 }
                             }
                         } else {
+                            assume(false);
                             assert(msg.src.is_controller_id(id));
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
