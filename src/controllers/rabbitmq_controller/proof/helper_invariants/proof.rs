@@ -1569,68 +1569,40 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                     Step::ControllerStep((id, _, cr_key_opt)) => {
                         if id == controller_id {
                             RabbitmqClusterView::marshal_preserves_integrity();
+                            RabbitmqReconcileState::marshal_preserves_integrity();
                             let cr_key = cr_key_opt->0;
                             let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-                            if cr_key == rabbitmq.object_ref() {
-                                assume(false);
-                                RabbitmqReconcileState::marshal_preserves_integrity();
-                                let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                                if resource_create_request_msg(resource_key)(msg) {
-                                    lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
-                                    assert(msg.content.get_create_request().obj == make(sub_resource, cr, local_state)->Ok_0);
-                                    assert(msg.content.get_create_request().obj.metadata.finalizers is None);
-                                    assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
-                                        make_owner_references_with_name_and_uid(cr_key.name, cr.metadata().uid->0)
-                                    ]));
-                                }
-                                if resource_update_request_msg(resource_key)(msg) {
-                                    lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
-                                    assert(step->ControllerStep_0.1->0.content.is_get_response());
-                                    assert(step->ControllerStep_0.1->0.content.get_get_response().res is Ok);
-                                    assert(update(
-                                        sub_resource, cr, local_state, step->ControllerStep_0.1->0.content.get_get_response().res->Ok_0
-                                    ) is Ok);
-                                    assert(msg.content.get_update_request().obj == update(
-                                        sub_resource, cr, local_state, step->ControllerStep_0.1->0.content.get_get_response().res->Ok_0
-                                    )->Ok_0);
-                                    assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
-                                        make_owner_references_with_name_and_uid(cr_key.name, cr.metadata().uid->0)
-                                    ]));
-                                    assert(msg.content.get_update_request().obj.metadata.finalizers is None);
-                                    assert(msg.content.get_update_request().obj.metadata.deletion_timestamp is None);
-                                }
-                            } else {
-                                assert(s_prime.in_flight().contains(msg));
-                                if resource_create_request_msg(resource_key)(msg) || resource_update_request_msg(resource_key)(msg) {
-                                    let key = if resource_create_request_msg(resource_key)(msg) {
-                                        msg.content.get_create_request().key()
-                                    } else {
-                                        msg.content.get_update_request().key()
-                                    };
-                                    let other_rmq = RabbitmqClusterView {
-                                        metadata: ObjectMetaView {
-                                            name: Some(cr_key.name),
-                                            namespace: Some(cr_key.namespace),
-                                            ..ObjectMetaView::default()
-                                        },
-                                        ..RabbitmqClusterView::default()
-                                    };
-                                    assert(other_rmq.object_ref() == cr_key);
-                                    rmq_with_different_key_implies_request_with_different_key(rabbitmq, other_rmq, sub_resource);
-                                    // we need stronger internal-rely-guarantee
-                                    assert(false);
-                                }
-                            }
-                        } else {
-                            assume(false);
-                            assert(msg.src.is_controller_id(id));
-                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                            assert(rmq_rely(id)(s_prime));
+                            let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             if resource_create_request_msg(resource_key)(msg) {
-                                assert(!is_rmq_managed_kind(resource_key.kind));
-                                assert(false);
+                                lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
+                                assert(cr.object_ref() == rabbitmq.object_ref());
+                                assert(msg.content.get_create_request().obj == make(sub_resource, cr, local_state)->Ok_0);
+                                assert(msg.content.get_create_request().obj.metadata.finalizers is None);
+                                assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
+                                    make_owner_references_with_name_and_uid(cr_key.name, cr.metadata().uid->0)
+                                ]));
                             }
                             if resource_update_request_msg(resource_key)(msg) {
+                                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
+                                assert(cr.object_ref() == rabbitmq.object_ref());
+                                assert(step->ControllerStep_0.1->0.content.is_get_response());
+                                assert(step->ControllerStep_0.1->0.content.get_get_response().res is Ok);
+                                assert(update(
+                                    sub_resource, cr, local_state, step->ControllerStep_0.1->0.content.get_get_response().res->Ok_0
+                                ) is Ok);
+                                assert(msg.content.get_update_request().obj == update(
+                                    sub_resource, cr, local_state, step->ControllerStep_0.1->0.content.get_get_response().res->Ok_0
+                                )->Ok_0);
+                                assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
+                                    make_owner_references_with_name_and_uid(cr_key.name, cr.metadata().uid->0)
+                                ]));
+                                assert(msg.content.get_update_request().obj.metadata.finalizers is None);
+                                assert(msg.content.get_update_request().obj.metadata.deletion_timestamp is None);
+                            }
+                        } else {
+                            if resource_create_request_msg(resource_key)(msg) || resource_update_request_msg(resource_key)(msg) {
+                                assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                assert(rmq_rely(id)(s_prime));
                                 assert(!is_rmq_managed_kind(resource_key.kind));
                                 assert(false);
                             }
