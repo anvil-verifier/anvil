@@ -119,7 +119,6 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
     leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
-#[verifier(external_body)] // FIXME
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_etcd_server(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
@@ -128,6 +127,7 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
@@ -147,8 +147,12 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
 {
     let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq);
-    let inv = vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rabbitmq);
-    let next = |s: ClusterState, s_prime: ClusterState| {
+    let requirements = |msg: Message, s: ClusterState| {
+        &&& resource_update_request_msg(sts_key)(msg)
+        &&& s.resources().contains_key(sts_key)
+        &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version
+    } ==> msg.content.get_update_request().obj.spec == s.resources()[sts_key].spec;
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
@@ -165,10 +169,20 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::VStatefulSetView, rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
+    assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
+    implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies requirements(msg, s_prime) by {
+            assume(false);
+        }
+    }
     always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
-    combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(cluster.next()),
+
+    invariant_n!(spec,
+        lift_action(stronger_next),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
@@ -184,68 +198,12 @@ pub proof fn lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::VStatefulSetView, rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
-    // Base case: when no ongoing reconcile, from every_resource_update_request_implies_at_after_update_resource_step,
-    // there are no update requests in flight for sts_key (any such msg would imply ongoing reconcile at AfterUpdate step).
-    // So the invariant trivially holds.
-    leads_to_weaken(
-        spec, true_pred(), lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())),
-        true_pred(), lift_state(inv)
-    );
-    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: Message| {
-            &&& #[trigger] s_prime.in_flight().contains(msg)
-            &&& resource_update_request_msg(sts_key)(msg)
-            &&& s_prime.resources().contains_key(sts_key)
-            &&& msg.content.get_update_request().obj.metadata.resource_version == s_prime.resources()[sts_key].metadata.resource_version
-        } implies msg.content.get_update_request().obj.spec == s_prime.resources()[sts_key].spec by {
-            let step = choose |step| cluster.next_step(s, s_prime, step);
-            match step {
-                Step::APIServerStep(input) => {
-                    let req_msg = input->0;
-                    // First handle the case where req_msg is an update to sts_key with matching rv
-                    if resource_update_request_msg(sts_key)(req_msg)
-                    && s.resources().contains_key(sts_key)
-                    && req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version {
-                        // API server processed an update to sts_key that succeeded (rv matched).
-                        // After update, rv is bumped. So msg (if still in flight) now has stale rv.
-                        // The new rv != old rv, so msg's rv != s_prime's rv => vacuously true.
-                    } else if resource_update_request_msg(sts_key)(req_msg) {
-                    } else {
-                        // req_msg doesn't target sts_key for update.
-                        // Check other request types are also blocked.
-                        assert(!resource_delete_request_msg(sts_key)(req_msg));
-                        assert(!resource_get_then_update_request_msg(sts_key)(req_msg));
-                        assert(!resource_get_then_update_status_request_msg(sts_key)(req_msg));
-                        assert(!resource_get_then_delete_request_msg(sts_key)(req_msg));
-                        assert(!resource_update_status_request_msg(sts_key)(req_msg));
-                        // since req_msg doesn't target sts_key for any mutating operation
-                        // (it could be Get, List, Create-when-key-exists, or Update/Delete to different key)
-                        if req_msg.content is APIRequest {
-                            match req_msg.content->APIRequest_0 {
-                                APIRequest::CreateRequest(_) => {
-                                    // If sts_key exists, create of any key preserves it
-                                    // If sts_key doesn't exist, the antecedent is false
-                                },
-                                _ => {},
-                            }
-                        }
-                    }
-                },
-                Step::ControllerStep(input) => {
-                    // Resources unchanged: s_prime.resources() == s.resources()
-                    if s.in_flight().contains(msg) {
-                        // msg was already in flight, spec matched in s, resources unchanged
-                    } else {
-                        RabbitmqReconcileState::marshal_preserves_integrity();
-                    }
-                },
-                _ => {
-                    // Non-API, non-controller steps: resources and in_flight unchanged
-                }
-            }
-        }
-    }
-    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
+
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+
+    temp_pred_equality(
+        lift_state(vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rabbitmq)),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(
