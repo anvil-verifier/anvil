@@ -110,12 +110,14 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                             let step = choose |step| cluster.next_step(s, s_prime, step);
                             match step {
                                 Step::APIServerStep(input) => {
-                                    assume(false);
                                     let req = input->0;
                                     assert(!resource_delete_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
                                     assert(!resource_update_status_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
-                                    if resource_update_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req) {} else {}
+                                    if resource_update_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req) {} else {
+                                        assume(false);
+                                    }
                                 },
+                                Step::ControllerStep(_) => {},
                                 _ => {},
                             }
                         },
