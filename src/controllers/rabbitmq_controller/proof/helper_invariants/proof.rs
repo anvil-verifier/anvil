@@ -363,7 +363,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
     controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView
 )
@@ -376,15 +376,19 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap))(s_prime),
         cluster.next()(s, s_prime),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
-        Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+        Cluster::every_in_flight_msg_has_unique_id()(s),
         cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime),
+        Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
         Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())(s_prime),
         Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())(s),
+        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
         no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
         resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
+        // added
+        every_resource_create_request_implies_at_after_create_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
     ensures
         forall |msg: Message|
             s_prime.in_flight().contains(msg)
@@ -417,10 +421,15 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                                 assert(msg.content.get_create_response().res->Ok_0.object_ref() == resource_key);
                                 assert(msg.content.get_create_response().res->Ok_0 == s_prime.resources()[req.content.get_create_request().key()]);
                                 assert(resource_create_request_msg(resource_key)(req));
-                                assert(resource_create_response_msg(resource_key, s)(msg));
-                            } else {
-                                assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                                 assert(resource_create_response_msg(resource_key, s_prime)(msg));
+                            } else {
+                                if resource_create_request_msg(resource_key)(req_msg) {
+                                    assert(Cluster::pending_req_msg_is(controller_id, s, key, req_msg));
+                                    assert(req_msg == pending_req);
+                                    assert(false);
+                                }
+                                assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                                assert(resource_create_response_msg(resource_key, s)(msg));
                             }
                         },
                         _ => {
@@ -578,14 +587,14 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
         cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime),
         Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
         Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())(s_prime),
+        Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())(s),
+        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
         no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
         resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s),
         object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
         every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s),
-        Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())(s),
-        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
     ensures
         forall |msg: Message| #[trigger]
             s_prime.in_flight().contains(msg)
