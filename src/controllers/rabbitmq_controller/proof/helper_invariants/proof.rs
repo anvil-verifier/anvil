@@ -439,7 +439,6 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(50))]
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
@@ -544,36 +543,19 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                                 assert(false);
                             }
                         }
-                        assert(at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap))(s));
-                        assert(pending.content.is_update_request());
-                        let req = pending.content.get_update_request();
-                        assert(RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr) is Ok);
-                        let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr)->Ok_0;
-                        assert(cr.object_ref() == key);
-                        let resource_key = get_request(SubResource::ServerConfigMap, cr).key;
-                        assert(req.obj.kind == Kind::ConfigMapKind);
-                        assert(req.name == resource_key.name);
-                        assert(req.namespace == cr.metadata.namespace->0);
-                        assert(resource_update_request_msg(resource_key)(pending));
-                        assert(inv(s_prime));
                     } else {
                         // Different controller/key - ongoing_reconciles for our key is unchanged
                         assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
                         object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id, cluster, s, s_prime, rabbitmq);
-                        assert(inv(s_prime));
                     }
                 },
                 _ => {
                     assert(s_prime.ongoing_reconciles(controller_id)[key] == s.ongoing_reconciles(controller_id)[key]);
-                    assert_by(
-                        s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-                        && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0),
-                        {
-                            assert(inv(s));
-                        }
-                    );
+                    assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+                        && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0)) by{
+                        assert(inv(s));
+                    }
                     object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(controller_id, cluster, s, s_prime, rabbitmq);
-                    assert(inv(s_prime));
                 }
             }
         }
