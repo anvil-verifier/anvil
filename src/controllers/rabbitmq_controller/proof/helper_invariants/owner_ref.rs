@@ -97,12 +97,18 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
     controller_id: int,
     cluster: Cluster, s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message
 )
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
+        Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
+        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         cluster.next()(s, s_prime),
         Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)(s),
@@ -116,6 +122,7 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let input = step->ControllerStep_0;
     RabbitmqClusterView::marshal_preserves_integrity();
+    RabbitmqReconcileState::marshal_preserves_integrity();
     let cr_dynamic = s.ongoing_reconciles(controller_id)[input.2->0].triggering_cr;
     let cr = RabbitmqClusterView::unmarshal(cr_dynamic).unwrap();
     if resource_create_request_msg(resource_key)(msg) {
