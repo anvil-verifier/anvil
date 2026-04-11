@@ -20,6 +20,7 @@ use crate::rabbitmq_controller::{
     },
     trusted::{spec_types::*, step::*, rely_guarantee::*},
 };
+use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::rabbitmq_controller::model::install::*;
@@ -59,8 +60,11 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)))),
@@ -70,13 +74,27 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
         &&& cluster.next()(s, s_prime)
         &&& Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
     };
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let create_valid = |msg: Message, s: ClusterState| {
@@ -103,16 +121,16 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
 )
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)(s),
+        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
         Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
         Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         cluster.next()(s, s_prime),
-        Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)(s),
-        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
     ensures
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_create_request().obj, s_prime),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_update_request().obj, s_prime),
