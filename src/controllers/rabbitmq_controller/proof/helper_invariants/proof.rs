@@ -68,6 +68,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
     ensures spec.entails(true_pred().leads_to(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq))))),
 {
     let key = rabbitmq.object_ref();
+    let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let inv = cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq);
     let next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -110,14 +111,53 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                             let step = choose |step| cluster.next_step(s, s_prime, step);
                             match step {
                                 Step::APIServerStep(input) => {
-                                    let req = input->0;
-                                    assert(!resource_delete_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
-                                    assert(!resource_update_status_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
-                                    if resource_update_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req) {} else {
-                                        assume(false);
+                                    let msg = input->0;
+                                    assert(s.in_flight().contains(msg));
+                                    match msg.content->APIRequest_0 {
+                                        APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {}, // ro
+                                        APIRequest::UpdateRequest(_) => {
+                                            if resource_update_request_msg(resource_key)(msg) {} else {assume(false);}
+                                        },
+                                        APIRequest::CreateRequest(_) => {
+                                            assume(false);
+                                        },
+                                        APIRequest::DeleteRequest(_) => {
+                                            assert(!resource_delete_request_msg(resource_key)(msg));
+                                            assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        },
+                                        APIRequest::UpdateStatusRequest(_) => {
+                                            assert(!resource_update_status_request_msg(resource_key)(msg));
+                                            assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        },
+                                        APIRequest::GetThenUpdateRequest(req) => {
+                                            reveal(handle_get_then_update_request_msg);
+                                            assert(!resource_get_then_update_request_msg(resource_key)(msg));
+                                            assert(req.key() != resource_key);
+                                            assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        },
+                                        APIRequest::GetThenUpdateStatusRequest(req) => {
+                                            assert(req.key() != resource_key);
+                                            assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
+                                            assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        },
+                                        APIRequest::GetThenDeleteRequest(req) => {
+                                            assert(!resource_get_then_delete_request_msg(resource_key)(msg));
+                                            assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        },
+                                        _ => {
+                                            assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
+                                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                                        },
                                     }
                                 },
-                                Step::ControllerStep(_) => {},
+                                Step::ControllerStep(_) => {
+                                    assume(false);
+                                },
                                 _ => {},
                             }
                         },
