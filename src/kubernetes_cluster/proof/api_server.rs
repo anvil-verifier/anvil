@@ -44,19 +44,14 @@ requires
     Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
     msg.content is APIRequest,
     msg.dst is APIServer,
-    match msg.content->APIRequest_0 {
-        APIRequest::CreateRequest(_) => {
-            &&& !resource_create_request_msg(key)(msg)
-            &&& !resource_create_request_msg_without_name(key.kind, key.namespace)(msg) // can be weakened
-        },
-        APIRequest::DeleteRequest(_) => {!resource_delete_request_msg(key)(msg)},
-        APIRequest::UpdateRequest(_) => {!resource_update_request_msg(key)(msg)},
-        APIRequest::UpdateStatusRequest(_) => {!resource_update_status_request_msg(key)(msg)},
-        APIRequest::GetThenUpdateRequest(_) => {!resource_get_then_update_request_msg(key)(msg)},
-        APIRequest::GetThenDeleteRequest(_) => {!resource_get_then_delete_request_msg(key)(msg)},
-        APIRequest::GetThenUpdateStatusRequest(_) => {!resource_get_then_update_status_request_msg(key)(msg)},
-        _ => true, // Get and List are read-only
-    },
+    !resource_create_request_msg(key)(msg),
+    !resource_create_request_msg_without_name(key.kind, key.namespace)(msg), // can be weakened
+    !resource_delete_request_msg(key)(msg),
+    !resource_update_request_msg(key)(msg),
+    !resource_update_status_request_msg(key)(msg),
+    !resource_get_then_update_request_msg(key)(msg),
+    !resource_get_then_delete_request_msg(key)(msg),
+    !resource_get_then_update_status_request_msg(key)(msg),
 ensures
     s_prime.resources().contains_key(key) == s.resources().contains_key(key),
     s_prime.resources()[key] == s.resources()[key],
