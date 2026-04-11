@@ -2004,7 +2004,7 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id))))
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;

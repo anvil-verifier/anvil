@@ -18,8 +18,9 @@ use crate::rabbitmq_controller::{
         predicate::*,
         resource::*,
     },
-    trusted::{spec_types::*, step::*},
+    trusted::{spec_types::*, step::*, rely_guarantee::*},
 };
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::rabbitmq_controller::model::install::*;
 use vstd::prelude::*;
@@ -144,16 +145,17 @@ pub open spec fn every_owner_ref_of_every_object_in_etcd_has_different_uid_from_
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq)))),
 {
     let inv = every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq);
@@ -161,12 +163,15 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
         &&& cluster.next()(s, s_prime)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
+    lemma_always_no_get_then_requests_and_update_resource_status_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
     combine_spec_entails_always_n!(spec, lift_action(next), lift_action(cluster.next()),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -175,8 +180,13 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
+                    let msg = input->0;
                     assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
-                    if !s.resources().contains_key(resource_key) || s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {} else {}
+                    if !s.resources().contains_key(resource_key) {
+                    } else if s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {
+                        if resource_update_request_msg(resource_key)(msg) {
+                        } else if resource_get_then_update_request_msg(resource_key)(msg) {}
+                    } else {}
                 },
                 _ => {}
             }
