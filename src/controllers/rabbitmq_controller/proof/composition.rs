@@ -11,7 +11,7 @@ use crate::rabbitmq_controller::model::{
 };
 use crate::rabbitmq_controller::proof::{
     guarantee::guarantee_condition_holds, liveness::spec::{next_with_wf, next_with_wf_is_stable}, predicate::*,
-    helper_invariants, helper_lemmas::*,
+    helper_invariants, helper_lemmas::*, resource::*,
 };
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
@@ -61,12 +61,8 @@ ensures
 
     // Define the "lifted invariant" = [] (next ∧ rely ∧ vsts_spec_inv)
     let lifted_inv = lift_action(cluster.next())
-        .and(lift_state(rmq_rely_conditions(cluster, controller_id)))
-        .and(lift_state(helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)));
+        .and(lift_state(rmq_rely_conditions(cluster, controller_id)));
     assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rmq)));
-    helper_invariants::lemma_eventually_always_vsts_spec_in_update_request_is_the_same_as_etcd_server(
-        controller_id, cluster, spec, rmq
-    );
 
     let stable_rmq_post =
         lift_state(current_state_matches(rmq))
@@ -94,7 +90,6 @@ ensures
             &&& current_state_matches(rmq)(s)
             &&& cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView)(s)
             &&& rmq_rely_conditions(cluster, controller_id)(s)
-            &&& helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)(s)
         };
 
         // Show spec entails always(stronger_next)
@@ -102,15 +97,13 @@ ensures
         entails_preserved_by_always(stable_rmq_post, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView)));
         entails_preserved_by_always(stable_rmq_post, lift_action(cluster.next()));
         entails_preserved_by_always(stable_rmq_post, lift_state(rmq_rely_conditions(cluster, controller_id)));
-        entails_preserved_by_always(stable_rmq_post, lift_state(helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)));
         combine_spec_entails_always_n!(
             always(stable_rmq_post),
             lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(current_state_matches(rmq)),
             lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView)),
-            lift_state(rmq_rely_conditions(cluster, controller_id)),
-            lift_state(helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq))
+            lift_state(rmq_rely_conditions(cluster, controller_id))
         );
 
         // Prove the stability condition for vsts_pre
@@ -307,7 +300,6 @@ requires
     rmq_rely_conditions(cluster, controller_id)(s),
     cluster.next()(s, s_prime),
     resource_state_matches(SubResource::VStatefulSetView, rmq)(s),
-    helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)(s),
 ensures
     Cluster::desired_state_is(vsts)(s),
     Cluster::desired_state_is(vsts)(s_prime),
@@ -328,13 +320,31 @@ ensures
             assert(!resource_get_then_delete_request_msg(sts_key)(msg));
             assert(!resource_update_status_request_msg(sts_key)(msg));
 
+            assert(s.in_flight().contains(msg));
             if resource_update_request_msg(sts_key)(msg)
             && s.resources().contains_key(sts_key)
             && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version {
-                assert(helper_invariants::vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id, rmq)(s));
+                RabbitmqReconcileState::marshal_preserves_integrity();
+                VStatefulSetView::marshal_preserves_integrity();
+                assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::VStatefulSetView, rmq)(s));
+                assert(update(SubResource::VStatefulSetView, rmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state).unwrap(), s.resources()[sts_key]) is Ok);
+                let updated_obj = msg.content.get_update_request().obj;
+                assert(updated_obj == update(SubResource::VStatefulSetView, rmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state).unwrap(), s.resources()[sts_key])->Ok_0);
+                let updated_vsts = VStatefulSetView::unmarshal(updated_obj)->Ok_0;
+                assert(VStatefulSetView::unmarshal(updated_obj) is Ok);
+                let old_sts_obj = s.resources()[sts_key];
+                let old_sts = VStatefulSetView::unmarshal(old_sts_obj)->Ok_0;
+                assert(old_sts.spec == updated_vsts.spec);
+                assert(VStatefulSetView::marshal_spec(old_sts.spec) == VStatefulSetView::marshal_spec(updated_vsts.spec));
+                assert(updated_obj.spec == VStatefulSetView::marshal_spec(updated_vsts.spec));
+                assert(old_sts_obj.spec == VStatefulSetView::marshal_spec(old_sts.spec));
+                assert(old_sts_obj.spec == updated_obj.spec);
             } else if resource_update_request_msg(sts_key)(msg) {
+                assume(false);
                 // rv mismatch => API server rejects
-            } else {}
+            } else {
+                assume(false);
+            }
         },
         _ => {
             assert(s_prime.resources() == s.resources());

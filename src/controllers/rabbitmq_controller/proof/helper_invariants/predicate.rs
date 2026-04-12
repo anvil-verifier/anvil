@@ -265,23 +265,6 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
     }
 }
 
-// For any in-flight update request targeting the VSTS key whose rv matches the current etcd VSTS rv,
-// the request object's spec equals the current etcd VSTS spec.
-// This means any successful update to the VSTS doesn't change its spec, making desired_state_is stability trivial.
-pub open spec fn vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let sts_key = make_stateful_set_key(rabbitmq);
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& resource_update_request_msg(sts_key)(msg)
-            &&& s.resources().contains_key(sts_key)
-            &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version
-        } ==> {
-            msg.content.get_update_request().obj.spec == s.resources()[sts_key].spec
-        }
-    }
-}
-
 pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.resources().contains_key(make_stateful_set_key(rabbitmq))
