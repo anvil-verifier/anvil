@@ -326,25 +326,9 @@ ensures
             && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version {
                 RabbitmqReconcileState::marshal_preserves_integrity();
                 VStatefulSetView::marshal_preserves_integrity();
-                assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::VStatefulSetView, rmq)(s));
-                assert(update(SubResource::VStatefulSetView, rmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state).unwrap(), s.resources()[sts_key]) is Ok);
-                let updated_obj = msg.content.get_update_request().obj;
-                assert(updated_obj == update(SubResource::VStatefulSetView, rmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state).unwrap(), s.resources()[sts_key])->Ok_0);
-                let updated_vsts = VStatefulSetView::unmarshal(updated_obj)->Ok_0;
-                assert(VStatefulSetView::unmarshal(updated_obj) is Ok);
-                let old_sts_obj = s.resources()[sts_key];
-                let old_sts = VStatefulSetView::unmarshal(old_sts_obj)->Ok_0;
-                assert(old_sts.spec == updated_vsts.spec);
-                assert(VStatefulSetView::marshal_spec(old_sts.spec) == VStatefulSetView::marshal_spec(updated_vsts.spec));
-                assert(updated_obj.spec == VStatefulSetView::marshal_spec(updated_vsts.spec));
-                assert(old_sts_obj.spec == VStatefulSetView::marshal_spec(old_sts.spec));
-                assert(old_sts_obj.spec == updated_obj.spec);
             } else if resource_update_request_msg(sts_key)(msg) {
-                assume(false);
                 // rv mismatch => API server rejects
-            } else {
-                assume(false);
-            }
+            } else {}
         },
         _ => {
             assert(s_prime.resources() == s.resources());
