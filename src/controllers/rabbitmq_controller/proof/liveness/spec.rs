@@ -236,12 +236,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         } else if i == 8 {
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id, cluster, spec, rabbitmq);
-            helper_invariants::lemma_eventually_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(controller_id, cluster, spec, rabbitmq);
-            leads_to_always_combine_n!(
-                spec, true_pred(),
-                lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
-                lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))
-            );
         }
     }
 }
@@ -611,18 +605,12 @@ pub proof fn invariants_since_phase_vii_is_stable(controller_id: int, rabbitmq: 
 
 pub open spec fn invariants_since_phase_viii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)))
-    .and(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))))
 }
 
 pub proof fn invariants_since_phase_viii_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_viii(controller_id, rabbitmq))),
 {
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)));
-    always_p_is_stable(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)));
-    stable_and_always_n!(
-        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
-        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))
-    );
 }
 
 #[verifier(spinoff_prover)]

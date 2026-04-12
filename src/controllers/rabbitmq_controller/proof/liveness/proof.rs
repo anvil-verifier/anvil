@@ -572,7 +572,6 @@ ensures
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
     always_tla_forall_apply_for_sub_resource(controller_id, spec, cluster, sub_resource, rabbitmq);
-    entails_trans(stable_spec, invariants_since_phase_viii(controller_id, rabbitmq), always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))));
 
     assert(stable_spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::req_drop_disabled()))));
@@ -628,7 +627,6 @@ ensures
     entails_trans(stable_spec, invariants_since_phase_viii(controller_id, rabbitmq), always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq))));
     always_tla_forall_apply(derived_invariants_since_beginning(controller_id, cluster, rabbitmq), |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), sub_resource);
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))));
-    assert(stable_spec.entails(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)))));
     // Combine all extracted invariants into cluster_invariants_since_reconciliation
     combine_spec_entails_always_n!(stable_spec,
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
@@ -668,8 +666,7 @@ ensures
         lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)),
         lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
-        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))
+        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))
     );
     entails_trans(spec, stable_spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))));
 }

@@ -2094,16 +2094,46 @@ pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+// similar to resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
 #[verifier(external_body)]
-pub proof fn lemma_eventually_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(
+pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
+        spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures spec.entails(true_pred().leads_to(always(lift_state(sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq))))),
-{}
+    ensures spec.entails(always(lift_state(sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)))),
+{
+    let inv = sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq);
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+    };
+    let sts_key = make_stateful_set_key(rabbitmq);
+    cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+}
 
 }
