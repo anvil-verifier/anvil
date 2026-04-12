@@ -134,15 +134,13 @@ impl VStatefulSetView {
 
     #[verifier(inline)]
     pub open spec fn _transition_validation(self, old_obj: VStatefulSetView) -> bool {
-        let old_spec = old_obj.spec->0;
-        let new_spec = self.spec->0;
         // Fields other than replicas, template, persistent_volume_claim_retention_policy
         // (and some other unspecified fields) are immutable.
-        &&& old_spec == VStatefulSetSpecView {
-            replicas: old_spec.replicas,
-            template: old_spec.template,
-            persistent_volume_claim_retention_policy: old_spec.persistent_volume_claim_retention_policy,
-            ..new_spec
+        &&& old_obj.spec == VStatefulSetSpecView {
+            replicas: old_obj.spec.replicas,
+            template: old_obj.spec.template,
+            persistent_volume_claim_retention_policy: old_obj.spec.persistent_volume_claim_retention_policy,
+            ..self.spec
         }
     }
 }
