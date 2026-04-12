@@ -4,7 +4,7 @@
 use super::predicate::*;
 use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
 use crate::kubernetes_api_objects::spec::{
-    api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
+    api_method::*, common::*, owner_reference::*, prelude::*, resource::*, label_selector::*,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
@@ -2093,6 +2093,33 @@ pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     );
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
+
+pub open spec fn sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let sts_key = make_stateful_set_key(rabbitmq);
+        forall |msg: Message| s.in_flight().contains(msg) && resource_create_request_msg(sts_key)(msg)
+        ==> {
+            let sts = VStatefulSetView::unmarshal(msg.content.get_create_request().obj)->Ok_0;
+            &&& VStatefulSetView::unmarshal(msg.content.get_create_request().obj) is Ok
+            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
+        }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    ensures
+        spec.entails(always(lift_state(sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq)))),
+{}
 
 // similar to resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
 #[verifier(external_body)]

@@ -274,5 +274,4 @@ pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq:
     }
 }
 
-
 }
