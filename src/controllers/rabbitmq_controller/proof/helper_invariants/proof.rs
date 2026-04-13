@@ -2187,8 +2187,9 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
 }
 
 // similar to resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
-#[verifier(external_body)]
-pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(50))]
+pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -2198,24 +2199,33 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures spec.entails(always(lift_state(sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq)))),
+    ensures spec.entails(always(lift_state(sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)))),
 {
-    let inv = sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq);
+    let sts_key = make_stateful_set_key(rabbitmq);
+    let inv = sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq);
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s_prime)
+        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
     };
-    let sts_key = make_stateful_set_key(rabbitmq);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(spec);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, SubResource::VStatefulSetView, rabbitmq);
+    lemma_always_no_get_then_requests_and_update_resource_status_requests_in_flight(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
+    lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(controller_id, cluster, spec, rabbitmq);
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
+    always_to_always_later(spec, lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2224,8 +2234,44 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        later(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())),
+        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
+    assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input->0;
+                match msg.content->APIRequest_0 {
+                    APIRequest::CreateRequest(req) => {
+                        assert(!resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(msg));
+                        if req.obj.metadata.name is Some {
+                            if !s.resources().contains_key(sts_key)
+                                && resource_create_request_msg(sts_key)(msg)
+                                && s_prime.resources().contains_key(sts_key) {
+                                VStatefulSetView::marshal_preserves_integrity();
+                            }
+                        } else if req.obj.kind == sts_key.kind && req.namespace == sts_key.namespace {
+                            assert(req.obj.metadata.generate_name is None);
+                        }
+                    },
+                    APIRequest::UpdateRequest(req) => {
+                        if resource_update_request_msg(sts_key)(msg) {
+                            // by transition validation
+                        } else {
+                            assert(req.key() != sts_key);
+                        }
+                    },
+                    _ => {}
+                }
+            },
+            _ => {},
+        }
+    }
+    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 }

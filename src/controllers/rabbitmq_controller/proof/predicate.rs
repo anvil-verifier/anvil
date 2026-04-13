@@ -584,7 +584,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s)
-        &&& sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rmq)(s)
+        &&& sts_in_etcd_with_rmq_key_match_rmq_selector(rmq)(s)
     }
 }
 

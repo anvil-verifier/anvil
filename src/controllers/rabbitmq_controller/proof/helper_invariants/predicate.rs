@@ -265,7 +265,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
     }
 }
 
-pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let sts_key = make_stateful_set_key(rabbitmq);
         let sts = VStatefulSetView::unmarshal(s.resources()[sts_key]).unwrap();
