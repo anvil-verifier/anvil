@@ -130,7 +130,7 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
     }
 }
 
-#[verifier::rlimit(100)]
+#[verifier(rlimit(100))]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 8,
@@ -215,30 +215,26 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
         } else if i == 5 {
             helper_invariants::lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(controller_id, cluster, spec, rabbitmq);
-        } else if i == 6 {
+        } else if i >= 6 {
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
-            helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
-            let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
-            leads_to_always_combine_n!(
-                spec, true_pred(),
-                tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))
-            );
-        } else if i == 7 {
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
-        } else if i == 8 {
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id, cluster, spec, rabbitmq);
+            if i == 6 {
+                helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
+                helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
+                let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
+                leads_to_always_combine_n!(
+                    spec, true_pred(),
+                    tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))
+                );
+            } else if i == 7 {
+                always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+                helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
+            } else {
+                helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id, cluster, spec, rabbitmq);
+            }
         }
     }
 }
