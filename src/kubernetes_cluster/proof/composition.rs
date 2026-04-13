@@ -22,6 +22,11 @@ pub struct ControllerSpec {
     pub membership: spec_fn(Cluster, int) -> bool,
 }
 
+pub struct CoreSet {
+    pub controllers: Set<int>,   
+    pub dependence: TempPred<ClusterState>,
+}
+
 // composable says that when the controllers run together (with other controllers)
 // (1) all controllers' safety_guarantee hold, and
 // (2) all controllers' liveness_guarantee hold assuming fairness and that other controllers don't interfere with them.
@@ -41,6 +46,52 @@ pub open spec fn composable(spec: TempPred<ClusterState>, cluster: Cluster, comp
             ==> forall |j| #[trigger] cluster.controller_models.remove_keys(composition.dom()).contains_key(j)
                 ==> spec.entails((composition[i].safety_partial_rely)(j)))
         ==> (forall |i| #[trigger] composition.contains_key(i) ==> spec.entails(composition[i].liveness_guarantee))
+}
+
+// we concretize 
+pub open spec fn core(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
+    // the paper formalizes this in terms of S' disjoint from S
+    // we just say for all controller IDs not in S
+    let R_S = forall |c: int, c_prime: int| (S.controllers.contains(c) && !S.controllers.contains(c_prime)) ==> spec.entails((specs[c].safety_partial_rely)(c_prime));
+    let ESR_S = forall |c: int| (S.controllers.contains(c)) ==> spec.entails(specs[c].liveness_guarantee);
+    let G_S = forall |c: int| (S.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
+    let D_S= spec.entails(S.dependence);
+    G_S && ((R_S && D_S) ==> ESR_S)
+}
+
+pub open spec fn core_star(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
+    &&& core(spec, cluster, specs, S)
+    &&& valid(S.dependence)
+}
+
+// this will discard any liveness dependencies
+pub open spec fn union(S1: CoreSet, S2: CoreSet) -> CoreSet {
+    CoreSet {
+        controllers: S1.controllers.union(S2.controllers),
+        dependence: true_pred()
+    }
+}
+
+// TODO: finish this
+pub open spec fn compatible(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
+    let G_S1 = forall |c: int| (S.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
+    let G_S2 = forall |c: int| (S_prime.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
+    
+    /*
+    let R_21 = ...
+    let R_12 = ...
+     */
+}
+
+pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, a: CoreSet, b: CoreSet) 
+    requires 
+        core_star(spec, cluster, specs, a),
+        core_star(spec, cluster, specs, b),
+        compatible(spec, cluster, specs, a, b)
+    ensures
+        core_star(spec, cluster, specs, union(a, b))
+{
+    assume(false);
 }
 
 pub trait Composition: Sized {
