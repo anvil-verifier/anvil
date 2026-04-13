@@ -341,12 +341,13 @@ pub proof fn invariants_is_stable(vsts: VStatefulSetView, cluster: Cluster, cont
     );
 }
 
-// Phase I: crash, req_drop, pod_monkey disabled, and the_object_in_schedule_has_spec_and_uid_as
+// Phase I: crash, req_drop, pod_monkey disabled, schedule_has_spec, schedule_has_name_namespace
 pub open spec fn invariants_since_phase_i(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::crash_disabled(controller_id)))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::pod_monkey_disabled())))
     .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))))
+    .and(always(lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VStatefulSetView)
@@ -356,7 +357,8 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VState
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))
+        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
+        lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
     );
 }
 
@@ -476,12 +478,21 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 
 pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     next_with_wf(cluster, controller_id)
+    .and(always(lift_state(vsts_rely_conditions(cluster, controller_id))))
+    .and(always(lift_state(vsts_rely_conditions_pod_monkey())))
 }
 
 pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
+    always_p_is_stable(lift_state(vsts_rely_conditions(cluster, controller_id)));
+    always_p_is_stable(lift_state(vsts_rely_conditions_pod_monkey()));
+    stable_and_n!(
+        next_with_wf(cluster, controller_id),
+        always(lift_state(vsts_rely_conditions(cluster, controller_id))),
+        always(lift_state(vsts_rely_conditions_pod_monkey()))
+    );
 }
 
 }

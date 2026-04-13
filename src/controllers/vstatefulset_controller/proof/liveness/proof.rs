@@ -35,19 +35,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
 {
     assumption_and_invariants_of_all_phases_is_stable(vsts, cluster, controller_id);
     stable_spec_is_stable(cluster, controller_id);
-    let narrow_stable_spec = stable_spec(cluster, controller_id);
-    let stable_spec = narrow_stable_spec
-        .and(always(lift_state(vsts_rely_conditions(cluster, controller_id))))
-        .and(always(lift_state(vsts_rely_conditions_pod_monkey())));
-    assert(valid(stable(stable_spec))) by {
-        always_p_is_stable(lift_state(vsts_rely_conditions(cluster, controller_id)));
-        always_p_is_stable(lift_state(vsts_rely_conditions_pod_monkey()));
-        stable_and_n!(
-            narrow_stable_spec,
-            always(lift_state(vsts_rely_conditions(cluster, controller_id))),
-            always(lift_state(vsts_rely_conditions_pod_monkey()))
-        );
-    }
+    let stable_spec = stable_spec(cluster, controller_id);
 
     assert(stable_spec.and(invariants(vsts, cluster, controller_id)).entails(
         always(lift_state(Cluster::desired_state_is(vsts))).leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))) by {
@@ -134,22 +122,6 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
     }
 
     spec_and_invariants_entails_stable_spec_and_invariants(spec, vsts, cluster, controller_id);
-    // spec_and_invariants proves: spec.and(derived_invariants) |= stable_spec_fn().and(invariants)
-    // We also need: spec |= always(rely_conditions) and always(rely_conditions_pod_monkey)
-    // Combined: spec.and(derived_invariants) |= stable_spec.and(invariants) where stable_spec includes rely
-    assert(spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id)).entails(
-        stable_spec.and(invariants(vsts, cluster, controller_id)))) by {
-        let pre = spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id));
-        // pre |= stable_spec_fn().and(invariants) (from spec_and_invariants_entails_stable_spec_and_invariants)
-        // pre |= spec |= always(rely_conditions)
-        // pre |= spec |= always(rely_conditions_pod_monkey)
-        // Combine: pre |= stable_spec_fn().and(rely).and(rely_pm).and(invariants) = stable_spec.and(invariants)
-        entails_and_n!(pre,
-            narrow_stable_spec.and(invariants(vsts, cluster, controller_id)),
-            always(lift_state(vsts_rely_conditions(cluster, controller_id))),
-            always(lift_state(vsts_rely_conditions_pod_monkey()))
-        );
-    }
     entails_trans(
         spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id)),
         stable_spec.and(invariants(vsts, cluster, controller_id)),
@@ -221,13 +193,15 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
         cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, vsts);
+        helper_invariants::lemma_eventually_always_vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
         leads_to_always_combine_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
             lift_state(Cluster::req_drop_disabled()),
             lift_state(Cluster::pod_monkey_disabled()),
-            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))
+            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
+            lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
@@ -243,7 +217,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, vsts);
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vsts.object_ref());
-            helper_invariants::lemma_eventually_always_vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
             helper_invariants::lemma_eventually_always_vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
             leads_to_always_combine_n!(
                 spec,
@@ -287,6 +260,16 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
         } else if i == 4 {
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
+            // The helper lemmas need spec.entails(always(rely_conditions)). We have this from provided_spec.
+            // spec = provided_spec.and(spec_before_phase_n(4)), and provided_spec includes always(rely_conditions).
+            assert(spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id))))) by {
+                assert(provided_spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
+                entails_trans(spec, provided_spec, always(lift_state(vsts_rely_conditions(cluster, controller_id))));
+            }
+            assert(spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey())))) by {
+                assert(provided_spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))));
+                entails_trans(spec, provided_spec, always(lift_state(vsts_rely_conditions_pod_monkey())));
+            }
             helper_invariants::lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(spec, cluster, controller_id, vsts);
             helper_invariants::lemma_eventually_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(spec, cluster, controller_id, vsts);
             leads_to_always_combine_n!(
@@ -303,11 +286,21 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(next_with_wf(cluster, controller_id)),
+        spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+        spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
     ensures
         spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id))
             .entails(stable_spec(cluster, controller_id).and(invariants(vsts, cluster, controller_id))),
 {
     let pre = spec.and(derived_invariants_since_beginning(vsts, cluster, controller_id));
+
+    // Show that spec |= stable_spec (which is next_with_wf.and(rely).and(rely_pm))
+    entails_and_n!(
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lift_state(vsts_rely_conditions(cluster, controller_id))),
+        always(lift_state(vsts_rely_conditions_pod_monkey()))
+    );
 
     entails_and_different_temp(
         spec,
