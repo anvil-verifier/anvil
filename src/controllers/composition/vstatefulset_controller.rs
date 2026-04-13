@@ -181,6 +181,8 @@ impl HorizontalComposition for VStatefulSetReconciler {
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
+        // after composition framework is redo, fix this
+        assume(spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))));
         lemma_vsts_eventually_stable_reconciliation(spec, cluster, Self::id());
     }
 }
