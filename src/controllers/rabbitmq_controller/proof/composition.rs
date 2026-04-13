@@ -168,33 +168,41 @@ ensures
         );
     }
 
-    let lifted_always_vsts_post = |vsts: VStatefulSetView| always(
-        lift_state(vsts_liveness_theorem::current_state_matches(vsts))
-            .and(lift_state(|s: ClusterState| {
-                &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq))
-                &&& vsts.spec.replicas == Some(rmq.spec.replicas)
-                &&& vsts.metadata.name == Some(make_stateful_set_name(rmq))
-                &&& vsts.metadata.namespace == rmq.metadata.namespace
-            }))
-    );
+    let lifted_always_vsts_post = |vsts: VStatefulSetView| always(lift_state(vsts_liveness_theorem::current_state_matches(vsts))
+        .and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq))));
     let lifted_always_composed_post = always(lift_state(composed_current_state_matches(rmq)));
 
     // VSTS ESR: for each vsts, [] desired_state_is(vsts) ~> [] current_state_matches(vsts)
-    assert(spec.entails(tla_forall(|vsts: VStatefulSetView|
-        always(lift_state(Cluster::desired_state_is(vsts))).leads_to(
-            always(lift_state(vsts_liveness_theorem::current_state_matches(vsts))))))) by {
+    assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(#[trigger] Cluster::desired_state_is(vsts)))
+        .leads_to(always(lift_state(vsts_liveness_theorem::current_state_matches(vsts))))) by {
         tla_forall_p_tla_forall_q_equality(
-            |vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(
-                always(lift_state(vsts_liveness_theorem::current_state_matches(vsts)))),
-            |vsts: VStatefulSetView| vsts_liveness_theorem::vsts_eventually_stable_reconciliation_per_cr(vsts)
+            |vsts: VStatefulSetView| vsts_liveness_theorem::vsts_eventually_stable_reconciliation_per_cr(vsts),
+            |vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(vsts_liveness_theorem::current_state_matches(vsts))))
+        );
+        tla_forall_apply(|vsts: VStatefulSetView| always(lift_state(Cluster::desired_state_is(vsts))).leads_to(always(lift_state(vsts_liveness_theorem::current_state_matches(vsts)))), vsts);
+        entails_trans(spec,
+            tla_forall(|vsts: VStatefulSetView| vsts_liveness_theorem::vsts_eventually_stable_reconciliation_per_cr(vsts)),
+            vsts_liveness_theorem::vsts_eventually_stable_reconciliation_per_cr(vsts)
         );
     }
 
     // spec |= ∃ vsts. [] vsts_pre ~> ∃ vsts. [] vsts_post
     assert(spec.entails(tla_exists(lifted_always_vsts_pre).leads_to(tla_exists(lifted_always_vsts_post)))) by {
-        assert forall |vsts: VStatefulSetView|
-            spec.entails(#[trigger] lifted_always_vsts_pre(vsts).leads_to(lifted_always_vsts_post(vsts))) by {
-            assume(false);
+        assert forall |vsts: VStatefulSetView| spec.entails(#[trigger] lifted_always_vsts_pre(vsts).leads_to(lifted_always_vsts_post(vsts))) by {
+            temp_pred_equality(lift_state(vsts_pre(rmq)(vsts)), lift_state(Cluster::desired_state_is(vsts)).and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq))));
+            always_and_equality(lift_state(Cluster::desired_state_is(vsts)), lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq)));
+            always_and_equality(lift_state(vsts_liveness_theorem::current_state_matches(vsts)), lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq)));
+            if vsts_owned_by_rmq(vsts, rmq) {
+                temp_pred_equality(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq)), true_pred::<ClusterState>());
+                temp_pred_equality(lifted_always_vsts_pre(vsts), always(lift_state(Cluster::desired_state_is(vsts))));
+                temp_pred_equality(lifted_always_vsts_post(vsts), always(lift_state(vsts_liveness_theorem::current_state_matches(vsts))));
+            } else {
+                temp_pred_equality(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq)), false_pred::<ClusterState>());
+                false_is_stable::<ClusterState>();
+                stable_to_always(false_pred::<ClusterState>()); // false == [] false
+                temp_pred_equality(lifted_always_vsts_pre(vsts), false_pred::<ClusterState>());
+                false_leads_to_anything(spec, lifted_always_vsts_post(vsts));
+            }
         }
         leads_to_exists_intro2(spec, lifted_always_vsts_pre, lifted_always_vsts_post);
     }
@@ -202,9 +210,7 @@ ensures
     assert forall |vsts: VStatefulSetView|
         always(stable_rmq_post).entails(#[trigger] lifted_always_vsts_post(vsts).leads_to(lifted_always_composed_post)) by {
         // current_state_matches(vsts) ∧ static_props ==> composed_current_state_matches(rmq)
-        assert forall |ex: Execution<ClusterState>|
-            lift_state(vsts_liveness_theorem::current_state_matches(vsts))
-                .and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq))).satisfied_by(ex)
+        assert forall |ex: Execution<ClusterState>| lift_state(vsts_liveness_theorem::current_state_matches(vsts)).and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq))).satisfied_by(ex)
             implies #[trigger] lift_state(composed_current_state_matches(rmq)).satisfied_by(ex) by {
             current_state_matches_vsts_implies_composed_current_state_matches(rmq, vsts, ex.head());
         }
