@@ -791,9 +791,15 @@ ensures
                         } ==> s.in_flight().contains(msg));
                     }
                 } else if local_state.reconcile_step == AfterListPod
+                    && id == controller_id
                     && resp_msg_opt is Some && is_ok_resp(resp_msg.content->APIResponse_0) {
-                    assume(resp_msg.src is APIServer); // FIXME
-                    assume(resp_msg_matches_req_msg(resp_msg, req_msg));
+                    // Same controller, at AfterListPod (not Done/Error), and resp_msg_opt is Some,
+                    // so the controller action must be continue_reconcile.
+                    // continue_reconcile's precondition gives us resp_msg_matches_req_msg.
+                    assert(resp_msg.dst == HostId::Controller(controller_id, cr_key)); // from received_msg_destined_for
+                    assert(req_msg.dst is APIServer); // from the invariant
+                    assert(resp_msg_matches_req_msg(resp_msg, req_msg)); // from continue_reconcile precondition
+                    assert(resp_msg.src is APIServer); // from resp_msg_matches_req_msg: resp_msg.src == req_msg.dst
                     // similar to lemma_from_list_resp_to_next_state but simplified
                     let objs = resp_msg.content.get_list_response().res.unwrap();
                     if let Some(pods) = objects_to_pods(objs) {
