@@ -31,6 +31,13 @@ use vstd::prelude::*;
 
 verus !{
 
+pub open spec fn vsts_owned_by_rmq(vsts: VStatefulSetView, rmq: RabbitmqClusterView) -> bool {
+    &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq))
+    &&& vsts.spec.replicas == Some(rmq.spec.replicas)
+    &&& vsts.metadata.name == Some(make_stateful_set_name(rmq))
+    &&& vsts.metadata.namespace == rmq.metadata.namespace
+}
+
 // Helper: the predicate on vsts that we want to extract from current_state_matches(rmq)
 // and show stable using entails_exists_stable.
 // Includes all the "static" properties of the chosen vsts that we carry through the chain.
@@ -38,10 +45,7 @@ pub open spec fn vsts_pre(rmq: RabbitmqClusterView) -> spec_fn(VStatefulSetView)
     |vsts: VStatefulSetView| {
         |s: ClusterState| {
             &&& Cluster::desired_state_is(vsts)(s)
-            &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq))
-            &&& vsts.spec.replicas == Some(rmq.spec.replicas)
-            &&& vsts.metadata.name == Some(make_stateful_set_name(rmq))
-            &&& vsts.metadata.namespace == rmq.metadata.namespace
+            &&& vsts_owned_by_rmq(vsts, rmq)
         }
     }
 }
@@ -200,23 +204,13 @@ ensures
         // current_state_matches(vsts) ∧ static_props ==> composed_current_state_matches(rmq)
         assert forall |ex: Execution<ClusterState>|
             lift_state(vsts_liveness_theorem::current_state_matches(vsts))
-                .and(lift_state(|s: ClusterState| {
-                    &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq))
-                    &&& vsts.spec.replicas == Some(rmq.spec.replicas)
-                    &&& vsts.metadata.name == Some(make_stateful_set_name(rmq))
-                    &&& vsts.metadata.namespace == rmq.metadata.namespace
-                })).satisfied_by(ex)
+                .and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq))).satisfied_by(ex)
             implies #[trigger] lift_state(composed_current_state_matches(rmq)).satisfied_by(ex) by {
             current_state_matches_vsts_implies_composed_current_state_matches(rmq, vsts, ex.head());
         }
         entails_preserved_by_always(
             lift_state(vsts_liveness_theorem::current_state_matches(vsts))
-                .and(lift_state(|s: ClusterState| {
-                    &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq))
-                    &&& vsts.spec.replicas == Some(rmq.spec.replicas)
-                    &&& vsts.metadata.name == Some(make_stateful_set_name(rmq))
-                    &&& vsts.metadata.namespace == rmq.metadata.namespace
-                })),
+                .and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rmq))),
             lift_state(composed_current_state_matches(rmq))
         );
         entails_implies_leads_to(always(stable_rmq_post), lifted_always_vsts_post(vsts), lifted_always_composed_post);
@@ -276,10 +270,13 @@ ensures
 // Wrapper: universally quantify over rmq to get the full ESR theorem.
 pub proof fn composed_rmq_eventually_stable_reconciliation(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
 requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(next_with_wf(cluster, controller_id)),
+    spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    spec.entails(vsts_liveness_theorem::vsts_eventually_stable_reconciliation()),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    spec.entails(next_with_wf(cluster, controller_id)),
 ensures
     spec.entails(rmq_composed_eventually_stable_reconciliation()),
 {
@@ -316,10 +313,7 @@ requires
 ensures
     Cluster::desired_state_is(vsts)(s),
     Cluster::desired_state_is(vsts)(s_prime),
-    vsts.spec.replicas == Some(rmq.spec.replicas),
-    vsts.metadata.name == Some(make_stateful_set_name(rmq)),
-    vsts.metadata.namespace == rmq.metadata.namespace,
-    vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq)),
+    vsts_owned_by_rmq(vsts, rmq),
 {
     VStatefulSetView::marshal_preserves_integrity();
     let sts_key = make_stateful_set_key(rmq);
@@ -373,10 +367,7 @@ pub proof fn current_state_matches_vsts_implies_composed_current_state_matches(
 )
 requires
     vsts_liveness_theorem::current_state_matches(vsts)(s),
-    vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rmq)),
-    vsts.spec.replicas == Some(rmq.spec.replicas),
-    vsts.metadata.name == Some(make_stateful_set_name(rmq)),
-    vsts.metadata.namespace == rmq.metadata.namespace,
+    vsts_owned_by_rmq(vsts, rmq),
 ensures
     composed_current_state_matches(rmq)(s),
 {
