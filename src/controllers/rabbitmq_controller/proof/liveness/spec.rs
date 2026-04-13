@@ -235,6 +235,9 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
         } else if i == 8 {
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id, cluster, spec, rabbitmq);
         }
     }
@@ -410,6 +413,7 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())))
+    .and(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq))))
     // Forall-key versions needed by reconcile_eventually_terminates_forall_key
     .and(always(tla_forall(|key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))))
     .and(always(tla_forall(|key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
@@ -478,6 +482,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
+        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),
         tla_forall(a_to_p_key_unique),
         tla_forall(a_to_p_no_pending),
         tla_forall(a_to_p_pending_in_flight),
@@ -694,6 +699,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_etcd_is_finite(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(spec);
+    helper_invariants::lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(controller_id, cluster, spec, rabbitmq);
 
     // Forall-key versions needed by reconcile_eventually_terminates_forall_key
     let a_to_p_key_unique = |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key));
@@ -773,6 +779,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
+        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),
         tla_forall(a_to_p_key_unique),
         tla_forall(a_to_p_no_pending),
         tla_forall(a_to_p_pending_in_flight),
