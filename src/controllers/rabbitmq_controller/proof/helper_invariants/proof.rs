@@ -2106,7 +2106,6 @@ pub open spec fn sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
@@ -2119,7 +2118,73 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures
         spec.entails(always(lift_state(sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq)))),
-{}
+{
+    let sts_key = make_stateful_set_key(rabbitmq);
+    let inv = sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq);
+    let requirements = |msg: Message| resource_create_request_msg(sts_key)(msg)
+    ==> {
+        let sts = VStatefulSetView::unmarshal(msg.content.get_create_request().obj)->Ok_0;
+        &&& VStatefulSetView::unmarshal(msg.content.get_create_request().obj) is Ok
+        &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
+    };
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+    };
+    cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id)))
+    );
+    assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies requirements(msg) by {
+            if !s.in_flight().contains(msg) && resource_create_request_msg(sts_key)(msg) {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep((id, _, cr_key_opt)) => {
+                        if id == controller_id {
+                            RabbitmqClusterView::marshal_preserves_integrity();
+                            RabbitmqReconcileState::marshal_preserves_integrity();
+                            VStatefulSetView::marshal_preserves_integrity();
+                            let cr_key = cr_key_opt->0;
+                            let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                            let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                            lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
+                            assert(cr.object_ref() == rabbitmq.object_ref());
+                            assert(msg.content.get_create_request().obj == make(SubResource::VStatefulSetView, cr, local_state)->Ok_0);
+                            assert(msg.content.get_create_request().obj.metadata.finalizers is None);
+                            assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
+                                make_owner_references_with_name_and_uid(cr_key.name, cr.metadata().uid->0)
+                            ]));
+                        } else {
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                            assert(rmq_rely(id)(s_prime));
+                            assert(!is_rmq_managed_kind(sts_key.kind));
+                            assert(false);
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
 
 // similar to resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
 #[verifier(external_body)]
