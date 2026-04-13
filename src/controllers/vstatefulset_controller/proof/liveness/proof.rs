@@ -28,6 +28,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
         spec.entails(lift_state(cluster.init())),
         spec.entails(next_with_wf(cluster, controller_id)),
         spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+        spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     ensures
@@ -618,6 +619,8 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+        spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     ensures
@@ -904,6 +907,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
         spec.entails(next_with_wf(cluster, controller_id)),
         // rely assumptions
         spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+        spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
         // The vsts type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
@@ -941,7 +945,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     terminate::reconcile_eventually_terminates(stable_spec, cluster, controller_id);
 
     assert(stable_spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))))) by {
-        assume(stable_spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))));
+        assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(controller_id, cluster, vsts);
     }
 
     // ============================================================
@@ -1043,6 +1047,7 @@ requires
     spec.entails(next_with_wf(cluster, controller_id)),
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))),
+    spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
