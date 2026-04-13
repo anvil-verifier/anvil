@@ -149,8 +149,12 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 
     // Derive cluster_invariants_since_reconciliation for each sub_resource from the combined spec.
     assert forall |sub_resource: SubResource| spec.entails(always(lift_state(#[trigger] cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))) by {
-        spec_entails_assumptions_and_invariants_of_all_phases_implies_cluster_invariants_since_reconciliation(
-            spec, controller_id, cluster, sub_resource, rabbitmq
+        assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(
+            controller_id, cluster, sub_resource, rabbitmq
+        );
+        entails_trans(spec,
+            assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq), 
+            always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))
         );
     }
 
@@ -562,16 +566,14 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
 
 #[verifier(rlimit(500))]
 #[verifier(spinoff_prover)]
-pub proof fn spec_entails_assumptions_and_invariants_of_all_phases_implies_cluster_invariants_since_reconciliation(
-    spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+pub proof fn assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(
+    controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
-requires
-    spec.entails(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)),
 ensures
-    spec.entails(always(lift_state(#[trigger] cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+    assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq).entails(always(lift_state(#[trigger] cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
-    always_tla_forall_apply_for_sub_resource(controller_id, spec, cluster, sub_resource, rabbitmq);
+    always_tla_forall_apply_for_sub_resource(controller_id, stable_spec, cluster, sub_resource, rabbitmq);
 
     assert(stable_spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::req_drop_disabled()))));
@@ -668,7 +670,6 @@ ensures
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
         lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))
     );
-    entails_trans(spec, stable_spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))));
 }
 
 }

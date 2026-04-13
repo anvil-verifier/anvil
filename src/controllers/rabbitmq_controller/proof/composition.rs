@@ -11,8 +11,8 @@ use crate::rabbitmq_controller::model::{
     reconciler::*, install::*, resource::stateful_set::*
 };
 use crate::rabbitmq_controller::proof::{
-    guarantee::guarantee_condition_holds, liveness::spec::{next_with_wf, next_with_wf_is_stable}, predicate::*,
-    helper_invariants, helper_lemmas::*, resource::*, liveness::proof::*,
+    guarantee::guarantee_condition_holds, predicate::*,
+    helper_invariants, helper_lemmas::*, resource::*, liveness::{spec:: *,proof::*},
 };
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
@@ -50,7 +50,6 @@ pub open spec fn vsts_pre(rmq: RabbitmqClusterView) -> spec_fn(VStatefulSetView)
     }
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn composed_rmq_eventually_stable_reconciliation_per_cr(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rmq: RabbitmqClusterView)
 requires
@@ -86,7 +85,53 @@ ensures
         .and(lifted_inv);
 
     assert(spec.entails(always(lift_state(Cluster::desired_state_is(rmq))).leads_to(always(stable_rmq_post)))) by {
-        assume(false);
+        // Step 1: spec |= □desired ~> assumption_and_invariants_of_all_phases
+        spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(
+            spec, controller_id, cluster, rmq
+        );
+        // Step 2: assumption_and_invariants_of_all_phases |= □cluster_invariants
+        assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(
+            controller_id, cluster, SubResource::VStatefulSetView, rmq
+        );
+        // Step 3: spec |= □desired ~> □cluster_invariants
+        entails_implies_leads_to(
+            spec,
+            assumption_and_invariants_of_all_phases(controller_id, cluster, rmq),
+            always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView)))
+        );
+        leads_to_trans(
+            spec,
+            always(lift_state(Cluster::desired_state_is(rmq))),
+            assumption_and_invariants_of_all_phases(controller_id, cluster, rmq),
+            always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView)))
+        );
+        // Step 4: Combine: spec |= □desired ~> □(current_state_matches ∧ cluster_invariants)
+        leads_to_always_combine(
+            spec,
+            always(lift_state(Cluster::desired_state_is(rmq))),
+            lift_state(current_state_matches(rmq)),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView))
+        );
+        // Step 5: Establish spec |= □lifted_inv
+        entails_trans(
+            spec,
+            next_with_wf(cluster, controller_id),
+            always(lift_action(cluster.next()))
+        );
+        entails_always_and_n!(
+            spec,
+            lift_action(cluster.next()),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+        // Step 6: Enhance with lifted_inv: spec |= □desired ~> □stable_rmq_post
+        leads_to_always_enhance(
+            spec,
+            lifted_inv,
+            always(lift_state(Cluster::desired_state_is(rmq))),
+            lift_state(current_state_matches(rmq))
+                .and(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rmq, SubResource::VStatefulSetView))),
+            stable_rmq_post
+        );
     }
 
     let lifted_always_vsts_pre = |vsts: VStatefulSetView| always(lift_state(vsts_pre(rmq)(vsts)));
