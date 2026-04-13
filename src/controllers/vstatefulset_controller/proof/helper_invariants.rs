@@ -280,7 +280,7 @@ pub open spec fn all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref
 
 #[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
-proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(
+pub proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -330,7 +330,7 @@ ensures
     );
 }
 
-proof fn lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -442,7 +442,7 @@ ensures
     );
 }
 
-proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -544,7 +544,7 @@ ensures
     );
 }
 
-proof fn lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -690,16 +690,13 @@ requires
     spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
-        |key: ObjectRef| key.kind == Kind::PodKind && key.namespace == vsts.object_ref().namespace && pod_name_match(key.name, vsts.object_ref().name),
-        owner_reference_requirements(vsts)
+        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
-        |key: ObjectRef| key.kind == Kind::PodKind && key.namespace == vsts.object_ref().namespace && pod_name_match(key.name, vsts.object_ref().name),
-        owner_reference_requirements(vsts)
+        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
-        |key: ObjectRef| key.kind == Kind::PodKind && key.namespace == vsts.object_ref().namespace && pod_name_match(key.name, vsts.object_ref().name),
-        owner_reference_requirements(vsts)
+        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
@@ -1295,11 +1292,17 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-// we don't need to talk about ongoing_reconcile as it's covered by at_vsts_step
-pub open spec fn vsts_in_reconciles_has_no_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn vsts_in_schedule_has_no_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
         &&& s.scheduled_reconciles(controller_id)[vsts.object_ref()].metadata.deletion_timestamp is None
         &&& VStatefulSetView::unmarshal(s.scheduled_reconciles(controller_id)[vsts.object_ref()]).unwrap().metadata().deletion_timestamp is None
+    }
+}
+
+pub open spec fn vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts: VStatefulSetView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
+        &&& s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr.metadata.deletion_timestamp is None
+        &&& VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -1440,6 +1443,86 @@ ensures
         leads_to_trans(spec, true_pred(), lift_state(reconcile_idle), lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)));
         leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)));
     }
+}
+
+pub proof fn lemma_eventually_always_vsts_in_schedule_has_no_deletion_timestamp(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))))),
+{
+    let p = |s| Cluster::desired_state_is(vsts)(s);
+    let q = vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::desired_state_is(vsts)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::desired_state_is(vsts)),
+        later(lift_state(Cluster::desired_state_is(vsts)))
+    );
+
+    cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, vsts.object_ref(), stronger_next, p, q);
+    temp_pred_equality(true_pred().and(lift_state(Cluster::desired_state_is(vsts))), lift_state(p));
+    leads_to_by_borrowing_inv(spec, true_pred(), lift_state(q), lift_state(Cluster::desired_state_is(vsts)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
+}
+
+pub proof fn lemma_eventually_always_vsts_in_ongoing_reconciles_has_no_deletion_timestamp(
+    spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id)))),
+    spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())))),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))))),
+{
+    let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref());
+    let q = vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vsts)(s)
+        &&& Cluster::desired_state_is(vsts)(s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id)(s)
+    };
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vsts)),
+        later(lift_state(Cluster::desired_state_is(vsts))),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))
+    );
+    leads_to_weaken(
+        spec,
+        true_pred(), lift_state(reconcile_idle),
+        true_pred(), lift_state(q)
+    );
+    assert forall |s, s_prime| q(s) && #[trigger] stronger_next(s, s_prime) implies q(s_prime) by {
+        if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {}
+    }
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
 }

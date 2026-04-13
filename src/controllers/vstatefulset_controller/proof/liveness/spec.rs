@@ -179,6 +179,13 @@ pub open spec fn derived_invariants_since_beginning(vsts: VStatefulSetView, clus
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))))
     .and(always(pending_request_invariants(cluster, controller_id)))
     .and(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))))
+    // Additional invariants needed by cluster_invariants_since_reconciliation
+    .and(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())))
+    .and(always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())))
+    .and(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())))
+    .and(always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))))
+    .and(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))))
+    .and(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts))))
 }
 
 pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
@@ -207,6 +214,12 @@ pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)))),
         spec.entails(always(pending_request_invariants(cluster, controller_id))),
         spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+        spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+        spec.entails(always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()))),
+        spec.entails(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()))),
+        spec.entails(always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
     ensures
         spec.entails(derived_invariants_since_beginning(vsts, cluster, controller_id)),
 {
@@ -235,7 +248,13 @@ pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState
         always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
         always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
         always(pending_request_invariants(cluster, controller_id)),
-        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))
+        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())),
+        always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())),
+        always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))),
+        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))),
+        always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
     );
 }
 
@@ -266,6 +285,12 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
     always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)));
     always_p_is_stable(pending_request_invariants(cluster, controller_id));
     always_p_is_stable(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)));
+    always_p_is_stable(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
+    always_p_is_stable(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()));
+    always_p_is_stable(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()));
+    always_p_is_stable(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id)));
+    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)));
+    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)));
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
         always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
@@ -290,7 +315,13 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
         always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
         always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
         always(pending_request_invariants(cluster, controller_id)),
-        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))
+        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())),
+        always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())),
+        always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))),
+        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))),
+        always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
     );
 }
 
@@ -310,11 +341,14 @@ pub proof fn invariants_is_stable(vsts: VStatefulSetView, cluster: Cluster, cont
     );
 }
 
-// Phase I: crash, req_drop, and pod_monkey disabled
+// Phase I: crash, req_drop, pod_monkey disabled, schedule_has_spec, schedule_has_name_namespace, schedule_has_no_deletion_timestamp
 pub open spec fn invariants_since_phase_i(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::crash_disabled(controller_id)))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::pod_monkey_disabled())))
+    .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))))
+    .and(always(lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
+    .and(always(lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VStatefulSetView)
@@ -323,36 +357,93 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VState
     stable_and_always_n!(
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled())
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
+        lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))
     );
 }
 
-// Phase II: no pending requests from non-controllers and pending req in flight xor resp in flight
+// Phase II: reconcile_has_spec, no pending requests from non-controllers, pending req xor, reconcile_has_name_namespace, ongoing_reconciles_has_no_deletion_timestamp
 pub open spec fn invariants_since_phase_ii(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState>
 {
-    always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))
+    always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))
+    .and(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref()))))
+    .and(always(lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
+    .and(always(lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vsts: VStatefulSetView)
     ensures valid(stable(invariants_since_phase_ii(controller_id, vsts))),
 {
     stable_and_always_n!(
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref()))
+        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref())),
+        lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))
     );
 }
 
-// Phase III: every msg from key is pending req msg
+// Phase III: every msg from key is pending req msg, all pod requests carry correct owner ref
 pub open spec fn invariants_since_phase_iii(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
     always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())))
+    .and(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(helper_invariants::all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))))
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iii(vsts, cluster, controller_id))),
 {
-    always_p_is_stable(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())));
+    stable_and_always_n!(
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(helper_invariants::all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))
+    );
+}
+
+// Phase IV: 3 message-type owner ref invariants + builtin_controllers_do_not_delete_pods_owned_by_vsts
+pub open spec fn invariants_since_phase_iv(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    )))
+    .and(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    ))))
+    .and(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    ))))
+    .and(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))))
+}
+
+pub proof fn invariants_since_phase_iv_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_iv(vsts, cluster, controller_id))),
+{
+    stable_and_always_n!(
+        lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))
+    );
+}
+
+// Phase V: all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
+pub open spec fn invariants_since_phase_v(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))
+}
+
+pub proof fn invariants_since_phase_v_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_v(vsts, cluster, controller_id))),
+{
+    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)));
 }
 
 // The combination of invariants and all phases
@@ -362,26 +453,32 @@ pub open spec fn assumption_and_invariants_of_all_phases(vsts: VStatefulSetView,
     .and(invariants_since_phase_i(controller_id, vsts))
     .and(invariants_since_phase_ii(controller_id, vsts))
     .and(invariants_since_phase_iii(vsts, cluster, controller_id))
+    .and(invariants_since_phase_iv(vsts, cluster, controller_id))
+    .and(invariants_since_phase_v(vsts, cluster, controller_id))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
         valid(stable(invariants(vsts, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 3 ==> valid(stable(#[trigger] spec_before_phase_n(i, vsts, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vsts, cluster, controller_id))),
 {
-    reveal_with_fuel(spec_before_phase_n, 3);
+    reveal_with_fuel(spec_before_phase_n, 5);
     invariants_is_stable(vsts, cluster, controller_id);
     always_p_is_stable(lift_state(Cluster::desired_state_is(vsts)));
     invariants_since_phase_i_is_stable(controller_id, vsts);
     invariants_since_phase_ii_is_stable(controller_id, vsts);
     invariants_since_phase_iii_is_stable(vsts, cluster, controller_id);
+    invariants_since_phase_iv_is_stable(vsts, cluster, controller_id);
+    invariants_since_phase_v_is_stable(vsts, cluster, controller_id);
     stable_and_n!(
         invariants(vsts, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vsts))),
         invariants_since_phase_i(controller_id, vsts),
         invariants_since_phase_ii(controller_id, vsts),
-        invariants_since_phase_iii(vsts, cluster, controller_id)
+        invariants_since_phase_iii(vsts, cluster, controller_id),
+        invariants_since_phase_iv(vsts, cluster, controller_id),
+        invariants_since_phase_v(vsts, cluster, controller_id)
     );
 }
 
@@ -395,6 +492,10 @@ pub open spec fn invariants_since_phase_n(n: nat, vsts: VStatefulSetView, cluste
         invariants_since_phase_ii(controller_id, vsts)
     } else if n == 3 {
         invariants_since_phase_iii(vsts, cluster, controller_id)
+    } else if n == 4 {
+        invariants_since_phase_iv(vsts, cluster, controller_id)
+    } else if n == 5 {
+        invariants_since_phase_v(vsts, cluster, controller_id)
     } else {
         true_pred()
     }
@@ -405,7 +506,7 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 {
     if n == 1 {
         invariants(vsts, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vsts))))
-    } else if 2 <= n <= 4 {
+    } else if 2 <= n <= 6 {
         spec_before_phase_n((n-1) as nat, vsts, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vsts, cluster, controller_id))
     } else {
         true_pred()
@@ -414,12 +515,21 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 
 pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     next_with_wf(cluster, controller_id)
+    .and(always(lift_state(vsts_rely_conditions(cluster, controller_id))))
+    .and(always(lift_state(vsts_rely_conditions_pod_monkey())))
 }
 
 pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
+    always_p_is_stable(lift_state(vsts_rely_conditions(cluster, controller_id)));
+    always_p_is_stable(lift_state(vsts_rely_conditions_pod_monkey()));
+    stable_and_n!(
+        next_with_wf(cluster, controller_id),
+        always(lift_state(vsts_rely_conditions(cluster, controller_id))),
+        always(lift_state(vsts_rely_conditions_pod_monkey()))
+    );
 }
 
 }
