@@ -323,7 +323,8 @@ pub proof fn composed_rmq_eventually_stable_reconciliation(spec: TempPred<Cluste
 requires
     spec.entails(lift_state(cluster.init())),
     spec.entails(next_with_wf(cluster, controller_id)),
-    spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+        ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))),
     spec.entails(vsts_liveness_theorem::vsts_eventually_stable_reconciliation()),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -331,6 +332,8 @@ requires
 ensures
     spec.entails(rmq_composed_eventually_stable_reconciliation()),
 {
+    // Convert forall-quantified rely to the conjuncted form
+    rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(spec, cluster, controller_id);
     // next_with_wf is stable, so spec |= next_with_wf ==> spec |= always(next_with_wf)
     next_with_wf_is_stable(cluster, controller_id);
     stable_to_always(next_with_wf(cluster, controller_id));

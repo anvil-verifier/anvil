@@ -534,4 +534,51 @@ ensures
     return resp_msg;
 }
 
+pub proof fn rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+    ensures
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))))
+        <==>
+            spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+{
+    let lhs =
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))));
+    let rhs = spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id))));
+
+    assert_by(
+        lhs ==> rhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                lhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies rmq_rely(other_id)(ex.suffix(n).head()) by {
+                assert(valid(spec.implies(always(lift_state(rmq_rely(other_id))))));
+                assert(spec.implies(always(lift_state(rmq_rely(other_id)))).satisfied_by(ex));
+                assert(always(lift_state(rmq_rely(other_id))).satisfied_by(ex));
+                assert(lift_state(rmq_rely(other_id)).satisfied_by(ex.suffix(n)));
+            }
+        }
+    );
+
+    assert_by(
+        rhs ==> lhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                rhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies rmq_rely(other_id)(ex.suffix(n).head()) by {
+                assert(valid(spec.implies(always(lift_state(rmq_rely_conditions(cluster, controller_id))))));
+                assert(spec.implies(always(lift_state(rmq_rely_conditions(cluster, controller_id)))).satisfied_by(ex));
+                assert(always(lift_state(rmq_rely_conditions(cluster, controller_id))).satisfied_by(ex));
+                assert(lift_state(rmq_rely_conditions(cluster, controller_id)).satisfied_by(ex.suffix(n)));
+            }
+        }
+    );
+}
+
 }
