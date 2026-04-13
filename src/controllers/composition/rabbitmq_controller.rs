@@ -12,7 +12,7 @@ use crate::rabbitmq_controller::model::{
 use crate::rabbitmq_controller::proof::{
     guarantee::guarantee_condition_holds, predicate::*, liveness::spec::{next_with_wf, next_with_wf_is_stable}
 };
-use crate::rabbitmq_controller::proof::composition::lemma_rmq_composed_eventually_stable_reconciliation;
+use crate::rabbitmq_controller::proof::composition::composed_rmq_eventually_stable_reconciliation;
 use crate::vstatefulset_controller::trusted::{
     spec_types::VStatefulSetView,
     liveness_theorem as vsts_liveness_theorem,
@@ -343,7 +343,7 @@ impl VerticalComposition for RabbitmqReconciler {
     proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         ensures spec.entails(Self::c().liveness_guarantee),
     {
-        lemma_rmq_composed_eventually_stable_reconciliation(
+        composed_rmq_eventually_stable_reconciliation(
             spec, cluster, Self::id()
         );
     }

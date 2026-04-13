@@ -177,6 +177,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
             &&& #[trigger] s.in_flight().contains(msg)
             &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
+            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap()) is Ok
@@ -193,6 +194,7 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
             &&& #[trigger] s.in_flight().contains(msg)
             &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
+            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.resource_version is Some
@@ -263,33 +265,13 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
     }
 }
 
-// For any in-flight update request targeting the VSTS key whose rv matches the current etcd VSTS rv,
-// the request object's spec equals the current etcd VSTS spec.
-// This means any successful update to the VSTS doesn't change its spec, making desired_state_is stability trivial.
-pub open spec fn vsts_spec_in_update_request_is_the_same_as_etcd_server(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let sts_key = make_stateful_set_key(rabbitmq);
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& resource_update_request_msg(sts_key)(msg)
-            &&& s.resources().contains_key(sts_key)
-            &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version
-        } ==> {
-            msg.content.get_update_request().obj.spec == s.resources()[sts_key].spec
-        }
+        let sts = VStatefulSetView::unmarshal(s.resources()[sts_key]).unwrap();
+        &&& s.resources().contains_key(sts_key)
+            ==> sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
     }
 }
-
-pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.resources().contains_key(make_stateful_set_key(rabbitmq))
-        ==> {
-            let sts = VStatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq)]).unwrap();
-            &&& s.resources()[make_stateful_set_key(rabbitmq)].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
-        }
-    }
-}
-
 
 }

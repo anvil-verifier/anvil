@@ -22,13 +22,55 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn rmq_with_different_key_implies_request_with_different_key(rmq: RabbitmqClusterView, other_rmq: RabbitmqClusterView, sub_resource: SubResource)
 requires
     rmq.object_ref() != other_rmq.object_ref()
 ensures
     get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
-{}
+{
+    let key_a = get_request(sub_resource, rmq).key;
+    let key_b = get_request(sub_resource, other_rmq).key;
+    if rmq.metadata.namespace->0 != other_rmq.metadata.namespace->0 {
+    } else {
+        assert(rmq.metadata.name->0 != other_rmq.metadata.name->0);
+        let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+        let cr_name_a = rmq.metadata.name->0;
+        let cr_name_b = other_rmq.metadata.name->0;
+        seq_unequal_preserved_by_add_prefix(prefix, cr_name_a, cr_name_b);
+        match sub_resource {
+            SubResource::HeadlessService => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-nodes"@);
+            },
+            SubResource::Service => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-client"@);
+            },
+            SubResource::ErlangCookieSecret => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-erlang-cookie"@);
+            },
+            SubResource::DefaultUserSecret => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-default-user"@);
+            },
+            SubResource::PluginsConfigMap => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-plugins-conf"@);
+            },
+            SubResource::ServerConfigMap => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server-conf"@);
+            },
+            SubResource::ServiceAccount => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server"@);
+            },
+            SubResource::Role => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-peer-discovery"@);
+            },
+            SubResource::RoleBinding => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server"@);
+            },
+            SubResource::VStatefulSetView => {
+                seq_unequal_preserved_by_add(prefix + cr_name_a, prefix + cr_name_b, "-server"@);
+            },
+        }
+    }
+}
 
 pub proof fn lemma_cr_name_neq_implies_resource_key_name_neq(
     cr_name_a: StringView, cr_name_b: StringView, suffix: StringView,
@@ -275,7 +317,6 @@ ensures
 }
 
 // shield_lemma
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )
@@ -289,10 +330,35 @@ requires
 ensures
     s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
     s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
-    // cm is not updated
-    s.resources().contains_key(make_server_config_map_key(rmq)) == s_prime.resources().contains_key(make_server_config_map_key(rmq)),
-    s.resources()[make_server_config_map_key(rmq)] == s_prime.resources()[make_server_config_map_key(rmq)],
-{}
+{
+    let resource_key = get_request(sub_resource, rmq).key;
+    assert(s.in_flight().contains(msg));
+    if !(msg.content is APIRequest && msg.dst is APIServer) {
+        return;
+    }
+    match msg.src {
+        HostId::Controller(id, cr_key) => {
+            match msg.content->APIRequest_0 {
+                APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
+                APIRequest::CreateRequest(req) => {
+                    if id == controller_id { // use guarantee
+                        if resource_create_request_msg(resource_key)(msg) {} // every_resource_create_request_implies_at_after_create_resource_step
+                    } else { // use rely
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        assert(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
+                    }
+                },
+                APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
+                    if resource_update_request_msg(resource_key)(msg) {}
+                },
+                _ => {},
+            }
+        },
+        HostId::BuiltinController => {},
+        _ => {},
+    }
+}
 
 pub proof fn lemma_get_sub_resource_request_returns_ok_or_not_found(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
@@ -392,7 +458,6 @@ ensures
     return resp_msg;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_update_sub_resource_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)
@@ -406,6 +471,61 @@ ensures
     resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
     resource_state_matches(sub_resource, rmq)(s_prime),
 {
+    RabbitmqReconcileState::marshal_preserves_integrity();
+
+    match sub_resource {
+        SubResource::HeadlessService => {
+            ServiceView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ServiceView::marshal_preserves_integrity();
+            ServiceView::marshal_status_preserves_integrity(); // marshalled default status can pass state validation
+        },
+        SubResource::Service => {
+            ServiceView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ServiceView::marshal_preserves_integrity();
+            ServiceView::marshal_status_preserves_integrity();
+        },
+        SubResource::ErlangCookieSecret => {
+            SecretView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            SecretView::marshal_preserves_integrity();
+            SecretView::marshal_status_preserves_integrity();
+        },
+        SubResource::DefaultUserSecret => {
+            SecretView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            SecretView::marshal_preserves_integrity();
+            SecretView::marshal_status_preserves_integrity();
+        },
+        SubResource::PluginsConfigMap => {
+            ConfigMapView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ConfigMapView::marshal_preserves_integrity();
+            ConfigMapView::marshal_status_preserves_integrity();
+        },
+        SubResource::ServerConfigMap => {
+            ConfigMapView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ConfigMapView::marshal_preserves_integrity();
+            ConfigMapView::marshal_status_preserves_integrity();
+        },
+        SubResource::ServiceAccount => {
+            ServiceAccountView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            ServiceAccountView::marshal_preserves_integrity();
+            ServiceAccountView::marshal_status_preserves_integrity();
+        },
+        SubResource::Role => {
+            RoleView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            RoleView::marshal_preserves_integrity();
+            RoleView::marshal_status_preserves_integrity();
+        },
+        SubResource::RoleBinding => {
+            RoleBindingView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            RoleBindingView::marshal_preserves_integrity();
+            RoleBindingView::marshal_status_preserves_integrity();
+        },
+        SubResource::VStatefulSetView => {
+            VStatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            VStatefulSetView::marshal_preserves_integrity();
+            VStatefulSetView::marshal_status_preserves_integrity();
+        },
+    }
+
     let resp_msg = handle_update_request_msg(cluster.installed_types, msg, s.api_server).1;
     let local_state = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state;
     let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
@@ -414,130 +534,51 @@ ensures
     return resp_msg;
 }
 
-/// When an API server step processes a request whose key is different from `resource_key`,
-/// the resource at `resource_key` is unchanged. This is needed because compound operations
-/// like GetThenUpdate/GetThenUpdateStatus have complex specs that the verifier can't
-/// automatically reason through.
-#[verifier(spinoff_prover)]
-pub proof fn lemma_api_request_not_made_by_field_matches_maintains_resource(
-    s: ClusterState, s_prime: ClusterState, cluster: Cluster, msg: Message, resource_key: ObjectRef,
+pub proof fn rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
-requires
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    msg.content is APIRequest,
-    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
-    match msg.content->APIRequest_0 {
-        APIRequest::GetRequest(_) => true,
-        APIRequest::ListRequest(_) => true,
-        APIRequest::CreateRequest(req) => s.resources().contains_key(resource_key),
-        APIRequest::DeleteRequest(req) => req.key != resource_key,
-        APIRequest::UpdateRequest(req) => req.key() != resource_key,
-        APIRequest::UpdateStatusRequest(req) => req.key() != resource_key,
-        APIRequest::GetThenDeleteRequest(req) => req.key() != resource_key,
-        APIRequest::GetThenUpdateRequest(req) => req.key() != resource_key,
-        APIRequest::GetThenUpdateStatusRequest(req) => req.key() != resource_key,
-    },
-ensures
-    s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key),
-    s.resources().contains_key(resource_key) ==> s.resources()[resource_key] == s_prime.resources()[resource_key],
+    ensures
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))))
+        <==>
+            spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
 {
-    let (etcd_state, _) = transition_by_etcd(cluster.installed_types, msg, s.api_server);
-    assert(s_prime.api_server == etcd_state);
-    match msg.content->APIRequest_0 {
-        APIRequest::GetRequest(_) => {},
-        APIRequest::ListRequest(_) => {},
-        APIRequest::CreateRequest(req) => {
-            // resource_key already exists in s.resources().
-            // If create admission fails, state unchanged.
-            // If the created object's key already exists, ObjectAlreadyExists — state unchanged.
-            // If it succeeds, insert at created_obj.object_ref() which can't be resource_key
-            // because resource_key already exists but created_obj.object_ref() doesn't.
-            if create_request_admission_check(cluster.installed_types, req, s.api_server) is None {
-                let created_obj = DynamicObjectView {
-                    kind: req.obj.kind,
-                    metadata: ObjectMetaView {
-                        name: if req.obj.metadata.name is Some {
-                            req.obj.metadata.name
-                        } else {
-                            Some(generated_name(s.api_server, req.obj.metadata.generate_name.unwrap()))
-                        },
-                        namespace: Some(req.namespace),
-                        resource_version: Some(s.api_server.resource_version_counter),
-                        uid: Some(s.api_server.uid_counter),
-                        deletion_timestamp: None,
-                        ..req.obj.metadata
-                    },
-                    spec: req.obj.spec,
-                    status: marshalled_default_status(req.obj.kind, cluster.installed_types),
-                };
-                if s.api_server.resources.contains_key(created_obj.object_ref()) {
-                } else if created_object_validity_check(created_obj, cluster.installed_types) is Some {
-                } else {
-                    // created_obj.object_ref() doesn't exist yet, resource_key does, so they differ
-                    assert(!s.api_server.resources.contains_key(created_obj.object_ref()));
-                    assert(s.api_server.resources.contains_key(resource_key));
-                    assert(created_obj.object_ref() != resource_key);
-                }
+    let lhs =
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))));
+    let rhs = spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id))));
+
+    assert_by(
+        lhs ==> rhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                lhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies rmq_rely(other_id)(ex.suffix(n).head()) by {
+                assert(valid(spec.implies(always(lift_state(rmq_rely(other_id))))));
+                assert(spec.implies(always(lift_state(rmq_rely(other_id)))).satisfied_by(ex));
+                assert(always(lift_state(rmq_rely(other_id))).satisfied_by(ex));
+                assert(lift_state(rmq_rely(other_id)).satisfied_by(ex.suffix(n)));
             }
-        },
-        APIRequest::DeleteRequest(req) => {},
-        APIRequest::UpdateRequest(req) => {},
-        APIRequest::UpdateStatusRequest(req) => {},
-        APIRequest::GetThenDeleteRequest(req) => {
-            let gd_req = msg.content.get_get_then_delete_request();
-            if gd_req.well_formed() && s.api_server.resources.contains_key(gd_req.key())
-            && s.api_server.resources[gd_req.key()].metadata.owner_references_contains(gd_req.owner_ref) {
-                // Delete at gd_req.key() != resource_key
+        }
+    );
+
+    assert_by(
+        rhs ==> lhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                rhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies rmq_rely(other_id)(ex.suffix(n).head()) by {
+                assert(valid(spec.implies(always(lift_state(rmq_rely_conditions(cluster, controller_id))))));
+                assert(spec.implies(always(lift_state(rmq_rely_conditions(cluster, controller_id)))).satisfied_by(ex));
+                assert(always(lift_state(rmq_rely_conditions(cluster, controller_id))).satisfied_by(ex));
+                assert(lift_state(rmq_rely_conditions(cluster, controller_id)).satisfied_by(ex.suffix(n)));
             }
-        },
-        APIRequest::GetThenUpdateRequest(req) => {
-            let gu_req = msg.content.get_get_then_update_request();
-            if gu_req.well_formed() && s.api_server.resources.contains_key(gu_req.key())
-            && s.api_server.resources[gu_req.key()].metadata.owner_references_contains(gu_req.owner_ref) {
-                let current_obj = s.api_server.resources[gu_req.key()];
-                let new_obj = DynamicObjectView {
-                    metadata: ObjectMetaView {
-                        resource_version: current_obj.metadata.resource_version,
-                        uid: current_obj.metadata.uid,
-                        ..gu_req.obj.metadata
-                    },
-                    ..gu_req.obj
-                };
-                let update_req = UpdateRequest {
-                    name: gu_req.name,
-                    namespace: gu_req.namespace,
-                    obj: new_obj,
-                };
-                assert(update_req.key() == gu_req.key());
-                assert(update_req.key() != resource_key);
-            }
-        },
-        APIRequest::GetThenUpdateStatusRequest(req) => {
-            let gus_req = msg.content.get_get_then_update_status_request();
-            if gus_req.well_formed() && s.api_server.resources.contains_key(gus_req.key())
-            && s.api_server.resources[gus_req.key()].metadata.owner_references_contains(gus_req.owner_ref) {
-                let current_obj = s.api_server.resources[gus_req.key()];
-                // From each_object_in_etcd_is_weakly_well_formed:
-                //   current_obj.object_ref() == gus_req.key()
-                // So current_obj.kind == gus_req.key().kind == gus_req.obj.kind
-                assert(Cluster::etcd_object_is_weakly_well_formed(gus_req.key())(s));
-                assert(current_obj.object_ref() == gus_req.key());
-                let new_obj = DynamicObjectView {
-                    metadata: current_obj.metadata,
-                    spec: current_obj.spec,
-                    status: gus_req.obj.status,
-                    ..current_obj
-                };
-                let update_status_req = UpdateStatusRequest {
-                    name: gus_req.name,
-                    namespace: gus_req.namespace,
-                    obj: new_obj,
-                };
-                assert(update_status_req.key() == gus_req.key());
-                assert(update_status_req.key() != resource_key);
-            }
-        },
-    }
+        }
+    );
 }
 
 }

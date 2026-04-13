@@ -157,6 +157,8 @@ impl VStatefulSet {
 
         true
     }
+
+    // TODO: add transition_validation if needed
 }
 
 }

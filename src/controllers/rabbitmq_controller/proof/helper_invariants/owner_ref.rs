@@ -18,8 +18,10 @@ use crate::rabbitmq_controller::{
         predicate::*,
         resource::*,
     },
-    trusted::{spec_types::*, step::*},
+    trusted::{spec_types::*, step::*, rely_guarantee::*},
 };
+use crate::reconciler::spec::io::*;
+use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::rabbitmq_controller::model::install::*;
 use vstd::prelude::*;
@@ -58,8 +60,11 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     ensures spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)))),
@@ -69,13 +74,27 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
         &&& cluster.next()(s, s_prime)
         &&& Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
     };
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
+    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(cluster.next()),
         lift_state(Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        later(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let create_valid = |msg: Message, s: ClusterState| {
@@ -96,16 +115,22 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
     controller_id: int,
     cluster: Cluster, s: ClusterState, s_prime: ClusterState, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: Message
 )
     requires
-        !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        cluster.next()(s, s_prime),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         Cluster::triggering_cr_has_lower_uid_than_uid_counter(controller_id)(s),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+        Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
+        Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
+        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+        forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
+        !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
+        cluster.next()(s, s_prime),
     ensures
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_create_request().obj, s_prime),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_update_request().obj, s_prime),
@@ -115,6 +140,7 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let input = step->ControllerStep_0;
     RabbitmqClusterView::marshal_preserves_integrity();
+    RabbitmqReconcileState::marshal_preserves_integrity();
     let cr_dynamic = s.ongoing_reconciles(controller_id)[input.2->0].triggering_cr;
     let cr = RabbitmqClusterView::unmarshal(cr_dynamic).unwrap();
     if resource_create_request_msg(resource_key)(msg) {
@@ -144,16 +170,17 @@ pub open spec fn every_owner_ref_of_every_object_in_etcd_has_different_uid_from_
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq)))),
 {
     let inv = every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq);
@@ -161,12 +188,15 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
         &&& cluster.next()(s, s_prime)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
+        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
+    lemma_always_no_get_then_requests_and_update_resource_status_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
     combine_spec_entails_always_n!(spec, lift_action(next), lift_action(cluster.next()),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
+        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -175,8 +205,13 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
+                    let msg = input->0;
                     assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
-                    if !s.resources().contains_key(resource_key) || s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {} else {}
+                    if !s.resources().contains_key(resource_key) {
+                    } else if s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {
+                        if resource_update_request_msg(resource_key)(msg) {
+                        } else if resource_get_then_update_request_msg(resource_key)(msg) {}
+                    } else {}
                 },
                 _ => {}
             }

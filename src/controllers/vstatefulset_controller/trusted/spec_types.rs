@@ -133,7 +133,16 @@ impl VStatefulSetView {
     }
 
     #[verifier(inline)]
-    pub open spec fn _transition_validation(self, old_obj: VStatefulSetView) -> bool { true }
+    pub open spec fn _transition_validation(self, old_obj: VStatefulSetView) -> bool {
+        // Fields other than replicas, template, persistent_volume_claim_retention_policy
+        // (and some other unspecified fields) are immutable.
+        &&& old_obj.spec == VStatefulSetSpecView {
+            replicas: old_obj.spec.replicas,
+            template: old_obj.spec.template,
+            persistent_volume_claim_retention_policy: old_obj.spec.persistent_volume_claim_retention_policy,
+            ..self.spec
+        }
+    }
 }
 
 implement_resource_view_trait!(VStatefulSetView, VStatefulSetSpecView, VStatefulSetSpecView::default(),

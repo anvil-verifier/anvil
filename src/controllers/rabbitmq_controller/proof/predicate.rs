@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::proof::{resource::*, helper_invariants::*};
 use crate::rabbitmq_controller::trusted::{
-    spec_types::*, step::*, liveness_theorem::*,
+    spec_types::*, step::*, liveness_theorem::*, rely_guarantee::*
 };
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::defs::*;
@@ -546,6 +546,7 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
 
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, controller_id: int, rmq: RabbitmqClusterView, sub_resource: SubResource) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        &&& rmq_guarantee(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
         &&& Cluster::pod_monkey_disabled()(s)
@@ -575,14 +576,16 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::desired_state_is(rmq)(s)
         &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
         &&& every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s)
+        &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rmq)(s)
         &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s)
-        &&& sts_in_etcd_with_rmq_key_match_rmq_selector_and_owner(rmq)(s)
+        &&& sts_in_etcd_with_rmq_key_match_rmq_selector(rmq)(s)
     }
 }
 

@@ -42,6 +42,8 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+        sub_resource == SubResource::VStatefulSetView ==> // additionally requires cm_rv unchanged
+            spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -556,6 +558,8 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     );
 }
 
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(200))]
 proof fn lemma_resource_state_matches_at_after_create_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
@@ -564,6 +568,8 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+        sub_resource == SubResource::VStatefulSetView ==> // additionally requires cm_rv unchanged
+            spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -590,14 +596,25 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& sub_resource != SubResource::VStatefulSetView || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
-    );
+    if sub_resource != SubResource::VStatefulSetView {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    } else {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    }
 
     let post = |s: ClusterState| {
         &&& resource_state_matches(sub_resource, rabbitmq)(s)
@@ -618,14 +635,13 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 if msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()) {
-                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
-                        s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
-                    );
+                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg);
+                    if sub_resource == SubResource::VStatefulSetView {
+                        lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, msg);
+                    }
                     assert(pre(s_prime));
                 } else {
-                    lemma_create_sub_resource_request_returns_ok(
-                        s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
-                    );
+                    lemma_create_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg);
                     assert(post(s_prime));
                 }
             },
@@ -829,7 +845,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
+#[verifier(rlimit(200))]
 proof fn lemma_resource_state_matches_at_after_update_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
@@ -841,6 +857,8 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+        sub_resource == SubResource::VStatefulSetView ==> // additionally requires cm_rv unchanged
+            spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures
         spec.entails(
@@ -857,14 +875,25 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& sub_resource != SubResource::VStatefulSetView || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
-    );
+    if sub_resource != SubResource::VStatefulSetView {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    } else {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    }
 
     let post = |s: ClusterState| {
         &&& resource_state_matches(sub_resource, rabbitmq)(s)
@@ -881,6 +910,10 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
             Step::APIServerStep(input) => {
                 if input->0 != req_msg {
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0);
+                    if sub_resource == SubResource::VStatefulSetView {
+                        assert(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s));
+                        lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, input->0);
+                    }
                 } else {
                     let resp_msg = lemma_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
                     assert(s_prime.in_flight().contains(resp_msg));
