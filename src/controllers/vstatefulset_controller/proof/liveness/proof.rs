@@ -194,6 +194,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
         cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, vsts);
         helper_invariants::lemma_eventually_always_vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
+        helper_invariants::lemma_eventually_always_vsts_in_schedule_has_no_deletion_timestamp(spec, vsts, cluster, controller_id);
         leads_to_always_combine_n!(
             spec,
             true_pred(),
@@ -201,7 +202,8 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lift_state(Cluster::req_drop_disabled()),
             lift_state(Cluster::pod_monkey_disabled()),
             lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
-            lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
+            lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+            lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
@@ -218,13 +220,15 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             cluster.lemma_true_leads_to_always_no_pending_request_to_api_server_from_non_controllers(spec);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vsts.object_ref());
             helper_invariants::lemma_eventually_always_vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
+            helper_invariants::lemma_eventually_always_vsts_in_ongoing_reconciles_has_no_deletion_timestamp(spec, vsts, cluster, controller_id);
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
                 lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
                 lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref())),
-                lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
+                lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+                lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))
             );
         } else if i == 3 {
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
@@ -805,8 +809,8 @@ ensures
     assert(stable_spec.entails(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)))));
     assert(stable_spec.entails(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))));
 
-    // User-assumed liveness invariant (to be proved by user)
-    assume(stable_spec.entails(always(lift_state(helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id)))));
+    // Extract from invariants_since_phase_ii
+    assert(stable_spec.entails(always(lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id)))));
 
     // Bridge helper_invariants::every_msg_from_vsts_controller_carries_vsts_key to
     // internal_rely_guarantee::every_msg_from_vsts_controller_carries_vsts_key
@@ -867,7 +871,7 @@ ensures
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
         lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)),
         lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()),
-        lift_state(helper_invariants::vsts_in_reconciles_has_no_deletion_timestamp(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id)),
         lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()),
         lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)),
         lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)),

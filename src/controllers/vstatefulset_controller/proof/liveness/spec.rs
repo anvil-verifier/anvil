@@ -341,13 +341,14 @@ pub proof fn invariants_is_stable(vsts: VStatefulSetView, cluster: Cluster, cont
     );
 }
 
-// Phase I: crash, req_drop, pod_monkey disabled, schedule_has_spec, schedule_has_name_namespace
+// Phase I: crash, req_drop, pod_monkey disabled, schedule_has_spec, schedule_has_name_namespace, schedule_has_no_deletion_timestamp
 pub open spec fn invariants_since_phase_i(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::crash_disabled(controller_id)))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::pod_monkey_disabled())))
     .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))))
     .and(always(lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
+    .and(always(lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VStatefulSetView)
@@ -358,17 +359,19 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VState
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
-        lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
+        lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))
     );
 }
 
-// Phase II: reconcile_has_spec, no pending requests from non-controllers, pending req xor, reconcile_has_name_namespace
+// Phase II: reconcile_has_spec, no pending requests from non-controllers, pending req xor, reconcile_has_name_namespace, ongoing_reconciles_has_no_deletion_timestamp
 pub open spec fn invariants_since_phase_ii(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState>
 {
     always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))
     .and(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref()))))
     .and(always(lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
+    .and(always(lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vsts: VStatefulSetView)
@@ -378,7 +381,8 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vsts: VStat
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref())),
-        lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))
+        lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))
     );
 }
 
