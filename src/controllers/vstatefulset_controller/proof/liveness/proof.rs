@@ -41,60 +41,62 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
         always(lift_state(Cluster::desired_state_is(vsts))).leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))) by {
         assert(stable_spec.and(invariants(vsts, cluster, controller_id)).and(always(lift_state(Cluster::desired_state_is(vsts)))).entails(true_pred()
             .leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))) by {
-            // Show that spec_before_phase_n(5) entails assumption_and_invariants_of_all_phases
-            assert(spec_before_phase_n(5, vsts, cluster, controller_id).entails(
+            // Show that spec_before_phase_n(6) entails assumption_and_invariants_of_all_phases
+            assert(spec_before_phase_n(6, vsts, cluster, controller_id).entails(
                 assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))) by {
-                reveal_with_fuel(spec_before_phase_n, 5);
+                reveal_with_fuel(spec_before_phase_n, 6);
                 combine_spec_entails_n!(
-                    spec_before_phase_n(5, vsts, cluster, controller_id),
+                    spec_before_phase_n(6, vsts, cluster, controller_id),
                     assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
                     invariants(vsts, cluster, controller_id),
                     always(lift_state(Cluster::desired_state_is(vsts))),
                     invariants_since_phase_i(controller_id, vsts),
                     invariants_since_phase_ii(controller_id, vsts),
                     invariants_since_phase_iii(vsts, cluster, controller_id),
-                    invariants_since_phase_iv(vsts, cluster, controller_id)
+                    invariants_since_phase_iv(vsts, cluster, controller_id),
+                    invariants_since_phase_v(vsts, cluster, controller_id)
                 );
             }
 
-            // Show that stable_spec.and(spec_before_phase_n(5)) entails true_pred() ~> assumption_and_invariants_of_all_phases
-            assert(stable_spec.and(spec_before_phase_n(5, vsts, cluster, controller_id)).entails(
+            // Show that stable_spec.and(spec_before_phase_n(6)) entails true_pred() ~> assumption_and_invariants_of_all_phases
+            assert(stable_spec.and(spec_before_phase_n(6, vsts, cluster, controller_id)).entails(
                 true_pred().leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))) by {
-                assert(stable_spec.and(always(spec_before_phase_n(5, vsts, cluster, controller_id))).entails(
+                assert(stable_spec.and(always(spec_before_phase_n(6, vsts, cluster, controller_id))).entails(
                     true_pred().leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)))) by {
                     entails_implies_leads_to(
                         stable_spec,
-                        spec_before_phase_n(5, vsts, cluster, controller_id),
+                        spec_before_phase_n(6, vsts, cluster, controller_id),
                         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)
                     );
                     temp_pred_equality(
-                        true_pred().and(spec_before_phase_n(5, vsts, cluster, controller_id)),
-                        spec_before_phase_n(5, vsts, cluster, controller_id)
+                        true_pred().and(spec_before_phase_n(6, vsts, cluster, controller_id)),
+                        spec_before_phase_n(6, vsts, cluster, controller_id)
                     );
                     pack_conditions_to_spec(
                         stable_spec,
-                        spec_before_phase_n(5, vsts, cluster, controller_id),
+                        spec_before_phase_n(6, vsts, cluster, controller_id),
                         true_pred(),
                         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id)
                     );
                 }
-                assert(always(spec_before_phase_n(5, vsts, cluster, controller_id)) == spec_before_phase_n(5, vsts, cluster, controller_id)) by {
-                    assert(valid(stable(spec_before_phase_n(5, vsts, cluster, controller_id)))) by {
-                        invariants_since_phase_iv_is_stable(vsts, cluster, controller_id);
+                assert(always(spec_before_phase_n(6, vsts, cluster, controller_id)) == spec_before_phase_n(6, vsts, cluster, controller_id)) by {
+                    assert(valid(stable(spec_before_phase_n(6, vsts, cluster, controller_id)))) by {
+                        invariants_since_phase_v_is_stable(vsts, cluster, controller_id);
                         stable_and_temp(
-                            spec_before_phase_n(4, vsts, cluster, controller_id),
-                            invariants_since_phase_n(4, vsts, cluster, controller_id)
+                            spec_before_phase_n(5, vsts, cluster, controller_id),
+                            invariants_since_phase_n(5, vsts, cluster, controller_id)
                         );
                         temp_pred_equality(
-                            spec_before_phase_n(4, vsts, cluster, controller_id).and(invariants_since_phase_n(4, vsts, cluster, controller_id)),
-                            spec_before_phase_n(5, vsts, cluster, controller_id)
+                            spec_before_phase_n(5, vsts, cluster, controller_id).and(invariants_since_phase_n(5, vsts, cluster, controller_id)),
+                            spec_before_phase_n(6, vsts, cluster, controller_id)
                         );
                     };
-                    stable_to_always(spec_before_phase_n(5, vsts, cluster, controller_id));
+                    stable_to_always(spec_before_phase_n(6, vsts, cluster, controller_id));
                 }
             };
 
             // Now chain through all the phases
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(5, stable_spec, vsts, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(4, stable_spec, vsts, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(3, stable_spec, vsts, cluster, controller_id);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(2, stable_spec, vsts, cluster, controller_id);
@@ -138,7 +140,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
 
 proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(i: nat, spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     requires
-        1 <= i <= 4,
+        1 <= i <= 5,
         valid(stable(spec)),
         valid(stable(spec_before_phase_n(i, vsts, cluster, controller_id))),
         spec.and(spec_before_phase_n(i + 1, vsts, cluster, controller_id)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
@@ -150,7 +152,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
         spec.and(spec_before_phase_n(i, vsts, cluster, controller_id)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
 {
     stable_and_temp(spec, spec_before_phase_n(i, vsts, cluster, controller_id));
-    reveal_with_fuel(spec_before_phase_n, 5);
+    reveal_with_fuel(spec_before_phase_n, 6);
     temp_pred_equality(
         spec.and(spec_before_phase_n(i + 1, vsts, cluster, controller_id)),
         spec.and(spec_before_phase_n(i, vsts, cluster, controller_id))
@@ -177,7 +179,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, i: nat)
     requires
-        1 <= i <= 4,
+        1 <= i <= 5,
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
         provided_spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
@@ -187,7 +189,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 {
     let spec = provided_spec.and(spec_before_phase_n(i, vsts, cluster, controller_id));
 
-    reveal_with_fuel(spec_before_phase_n, 5);
+    reveal_with_fuel(spec_before_phase_n, 6);
     if i == 1 {
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
@@ -265,7 +267,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         } else if i == 4 {
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
             // The helper lemmas need spec.entails(always(rely_conditions)). We have this from provided_spec.
-            // spec = provided_spec.and(spec_before_phase_n(4)), and provided_spec includes always(rely_conditions).
             assert(spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id))))) by {
                 assert(provided_spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))));
                 entails_trans(spec, provided_spec, always(lift_state(vsts_rely_conditions(cluster, controller_id))));
@@ -274,14 +275,28 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 assert(provided_spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))));
                 entails_trans(spec, provided_spec, always(lift_state(vsts_rely_conditions_pod_monkey())));
             }
+            helper_invariants::lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(spec, cluster, controller_id, vsts);
+            helper_invariants::lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(spec, cluster, controller_id, vsts);
+            helper_invariants::lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(spec, cluster, controller_id, vsts);
             helper_invariants::lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(spec, cluster, controller_id, vsts);
-            helper_invariants::lemma_eventually_always_all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(spec, cluster, controller_id, vsts);
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
-                lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)),
-                lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))
+                lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+                    helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+                )),
+                lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+                    helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+                )),
+                lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+                    helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+                )),
+                lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))
             );
+        } else if i == 5 {
+            always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
+            helper_invariants::lemma_eventually_always_all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(spec, cluster, controller_id, vsts);
+            // Phase V has a single element, no combine needed — lemma result is the goal directly
         }
     }
 }
@@ -807,6 +822,8 @@ ensures
 
     // Extract from invariants_since_phase_iv
     assert(stable_spec.entails(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)))));
+
+    // Extract from invariants_since_phase_v
     assert(stable_spec.entails(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))));
 
     // Extract from invariants_since_phase_ii

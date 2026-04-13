@@ -330,7 +330,7 @@ ensures
     );
 }
 
-proof fn lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -442,7 +442,7 @@ ensures
     );
 }
 
-proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -544,7 +544,7 @@ ensures
     );
 }
 
-proof fn lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -690,16 +690,13 @@ requires
     spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
-        |key: ObjectRef| key.kind == Kind::PodKind && key.namespace == vsts.object_ref().namespace && pod_name_match(key.name, vsts.object_ref().name),
-        owner_reference_requirements(vsts)
+        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
-        |key: ObjectRef| key.kind == Kind::PodKind && key.namespace == vsts.object_ref().namespace && pod_name_match(key.name, vsts.object_ref().name),
-        owner_reference_requirements(vsts)
+        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
-        |key: ObjectRef| key.kind == Kind::PodKind && key.namespace == vsts.object_ref().namespace && pod_name_match(key.name, vsts.object_ref().name),
-        owner_reference_requirements(vsts)
+        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),

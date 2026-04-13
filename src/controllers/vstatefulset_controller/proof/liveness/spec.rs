@@ -402,20 +402,48 @@ pub proof fn invariants_since_phase_iii_is_stable(vsts: VStatefulSetView, cluste
     );
 }
 
-// Phase IV: builtin_controllers_do_not_delete_pods_owned_by_vsts and all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
+// Phase IV: 3 message-type owner ref invariants + builtin_controllers_do_not_delete_pods_owned_by_vsts
 pub open spec fn invariants_since_phase_iv(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)))
-    .and(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))))
+    always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    )))
+    .and(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    ))))
+    .and(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    ))))
+    .and(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))))
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iv(vsts, cluster, controller_id))),
 {
     stable_and_always_n!(
-        lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts)),
-        lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts))
+        lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))
     );
+}
+
+// Phase V: all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
+pub open spec fn invariants_since_phase_v(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))
+}
+
+pub proof fn invariants_since_phase_v_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_v(vsts, cluster, controller_id))),
+{
+    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)));
 }
 
 // The combination of invariants and all phases
@@ -426,28 +454,31 @@ pub open spec fn assumption_and_invariants_of_all_phases(vsts: VStatefulSetView,
     .and(invariants_since_phase_ii(controller_id, vsts))
     .and(invariants_since_phase_iii(vsts, cluster, controller_id))
     .and(invariants_since_phase_iv(vsts, cluster, controller_id))
+    .and(invariants_since_phase_v(vsts, cluster, controller_id))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
         valid(stable(invariants(vsts, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 4 ==> valid(stable(#[trigger] spec_before_phase_n(i, vsts, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vsts, cluster, controller_id))),
 {
-    reveal_with_fuel(spec_before_phase_n, 4);
+    reveal_with_fuel(spec_before_phase_n, 5);
     invariants_is_stable(vsts, cluster, controller_id);
     always_p_is_stable(lift_state(Cluster::desired_state_is(vsts)));
     invariants_since_phase_i_is_stable(controller_id, vsts);
     invariants_since_phase_ii_is_stable(controller_id, vsts);
     invariants_since_phase_iii_is_stable(vsts, cluster, controller_id);
     invariants_since_phase_iv_is_stable(vsts, cluster, controller_id);
+    invariants_since_phase_v_is_stable(vsts, cluster, controller_id);
     stable_and_n!(
         invariants(vsts, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vsts))),
         invariants_since_phase_i(controller_id, vsts),
         invariants_since_phase_ii(controller_id, vsts),
         invariants_since_phase_iii(vsts, cluster, controller_id),
-        invariants_since_phase_iv(vsts, cluster, controller_id)
+        invariants_since_phase_iv(vsts, cluster, controller_id),
+        invariants_since_phase_v(vsts, cluster, controller_id)
     );
 }
 
@@ -463,6 +494,8 @@ pub open spec fn invariants_since_phase_n(n: nat, vsts: VStatefulSetView, cluste
         invariants_since_phase_iii(vsts, cluster, controller_id)
     } else if n == 4 {
         invariants_since_phase_iv(vsts, cluster, controller_id)
+    } else if n == 5 {
+        invariants_since_phase_v(vsts, cluster, controller_id)
     } else {
         true_pred()
     }
@@ -473,7 +506,7 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 {
     if n == 1 {
         invariants(vsts, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vsts))))
-    } else if 2 <= n <= 5 {
+    } else if 2 <= n <= 6 {
         spec_before_phase_n((n-1) as nat, vsts, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vsts, cluster, controller_id))
     } else {
         true_pred()
