@@ -854,4 +854,165 @@ ensures
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).error);
 }
 
+pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(next_with_wf(cluster, controller_id)),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    ensures
+        spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
+{
+    assumption_and_invariants_of_all_phases_is_stable(controller_id, cluster, rabbitmq);
+    stable_spec_is_stable(cluster, controller_id);
+    let stable_spec = stable_spec(cluster, controller_id);
+
+    assert(stable_spec.and(invariants(controller_id, cluster, rabbitmq)).entails(
+        always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))) by {
+        assert(stable_spec.and(invariants(controller_id, cluster, rabbitmq)).and(always(lift_state(Cluster::desired_state_is(rabbitmq)))).entails(true_pred()
+            .leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))) by {
+            // Show that spec_before_phase_n(9) entails assumption_and_invariants_of_all_phases
+            assert(spec_before_phase_n(controller_id, 9, cluster, rabbitmq).entails(
+                assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))) by {
+                reveal_with_fuel(spec_before_phase_n, 9);
+                combine_spec_entails_n!(
+                    spec_before_phase_n(controller_id, 9, cluster, rabbitmq),
+                    assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
+                    invariants(controller_id, cluster, rabbitmq),
+                    always(lift_state(Cluster::desired_state_is(rabbitmq))),
+                    invariants_since_phase_i(controller_id, rabbitmq),
+                    invariants_since_phase_ii(controller_id, rabbitmq),
+                    invariants_since_phase_iii(controller_id, rabbitmq),
+                    invariants_since_phase_iv(rabbitmq),
+                    invariants_since_phase_v(rabbitmq),
+                    invariants_since_phase_vi(controller_id, rabbitmq),
+                    invariants_since_phase_vii(controller_id, rabbitmq),
+                    invariants_since_phase_viii(controller_id, rabbitmq)
+                );
+            }
+
+            // Show that stable_spec.and(spec_before_phase_n(9)) entails true ~> assumption_and_invariants_of_all_phases
+            assert(stable_spec.and(spec_before_phase_n(controller_id, 9, cluster, rabbitmq)).entails(
+                true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))) by {
+                assert(stable_spec.and(always(spec_before_phase_n(controller_id, 9, cluster, rabbitmq))).entails(
+                    true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))) by {
+                    entails_implies_leads_to(
+                        stable_spec,
+                        spec_before_phase_n(controller_id, 9, cluster, rabbitmq),
+                        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+                    );
+                    temp_pred_equality(
+                        true_pred().and(spec_before_phase_n(controller_id, 9, cluster, rabbitmq)),
+                        spec_before_phase_n(controller_id, 9, cluster, rabbitmq)
+                    );
+                    pack_conditions_to_spec(
+                        stable_spec,
+                        spec_before_phase_n(controller_id, 9, cluster, rabbitmq),
+                        true_pred(),
+                        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+                    );
+                }
+                assert(always(spec_before_phase_n(controller_id, 9, cluster, rabbitmq)) == spec_before_phase_n(controller_id, 9, cluster, rabbitmq)) by {
+                    assert(valid(stable(spec_before_phase_n(controller_id, 9, cluster, rabbitmq)))) by {
+                        invariants_since_phase_viii_is_stable(controller_id, rabbitmq);
+                        stable_and_temp(
+                            spec_before_phase_n(controller_id, 8, cluster, rabbitmq),
+                            invariants_since_phase_n(controller_id, 8, cluster, rabbitmq)
+                        );
+                        temp_pred_equality(
+                            spec_before_phase_n(controller_id, 8, cluster, rabbitmq).and(invariants_since_phase_n(controller_id, 8, cluster, rabbitmq)),
+                            spec_before_phase_n(controller_id, 9, cluster, rabbitmq)
+                        );
+                    };
+                    stable_to_always(spec_before_phase_n(controller_id, 9, cluster, rabbitmq));
+                }
+            };
+
+            // Chain through all the phases
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(8, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(7, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(6, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(5, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(4, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(3, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(2, stable_spec, controller_id, cluster, rabbitmq);
+            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(1, stable_spec, controller_id, cluster, rabbitmq);
+
+            temp_pred_equality(
+                stable_spec.and(invariants(controller_id, cluster, rabbitmq)).and(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
+                stable_spec.and(spec_before_phase_n(controller_id, 1, cluster, rabbitmq))
+            );
+        }
+        stable_and_temp(
+            stable_spec,
+            invariants(controller_id, cluster, rabbitmq)
+        );
+        unpack_conditions_from_spec(
+            stable_spec.and(invariants(controller_id, cluster, rabbitmq)),
+            always(lift_state(Cluster::desired_state_is(rabbitmq))),
+            true_pred(),
+            assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+        );
+        temp_pred_equality(
+            true_pred().and(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
+            always(lift_state(Cluster::desired_state_is(rabbitmq)))
+        );
+    }
+
+    spec_and_invariants_entails_stable_spec_and_invariants(spec, controller_id, cluster, rabbitmq);
+    entails_trans(
+        spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq)),
+        stable_spec.and(invariants(controller_id, cluster, rabbitmq)),
+        always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))
+    );
+    entails_trans(
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lift_action(cluster.next()))
+    );
+    sm_spec_entails_all_invariants(controller_id, cluster, spec, rabbitmq);
+    simplify_predicate(spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq));
+}
+
+proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(i: nat, spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
+    requires
+        1 <= i <= 8,
+        valid(stable(spec)),
+        valid(stable(spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
+        spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+    ensures
+        spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
+{
+    stable_and_temp(spec, spec_before_phase_n(controller_id, i, cluster, rabbitmq));
+    reveal_with_fuel(spec_before_phase_n, 9);
+    temp_pred_equality(
+        spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)),
+        spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq))
+            .and(invariants_since_phase_n(controller_id, i, cluster, rabbitmq))
+    );
+    spec_of_previous_phases_entails_eventually_new_invariants(spec, controller_id, cluster, i, rabbitmq);
+    unpack_conditions_from_spec(
+        spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)),
+        invariants_since_phase_n(controller_id, i, cluster, rabbitmq),
+        true_pred(),
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+    );
+    temp_pred_equality(
+        true_pred().and(invariants_since_phase_n(controller_id, i, cluster, rabbitmq)),
+        invariants_since_phase_n(controller_id, i, cluster, rabbitmq)
+    );
+    leads_to_trans(
+        spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)),
+        true_pred(),
+        invariants_since_phase_n(controller_id, i, cluster, rabbitmq),
+        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
+    );
+}
+
 }
