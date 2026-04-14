@@ -48,7 +48,6 @@ pub open spec fn composable(spec: TempPred<ClusterState>, cluster: Cluster, comp
         ==> (forall |i| #[trigger] composition.contains_key(i) ==> spec.entails(composition[i].liveness_guarantee))
 }
 
-// we concretize 
 pub open spec fn core(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
     // the paper formalizes this in terms of S' disjoint from S
     // we just say for all controller IDs not in S
@@ -80,6 +79,13 @@ pub open spec fn compatible(spec: TempPred<ClusterState>, cluster: Cluster, spec
     let R_21 = forall |c1: int, c2: int| (#[trigger] S2.controllers.contains(c1) && ! #[trigger] S2.controllers.contains(c2) && S1.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
 
     (G_S1 ==> R_21) && (G_S2 ==> R_12)
+}
+
+// S1 satisfies S2's liveness dependency
+pub open spec fn satisfies_dependency(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
+    let ESR_S1 = forall |c: int| (#[trigger] S1.controllers.contains(c)) ==> spec.entails(specs[c].liveness_guarantee); 
+    let D_S2 = spec.entails(S2.dependence);
+    ESR_S1 ==> D_S2
 }
 
 pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
@@ -161,13 +167,6 @@ pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<
             }
         }
     }
-}
-
-// S1 satisfies S2's liveness dependency
-pub open spec fn satisfies_dependency(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
-    let ESR_S1 = forall |c: int| (#[trigger] S1.controllers.contains(c)) ==> spec.entails(specs[c].liveness_guarantee); 
-    let D_S2 = spec.entails(S2.dependence);
-    ESR_S1 ==> D_S2
 }
 
 pub proof fn compose_dep(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
