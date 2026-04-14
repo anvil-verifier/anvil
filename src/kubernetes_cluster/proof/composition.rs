@@ -74,23 +74,23 @@ pub open spec fn union(S1: CoreSet, S2: CoreSet) -> CoreSet {
 
 pub open spec fn compatible(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
     let G_S1 = forall |c: int| (#[trigger] S1.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
-    let G_S2 = forall |c: int| (S2.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
+    let G_S2 = forall |c: int| (#[trigger] S2.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
 
-    let R_12 = forall |c1: int, c2: int| (S1.controllers.contains(c1) && !S1.controllers.contains(c2) && S2.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
-    let R_21 = forall |c1: int, c2: int| (S2.controllers.contains(c1) && !S2.controllers.contains(c2) && S1.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
+    let R_12 = forall |c1: int, c2: int| (#[trigger] S1.controllers.contains(c1) && ! #[trigger] S1.controllers.contains(c2) && S2.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
+    let R_21 = forall |c1: int, c2: int| (#[trigger] S2.controllers.contains(c1) && ! #[trigger] S2.controllers.contains(c2) && S1.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
 
     (G_S1 ==> R_21) && (G_S2 ==> R_12)
 }
 
-pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, a: CoreSet, b: CoreSet)
+pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
     requires
-        core_star(spec, cluster, specs, a),
-        core_star(spec, cluster, specs, b),
-        compatible(spec, cluster, specs, a, b)
+        core_star(spec, cluster, specs, S1),
+        core_star(spec, cluster, specs, S2),
+        compatible(spec, cluster, specs, S1, S2)
     ensures
-        core_star(spec, cluster, specs, union(a, b))
+        core_star(spec, cluster, specs, union(S1, S2))
 {
-    let s = union(a, b);
+    let s = union(S1, S2);
 
     assert(valid(s.dependence));
 
@@ -98,10 +98,10 @@ pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<
         ==> spec.entails(specs[c].safety_guarantee)) by {
         assert forall |c: int| #[trigger] s.controllers.contains(c)
         implies spec.entails(specs[c].safety_guarantee) by {
-            if a.controllers.contains(c) {
+            if S1.controllers.contains(c) {
 
             } else {
-                assert(b.controllers.contains(c));
+                assert(S2.controllers.contains(c));
             }
         }
     }
@@ -111,16 +111,16 @@ pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<
         ==> spec.entails((specs[c].safety_partial_rely)(c_prime));
 
     if r_s {
-        assert(spec.entails(a.dependence));
-        assert(spec.entails(b.dependence));
+        assert(spec.entails(S1.dependence));
+        assert(spec.entails(S2.dependence));
 
         assert(forall |c: int, c_prime: int|
-            (#[trigger] a.controllers.contains(c) && !#[trigger] a.controllers.contains(c_prime))
+            (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
             ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
             assert forall |c: int, c_prime: int|
-                (#[trigger] a.controllers.contains(c) && !#[trigger] a.controllers.contains(c_prime))
+                (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
             implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
-                if b.controllers.contains(c_prime) {
+                if S2.controllers.contains(c_prime) {
 
                 } else {
                     assert(s.controllers.contains(c));
@@ -129,16 +129,16 @@ pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<
             }
         }
 
-        assert(forall |c: int| #[trigger] a.controllers.contains(c)
+        assert(forall |c: int| #[trigger] S1.controllers.contains(c)
             ==> spec.entails(specs[c].liveness_guarantee));
 
         assert(forall |c: int, c_prime: int|
-            (#[trigger] b.controllers.contains(c) && !#[trigger] b.controllers.contains(c_prime))
+            (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
             ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
             assert forall |c: int, c_prime: int|
-                (#[trigger] b.controllers.contains(c) && !#[trigger] b.controllers.contains(c_prime))
+                (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
             implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
-                if a.controllers.contains(c_prime) {
+                if S1.controllers.contains(c_prime) {
 
                 } else {
                     assert(s.controllers.contains(c));
@@ -147,16 +147,105 @@ pub proof fn compose(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<
             }
         }
 
-        assert(forall |c: int| #[trigger] b.controllers.contains(c)
+        assert(forall |c: int| #[trigger] S2.controllers.contains(c)
             ==> spec.entails(specs[c].liveness_guarantee));
 
         assert(forall |c: int| #[trigger] s.controllers.contains(c)
             ==> spec.entails(specs[c].liveness_guarantee)) by {
             assert forall |c: int| #[trigger] s.controllers.contains(c)
             implies spec.entails(specs[c].liveness_guarantee) by {
-                if a.controllers.contains(c) {
+                if S1.controllers.contains(c) {
                 } else {
-                    assert(b.controllers.contains(c));
+                    assert(S2.controllers.contains(c));
+                }
+            }
+        }
+    }
+}
+
+// S1 satisfies S2's liveness dependency
+pub open spec fn satisfies_dependency(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
+    let ESR_S1 = forall |c: int| (#[trigger] S1.controllers.contains(c)) ==> spec.entails(specs[c].liveness_guarantee); 
+    let D_S2 = spec.entails(S2.dependence);
+    ESR_S1 ==> D_S2
+}
+
+pub proof fn compose_dep(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
+    requires
+        core_star(spec, cluster, specs, S1),
+        core(spec, cluster, specs, S2),
+        compatible(spec, cluster, specs, S1, S2),
+        satisfies_dependency(spec, cluster, specs, S1, S2)
+    ensures
+        core_star(spec, cluster, specs, union(S1, S2))
+{
+    let s = union(S1, S2);
+
+    assert(valid(s.dependence));
+
+    assert(forall |c: int| #[trigger] s.controllers.contains(c)
+        ==> spec.entails(specs[c].safety_guarantee)) by {
+        assert forall |c: int| #[trigger] s.controllers.contains(c)
+        implies spec.entails(specs[c].safety_guarantee) by {
+            if S1.controllers.contains(c) {
+            } else {
+                assert(S2.controllers.contains(c));
+            }
+        }
+    }
+
+    let r_s = forall |c: int, c_prime: int|
+        (#[trigger] s.controllers.contains(c) && !#[trigger] s.controllers.contains(c_prime))
+        ==> spec.entails((specs[c].safety_partial_rely)(c_prime));
+
+    if r_s {
+        assert(spec.entails(S1.dependence));
+
+        assert(forall |c: int, c_prime: int|
+            (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
+            ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
+            assert forall |c: int, c_prime: int|
+                (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
+            implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
+                if S2.controllers.contains(c_prime) {
+                    // compatible: G_S1 ==> R_12
+                } else {
+                    assert(s.controllers.contains(c));
+                    assert(!s.controllers.contains(c_prime));
+                }
+            }
+        }
+
+        assert(forall |c: int| #[trigger] S1.controllers.contains(c)
+            ==> spec.entails(specs[c].liveness_guarantee));
+
+        assert(spec.entails(S2.dependence));
+
+        assert(forall |c: int, c_prime: int|
+            (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
+            ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
+            assert forall |c: int, c_prime: int|
+                (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
+            implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
+                if S1.controllers.contains(c_prime) {
+
+                } else {
+                    assert(s.controllers.contains(c));
+                    assert(!s.controllers.contains(c_prime));
+                }
+            }
+        }
+
+        assert(forall |c: int| #[trigger] S2.controllers.contains(c)
+            ==> spec.entails(specs[c].liveness_guarantee));
+
+        assert(forall |c: int| #[trigger] s.controllers.contains(c)
+            ==> spec.entails(specs[c].liveness_guarantee)) by {
+            assert forall |c: int| #[trigger] s.controllers.contains(c)
+            implies spec.entails(specs[c].liveness_guarantee) by {
+                if S1.controllers.contains(c) {
+                } else {
+                    assert(S2.controllers.contains(c));
                 }
             }
         }
