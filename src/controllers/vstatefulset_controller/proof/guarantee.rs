@@ -88,6 +88,8 @@ pub proof fn lemma_guarantee_from_reconcile_state(
     }
 }
 
+#[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
