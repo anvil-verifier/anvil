@@ -27,14 +27,11 @@ pub struct CoreSet {
     pub dependence: TempPred<ClusterState>,
 }
 
-pub open spec fn core_model(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
-    // the paper formalizes this in terms of S' disjoint from S
-    // we just say for all controller IDs not in S
-    let R_S = forall |c: int, c_prime: int| (#[trigger] S.controllers.contains(c) &&  ! #[trigger] S.controllers.contains(c_prime)) ==> spec.entails((specs[c].safety_partial_rely)(c_prime));
-    let ESR_S = forall |c: int| (#[trigger] S.controllers.contains(c)) ==> spec.entails(specs[c].liveness_guarantee);
-    let G_S = forall |c: int| (#[trigger] S.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
-    let D_S= spec.entails(S.dependence);
-    G_S && ((R_S && D_S) ==> ESR_S)
+pub open spec fn core_model(model: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
+    let G = tla_forall(|c: int| if S.controllers.contains(c) { specs[c].safety_guarantee } else { true_pred() });
+    let R = tla_forall(|pair: (int, int)| if S.controllers.contains(pair.0) && !S.controllers.contains(pair.1) { (specs[pair.0].safety_partial_rely)(pair.1) } else { true_pred() });
+    let ESR = tla_forall(|c: int| if S.controllers.contains(c) { specs[c].liveness_guarantee } else { true_pred() });
+    model.entails(G.and(R.and(S.dependence).implies(ESR)))
 }
 
 pub open spec fn cluster_model(model: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>) -> bool {
