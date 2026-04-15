@@ -58,7 +58,7 @@ jobs:
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
-          mv z3 target-verus/release/z3
+          ls -la target-verus/release
           mv target-verus/release $HOME/verus
       - name: Debug verus install
         run: ls -la $HOME/verus/
