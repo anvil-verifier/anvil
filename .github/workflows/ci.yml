@@ -36,59 +36,51 @@ jobs:
         run: |
           echo "home_dir=$HOME" >> $GITHUB_ENV
           echo "home_dir=$HOME"
-      - name: Cache Verus
-        id: cache-verus
+      - name: Cache toolchains and dependencies
+        id: cache-toolchain
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ steps.verus-sha.outputs.sha }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ steps.verus-sha.outputs.sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Install Rust if cache is missing
-        if: steps.cache-verus.outputs.cache-hit != 'true'
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
           rustup toolchain install
       - name: Build Verus if cache is missing
-        if: steps.cache-verus.outputs.cache-hit != 'true'
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
           cd verus-src/source
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
           mv target-verus/release $HOME/verus
-      - name: Cache deps_hack
-        id: cache-deps-hack
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Build deps_hack if cache is missing
-        if: steps.cache-deps-hack.outputs.cache-hit != 'true'
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
           . "$HOME/.cargo/env"
-          cd src/deps_hack
-          cargo build
+          CARGO_HOME=$GITHUB_WORKSPACE/src/deps_hack/.cargo-home cargo build --manifest-path src/deps_hack/Cargo.toml
   vreplicaset-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
@@ -99,19 +91,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
@@ -122,19 +111,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
@@ -145,19 +131,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify the ESR composition
         run: |
           . "$HOME/.cargo/env"
@@ -168,19 +151,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify the Anvil framework
         run: |
           . "$HOME/.cargo/env"
@@ -192,19 +172,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -251,19 +228,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -282,19 +256,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -313,19 +284,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -344,19 +312,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -375,19 +340,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -405,19 +367,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify the TLA demo
         run: |
           . "$HOME/.cargo/env"
@@ -429,19 +388,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Restore Verus cache
+      - name: Restore toolchains and dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Restore deps_hack cache
-        uses: actions/cache@v4
-        with:
-          path: src/deps_hack/target/debug
-          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+            src/deps_hack/target/debug
+            src/deps_hack/.cargo-home
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}
       - name: Verify rabbitmq controller
         run: |
           . "$HOME/.cargo/env"
