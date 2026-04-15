@@ -13,7 +13,7 @@ pub struct CoreCluster {
 
 pub struct CoreSet {
     pub controllers: Set<int>,
-    pub dependence: TempPred<ClusterState>,
+    pub liveness_dependency: TempPred<ClusterState>,
 }
 
 pub open spec fn cluster_model(cluster: CoreCluster) -> TempPred<ClusterState> {
@@ -25,20 +25,20 @@ pub open spec fn cluster_model(cluster: CoreCluster) -> TempPred<ClusterState> {
 pub open spec fn core(cluster: CoreCluster, s: CoreSet) -> bool {
     let G = tla_forall(|c: int| if s.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred() });
     let R = tla_forall(|pair: (int, int)| if s.controllers.contains(pair.0) && !s.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred() });
-    let ESR = tla_forall(|c: int| if s.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred() });
-    cluster_model(cluster).entails(G.and(R.and(s.dependence).implies(ESR)))
+    let ESR = tla_forall(|c: int| if s.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred() });
+    cluster_model(cluster).entails(G.and(R.and(s.liveness_dependency).implies(ESR)))
 }
 
 pub open spec fn core_star(cluster: CoreCluster, s: CoreSet) -> bool {
     &&& core(cluster, s)
-    &&& valid(s.dependence)
+    &&& valid(s.liveness_dependency)
 }
 
 // this will discard any liveness dependencies
 pub open spec fn union(s1: CoreSet, s2: CoreSet) -> CoreSet {
     CoreSet {
         controllers: s1.controllers.union(s2.controllers),
-        dependence: true_pred()
+        liveness_dependency: true_pred()
     }
 }
 
@@ -63,25 +63,25 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
 
     let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
     let R1_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-    let ESR1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
+    let ESR1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred::<ClusterState>() };
 
     let G2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
     let R2_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-    let ESR2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
+    let ESR2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred::<ClusterState>() };
 
     let Gs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
     let Rs_fn = |pair: (int, int)| if s.controllers.contains(pair.0) && !s.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-    let ESRs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
+    let ESRs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred::<ClusterState>() };
 
     let R12_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) && s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
     let R21_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) && s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))))) by {
-        assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies
-            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
+    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).implies(tla_forall(ESRs_fn))))) by {
+        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
+            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
 
-            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.dependence).implies(tla_forall(ESR1_fn))));
-            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.dependence).implies(tla_forall(ESR2_fn))));
+            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.liveness_dependency).implies(tla_forall(ESR1_fn))));
+            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.liveness_dependency).implies(tla_forall(ESR2_fn))));
             entails_apply(ex, spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn))));
 
             assert(tla_forall(Gs_fn).satisfied_by(ex)) by {
@@ -135,8 +135,8 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
 
 // s1 satisfies s2's liveness dependency
 pub open spec fn satisfies_dependency(cluster: CoreCluster, s1: CoreSet, s2: CoreSet) -> bool {
-    let esr_s1 = tla_forall(|c: int| if s1.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred() });
-    cluster_model(cluster).entails(esr_s1.implies(s2.dependence))
+    let esr_s1 = tla_forall(|c: int| if s1.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred() });
+    cluster_model(cluster).entails(esr_s1.implies(s2.liveness_dependency))
 }
 
 pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
@@ -153,27 +153,27 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
 
     let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
     let R1_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-    let ESR1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
+    let ESR1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred::<ClusterState>() };
 
     let G2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
     let R2_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-    let ESR2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
+    let ESR2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred::<ClusterState>() };
 
     let Gs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
     let Rs_fn = |pair: (int, int)| if s.controllers.contains(pair.0) && !s.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-    let ESRs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
+    let ESRs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].esr } else { true_pred::<ClusterState>() };
 
     let R12_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) && s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
     let R21_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) && s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))))) by {
-        assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies
-            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
+    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).implies(tla_forall(ESRs_fn))))) by {
+        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
+            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
 
-            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.dependence).implies(tla_forall(ESR1_fn))));
-            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.dependence).implies(tla_forall(ESR2_fn))));
+            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.liveness_dependency).implies(tla_forall(ESR1_fn))));
+            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.liveness_dependency).implies(tla_forall(ESR2_fn))));
             entails_apply(ex, spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn))));
-            entails_apply(ex, spec, tla_forall(ESR1_fn).implies(s2.dependence));
+            entails_apply(ex, spec, tla_forall(ESR1_fn).implies(s2.liveness_dependency));
 
             assert(tla_forall(Gs_fn).satisfied_by(ex)) by {
                 assert forall |c: int| #[trigger] Gs_fn(c).satisfied_by(ex) by {
