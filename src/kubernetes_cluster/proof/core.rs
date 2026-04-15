@@ -29,16 +29,11 @@ pub open spec fn core(cluster: CoreCluster, s: CoreSet) -> bool {
     cluster_model(cluster).entails(G.and(R.and(s.liveness_dependency).implies(ESR)))
 }
 
-pub open spec fn core_star(cluster: CoreCluster, s: CoreSet) -> bool {
-    &&& core(cluster, s)
-    &&& valid(s.liveness_dependency)
-}
-
 // this will discard any liveness dependencies
-pub open spec fn union(s1: CoreSet, s2: CoreSet) -> CoreSet {
+pub open spec fn union(s1: CoreSet, s2: CoreSet, liveness_dependency: TempPred<ClusterState>) -> CoreSet {
     CoreSet {
         controllers: s1.controllers.union(s2.controllers),
-        liveness_dependency: true_pred()
+        liveness_dependency: liveness_dependency
     }
 }
 
@@ -52,13 +47,15 @@ pub open spec fn compatible(cluster: CoreCluster, s1: CoreSet, s2: CoreSet) -> b
 
 pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     requires
-        core_star(cluster, s1),
-        core_star(cluster, s2),
+        core(cluster, s1),
+        core(cluster, s2),
+        valid(s1.liveness_dependency),
+        valid(s2.liveness_dependency),
         compatible(cluster, s1, s2)
     ensures
-        core_star(cluster, union(s1, s2))
+        core(cluster, union(s1, s2, true_pred()))
 {
-    let s = union(s1, s2);
+    let s = union(s1, s2, true_pred());
     let spec = cluster_model(cluster);
 
     let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
@@ -141,14 +138,15 @@ pub open spec fn satisfies_dependency(cluster: CoreCluster, s1: CoreSet, s2: Cor
 
 pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     requires
-        core_star(cluster, s1),
+        core(cluster, s1),
         core(cluster, s2),
         compatible(cluster, s1, s2),
+        valid(s1.liveness_dependency),
         satisfies_dependency(cluster, s1, s2)
     ensures
-        core_star(cluster, union(s1, s2))
+        core(cluster, union(s1, s2, true_pred()))
 {
-    let s = union(s1, s2);
+    let s = union(s1, s2, true_pred());
     let spec = cluster_model(cluster);
 
     let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
