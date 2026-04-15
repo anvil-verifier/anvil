@@ -12,7 +12,6 @@ on:
   merge_group:
   workflow_dispatch:
 env:
-  verus_release: 0.2025.11.30.840fa61
   kind_version: 0.23.0
   go_version: "^1.20"
   home_dir: /home/runner
@@ -20,8 +19,18 @@ env:
 jobs:
   setup-toolchain:
     runs-on: ubuntu-24.04
+    outputs:
+      verus-sha: ${{ steps.verus-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout Verus
+        uses: actions/checkout@v4
+        with:
+          repository: verus-lang/verus
+          path: verus-src
+      - name: Get Verus commit SHA
+        id: verus-sha
+        run: echo "sha=$(git -C verus-src rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Get HOME env variable
         id: get-home
         run: |
@@ -35,20 +44,23 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Download Rust if cache is missing
+          key: verus-${{ runner.os }}-${{ steps.verus-sha.outputs.sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Install Rust if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
           rustup toolchain install
-      - name: Download Verus if cache is missing
+      - name: Build Verus if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
         run: |
-          wget -q https://github.com/verus-lang/verus/releases/download/release%2F${{ env.verus_release }}/verus-${{ env.verus_release }}-x86-linux.zip
-          unzip verus-${{ env.verus_release }}-x86-linux.zip
-          rm verus-${{ env.verus_release }}-x86-linux.zip
-          mv verus-x86-linux $HOME/verus
+          cd verus-src/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+          mkdir -p $HOME/verus
+          cp target-verus/release/verus $HOME/verus/verus
+          cp z3 $HOME/verus/z3
   vreplicaset-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
@@ -61,7 +73,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
@@ -79,7 +91,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
@@ -97,7 +109,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
@@ -115,7 +127,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the ESR composition
         run: |
           . "$HOME/.cargo/env"
@@ -133,7 +145,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the Anvil framework
         run: |
           . "$HOME/.cargo/env"
@@ -152,7 +164,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -179,7 +191,7 @@ jobs:
   #           ${{ env.home_dir }}/verus
   #           ${{ env.home_dir }}/.cargo
   #           ${{ env.home_dir }}/.rustup
-  #         key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+  #         key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
   #     - name: Setup Go
   #       uses: actions/setup-go@v5
   #       with:
@@ -206,7 +218,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -232,7 +244,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -258,7 +270,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -284,7 +296,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -310,7 +322,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -335,7 +347,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the TLA demo
         run: |
           . "$HOME/.cargo/env"
@@ -354,7 +366,7 @@ jobs:
             ${{ env.home_dir }}/verus
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_release }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify rabbitmq controller
         run: |
           . "$HOME/.cargo/env"
