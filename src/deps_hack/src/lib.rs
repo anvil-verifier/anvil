@@ -18,7 +18,12 @@ pub use tokio;
 pub use tracing;
 pub use tracing_subscriber;
 pub use warp;
-pub use zookeeper;
+/*
+Note: zookeeper 0.8.0 is not actively maintained, we don't want it to break verita once Rust drops the support for its syntax:
+warning: the following packages contain code that will be rejected by a future version of Rust: zookeeper v0.8.0
+for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+*/
+// pub use zookeeper;
 pub use kube_quantity;
 
 #[derive(Debug, thiserror::Error)]
