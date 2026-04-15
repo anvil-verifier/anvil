@@ -1,22 +1,19 @@
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
+use crate::temporal_logic::rules::*;
 use vstd::prelude::*;
 
 verus! {
 
-// A controller's compositional spec includes
-// (1) guarantee conditions (e.g., ESR),
-// (2) rely conditions (e.g., non-interference by other controllers),
-// (3) fairness conditions (e.g., weak fairness),
-// (4) membership conditions (e.g., the CR is installed).
+pub struct CoreCluster {
+    pub cluster: Cluster,
+    pub controllers: Map<int, ControllerSpec>
+}
+
 pub struct ControllerSpec {
     pub liveness_guarantee: TempPred<ClusterState>,
     pub liveness_rely: TempPred<ClusterState>,
     pub safety_guarantee: TempPred<ClusterState>,
-    // safety_partial_rely takes a controller id (int) and returns a (safety) condition
-    // stating that the input controller never interferes with our controller.
-    // The safety-rely condition is formalized as a conjunction of safety_partial_rely
-    // on all other controller ids in the environment.
     pub safety_partial_rely: spec_fn(int) -> TempPred<ClusterState>,
     pub fairness: spec_fn(Cluster) -> TempPred<ClusterState>,
     pub membership: spec_fn(Cluster, int) -> bool,
@@ -27,263 +24,208 @@ pub struct CoreSet {
     pub dependence: TempPred<ClusterState>,
 }
 
-pub open spec fn core_model(model: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
-    let G = tla_forall(|c: int| if S.controllers.contains(c) { specs[c].safety_guarantee } else { true_pred() });
-    let R = tla_forall(|pair: (int, int)| if S.controllers.contains(pair.0) && !S.controllers.contains(pair.1) { (specs[pair.0].safety_partial_rely)(pair.1) } else { true_pred() });
-    let ESR = tla_forall(|c: int| if S.controllers.contains(c) { specs[c].liveness_guarantee } else { true_pred() });
-    model.entails(G.and(R.and(S.dependence).implies(ESR)))
+pub open spec fn cluster_model(cluster: CoreCluster) -> TempPred<ClusterState> {
+    lift_state(cluster.cluster.init())
+    .and(always(lift_action(cluster.cluster.next())))
+    .and(tla_forall(|i: int| if cluster.cluster.controller_models.contains_key(i) { (cluster.controllers[i].fairness)(cluster.cluster) } else { true_pred() }))
 }
 
-pub open spec fn cluster_model(model: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>) -> bool {
-    &&& model.entails(lift_state(cluster.init()))
-    &&& model.entails(always(lift_action(cluster.next())))
-    &&& forall |i: int| #[trigger] cluster.controller_models.contains_key(i) ==> model.entails((specs[i].fairness)(cluster))
+pub open spec fn core(cluster: CoreCluster, s: CoreSet) -> bool {
+    let G = tla_forall(|c: int| if s.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred() });
+    let R = tla_forall(|pair: (int, int)| if s.controllers.contains(pair.0) && !s.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred() });
+    let ESR = tla_forall(|c: int| if s.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred() });
+    cluster_model(cluster).entails(G.and(R.and(s.dependence).implies(ESR)))
 }
 
-pub open spec fn core(cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
-    forall |model: TempPred<ClusterState>| #[trigger] cluster_model(model, cluster, specs) ==> core_model(model, cluster, specs, S)
-}
-
-pub open spec fn core_star(cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
-    &&& core(cluster, specs, S)
-    &&& valid(S.dependence)
-}
-
-pub open spec fn cluster_contains_coreset(cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
-    forall |c: int| #[trigger] S.controllers.contains(c) ==> (specs[c].membership)(cluster, c)
-}
-
-pub open spec fn core_star_model(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S: CoreSet) -> bool {
-    &&& core_model(spec, cluster, specs, S)
-    &&& valid(S.dependence)
+pub open spec fn core_star(cluster: CoreCluster, s: CoreSet) -> bool {
+    &&& core(cluster, s)
+    &&& valid(s.dependence)
 }
 
 // this will discard any liveness dependencies
-pub open spec fn union(S1: CoreSet, S2: CoreSet) -> CoreSet {
+pub open spec fn union(s1: CoreSet, s2: CoreSet) -> CoreSet {
     CoreSet {
-        controllers: S1.controllers.union(S2.controllers),
+        controllers: s1.controllers.union(s2.controllers),
         dependence: true_pred()
     }
 }
 
-pub open spec fn compatible_model(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
-    let G_S1 = forall |c: int| (#[trigger] S1.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
-    let G_S2 = forall |c: int| (#[trigger] S2.controllers.contains(c)) ==> spec.entails(specs[c].safety_guarantee);
-
-    let R_12 = forall |c1: int, c2: int| (#[trigger] S1.controllers.contains(c1) && ! #[trigger] S1.controllers.contains(c2) && S2.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
-    let R_21 = forall |c1: int, c2: int| (#[trigger] S2.controllers.contains(c1) && ! #[trigger] S2.controllers.contains(c2) && S1.controllers.contains(c2)) ==> spec.entails((specs[c1].safety_partial_rely)(c2));
-
-    (G_S1 ==> R_21) && (G_S2 ==> R_12)
+pub open spec fn compatible(cluster: CoreCluster, s1: CoreSet, s2: CoreSet) -> bool {
+    let g_s1 = tla_forall(|c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred() });
+    let g_s2 = tla_forall(|c: int| if s2.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred() });
+    let r_12 = tla_forall(|pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) && s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred() });
+    let r_21 = tla_forall(|pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) && s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred() });
+    cluster_model(cluster).entails(g_s1.implies(r_21).and(g_s2.implies(r_12)))
 }
 
-pub open spec fn compatible(cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
-    forall |model: TempPred<ClusterState>| #[trigger] cluster_model(model, cluster, specs) ==> compatible_model(model, cluster, specs, S1, S2)
-}
-
-// S1 satisfies S2's liveness dependency
-pub open spec fn satisfies_dependency_model(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet) -> bool {
-    let ESR_S1 = forall |c: int| (#[trigger] S1.controllers.contains(c)) ==> spec.entails(specs[c].liveness_guarantee);
-    let D_S2 = spec.entails(S2.dependence);
-    ESR_S1 ==> D_S2
-}
-
-pub proof fn compose_model(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
+pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     requires
-        core_star_model(spec, cluster, specs, S1),
-        core_star_model(spec, cluster, specs, S2),
-        compatible_model(spec, cluster, specs, S1, S2)
+        core_star(cluster, s1),
+        core_star(cluster, s2),
+        compatible(cluster, s1, s2)
     ensures
-        core_star_model(spec, cluster, specs, union(S1, S2))
+        core_star(cluster, union(s1, s2))
 {
-    let s = union(S1, S2);
+    let s = union(s1, s2);
+    let spec = cluster_model(cluster);
 
-    assert(valid(s.dependence));
+    let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
+    let R1_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let ESR1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
 
-    assert(forall |c: int| #[trigger] s.controllers.contains(c)
-        ==> spec.entails(specs[c].safety_guarantee)) by {
-        assert forall |c: int| #[trigger] s.controllers.contains(c)
-        implies spec.entails(specs[c].safety_guarantee) by {
-            if S1.controllers.contains(c) {
+    let G2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
+    let R2_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let ESR2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
 
-            } else {
-                assert(S2.controllers.contains(c));
-            }
-        }
-    }
+    let Gs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
+    let Rs_fn = |pair: (int, int)| if s.controllers.contains(pair.0) && !s.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let ESRs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
 
-    let r_s = forall |c: int, c_prime: int|
-        (#[trigger] s.controllers.contains(c) && !#[trigger] s.controllers.contains(c_prime))
-        ==> spec.entails((specs[c].safety_partial_rely)(c_prime));
+    let R12_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) && s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let R21_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) && s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-    if r_s {
-        assert(spec.entails(S1.dependence));
-        assert(spec.entails(S2.dependence));
+    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))))) by {
+        assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies
+            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
 
-        assert(forall |c: int, c_prime: int|
-            (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
-            ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
-            assert forall |c: int, c_prime: int|
-                (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
-            implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
-                if S2.controllers.contains(c_prime) {
+            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.dependence).implies(tla_forall(ESR1_fn))));
+            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.dependence).implies(tla_forall(ESR2_fn))));
+            entails_apply(ex, spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn))));
 
-                } else {
-                    assert(s.controllers.contains(c));
-                    assert(!s.controllers.contains(c_prime));
+            assert(tla_forall(Gs_fn).satisfied_by(ex)) by {
+                assert forall |c: int| #[trigger] Gs_fn(c).satisfied_by(ex) by {
+                    if s1.controllers.contains(c) {
+                        tla_forall_unfold(ex, G1_fn); assert(G1_fn(c).satisfied_by(ex));
+                    } else if s2.controllers.contains(c) {
+                        tla_forall_unfold(ex, G2_fn); assert(G2_fn(c).satisfied_by(ex));
+                    }
                 }
             }
-        }
 
-        assert(forall |c: int| #[trigger] S1.controllers.contains(c)
-            ==> spec.entails(specs[c].liveness_guarantee));
-
-        assert(forall |c: int, c_prime: int|
-            (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
-            ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
-            assert forall |c: int, c_prime: int|
-                (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
-            implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
-                if S1.controllers.contains(c_prime) {
-
-                } else {
-                    assert(s.controllers.contains(c));
-                    assert(!s.controllers.contains(c_prime));
+            if tla_forall(Rs_fn).satisfied_by(ex) {
+                assert(tla_forall(R1_fn).satisfied_by(ex)) by {
+                    assert forall |pair: (int, int)| #[trigger] R1_fn(pair).satisfied_by(ex) by {
+                        let (c, c_prime) = pair;
+                        if s1.controllers.contains(c) && !s1.controllers.contains(c_prime) {
+                            if s2.controllers.contains(c_prime) {
+                                tla_forall_unfold(ex, R12_fn); assert(R12_fn((c, c_prime)).satisfied_by(ex));
+                            } else {
+                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                            }
+                        }
+                    }
                 }
-            }
-        }
-
-        assert(forall |c: int| #[trigger] S2.controllers.contains(c)
-            ==> spec.entails(specs[c].liveness_guarantee));
-
-        assert(forall |c: int| #[trigger] s.controllers.contains(c)
-            ==> spec.entails(specs[c].liveness_guarantee)) by {
-            assert forall |c: int| #[trigger] s.controllers.contains(c)
-            implies spec.entails(specs[c].liveness_guarantee) by {
-                if S1.controllers.contains(c) {
-                } else {
-                    assert(S2.controllers.contains(c));
+                assert(tla_forall(R2_fn).satisfied_by(ex)) by {
+                    assert forall |pair: (int, int)| #[trigger] R2_fn(pair).satisfied_by(ex) by {
+                        let (c, c_prime) = pair;
+                        if s2.controllers.contains(c) && !s2.controllers.contains(c_prime) {
+                            if s1.controllers.contains(c_prime) {
+                                tla_forall_unfold(ex, R21_fn); assert(R21_fn((c, c_prime)).satisfied_by(ex));
+                            } else {
+                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                            }
+                        }
+                    }
+                }
+                assert(tla_forall(ESRs_fn).satisfied_by(ex)) by {
+                    assert forall |c: int| #[trigger] ESRs_fn(c).satisfied_by(ex) by {
+                        if s1.controllers.contains(c) {
+                            tla_forall_unfold(ex, ESR1_fn); assert(ESR1_fn(c).satisfied_by(ex));
+                        } else if s2.controllers.contains(c) {
+                            tla_forall_unfold(ex, ESR2_fn); assert(ESR2_fn(c).satisfied_by(ex));
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-pub proof fn compose(specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
-    requires
-        forall |cluster: Cluster| #[trigger] cluster_contains_coreset(cluster, specs, S1) ==> core_star(cluster, specs, S1),
-        forall |cluster: Cluster| #[trigger] cluster_contains_coreset(cluster, specs, S2) ==> core_star(cluster, specs, S2),
-        forall |cluster: Cluster| #[trigger] cluster_contains_coreset(cluster, specs, union(S1, S2)) ==> compatible(cluster, specs, S1, S2),
-    ensures
-        forall |cluster: Cluster| #[trigger] cluster_contains_coreset(cluster, specs, union(S1, S2)) ==> core_star(cluster, specs, union(S1, S2)),
-{
-    let s = union(S1, S2);
-
-    assert forall |cluster: Cluster| #[trigger] cluster_contains_coreset(cluster, specs, s)
-    implies core_star(cluster, specs, s) by {
-        assert(cluster_contains_coreset(cluster, specs, S1)) by {
-            assert forall |c: int| #[trigger] S1.controllers.contains(c)
-            implies (specs[c].membership)(cluster, c) by {
-                assert(s.controllers.contains(c));
-            }
-        }
-
-        assert(cluster_contains_coreset(cluster, specs, S2)) by {
-            assert forall |c: int| #[trigger] S2.controllers.contains(c)
-            implies (specs[c].membership)(cluster, c) by {
-                assert(s.controllers.contains(c));
-            }
-        }
-
-        assert(valid(s.dependence));
-
-        assert(core(cluster, specs, s)) by {
-            assert forall |model: TempPred<ClusterState>| #[trigger] cluster_model(model, cluster, specs)
-            implies core_model(model, cluster, specs, s) by {
-                assert(core_star_model(model, cluster, specs, S1));
-                assert(core_star_model(model, cluster, specs, S2));
-                assert(compatible_model(model, cluster, specs, S1, S2));
-                compose_model(model, cluster, specs, S1, S2);
-            }
-        }
-    }
+// s1 satisfies s2's liveness dependency
+pub open spec fn satisfies_dependency(cluster: CoreCluster, s1: CoreSet, s2: CoreSet) -> bool {
+    let esr_s1 = tla_forall(|c: int| if s1.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred() });
+    cluster_model(cluster).entails(esr_s1.implies(s2.dependence))
 }
 
-pub proof fn compose_dep_model(spec: TempPred<ClusterState>, cluster: Cluster, specs: Map<int, ControllerSpec>, S1: CoreSet, S2: CoreSet)
+pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     requires
-        core_star_model(spec, cluster, specs, S1),
-        core_model(spec, cluster, specs, S2),
-        compatible_model(spec, cluster, specs, S1, S2),
-        satisfies_dependency_model(spec, cluster, specs, S1, S2)
+        core_star(cluster, s1),
+        core(cluster, s2),
+        compatible(cluster, s1, s2),
+        satisfies_dependency(cluster, s1, s2)
     ensures
-        core_star_model(spec, cluster, specs, union(S1, S2))
+        core_star(cluster, union(s1, s2))
 {
-    let s = union(S1, S2);
+    let s = union(s1, s2);
+    let spec = cluster_model(cluster);
 
-    assert(valid(s.dependence));
+    let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
+    let R1_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let ESR1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
 
-    assert(forall |c: int| #[trigger] s.controllers.contains(c)
-        ==> spec.entails(specs[c].safety_guarantee)) by {
-        assert forall |c: int| #[trigger] s.controllers.contains(c)
-        implies spec.entails(specs[c].safety_guarantee) by {
-            if S1.controllers.contains(c) {
-            } else {
-                assert(S2.controllers.contains(c));
-            }
-        }
-    }
+    let G2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
+    let R2_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let ESR2_fn = |c: int| if s2.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
 
-    let r_s = forall |c: int, c_prime: int|
-        (#[trigger] s.controllers.contains(c) && !#[trigger] s.controllers.contains(c_prime))
-        ==> spec.entails((specs[c].safety_partial_rely)(c_prime));
+    let Gs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
+    let Rs_fn = |pair: (int, int)| if s.controllers.contains(pair.0) && !s.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let ESRs_fn = |c: int| if s.controllers.contains(c) { cluster.controllers[c].liveness_guarantee } else { true_pred::<ClusterState>() };
 
-    if r_s {
-        assert(spec.entails(S1.dependence));
+    let R12_fn = |pair: (int, int)| if s1.controllers.contains(pair.0) && !s1.controllers.contains(pair.1) && s2.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
+    let R21_fn = |pair: (int, int)| if s2.controllers.contains(pair.0) && !s2.controllers.contains(pair.1) && s1.controllers.contains(pair.1) { (cluster.controllers[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-        assert(forall |c: int, c_prime: int|
-            (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
-            ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
-            assert forall |c: int, c_prime: int|
-                (#[trigger] S1.controllers.contains(c) && !#[trigger] S1.controllers.contains(c_prime))
-            implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
-                if S2.controllers.contains(c_prime) {
-                    // compatible: G_S1 ==> R_12
-                } else {
-                    assert(s.controllers.contains(c));
-                    assert(!s.controllers.contains(c_prime));
+    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))))) by {
+        assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies
+            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.dependence).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
+
+            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.dependence).implies(tla_forall(ESR1_fn))));
+            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.dependence).implies(tla_forall(ESR2_fn))));
+            entails_apply(ex, spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn))));
+            entails_apply(ex, spec, tla_forall(ESR1_fn).implies(s2.dependence));
+
+            assert(tla_forall(Gs_fn).satisfied_by(ex)) by {
+                assert forall |c: int| #[trigger] Gs_fn(c).satisfied_by(ex) by {
+                    if s1.controllers.contains(c) {
+                        tla_forall_unfold(ex, G1_fn); assert(G1_fn(c).satisfied_by(ex));
+                    } else if s2.controllers.contains(c) {
+                        tla_forall_unfold(ex, G2_fn); assert(G2_fn(c).satisfied_by(ex));
+                    }
                 }
             }
-        }
 
-        assert(forall |c: int| #[trigger] S1.controllers.contains(c)
-            ==> spec.entails(specs[c].liveness_guarantee));
-
-        assert(spec.entails(S2.dependence));
-
-        assert(forall |c: int, c_prime: int|
-            (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
-            ==> spec.entails((specs[c].safety_partial_rely)(c_prime))) by {
-            assert forall |c: int, c_prime: int|
-                (#[trigger] S2.controllers.contains(c) && !#[trigger] S2.controllers.contains(c_prime))
-            implies spec.entails((specs[c].safety_partial_rely)(c_prime)) by {
-                if S1.controllers.contains(c_prime) {
-
-                } else {
-                    assert(s.controllers.contains(c));
-                    assert(!s.controllers.contains(c_prime));
+            if tla_forall(Rs_fn).satisfied_by(ex) {
+                assert(tla_forall(R1_fn).satisfied_by(ex)) by {
+                    assert forall |pair: (int, int)| #[trigger] R1_fn(pair).satisfied_by(ex) by {
+                        let (c, c_prime) = pair;
+                        if s1.controllers.contains(c) && !s1.controllers.contains(c_prime) {
+                            if s2.controllers.contains(c_prime) {
+                                tla_forall_unfold(ex, R12_fn); assert(R12_fn((c, c_prime)).satisfied_by(ex));
+                            } else {
+                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                            }
+                        }
+                    }
                 }
-            }
-        }
-
-        assert(forall |c: int| #[trigger] S2.controllers.contains(c)
-            ==> spec.entails(specs[c].liveness_guarantee));
-
-        assert(forall |c: int| #[trigger] s.controllers.contains(c)
-            ==> spec.entails(specs[c].liveness_guarantee)) by {
-            assert forall |c: int| #[trigger] s.controllers.contains(c)
-            implies spec.entails(specs[c].liveness_guarantee) by {
-                if S1.controllers.contains(c) {
-                } else {
-                    assert(S2.controllers.contains(c));
+                assert(tla_forall(R2_fn).satisfied_by(ex)) by {
+                    assert forall |pair: (int, int)| #[trigger] R2_fn(pair).satisfied_by(ex) by {
+                        let (c, c_prime) = pair;
+                        if s2.controllers.contains(c) && !s2.controllers.contains(c_prime) {
+                            if s1.controllers.contains(c_prime) {
+                                tla_forall_unfold(ex, R21_fn); assert(R21_fn((c, c_prime)).satisfied_by(ex));
+                            } else {
+                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                            }
+                        }
+                    }
+                }
+                assert(tla_forall(ESRs_fn).satisfied_by(ex)) by {
+                    assert forall |c: int| #[trigger] ESRs_fn(c).satisfied_by(ex) by {
+                        if s1.controllers.contains(c) {
+                            tla_forall_unfold(ex, ESR1_fn); assert(ESR1_fn(c).satisfied_by(ex));
+                        } else if s2.controllers.contains(c) {
+                            tla_forall_unfold(ex, ESR2_fn); assert(ESR2_fn(c).satisfied_by(ex));
+                        }
+                    }
                 }
             }
         }
