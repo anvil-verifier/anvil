@@ -59,6 +59,18 @@ jobs:
           source ../tools/activate
           vargo build --release
           mv target-verus/release $HOME/verus
+      - name: Cache deps_hack
+        id: cache-deps-hack
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Build deps_hack if cache is missing
+        if: steps.cache-deps-hack.outputs.cache-hit != 'true'
+        run: |
+          . "$HOME/.cargo/env"
+          cd src/deps_hack
+          cargo build
   vreplicaset-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
@@ -72,6 +84,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
@@ -90,6 +107,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
@@ -108,6 +130,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
@@ -126,6 +153,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the ESR composition
         run: |
           . "$HOME/.cargo/env"
@@ -144,6 +176,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the Anvil framework
         run: |
           . "$HOME/.cargo/env"
@@ -163,6 +200,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -217,6 +259,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -243,6 +290,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -269,6 +321,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -295,6 +352,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -321,6 +383,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -346,6 +413,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the TLA demo
         run: |
           . "$HOME/.cargo/env"
@@ -365,6 +437,11 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Restore deps_hack cache
+        uses: actions/cache@v4
+        with:
+          path: src/deps_hack/target/debug
+          key: deps-hack-${{ runner.os }}-${{ hashFiles('src/deps_hack/Cargo.lock') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify rabbitmq controller
         run: |
           . "$HOME/.cargo/env"
