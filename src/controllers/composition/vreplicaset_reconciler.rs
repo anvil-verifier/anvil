@@ -20,7 +20,7 @@ impl Composition for VReplicaSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: vrs_eventually_stable_reconciliation(),
-            liveness_dependence: true_pred(), // VRS does not require assumptions of other controller's ESR
+            liveness_dependency: true_pred(), // VRS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vrs_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vrs_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),

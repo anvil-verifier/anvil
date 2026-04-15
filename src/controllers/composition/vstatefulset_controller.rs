@@ -47,7 +47,7 @@ impl Composition for VStatefulSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: vsts_eventually_stable_reconciliation(),
-            liveness_dependence: true_pred(), // VSTS does not require assumptions of other controller's ESR
+            liveness_dependency: true_pred(), // VSTS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vsts_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vsts_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
