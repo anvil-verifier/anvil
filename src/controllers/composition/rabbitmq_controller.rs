@@ -53,7 +53,7 @@ impl Composition for RabbitmqReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: rmq_composed_eventually_stable_reconciliation(),
-            liveness_rely: vsts_liveness_theorem::vsts_eventually_stable_reconciliation(),
+            liveness_dependence: vsts_liveness_theorem::vsts_eventually_stable_reconciliation(),
             safety_guarantee: always(lift_state(rmq_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(rmq_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
@@ -435,8 +435,8 @@ impl VerticalComposition for RabbitmqReconciler {
         assert(spec.entails(rmq_composed_eventually_stable_reconciliation()));
     }
 
-    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_rely),
+    proof fn liveness_dependence_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_dependence),
     {
         assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
         vsts_id_ne_vrs_id();

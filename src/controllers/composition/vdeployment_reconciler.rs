@@ -28,7 +28,7 @@ impl Composition for VDeploymentReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: vd_liveness::composed_vd_eventually_stable_reconciliation(),
-            liveness_rely: vrs_liveness::vrs_eventually_stable_reconciliation(),
+            liveness_dependence: vrs_liveness::vrs_eventually_stable_reconciliation(),
             safety_guarantee: always(lift_state(vd_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vd_rely(other_id))),
             fairness: |cluster: Cluster| weak_fairness_assumptions(cluster, Self::id()),
@@ -122,8 +122,8 @@ impl VerticalComposition for VDeploymentReconciler {
         spec_entails_tla_forall(spec, |vd| always(lift_state(vd_liveness::desired_state_is(vd))).leads_to(always(lift_state(vd_liveness::composed_current_state_matches(vd)))));
     }
 
-    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_rely),
+    proof fn liveness_dependence_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_dependence),
     {
         assert(Self::composed().contains_key(VReplicaSetReconciler::id())); // trigger
     }

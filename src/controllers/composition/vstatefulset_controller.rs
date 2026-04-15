@@ -1,28 +1,22 @@
-use crate::kubernetes_cluster::proof::composition::*;
-use crate::vdeployment_controller::model::reconciler::VDeploymentReconciler;
-use crate::vdeployment_controller::trusted::rely_guarantee::*;
-use crate::vreplicaset_controller::{
-    model::reconciler::{VReplicaSetReconciler, has_vrs_prefix},
-    trusted::spec_types::*,
-};
-use crate::vreplicaset_controller::trusted::rely_guarantee::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::vdeployment_controller::model::reconciler::VDeploymentReconciler;
+use crate::vdeployment_controller::trusted::rely_guarantee::*;
+use crate::vreplicaset_controller::trusted::rely_guarantee::*;
+use crate::vreplicaset_controller::{
+    model::reconciler::{has_vrs_prefix, VReplicaSetReconciler},
+    trusted::spec_types::*,
+};
+use crate::vstatefulset_controller::model::{install::*, reconciler::*};
 use crate::vstatefulset_controller::proof::predicate::*;
-use crate::vstatefulset_controller::trusted::{
-    spec_types::*, rely::*, liveness_theorem::*
-};
-use crate::vstatefulset_controller::model::{
-    reconciler::*, install::*
-};
-use crate::vstatefulset_controller::proof::{
-    guarantee::*, liveness::spec::*
-};
+use crate::vstatefulset_controller::proof::{guarantee::*, liveness::spec::*};
+use crate::vstatefulset_controller::trusted::{liveness_theorem::*, rely::*, spec_types::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
-verus !{
+verus! {
 
 // Helper lemma: vsts and vrs prefixes are disjoint
 proof fn vsts_prefix_not_vrs_prefix(name: StringView)
@@ -53,7 +47,7 @@ impl Composition for VStatefulSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: vsts_eventually_stable_reconciliation(),
-            liveness_rely: true_pred(), // VSTS does not require assumptions of other controller's ESR
+            liveness_dependence: true_pred(), // VSTS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vsts_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vsts_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),

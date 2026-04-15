@@ -2,26 +2,25 @@ use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
 use crate::vdeployment_controller::trusted::spec_types::*;
-use crate::vreplicaset_controller::trusted::{
-    spec_types::*, rely_guarantee::*, liveness_theorem::*
-};
-use crate::vreplicaset_controller::model::{
-    reconciler::*, install::*
-};
+use crate::vreplicaset_controller::model::{install::*, reconciler::*};
 use crate::vreplicaset_controller::proof::{
-    guarantee::*, liveness::{spec::*, proof::eventually_stable_reconciliation_holds}
+    guarantee::*,
+    liveness::{proof::eventually_stable_reconciliation_holds, spec::*},
+};
+use crate::vreplicaset_controller::trusted::{
+    liveness_theorem::*, rely_guarantee::*, spec_types::*,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
-verus !{
+verus! {
 
 
 impl Composition for VReplicaSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
             liveness_guarantee: vrs_eventually_stable_reconciliation(),
-            liveness_rely: true_pred(), // VRS does not require assumptions of other controller's ESR
+            liveness_dependence: true_pred(), // VRS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vrs_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vrs_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),

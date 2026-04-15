@@ -1,5 +1,5 @@
-use crate::kubernetes_cluster::spec::cluster::*;
 use crate::kubernetes_cluster::proof::core::*;
+use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
@@ -7,7 +7,7 @@ verus! {
 
 pub struct ControllerSpec {
     pub esr: TempPred<ClusterState>,
-    pub liveness_rely: TempPred<ClusterState>,
+    pub liveness_dependence: TempPred<ClusterState>,
     pub safety_guarantee: TempPred<ClusterState>,
     pub safety_partial_rely: spec_fn(int) -> TempPred<ClusterState>,
     pub fairness: spec_fn(Cluster) -> TempPred<ClusterState>,
@@ -98,7 +98,7 @@ pub trait VerticalComposition: Sized + Composition {
             spec.entails(lift_state(cluster.init())),
             spec.entails(always(lift_action(cluster.next()))),
             spec.entails((Self::c().fairness)(cluster)),
-            spec.entails(Self::c().liveness_rely),
+            spec.entails(Self::c().liveness_dependence),
             forall |other_id| #[trigger] cluster.controller_models.remove(Self::id()).contains_key(other_id)
                 ==> spec.entails((Self::c().safety_partial_rely)(other_id)),
         ensures
@@ -106,7 +106,7 @@ pub trait VerticalComposition: Sized + Composition {
         ;
 
     // liveness rely can be weaker than other controller's liveness guarantee for simplification
-    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+    proof fn liveness_dependence_holds(spec: TempPred<ClusterState>, cluster: Cluster)
         requires
             (Self::c().membership)(cluster, Self::id()),
             spec.entails(lift_state(cluster.init())),
@@ -115,7 +115,7 @@ pub trait VerticalComposition: Sized + Composition {
             forall |i| #[trigger] Self::composed().contains_key(i)
                 ==> spec.entails(Self::composed()[i].esr),
         ensures
-            spec.entails(Self::c().liveness_rely),
+            spec.entails(Self::c().liveness_dependence),
         ;
 }
 
@@ -247,7 +247,7 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
                     if others.contains_key(other_id) {}
                 }
 
-                VC::liveness_rely_holds(spec, cluster);
+                VC::liveness_dependence_holds(spec, cluster);
 
                 VC::esr_holds(spec, cluster);
             }
@@ -307,7 +307,7 @@ impl VerticalComposition for ComposeWaiter {
     proof fn esr_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 
     #[verifier(external_body)]
-    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
+    proof fn liveness_dependence_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
 }
 
 // cook and waiter can be composed together
