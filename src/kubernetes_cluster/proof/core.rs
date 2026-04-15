@@ -1,6 +1,7 @@
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
+use crate::kubernetes_cluster::proof::composition::*;
 use vstd::prelude::*;
 
 verus! {
@@ -8,15 +9,6 @@ verus! {
 pub struct CoreCluster {
     pub cluster: Cluster,
     pub controllers: Map<int, ControllerSpec>
-}
-
-pub struct ControllerSpec {
-    pub liveness_guarantee: TempPred<ClusterState>,
-    pub liveness_rely: TempPred<ClusterState>,
-    pub safety_guarantee: TempPred<ClusterState>,
-    pub safety_partial_rely: spec_fn(int) -> TempPred<ClusterState>,
-    pub fairness: spec_fn(Cluster) -> TempPred<ClusterState>,
-    pub membership: spec_fn(Cluster, int) -> bool,
 }
 
 pub struct CoreSet {

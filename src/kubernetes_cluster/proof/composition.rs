@@ -5,6 +5,15 @@ use vstd::prelude::*;
 
 verus! {
 
+pub struct ControllerSpec {
+    pub liveness_guarantee: TempPred<ClusterState>,
+    pub liveness_rely: TempPred<ClusterState>,
+    pub safety_guarantee: TempPred<ClusterState>,
+    pub safety_partial_rely: spec_fn(int) -> TempPred<ClusterState>,
+    pub fairness: spec_fn(Cluster) -> TempPred<ClusterState>,
+    pub membership: spec_fn(Cluster, int) -> bool,
+}
+
 // composable says that when the controllers run together (with other controllers)
 // (1) all controllers' safety_guarantee hold, and
 // (2) all controllers' liveness_guarantee hold assuming fairness and that other controllers don't interfere with them.
