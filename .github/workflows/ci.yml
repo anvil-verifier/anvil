@@ -58,9 +58,8 @@ jobs:
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
-          mkdir -p $HOME/verus
-          cp target-verus/release/verus $HOME/verus/verus
-          cp z3 $HOME/verus/z3
+          mv z3 target-verus/release/z3
+          mv target-verus/release $HOME/verus
   vreplicaset-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
