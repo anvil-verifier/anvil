@@ -29,8 +29,7 @@ pub open spec fn core(cluster: CoreCluster, s: CoreSet) -> bool {
     cluster_model(cluster).entails(G.and(R.and(s.liveness_dependency).implies(ESR)))
 }
 
-// this will discard any liveness dependencies
-pub open spec fn union(s1: CoreSet, s2: CoreSet, liveness_dependency: TempPred<ClusterState>) -> CoreSet {
+pub open spec fn union_coreset(s1: CoreSet, s2: CoreSet, liveness_dependency: TempPred<ClusterState>) -> CoreSet {
     CoreSet {
         controllers: s1.controllers.union(s2.controllers),
         liveness_dependency: liveness_dependency
@@ -53,9 +52,9 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
         valid(s2.liveness_dependency),
         compatible(cluster, s1, s2)
     ensures
-        core(cluster, union(s1, s2, true_pred()))
+        core(cluster, union_coreset(s1, s2, true_pred()))
 {
-    let s = union(s1, s2, true_pred());
+    let s = union_coreset(s1, s2, true_pred());
     let spec = cluster_model(cluster);
 
     let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
@@ -144,9 +143,9 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
         valid(s1.liveness_dependency),
         satisfies_dependency(cluster, s1, s2)
     ensures
-        core(cluster, union(s1, s2, true_pred()))
+        core(cluster, union_coreset(s1, s2, true_pred()))
 {
-    let s = union(s1, s2, true_pred());
+    let s = union_coreset(s1, s2, true_pred());
     let spec = cluster_model(cluster);
 
     let G1_fn = |c: int| if s1.controllers.contains(c) { cluster.controllers[c].safety_guarantee } else { true_pred::<ClusterState>() };
