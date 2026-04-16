@@ -325,6 +325,7 @@ ensures
 }
 
 // *** shield lemma is heavily abused below this line *** //
+#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, req_msg: Message
 )
