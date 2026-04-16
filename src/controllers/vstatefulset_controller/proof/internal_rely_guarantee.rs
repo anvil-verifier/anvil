@@ -742,7 +742,7 @@ ensures
         },
         Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
             let resp_msg = resp_msg_opt->0;
-            if cr_key_opt == Some(cr_key) {
+            if cr_key_opt == Some(cr_key) && id == controller_id {
                 VStatefulSetReconcileState::marshal_preserves_integrity();
                 let needed_index = if local_state.reconcile_step == AfterListPod {
                     0
@@ -792,7 +792,6 @@ ensures
                         } ==> s.in_flight().contains(msg));
                     }
                 } else if local_state.reconcile_step == AfterListPod
-                    && id == controller_id
                     && resp_msg_opt is Some && is_ok_resp(resp_msg.content->APIResponse_0) {
                     // Same controller, at AfterListPod (not Done/Error), and resp_msg_opt is Some,
                     // so the controller action must be continue_reconcile.
