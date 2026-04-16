@@ -13,7 +13,7 @@ use crate::vdeployment_controller::{
         liveness::{proof as vd_proof, rolling_update::composition::*, spec as vd_spec},
         predicate::*,
     },
-    trusted::{liveness_theorem as vd_liveness, rely_guarantee::*, spec_types::*, util::*},
+    trusted::{liveness_theorem as vd_liveness, rely_guarantee::*, spec_types::*},
 };
 use crate::vreplicaset_controller::{
     model::{install::vrs_controller_model, reconciler::VReplicaSetReconciler},
