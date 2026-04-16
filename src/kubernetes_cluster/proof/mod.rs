@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 pub mod cluster;
 pub mod composition;
+pub mod core;
 pub mod controller_runtime_liveness;
 pub mod controller_runtime_safety;
 pub mod failures_liveness;

@@ -1,37 +1,35 @@
-use crate::kubernetes_cluster::proof::composition::*;
-use crate::kubernetes_cluster::spec::{
-    cluster::*, message::*
-};
-use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::temporal_logic::{defs::*, rules::*};
-use crate::vreplicaset_controller::{
-    trusted::{spec_types::*, rely_guarantee::*, liveness_theorem as vrs_liveness},
-    proof::liveness::{proof as vrs_proof, spec as vrs_spec},
-    model::{reconciler::VReplicaSetReconciler, install::vrs_controller_model}
-};
 use crate::composition::vreplicaset_reconciler::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::proof::composition::*;
+use crate::kubernetes_cluster::spec::{cluster::*, message::*};
+use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
-    trusted::{spec_types::*, rely_guarantee::*, liveness_theorem as vd_liveness},
-    model::{reconciler::*, install::vd_controller_model},
+    model::{install::vd_controller_model, reconciler::*},
     proof::{
-        guarantee::*, liveness::{spec as vd_spec, proof as vd_proof, rolling_update::composition::*},
-        predicate::*, helper_lemmas::*, helper_invariants, liveness::api_actions::*
-    }
+        guarantee::*,
+        helper_invariants,
+        helper_lemmas::*,
+        liveness::api_actions::*,
+        liveness::{proof as vd_proof, rolling_update::composition::*, spec as vd_spec},
+        predicate::*,
+    },
+    trusted::{liveness_theorem as vd_liveness, rely_guarantee::*, spec_types::*},
 };
-use crate::vstd_ext::{
-    string_view::*, seq_lib::*, set_lib::*, map_lib::*
+use crate::vreplicaset_controller::{
+    model::{install::vrs_controller_model, reconciler::VReplicaSetReconciler},
+    proof::liveness::{proof as vrs_proof, spec as vrs_spec},
+    trusted::{liveness_theorem as vrs_liveness, rely_guarantee::*, spec_types::*},
 };
-use vstd::{
-    prelude::*, set_lib::*, map_lib::*
-};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
+use vstd::{map_lib::*, prelude::*, set_lib::*};
 
-verus !{
+verus! {
 
 impl Composition for VDeploymentReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
-            liveness_guarantee: vd_liveness::composed_vd_eventually_stable_reconciliation(),
-            liveness_rely: vrs_liveness::vrs_eventually_stable_reconciliation(),
+            esr: vd_liveness::composed_vd_eventually_stable_reconciliation(),
+            liveness_dependency: vrs_liveness::vrs_eventually_stable_reconciliation(),
             safety_guarantee: always(lift_state(vd_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vd_rely(other_id))),
             fairness: |cluster: Cluster| weak_fairness_assumptions(cluster, Self::id()),
@@ -91,8 +89,8 @@ impl Composition for VDeploymentReconciler {
 }
 
 impl VerticalComposition for VDeploymentReconciler {
-    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_guarantee),
+    proof fn esr_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().esr),
     {
         let next_with_wf = always(lift_action(cluster.next())).and(weak_fairness_assumptions(cluster, Self::id()));
         assert(spec.entails(next_with_wf)) by {
@@ -104,8 +102,8 @@ impl VerticalComposition for VDeploymentReconciler {
         vd_proof::lemma_vd_composed_eventually_stable_reconciliation(spec, cluster, Self::id());
     }
 
-    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_rely),
+    proof fn liveness_dependency_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_dependency),
     {
         assert(Self::composed().contains_key(VReplicaSetReconciler::id())); // trigger
     }

@@ -60,7 +60,7 @@ proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     always_unfold::<T>(ex, lift_action(p));
 }
 
-proof fn tla_forall_unfold<T, A>(ex: Execution<T>, a_to_p: spec_fn(A) -> TempPred<T>)
+pub proof fn tla_forall_unfold<T, A>(ex: Execution<T>, a_to_p: spec_fn(A) -> TempPred<T>)
     requires tla_forall(a_to_p).satisfied_by(ex),
     ensures forall |a| #[trigger] a_to_p(a).satisfied_by(ex),
 {}

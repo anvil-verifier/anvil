@@ -1,29 +1,26 @@
+use crate::composition::vstatefulset_controller;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::kubernetes_cluster::spec::message::*;
-use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::temporal_logic::defs::*;
-use crate::rabbitmq_controller::trusted::{
-    spec_types::*, rely_guarantee::*, liveness_theorem::*, step::*
-};
 use crate::rabbitmq_controller::model::{
-    reconciler::*, install::*, resource::stateful_set::make_stateful_set
+    install::*, reconciler::*, resource::stateful_set::make_stateful_set,
+};
+use crate::rabbitmq_controller::trusted::{
+    liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*,
 };
 use crate::rabbitmq_controller::proof::{
     guarantee::guarantee_condition_holds, predicate::*, liveness::spec::{next_with_wf, next_with_wf_is_stable}
 };
 use crate::rabbitmq_controller::proof::composition::composed_rmq_eventually_stable_reconciliation;
-use crate::vstatefulset_controller::trusted::{
-    spec_types::VStatefulSetView,
-    liveness_theorem as vsts_liveness_theorem,
-    rely_guarantee as vsts_rely_mod,
-};
-use crate::vstatefulset_controller::model::{
-    reconciler::VStatefulSetReconciler, install::vsts_controller_model
-};
-use crate::vstatefulset_controller::proof::liveness::spec as vsts_spec;
-use crate::composition::vstatefulset_controller;
+use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
+use crate::vstatefulset_controller::model::{
+    install::vsts_controller_model, reconciler::VStatefulSetReconciler,
+};
+use crate::vstatefulset_controller::trusted::{
+    liveness_theorem as vsts_liveness_theorem, rely_guarantee as vsts_rely_mod, spec_types::VStatefulSetView,
+};
 
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -31,18 +28,18 @@ use vstd::prelude::*;
 use crate::vdeployment_controller::model::reconciler::VDeploymentReconciler;
 use crate::vdeployment_controller::trusted::rely_guarantee::*;
 use crate::vreplicaset_controller::model::reconciler::VReplicaSetReconciler;
-use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
 use crate::vreplicaset_controller::trusted::rely_guarantee::*;
+use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
 
-verus !{
+verus! {
 
 
 
 impl Composition for RabbitmqReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
-            liveness_guarantee: rmq_composed_eventually_stable_reconciliation(),
-            liveness_rely: vsts_liveness_theorem::vsts_eventually_stable_reconciliation(),
+            esr: rmq_composed_eventually_stable_reconciliation(),
+            liveness_dependency: vsts_liveness_theorem::vsts_eventually_stable_reconciliation(),
             safety_guarantee: always(lift_state(rmq_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(rmq_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
@@ -340,16 +337,16 @@ impl Composition for RabbitmqReconciler {
 }
 
 impl VerticalComposition for RabbitmqReconciler {
-    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_guarantee),
+    proof fn esr_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().esr),
     {
         composed_rmq_eventually_stable_reconciliation(
             spec, cluster, Self::id()
         );
     }
 
-    proof fn liveness_rely_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_rely),
+    proof fn liveness_dependency_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().liveness_dependency),
     {
         assert(Self::composed().contains_key(VStatefulSetReconciler::id())); // trigger
     }
