@@ -33,6 +33,7 @@ verus! {
 // in other words, let =~= denotes weakly_eq,
 // forall Pod p owned by vsts: p =~= p'
 // forall PVC v owned by vsts: v =~= v'
+#[verifier(spinoff_prover)]
 pub proof fn lemma_no_interference_on_pods(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
