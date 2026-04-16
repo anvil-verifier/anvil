@@ -15,7 +15,6 @@ use crate::vdeployment_controller::{
         rely_guarantee::*, 
         spec_types::*, 
         step::*,
-        util::*,
     },
     proof::{
         predicate::*, 

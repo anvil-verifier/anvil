@@ -876,6 +876,22 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
     }
 }
 
+pub proof fn leads_to_eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires spec.entails(p.leads_to(always(q))),
+    ensures spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        implies_apply(ex, spec, p.leads_to(always(q)));
+        leads_to_unfold(ex, p, always(q));
+        assert forall |i: nat| p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(#[trigger] ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p, eventually(always(q)));
+            let witness = eventually_choose_witness(ex.suffix(i), always(q));
+            always_to_current(ex.suffix(i).suffix(witness), q);
+            eventually_proved_by_witness(ex.suffix(i), q, witness);
+        };
+    };
+}
+
 // Always p entails p
 // post:
 //     []p |= p
@@ -1684,6 +1700,17 @@ pub proof fn entails_implies_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: T
     always_implies_to_leads_to(spec, p, q);
 }
 
+pub proof fn entails_implies_eventually<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires spec.entails(p),
+    ensures spec.entails(eventually(p)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(p).satisfied_by(ex) by {
+        entails_apply(ex, spec, p);
+        execution_equality(ex, ex.suffix(0));
+        eventually_proved_by_witness(ex, p, 0);
+    };
+}
+
 pub proof fn entails_exists_intro<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, a_witness: A)
     ensures a_to_p(a_witness).entails(tla_exists(a_to_p)),
 {
@@ -2409,6 +2436,21 @@ pub proof fn eventually_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: 
 // pre:
 //     spec |= p ~> []q
 //     spec |= p ~> []r
+// If spec always satisfies q, then p leads to always q for any p.
+pub proof fn always_entails_leads_to_always<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires spec.entails(always(q)),
+    ensures spec.entails(p.leads_to(always(q))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q)).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, always(q));
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards(ex, q, i);
+            execution_equality::<T>(ex.suffix(i).suffix(0), ex.suffix(i));
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(q), 0);
+        }
+    }
+}
+
 // post:
 //     spec |= p ~> [](q /\ r)
 pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)

@@ -6,7 +6,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*}, predicate::*},
-    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, util::*}
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*}
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*; // shortcut for steps
 use crate::vdeployment_controller::proof::helper_invariants;
@@ -463,7 +463,6 @@ ensures
     }
 }
 
-// similar to lemma_inductive_current_state_matches_preserves_from_s_to_s_prime
 pub proof fn composed_desired_state_preserves_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, s: ClusterState, s_prime: ClusterState
 )

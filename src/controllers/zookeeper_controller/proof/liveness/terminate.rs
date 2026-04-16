@@ -72,26 +72,26 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus),
         at_step1_or_step2_closure(ZookeeperReconcileStep::Done, ZookeeperReconcileStep::Error)
     );
-    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, zookeeper, SubResource::StatefulSet, ZookeeperReconcileStep::AfterUpdateStatus);
+    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, zookeeper, SubResource::VStatefulSetView, ZookeeperReconcileStep::AfterUpdateStatus);
 
     or_leads_to_combine_and_equality!(spec,
-        lift_state(at_step1_or_step2_state_pred(zookeeper, after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)),
-        lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(SubResource::StatefulSet))), lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
+        lift_state(at_step1_or_step2_state_pred(zookeeper, after_get_k_request_step(SubResource::VStatefulSetView), ZookeeperReconcileStep::Error)),
+        lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(SubResource::VStatefulSetView))), lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode),
-        at_step1_or_step2_closure(after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)
+        at_step1_or_step2_closure(after_get_k_request_step(SubResource::VStatefulSetView), ZookeeperReconcileStep::Error)
     );
 
     or_leads_to_combine_and_equality!(spec,
-        lift_state(at_step1_or_step2_state_pred(zookeeper, after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)),
-        lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(SubResource::StatefulSet))), lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
+        lift_state(at_step1_or_step2_state_pred(zookeeper, after_get_k_request_step(SubResource::VStatefulSetView), ZookeeperReconcileStep::Error)),
+        lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(SubResource::VStatefulSetView))), lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode),
-        at_step1_or_step2_closure(after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)
+        at_step1_or_step2_closure(after_get_k_request_step(SubResource::VStatefulSetView), ZookeeperReconcileStep::Error)
     );
 
     or_leads_to_combine_and_equality!(spec,
@@ -115,13 +115,13 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
     );
 
     or_leads_to_combine_and_equality!(spec,
-        lift_state(at_step1_or_step2_or_step3_state_pred(zookeeper, ZookeeperReconcileStep::AfterExistsZKNode, after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)),
-        lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::AfterExistsZKNode)), lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(SubResource::StatefulSet))), lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
+        lift_state(at_step1_or_step2_or_step3_state_pred(zookeeper, ZookeeperReconcileStep::AfterExistsZKNode, after_get_k_request_step(SubResource::VStatefulSetView), ZookeeperReconcileStep::Error)),
+        lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::AfterExistsZKNode)), lift_state(at_step_state_pred(zookeeper, after_get_k_request_step(SubResource::VStatefulSetView))), lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));
         lift_state(reconcile_idle)
     );
     ZKCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterExistsStatefulSet),
-        at_step1_or_step2_or_step3_closure(ZookeeperReconcileStep::AfterExistsZKNode, after_get_k_request_step(SubResource::StatefulSet), ZookeeperReconcileStep::Error)
+        at_step1_or_step2_or_step3_closure(ZookeeperReconcileStep::AfterExistsZKNode, after_get_k_request_step(SubResource::VStatefulSetView), ZookeeperReconcileStep::Error)
     );
 
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, zookeeper, SubResource::ConfigMap, ZookeeperReconcileStep::AfterExistsStatefulSet);
@@ -146,7 +146,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::AfterCreateZKParentNode)),
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::AfterCreateZKNode)),
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::AfterUpdateZKNode)),
-        lift_state(state_pred_regarding_sub_resource(zookeeper, SubResource::StatefulSet)),
+        lift_state(state_pred_regarding_sub_resource(zookeeper, SubResource::VStatefulSetView)),
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::AfterUpdateStatus)),
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Done)),
         lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error));

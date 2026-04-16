@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, predicate::*, helper_lemmas::*},
-    trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
+    trusted::{rely_guarantee::*, spec_types::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
     proof::liveness::rolling_update::predicate::*,
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
@@ -34,7 +34,7 @@ ensures
     vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_key_replicas_status.2 > 0,
     // nv_uid_key_replicas.1 (controller's choice) can be different from new_vrs_key when both vd and new_vrs have 0 replicas
     nv_uid_key_replicas_status.1 != new_vrs_key ==> nv_uid_key_replicas_status.2 == 0 && vd.spec.replicas.unwrap_or(1) == 0,
-    new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas_status, new_vrs_key)(s),
+    ru_new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas_status, new_vrs_key)(s),
 {
     lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
         vd, cluster, controller_id, new_vrs_key, s
@@ -176,10 +176,6 @@ ensures
             assert(false);
         }
     }
-    assert(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((new_vrs.metadata.uid->0, new_vrs.object_ref(), new_vrs.spec.replicas.unwrap_or(1))), nat0!())(s));
-    assert((|nv_uid_key_replicas: (Uid, ObjectRef, int)| new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, nv_uid_key_replicas.2)), nat0!())(s))(
-        (new_vrs_uid->0, new_vrs.object_ref(), new_vrs.spec.replicas.unwrap_or(1))
-    ));
     let status_replicas = if new_vrs.status is Some {
         Some(new_vrs.status->0.replicas)
     } else {
@@ -188,5 +184,4 @@ ensures
     return (new_vrs_uid->0, new_vrs.object_ref(), new_vrs.spec.replicas.unwrap_or(1), status_replicas);
 }
 
-    
 }

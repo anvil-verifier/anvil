@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::vstd_ext::string_view::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::trusted::{spec_types::*, step::*, util::*};
+use crate::vdeployment_controller::trusted::{spec_types::*, step::*, liveness_theorem as esr_theorem};
 use vstd::prelude::*;
 
 verus! {
@@ -89,7 +89,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none is None {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)));
+                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd)));
                     let state_prime = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
                         new_vrs: new_vrs,
@@ -143,7 +143,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             else if state.old_vrs_index > state.old_vrs_list.len() {
                 (error_state(state), None)
             }
-            else if !valid_owned_vrs(state.old_vrs_list[state.old_vrs_index - 1], vd) {
+            else if !esr_theorem::valid_owned_vrs(state.old_vrs_list[state.old_vrs_index - 1], vd) {
                 (error_state(state), None)
             } else {
                 scale_down_old_vrs(state, vd)
@@ -159,7 +159,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             else if state.old_vrs_index > state.old_vrs_list.len() {
                 (error_state(state), None)
             }
-            else if !valid_owned_vrs(state.old_vrs_list[state.old_vrs_index - 1], vd) {
+            else if !esr_theorem::valid_owned_vrs(state.old_vrs_list[state.old_vrs_index - 1], vd) {
                 (error_state(state), None)
             } else {
                 scale_down_old_vrs(state, vd)
@@ -256,14 +256,14 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
 //  scale new vrs to desired replicas
 pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = state.new_vrs->0;
-    let new_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
+    let updated_replicas = if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
         new_vrs.spec.replicas.unwrap_or(1) + 1
     } else {
         new_vrs.spec.replicas.unwrap_or(1) - 1
     };
     let new_vrs = VReplicaSetView {
         spec: VReplicaSetSpecView {
-            replicas: Some(new_replicas),
+            replicas: Some(updated_replicas),
             ..new_vrs.spec
         },
         ..new_vrs
@@ -307,6 +307,56 @@ pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeplo
         new_vrs: state.new_vrs
     };
     (state_prime, Some(RequestView::KRequest(req)))
+}
+
+// some util spec functions are moved here from model::reconciler
+// so we can share them with high-level specs and proofs for VD
+pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list: Option<Seq<VReplicaSetView>>) {
+    if objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() != 0 {
+        None
+    } else {
+        Some(objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()))
+    }
+}
+
+pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
+{
+    // first vrs that match template and has non-zero replicas
+    // non-zero replicas ensures the stability of esr
+    let reusable_vrs_list = vrs_list.filter(esr_theorem::match_template_without_hash(vd.spec.template));
+    // TODO: can be replaced with sort based on abs(replicas-vd.spec.replicas)
+    let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+    let reusable_vrs = if reusable_vrs_list.len() > 0 {
+        if reusable_vrs_list.filter(nonempty_vrs_filter).len() > 0 {
+            Some(reusable_vrs_list.filter(nonempty_vrs_filter).first())
+        } else {
+            Some(reusable_vrs_list.first())
+        }
+    } else {
+        None
+    };
+    let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
+        &&& reusable_vrs is None || vrs.metadata.uid != reusable_vrs->0.metadata.uid
+        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+    });
+    (reusable_vrs, old_vrs_list)
+}
+
+// Strip resource_version AND status for vrs_set identity stability.
+// When VD controller changes replicas via GetThenUpdate, or VRS controller changes status,
+// the mapped set remains the same.
+pub open spec fn vrs_with_no_rv_status(vrs: VReplicaSetView) -> VReplicaSetView {
+    VReplicaSetView {
+        metadata: vrs.metadata.without_resource_version(),
+        status: None,
+        ..vrs
+    }
+}
+
+pub open spec fn mismatch_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+    &&& vrs.spec.replicas == Some(0 as int) || // if it has 0 replicas, ignore ready status
+        (vrs.status is Some && vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1))
+    &&& vrs.spec.replicas.unwrap_or(1) != vd.spec.replicas.unwrap_or(1)
 }
 
 }

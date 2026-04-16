@@ -86,6 +86,7 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
         let mut metadata = found_secret.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_user_secret.metadata().labels().unwrap());
         metadata.set_annotations(made_user_secret.metadata().annotations().unwrap());
         metadata

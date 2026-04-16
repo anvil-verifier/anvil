@@ -25,7 +25,7 @@ pub open spec fn get_request(sub_resource: SubResource, zookeeper: ZookeeperClus
         SubResource::ClientService => ClientServiceBuilder::get_request(zookeeper),
         SubResource::AdminServerService => AdminServerServiceBuilder::get_request(zookeeper),
         SubResource::ConfigMap => ConfigMapBuilder::get_request(zookeeper),
-        SubResource::StatefulSet => StatefulSetBuilder::get_request(zookeeper),
+        SubResource::VStatefulSetView => StatefulSetBuilder::get_request(zookeeper),
     }
 }
 
@@ -35,7 +35,7 @@ pub open spec fn make(sub_resource: SubResource, zookeeper: ZookeeperClusterView
         SubResource::ClientService => ClientServiceBuilder::make(zookeeper, state),
         SubResource::AdminServerService => AdminServerServiceBuilder::make(zookeeper, state),
         SubResource::ConfigMap => ConfigMapBuilder::make(zookeeper, state),
-        SubResource::StatefulSet => StatefulSetBuilder::make(zookeeper, state),
+        SubResource::VStatefulSetView => StatefulSetBuilder::make(zookeeper, state),
     }
 }
 
@@ -45,7 +45,7 @@ pub open spec fn update(sub_resource: SubResource, zookeeper: ZookeeperClusterVi
         SubResource::ClientService => ClientServiceBuilder::update(zookeeper, state, obj),
         SubResource::AdminServerService => AdminServerServiceBuilder::update(zookeeper, state, obj),
         SubResource::ConfigMap => ConfigMapBuilder::update(zookeeper, state, obj),
-        SubResource::StatefulSet => StatefulSetBuilder::update(zookeeper, state, obj),
+        SubResource::VStatefulSetView => StatefulSetBuilder::update(zookeeper, state, obj),
     }
 }
 
@@ -57,7 +57,7 @@ pub open spec fn state_after_create(
         SubResource::ClientService => ClientServiceBuilder::state_after_create(zookeeper, obj, state),
         SubResource::AdminServerService => AdminServerServiceBuilder::state_after_create(zookeeper, obj, state),
         SubResource::ConfigMap => ConfigMapBuilder::state_after_create(zookeeper, obj, state),
-        SubResource::StatefulSet => StatefulSetBuilder::state_after_create(zookeeper, obj, state),
+        SubResource::VStatefulSetView => StatefulSetBuilder::state_after_create(zookeeper, obj, state),
     }
 }
 
@@ -69,7 +69,7 @@ pub open spec fn state_after_update(
         SubResource::ClientService => ClientServiceBuilder::state_after_update(zookeeper, obj, state),
         SubResource::AdminServerService => AdminServerServiceBuilder::state_after_update(zookeeper, obj, state),
         SubResource::ConfigMap => ConfigMapBuilder::state_after_update(zookeeper, obj, state),
-        SubResource::StatefulSet => StatefulSetBuilder::state_after_update(zookeeper, obj, state),
+        SubResource::VStatefulSetView => StatefulSetBuilder::state_after_update(zookeeper, obj, state),
     }
 }
 
@@ -78,7 +78,7 @@ pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectVi
         SubResource::ConfigMap => {
             validate_config_map_object(object)
         },
-        SubResource::StatefulSet => {
+        SubResource::VStatefulSetView => {
             &&& StatefulSetView::unmarshal(object) is Ok
             &&& StatefulSetView::unmarshal(object)->Ok_0.spec is Some
             &&& StatefulSetView::unmarshal(object)->Ok_0.spec->0.replicas is Some

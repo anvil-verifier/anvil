@@ -96,6 +96,13 @@ impl ServiceSpecView {
             ..self
         }
     }
+
+    pub open spec fn without_cluster_ip(self) -> ServiceSpecView {
+        ServiceSpecView {
+            cluster_ip: None,
+            ..self
+        }
+    }
 }
 
 pub struct ServicePortView {

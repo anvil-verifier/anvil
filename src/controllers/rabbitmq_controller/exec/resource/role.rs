@@ -86,6 +86,7 @@ pub fn update_role(rabbitmq: &RabbitmqCluster, found_role: Role) -> (role: Role)
         let mut metadata = found_role.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
+        metadata.unset_deletion_timestamp();
         metadata.set_labels(made_role.metadata().labels().unwrap());
         metadata.set_annotations(made_role.metadata().annotations().unwrap());
         metadata

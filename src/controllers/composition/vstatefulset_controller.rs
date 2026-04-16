@@ -11,8 +11,10 @@ use crate::vreplicaset_controller::{
 };
 use crate::vstatefulset_controller::model::{install::*, reconciler::*};
 use crate::vstatefulset_controller::proof::predicate::*;
-use crate::vstatefulset_controller::proof::{guarantee::*, liveness::spec::*};
-use crate::vstatefulset_controller::trusted::{liveness_theorem::*, rely::*, spec_types::*};
+use crate::vstatefulset_controller::proof::{
+    guarantee::*, liveness::spec::*, liveness::proof::lemma_vsts_eventually_stable_reconciliation,
+};
+use crate::vstatefulset_controller::trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -37,16 +39,12 @@ proof fn vsts_prefix_not_vrs_prefix(name: StringView)
     }
 }
 
-// Helper lemma: VRS and VD controllers have distinct IDs
-#[verifier(external_body)]
-proof fn vrs_id_ne_vd_id()
-    ensures VReplicaSetReconciler::id() != VDeploymentReconciler::id(),
-{}
+
 
 impl Composition for VStatefulSetReconciler {
     open spec fn c() -> ControllerSpec {
         ControllerSpec{
-            liveness_guarantee: vsts_eventually_stable_reconciliation(),
+            esr: vsts_eventually_stable_reconciliation(),
             liveness_dependency: true_pred(), // VSTS does not require assumptions of other controller's ESR
             safety_guarantee: always(lift_state(vsts_guarantee(Self::id()))),
             safety_partial_rely: |other_id: int| always(lift_state(vsts_rely(other_id))),
@@ -58,7 +56,7 @@ impl Composition for VStatefulSetReconciler {
         }
     }
 
-    uninterp spec fn id() -> int;
+    open spec fn id() -> int { 3 }
 
     open spec fn composed() -> Map<int, ControllerSpec> {
         Map::empty().insert(VReplicaSetReconciler::id(), VReplicaSetReconciler::c()).insert(VDeploymentReconciler::id(), VDeploymentReconciler::c())
@@ -87,9 +85,9 @@ impl Composition for VStatefulSetReconciler {
                 assert forall |msg| #[trigger] s.in_flight().contains(msg) && msg.content is APIRequest && msg.src.is_controller_id(VReplicaSetReconciler::id()) implies (
                     match msg.content->APIRequest_0 {
                         APIRequest::CreateRequest(req) => rely_create_req(req),
-                        APIRequest::UpdateRequest(req) => rely_update_req(req),
+                        APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
                         APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
-                        APIRequest::DeleteRequest(req) => rely_delete_req(req),
+                        APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
                         APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
                         _ => true,
                     }
@@ -110,7 +108,6 @@ impl Composition for VStatefulSetReconciler {
             };
         }
         assert(spec.entails(always(lift_state(vrs_guar)))) by {
-            vrs_id_ne_vd_id();
             assert(Self::composed()[VReplicaSetReconciler::id()] == VReplicaSetReconciler::c());
         }
         always_weaken(spec, lift_state(vrs_guar), lift_state(vsts_rely_vrs));
@@ -158,7 +155,6 @@ impl Composition for VStatefulSetReconciler {
         assert(Self::composed().contains_key(VDeploymentReconciler::id())); // trigger
         assert(lift_state(vsts_guar).and(lift_state(vd_guar)).entails(lift_state(vsts_rely_vd).and(lift_state(vd_rely_vsts))));
         assert(spec.entails(always(lift_state(vd_guar)))) by {
-            vrs_id_ne_vd_id();
             assert(Self::composed()[VDeploymentReconciler::id()] == VDeploymentReconciler::c());
         }
         entails_and_temp(spec, always(lift_state(vsts_guar)), always(lift_state(vd_guar)));
@@ -177,10 +173,12 @@ impl Composition for VStatefulSetReconciler {
 }
 
 impl HorizontalComposition for VStatefulSetReconciler {
-    proof fn liveness_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
-        ensures spec.entails(Self::c().liveness_guarantee),
+    proof fn esr_holds(spec: TempPred<ClusterState>, cluster: Cluster)
+        ensures spec.entails(Self::c().esr),
     {
-        assume(false);
+        // after composition framework is redo, fix this
+        assume(spec.entails(always(lift_state(vsts_rely_conditions_pod_monkey()))));
+        lemma_vsts_eventually_stable_reconciliation(spec, cluster, Self::id());
     }
 }
 

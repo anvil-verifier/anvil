@@ -13,6 +13,16 @@ cap_controllers = {
     "rabbitmq": "RabbitMQ controller",
 }
 
+LOC_COLUMNS = [
+    "trusted_spec",
+    "trusted_unverified",
+    "exec",
+    "model",
+    "proof_guarantee",
+    "core_esr",
+    "conformance_proof",
+]
+
 
 def gen_for_anvil():
     table = []
@@ -23,19 +33,18 @@ def gen_for_anvil():
     anvil_loc_data = json.load(open("anvil-loc.json"))
     anvil_raw_data = json.load(open("{}/anvil.json".format(verus_lc_dir)))
 
-    table.append(["Anvil", "", "", "", ""])
+    table.append(["Anvil", "", "", "", "", "", ""])
     table.append(
         [
             indent + "Lemmas",
             "--",
             "--",
+            "--",
+            "--",
+            "--",
             str(
                 anvil_loc_data["k8s_lemma_lines"]["Proof"]
                 + anvil_loc_data["tla_lemma_lines"]["Proof"]
-            ),
-            "{} ({})".format(
-                anvil_raw_data["times-ms"]["total-verify"] / 1000,
-                anvil_raw_data["times-ms"]["total"] / 1000,
             ),
         ]
     )
@@ -43,6 +52,8 @@ def gen_for_anvil():
         [
             indent + "TLA embedding",
             str(anvil_loc_data["tla_embedding_lines"]["Trusted"]),
+            "--",
+            "--",
             "--",
             "--",
             "--",
@@ -55,12 +66,16 @@ def gen_for_anvil():
             "--",
             "--",
             "--",
+            "--",
+            "--",
         ]
     )
     table.append(
         [
             indent + "Object view",
             str(anvil_loc_data["object_model_lines"]["Trusted"]),
+            "--",
+            "--",
             "--",
             "--",
             "--",
@@ -73,11 +88,15 @@ def gen_for_anvil():
             "--",
             "--",
             "--",
+            "--",
+            "--",
         ]
     )
     table.append(
         [
             indent + "Shim layer",
+            "--",
+            "--",
             str(anvil_loc_data["other_lines"]["Exec"]),
             "--",
             "--",
@@ -85,6 +104,19 @@ def gen_for_anvil():
         ]
     )
     return table
+
+
+DISPLAY_COLUMNS = ["trusted_spec", "trusted_unverified", "exec", "conformance_proof", "model"]
+
+
+def make_display_row(label, loc_data):
+    """Build a display row: 5 base columns + Core (guarantee + core_esr) + ESR (core_esr)."""
+    row = [label]
+    for col in DISPLAY_COLUMNS:
+        row.append(str(loc_data[col]))
+    row.append(str(loc_data["proof_guarantee"] + loc_data["core_esr"]))
+    row.append(str(loc_data["core_esr"]))
+    return row
 
 
 def gen_for_controller(controller):
@@ -95,163 +127,31 @@ def gen_for_controller(controller):
             verus_lc_dir, controller, controller
         )
     )
-    os.system("python3 count-time.py {}/{}.json {}".format(verus_lc_dir, controller, controller))
     loc_data = json.load(open("{}-loc.json".format(controller)))
-    time_data = json.load(open("{}-time.json".format(controller)))
-    raw_data = json.load(open("{}/{}.json".format(verus_lc_dir, controller)))
-
-    total = {"Trusted": 0, "Exec": 0, "Proof": 0, "Time": 0, "TimeParallel": 0}
-
-    table.append([cap_controllers[controller], "", "", "", ""])
-    table.append(
-        [
-            indent + "Liveness",
-            str(loc_data["liveness_theorem"]["Trusted"]),
-            "--",
-            str(loc_data["liveness_proof"]["Proof"]),
-            str(time_data["Liveness"] / 1000),
-        ]
-    )
-    total["Trusted"] += loc_data["liveness_theorem"]["Trusted"]
-    total["Proof"] += loc_data["liveness_proof"]["Proof"]
-
-    if controller == "rabbitmq":
-        table.append(
-            [
-                indent + "Safety",
-                str(loc_data["safety_theorem"]["Trusted"]),
-                "--",
-                str(loc_data["safety_proof"]["Proof"]),
-                str(time_data["Safety"] / 1000),
-            ]
-        )
-        total["Trusted"] += loc_data["safety_theorem"]["Trusted"]
-        total["Proof"] += loc_data["safety_proof"]["Proof"]
-
-    table.append(
-        [
-            indent + "Conformance",
-            str(5),
-            "--",
-            str(loc_data["reconcile_impl"]["Proof"] - 5),
-            str(time_data["Impl"] / 1000),
-        ]
-    )
-    total["Trusted"] += 5
-    total["Proof"] += loc_data["reconcile_impl"]["Proof"] - 5
-
-    table.append(
-        [
-            indent + "Controller model",
-            "--",
-            "--",
-            str(loc_data["reconcile_model"]["Proof"]),
-            "--",
-        ]
-    )
-    total["Proof"] += loc_data["reconcile_model"]["Proof"]
-
-    table.append(
-        [
-            indent + "Controller impl",
-            "--",
-            str(
-                loc_data["reconcile_model"]["Exec"] + loc_data["reconcile_impl"]["Exec"]
-            ),
-            "--",
-            "--",
-        ]
-    )
-    total["Exec"] += (
-        loc_data["reconcile_model"]["Exec"] + loc_data["reconcile_impl"]["Exec"]
-    )
-
-    table.append(
-        [
-            indent + "Trusted wrapper",
-            str(loc_data["wrapper"]["Trusted"]),
-            "--",
-            "--",
-            "--",
-        ]
-    )
-    total["Trusted"] += loc_data["wrapper"]["Trusted"]
-
-
-
-    table.append(
-        [
-            indent + "Trusted entry point",
-            str(loc_data["entry"]["Trusted"]),
-            "--",
-            "--",
-            "--",
-        ]
-    )
-    total["Trusted"] += loc_data["entry"]["Trusted"]
-
-    total["Time"] = time_data["Total"]
-    total["TimeParallel"] = raw_data["times-ms"]["total"]
-
-    table.append(
-        [
-            indent + "Total",
-            str(total["Trusted"]),
-            str(total["Exec"]),
-            str(total["Proof"]),
-            "{} ({})".format(total["Time"] / 1000, total["TimeParallel"] / 1000),
-        ]
-    )
-    return total, table
+    table.append(make_display_row(cap_controllers[controller], loc_data))
+    return loc_data, table
 
 
 def gen_for_composition(base_controller):
     """Generate composition proof stats using any controller's loc table that includes composition files."""
     table = []
     verus_lc_dir = os.path.join(os.environ["VERUS_DIR"], "source/tools/line_count")
-    # Use the base_controller's loc table to extract composition lines
     os.system(
         "python3 count-loc.py {}/{}_loc_table composition".format(
             verus_lc_dir, base_controller
         )
     )
-    os.system("python3 count-time.py {}/{}.json composition".format(verus_lc_dir, base_controller))
     loc_data = json.load(open("composition-loc.json"))
-    time_data = json.load(open("composition-time.json"))
-    raw_data = json.load(open("{}/{}.json".format(verus_lc_dir, base_controller)))
-
-    total = {"Trusted": 0, "Exec": 0, "Proof": 0, "Time": 0, "TimeParallel": 0}
-
-    table.append(["Composition proofs", "", "", "", ""])
-    table.append(
-        [
-            indent + "Composition proof",
-            "--",
-            str(loc_data["composition_proof"]["Exec"]),
-            str(loc_data["composition_proof"]["Proof"]),
-            str(time_data["Composition"] / 1000),
-        ]
-    )
-    total["Proof"] += loc_data["composition_proof"]["Proof"]
-    total["Exec"] += loc_data["composition_proof"]["Exec"]
-    total["Time"] = time_data["Composition"]
-    total["TimeParallel"] = raw_data["times-ms"]["total"]
-
-    table.append(
-        [
-            indent + "Total",
-            str(total["Trusted"]),
-            str(total["Exec"]),
-            str(total["Proof"]),
-            "{} ({})".format(total["Time"] / 1000, total["TimeParallel"] / 1000),
-        ]
-    )
-    return total, table
+    row = make_display_row("Composition proofs", loc_data)
+    row[4] = "--"  # conformance_proof not applicable for composition
+    row[7] = "--"  # ESR not applicable for composition
+    table.append(row)
+    return loc_data, table
 
 
 def main():
     table = []
-    controllers = ["vdeployment", "vreplicaset", "vstatefulset", "rabbitmq"]
+    controllers = ["vreplicaset", "vdeployment", "vstatefulset", "rabbitmq"]
     totals = {}
     for controller in controllers:
         totals[controller], controller_table = gen_for_controller(controller)
@@ -259,27 +159,29 @@ def main():
     # Use esr_composition's loc table which includes all composition files
     totals["composition"], composition_table = gen_for_composition("esr_composition")
     table += composition_table
+
+    # Grand totals row
     all_keys = controllers + ["composition"]
-    table.append(
-        [
-            "Total(all)",
-            str(sum(totals[c]["Trusted"] for c in all_keys)),
-            str(sum(totals[c]["Exec"] for c in all_keys)),
-            str(sum(totals[c]["Proof"] for c in all_keys)),
-            "{} ({})".format(
-                sum(totals[c]["Time"] for c in all_keys) / 1000,
-                sum(totals[c]["TimeParallel"] for c in all_keys) / 1000,
-            ),
-        ]
-    )
+    grand = {col: sum(totals[c][col] for c in all_keys) for col in LOC_COLUMNS}
+    grand = make_display_row("Total(all)", grand)
+    # fold model into core; total = model + core proof; ESR n/a
+    total_cnt = int(grand[5]) + int(grand[6])
+    grand[5] = "--"
+    grand[6] = str(total_cnt)
+    grand[7] = "--"
+    table.append(grand)
+
     if print_anvil:
         table += gen_for_anvil()
     headers = [
         "",
-        "Trusted (LoC)",
-        "Exec (LoC)",
-        "Proof (LoC)",
-        "Time to Verify (seconds)",
+        "Trusted Spec",
+        "Trusted Unverified",
+        "Exec",
+        "Conformance Proof",
+        "Model",
+        "Core",
+        "ESR",
     ]
     print(tabulate(table, headers, tablefmt="github"))
 

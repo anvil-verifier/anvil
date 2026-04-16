@@ -10,7 +10,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, predicate::*, guarantee::*},
-    trusted::{rely::*, spec_types::*,  liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
+    trusted::{rely_guarantee::*, spec_types::*,  liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
@@ -207,6 +207,53 @@ ensures
         assert(name == VStatefulSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
         assert(has_vsts_prefix(name));
     }
+}
+
+pub proof fn vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+    ensures
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))))
+        <==>
+            spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id)))),
+{
+    let lhs =
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vsts_rely(other_id)))));
+    let rhs = spec.entails(always(lift_state(vsts_rely_conditions(cluster, controller_id))));
+
+    assert_by(
+        lhs ==> rhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                lhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies vsts_rely(other_id)(ex.suffix(n).head()) by {
+                assert(valid(spec.implies(always(lift_state(vsts_rely(other_id))))));
+                assert(spec.implies(always(lift_state(vsts_rely(other_id)))).satisfied_by(ex));
+                assert(always(lift_state(vsts_rely(other_id))).satisfied_by(ex));
+                assert(lift_state(vsts_rely(other_id)).satisfied_by(ex.suffix(n)));
+            }
+        }
+    );
+
+    assert_by(
+        rhs ==> lhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                rhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies vsts_rely(other_id)(ex.suffix(n).head()) by {
+                assert(valid(spec.implies(always(lift_state(vsts_rely_conditions(cluster, controller_id))))));
+                assert(spec.implies(always(lift_state(vsts_rely_conditions(cluster, controller_id)))).satisfied_by(ex));
+                assert(always(lift_state(vsts_rely_conditions(cluster, controller_id))).satisfied_by(ex));
+                assert(lift_state(vsts_rely_conditions(cluster, controller_id)).satisfied_by(ex.suffix(n)));
+            }
+        }
+    );
 }
 
 }

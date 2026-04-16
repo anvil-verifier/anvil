@@ -939,19 +939,21 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
         // &&& outdated_obj_keys_in_etcd(s, vsts).len() == 0
         &&& s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) ==> {
             let local_state =  VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-            // weaker version of local state is valid
-            // so at UpdateNeeded step the request will not break current_state_matches
-            &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < local_state.needed.len() ==> {
-                let needed_pod = local_state.needed[ord as int]->0;
-                &&& local_state.needed[ord as int] is Some
-                &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
-                &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
-                &&& pod_spec_matches(vsts, needed_pod)
-                &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+            &&& local_state.reconcile_step != Done ==> { // make it reachable from final step
+                // weaker version of local state is valid
+                // so at UpdateNeeded step the request will not break current_state_matches
+                &&& forall |ord: nat| #![trigger local_state.needed[ord as int]->0] ord < local_state.needed.len() ==> {
+                    let needed_pod = local_state.needed[ord as int]->0;
+                    &&& local_state.needed[ord as int] is Some
+                    &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
+                    &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
+                    &&& pod_spec_matches(vsts, needed_pod)
+                    &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+                }
+                &&& local_state.needed_index <= replicas(vsts)
+                &&& local_state.condemned.len() == 0
+                &&& !locally_at_step_or!(local_state, Init, AfterListPod) ==> local_state.needed.len() == replicas(vsts)
             }
-            &&& local_state.needed_index <= replicas(vsts)
-            &&& local_state.condemned.len() == 0
-            &&& !locally_at_step_or!(local_state, Init, AfterListPod) ==> local_state.needed.len() == replicas(vsts)
             &&& at_vsts_step(vsts, controller_id, at_step_or![Init, AfterListPod, GetPVC, AfterGetPVC, CreatePVC, AfterCreatePVC, SkipPVC, UpdateNeeded, AfterUpdateNeeded, DeleteOutdated, Done, Error])(s)
             &&& match local_state.reconcile_step {
                 AfterListPod => {

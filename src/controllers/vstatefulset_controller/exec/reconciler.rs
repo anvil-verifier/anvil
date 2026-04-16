@@ -15,6 +15,7 @@ use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::reconciler as trusted_reconciler,
+    vstatefulset_controller::trusted::liveness_theorem as liveness_theorem,
     vstatefulset_controller::trusted::step::*, vstd_ext::string_view::usize_to_string,
 };
 use vstd::{prelude::*, seq_lib::*};
@@ -912,19 +913,40 @@ pub fn make_pod(vsts: &VStatefulSet, ordinal: usize) -> (pod: Pod)
     update_storage(vsts, init_identity(vsts, pod, ordinal), ordinal)
 }
 
-// TODO: finish implementing this
-#[verifier(external_body)]
 pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (result: Pod)
     requires
         vsts@.well_formed(),
     ensures
         result@ == model_reconciler::update_storage(vsts@, pod@, ordinal as nat),
 {
+    if pod.spec().is_none() {
+        return pod;
+    }
+
     let pvcs = make_pvcs(vsts, ordinal as usize);
     let current_volumes = if pod.spec().unwrap().volumes().is_some() {
         pod.spec().unwrap().volumes().unwrap()
     } else {
         Vec::new()
+    };
+
+    let ghost spec_pvcs = model_reconciler::make_pvcs(vsts@, ordinal as nat);
+    let ghost spec_templates = if vsts@.spec.volume_claim_templates is Some {
+        vsts@.spec.volume_claim_templates->0
+    } else {
+        Seq::empty()
+    };
+    let ghost new_volumes_spec = if vsts@.spec.volume_claim_templates is Some {
+        Seq::new(spec_templates.len(), |i: int| VolumeView {
+            name: spec_templates[i].metadata.name->0,
+            persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+                claim_name: spec_pvcs[i].metadata.name->0,
+                read_only: Some(false),
+            }),
+            ..VolumeView::default()
+        })
+    } else {
+        Seq::empty()
     };
 
     let (mut new_volumes, templates) = if vsts.spec().volume_claim_templates().is_some() {
@@ -934,35 +956,134 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (res
         for i in 0..len
             invariant
                 vsts@.well_formed(),
-                new_volumes.deep_view() == new_volumes_spec.take(i)
+                vsts@.spec.volume_claim_templates is Some,
+                spec_templates == vsts@.spec.volume_claim_templates->0,
+                pvcs.deep_view() == spec_pvcs,
+                pvcs.deep_view().len() == len,
+                templates.deep_view() == spec_templates,
+                len == spec_templates.len(),
+                spec_pvcs.len() == len,
+                spec_pvcs == Seq::new(spec_templates.len(), |j: int| model_reconciler::make_pvc(vsts@, ordinal as nat, j)),
+                new_volumes_spec == Seq::new(spec_templates.len(), |j: int| VolumeView {
+                    name: spec_templates[j].metadata.name->0,
+                    persistent_volume_claim: Some(PersistentVolumeClaimVolumeSourceView {
+                        claim_name: spec_pvcs[j].metadata.name->0,
+                        read_only: Some(false),
+                    }),
+                    ..VolumeView::default()
+                }),
+                new_volumes.deep_view() == new_volumes_spec.take(i as int),
         {
             proof {
-                // this satisfies a trigger in the vsts's state_validation saying that all volume_claim_templates are valid
-                assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+                assert(spec_pvcs[i as int].metadata.name is Some) by {
+                    assert(spec_pvcs[i as int] == model_reconciler::make_pvc(vsts@, ordinal as nat, i as int));
+                }
+                assert(spec_templates[i as int].metadata.name is Some) by {
+                    assert(vsts@.spec.volume_claim_templates->0[i as int].state_validation());
+                }
             }
             let mut vol = Volume::default();
-            vol.set_name(templates[i].metadata().name().unwrap());
+            let vol_name = templates[i].metadata().name().unwrap();
+            vol.set_name(vol_name);
             let mut pvc = PersistentVolumeClaimVolumeSource::default();
-            pvc.set_claim_name(pvcs[i].metadata().name().unwrap());
+            let pvc_claim_name = pvcs[i].metadata().name().unwrap();
+            pvc.set_claim_name(pvc_claim_name);
             pvc.set_read_only(false);
             vol.set_persistent_volume_claim_source(pvc);
+            proof {
+                assert(vol@ == new_volumes_spec[i as int]);
+                assert(new_volumes_spec.take(i + 1) == new_volumes_spec.take(i as int).push(new_volumes_spec[i as int]));
+            }
             new_volumes.push(vol);
+        }
+        proof {
+            assert(new_volumes.deep_view() == new_volumes_spec) by {
+                assert(new_volumes_spec.take(len as int) == new_volumes_spec);
+            }
         }
         (new_volumes, templates)
     } else {
         (Vec::new(), Vec::new())
     };
 
-    let mut filtered_current_volumes = Vec::new();
-    for i in 0..current_volumes.len() {
-        let vol = &current_volumes[i];
-        if templates.iter().all(|template: &PersistentVolumeClaim| vol.name() != template.metadata().name().unwrap()) {
-            filtered_current_volumes.push(vol.clone());
+    let ghost spec_current_volumes = if pod@.spec->0.volumes is Some {
+        pod@.spec->0.volumes->0
+    } else {
+        Seq::<VolumeView>::empty()
+    };
+    proof {
+        assert(forall|k: int| #![trigger spec_templates[k]] 0 <= k < spec_templates.len() ==> spec_templates[k].metadata.name is Some) by {
+            if vsts@.spec.volume_claim_templates is Some {
+                assert forall|k: int| 0 <= k < spec_templates.len() implies #[trigger] spec_templates[k].metadata.name is Some by {
+                    assert(vsts@.spec.volume_claim_templates->0[k].state_validation());
+                }
+            }
         }
     }
 
+    let mut filtered_current_volumes: Vec<Volume> = Vec::new();
+    for i in 0..current_volumes.len()
+        invariant
+            i <= current_volumes.len(),
+            current_volumes.deep_view() == spec_current_volumes,
+            templates.deep_view() == spec_templates,
+            vsts@.well_formed(),
+            forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some,
+            filtered_current_volumes.deep_view() == spec_current_volumes.take(i as int).filter(model_reconciler::volume_filter(spec_templates)),
+    {
+        let vol = &current_volumes[i];
+        let mut keep = true;
+        let ghost vol_name = spec_current_volumes[i as int].name;
+        for j in 0..templates.len()
+            invariant
+                keep == (forall|k: int| #![trigger spec_templates[k]] 0 <= k < j ==> vol_name != spec_templates[k].metadata.name->0),
+                templates.deep_view() == spec_templates,
+                forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some,
+                i < current_volumes.len(),
+                current_volumes.deep_view() == spec_current_volumes,
+                vol@ == spec_current_volumes[i as int],
+                vol_name == spec_current_volumes[i as int].name,
+        {
+            let name_matches = vol.name() == templates[j].metadata().name().unwrap();
+            if name_matches { keep = false; }
+            proof {
+                assert(name_matches == (vol_name == spec_templates[j as int].metadata.name->0));
+            }
+        }
+        if keep { filtered_current_volumes.push(vol.clone()); }
+        proof {
+            let old_filtered = if model_reconciler::volume_filter(spec_templates)(spec_current_volumes[i as int]) {
+                filtered_current_volumes.deep_view().drop_last()
+            } else {
+                filtered_current_volumes.deep_view()
+            };
+            lemma_filter_push(spec_current_volumes.take(i as int), model_reconciler::volume_filter(spec_templates), spec_current_volumes[i as int]);
+            assert(spec_current_volumes.take(i as int).push(spec_current_volumes[i as int]) == spec_current_volumes.take(i + 1));
+        }
+    }
+    proof {
+        assert(spec_current_volumes.take(current_volumes.len() as int) == spec_current_volumes);
+    }
+
+    let ghost original_pod = pod@;
+    let filtered_len = filtered_current_volumes.len();
+    for k in 0..filtered_len
+        invariant
+            k <= filtered_len,
+            filtered_len == filtered_current_volumes.len(),
+            new_volumes.deep_view() == new_volumes_spec.add(filtered_current_volumes.deep_view().take(k as int)),
+            filtered_current_volumes.deep_view() == spec_current_volumes.filter(model_reconciler::volume_filter(spec_templates)),
+    {
+        new_volumes.push(filtered_current_volumes[k].clone());
+        proof {
+            assert(new_volumes_spec.add(filtered_current_volumes.deep_view().take(k + 1))
+                == new_volumes_spec.add(filtered_current_volumes.deep_view().take(k as int)).push(filtered_current_volumes.deep_view()[k as int]));
+        }
+    }
+    proof {
+        assert(filtered_current_volumes.deep_view().take(filtered_len as int) == filtered_current_volumes.deep_view());
+    }
     let mut old_spec = pod.spec().unwrap();
-    new_volumes.extend(filtered_current_volumes);
     old_spec.set_volumes(new_volumes);
     pod.set_spec(old_spec);
     pod
@@ -1455,7 +1576,7 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
 
 pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
     ensures
-        result@ == model_reconciler::pod_name(parent_name@, ordinal as nat),
+        result@ == liveness_theorem::pod_name(parent_name@, ordinal as nat),
 {
     // we don't have executable CustomResource kind, hardcoded as a temporary solution
     let prefix = "vstatefulset".to_string().concat("-"); // "vstatefulset-" fails proof
@@ -1482,7 +1603,7 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
 // and the real Kubernetes API server
 pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
-    ensures res == model_reconciler::pod_spec_matches(vsts@, pod@)
+    ensures res == liveness_theorem::pod_spec_matches(vsts@, pod@)
 {
     if let Some(mut spec) = pod.spec() {
         let mut vsts_spec = vsts.spec().template().spec().unwrap();

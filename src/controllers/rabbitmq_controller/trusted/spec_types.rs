@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
+use crate::vstatefulset_controller::trusted::spec_types::{StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -56,6 +57,9 @@ impl RabbitmqClusterView {
     #[verifier(inline)]
     pub open spec fn _state_validation(self) -> bool {
         &&& self.spec.replicas >= 0
+        // Template labels must not contain reserved StatefulSet labels
+        &&& !self.spec.labels.contains_key(StatefulSetPodNameLabel)
+        &&& !self.spec.labels.contains_key(StatefulSetOrdinalLabel)
     }
 
     #[verifier(inline)]

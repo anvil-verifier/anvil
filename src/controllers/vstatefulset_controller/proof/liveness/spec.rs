@@ -14,10 +14,14 @@ use crate::kubernetes_cluster::{
 use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
-    model::{install::*, reconciler::*},
-    proof::{guarantee, helper_invariants, helper_lemmas::*, liveness::*, predicate::*},
+    model::{
+        install::*, reconciler::*
+    },
+    proof::{
+        internal_rely_guarantee, helper_invariants, helper_lemmas::*, liveness::*, predicate::*
+    },
     trusted::{
-        liveness_theorem::*, rely::*, spec_types::*, step::VStatefulSetReconcileStepView::*,
+        liveness_theorem::*, rely_guarantee::*, spec_types::*, step::VStatefulSetReconcileStepView::*,
         step::*,
     },
 };
@@ -65,135 +69,87 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     );
 }
 
-pub open spec fn vsts_cluster_invariants(
-    vsts: VStatefulSetView, cluster: Cluster, controller_id: int
-) -> StatePred<ClusterState> {
-    // General cluster invariants
-    and!(
-    Cluster::crash_disabled(controller_id),
-    Cluster::req_drop_disabled(),
-    Cluster::pod_monkey_disabled(),
-    Cluster::every_in_flight_msg_has_unique_id(),
-    Cluster::every_in_flight_msg_has_lower_id_than_allocator(),
-    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id),
-    Cluster::each_object_in_etcd_is_weakly_well_formed(),
-    Cluster::etcd_objects_have_unique_uids(),
-    cluster.each_builtin_object_in_etcd_is_well_formed(),
-    cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(),
-    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id),
-    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
-    Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
-    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id),
-    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id),
-    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id),
-    Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id),
-    Cluster::ongoing_reconciles_is_finite(controller_id),
-    Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id),
-    Cluster::etcd_is_finite(),
-    Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()),
-    Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id),
-    Cluster::no_pending_request_to_api_server_from_non_controllers(),
-    Cluster::desired_state_is(vsts),
-    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
-    guarantee::vsts_internal_guarantee_conditions(controller_id),
-    vsts_rely_conditions(cluster, controller_id)
-    )
-}
-
-// Same as vsts_cluster_invariants but without the rely condition
-pub open spec fn vsts_cluster_invariants_without_rely(
-    vsts: VStatefulSetView, cluster: Cluster, controller_id: int
-) -> StatePred<ClusterState> {
-    and!(
-    Cluster::crash_disabled(controller_id),
-    Cluster::req_drop_disabled(),
-    Cluster::pod_monkey_disabled(),
-    Cluster::every_in_flight_msg_has_unique_id(),
-    Cluster::every_in_flight_msg_has_lower_id_than_allocator(),
-    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id),
-    Cluster::each_object_in_etcd_is_weakly_well_formed(),
-    Cluster::etcd_objects_have_unique_uids(),
-    cluster.each_builtin_object_in_etcd_is_well_formed(),
-    cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(),
-    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id),
-    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
-    Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
-    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id),
-    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id),
-    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id),
-    Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id),
-    Cluster::ongoing_reconciles_is_finite(controller_id),
-    Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id),
-    Cluster::etcd_is_finite(),
-    Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()),
-    Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id),
-    Cluster::no_pending_request_to_api_server_from_non_controllers(),
-    Cluster::desired_state_is(vsts),
-    Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref()),
-    guarantee::vsts_internal_guarantee_conditions(controller_id)
-    )
-}
-
 // Pending request invariants for all reconcile states
 pub open spec fn pending_request_invariants(cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))))
+    tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))))
+    .and(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))
 }
 
-pub proof fn pending_request_invariants_is_stable(cluster: Cluster, controller_id: int)
-    ensures valid(stable(pending_request_invariants(cluster, controller_id))),
+pub proof fn spec_entails_pending_request_invariants_combine(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))),
+    ensures
+        spec.entails(always(pending_request_invariants(cluster, controller_id))),
 {
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))));
-    stable_and_n!(
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))
+    
+    let a_to_p_1  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])));
+    let a_to_p_2  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)));
+    let a_to_p_3  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
+    let a_to_p_4  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])));
+    let a_to_p_5  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])));
+    let a_to_p_6  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])));
+    let a_to_p_7  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])));
+    let a_to_p_8  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])));
+    let a_to_p_9  = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])));
+    let a_to_p_10 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])));
+    let a_to_p_11 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])));
+    let a_to_p_12 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])));
+    let a_to_p_13 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])));
+    let a_to_p_14 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])));
+    let a_to_p_15 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])));
+    let a_to_p_16 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])));
+    let a_to_p_17 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])));
+    combine_spec_entails_always_n!(spec,
+        pending_request_invariants(cluster, controller_id),
+        a_to_p_1,
+        a_to_p_2,
+        a_to_p_3,
+        a_to_p_4,
+        a_to_p_5,
+        a_to_p_6,
+        a_to_p_7,
+        a_to_p_8,
+        a_to_p_9,
+        a_to_p_10,
+        a_to_p_11,
+        a_to_p_12,
+        a_to_p_13,
+        a_to_p_14,
+        a_to_p_15,
+        a_to_p_16,
+        a_to_p_17
     );
 }
 
@@ -221,24 +177,85 @@ pub open spec fn derived_invariants_since_beginning(vsts: VStatefulSetView, clus
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))))
-    .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))))
-    .and(always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id))))
+    .and(always(pending_request_invariants(cluster, controller_id)))
+    .and(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))))
+    // Additional invariants needed by cluster_invariants_since_reconciliation
+    .and(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())))
+    .and(always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())))
+    .and(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())))
+    .and(always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))))
+    .and(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))))
+    .and(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts))))
+}
+
+pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::etcd_objects_have_unique_uids()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
+        spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+        spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)))),
+        spec.entails(always(pending_request_invariants(cluster, controller_id))),
+        spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+        spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
+        spec.entails(always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()))),
+        spec.entails(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()))),
+        spec.entails(always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
+    ensures
+        spec.entails(derived_invariants_since_beginning(vsts, cluster, controller_id)),
+{
+    let a_to_p = |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()));
+    entails_and_n!(spec,
+        always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
+        always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))),
+        always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())),
+        always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
+        always(lift_state(Cluster::etcd_objects_have_unique_uids())),
+        always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
+        always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())),
+        always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))),
+        always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
+        always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())),
+        always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id))),
+        always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))),
+        always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))),
+        always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
+        always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))),
+        always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))),
+        always(lift_state(Cluster::etcd_is_finite())),
+        always(tla_forall(a_to_p)),
+        always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
+        always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
+        always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
+        always(pending_request_invariants(cluster, controller_id)),
+        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())),
+        always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())),
+        always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))),
+        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))),
+        always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
+    );
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
@@ -266,24 +283,14 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))));
-    always_p_is_stable(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)));
+    always_p_is_stable(pending_request_invariants(cluster, controller_id));
+    always_p_is_stable(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)));
+    always_p_is_stable(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
+    always_p_is_stable(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()));
+    always_p_is_stable(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()));
+    always_p_is_stable(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id)));
+    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)));
+    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)));
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
         always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
@@ -307,24 +314,14 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
         always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
         always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])))),
-        always(lift_state(guarantee::vsts_internal_guarantee_conditions(controller_id)))
+        always(pending_request_invariants(cluster, controller_id)),
+        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))),
+        always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
+        always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())),
+        always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())),
+        always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))),
+        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))),
+        always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
     );
 }
 
@@ -344,11 +341,14 @@ pub proof fn invariants_is_stable(vsts: VStatefulSetView, cluster: Cluster, cont
     );
 }
 
-// Phase I: crash, req_drop, and pod_monkey disabled
+// Phase I: crash, req_drop, pod_monkey disabled, schedule_has_spec, schedule_has_name_namespace, schedule_has_no_deletion_timestamp
 pub open spec fn invariants_since_phase_i(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState> {
     always(lift_state(Cluster::crash_disabled(controller_id)))
     .and(always(lift_state(Cluster::req_drop_disabled())))
     .and(always(lift_state(Cluster::pod_monkey_disabled())))
+    .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts))))
+    .and(always(lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
+    .and(always(lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VStatefulSetView)
@@ -357,36 +357,93 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VState
     stable_and_always_n!(
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled())
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
+        lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))
     );
 }
 
-// Phase II: no pending requests from non-controllers and pending req in flight xor resp in flight
+// Phase II: reconcile_has_spec, no pending requests from non-controllers, pending req xor, reconcile_has_name_namespace, ongoing_reconciles_has_no_deletion_timestamp
 pub open spec fn invariants_since_phase_ii(controller_id: int, vsts: VStatefulSetView) -> TempPred<ClusterState>
 {
-    always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))
+    always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)))
+    .and(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref()))))
+    .and(always(lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id))))
+    .and(always(lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))))
 }
 
 pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vsts: VStatefulSetView)
     ensures valid(stable(invariants_since_phase_ii(controller_id, vsts))),
 {
     stable_and_always_n!(
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref()))
+        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref())),
+        lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
+        lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))
     );
 }
 
-// Phase III: every msg from key is pending req msg
+// Phase III: every msg from key is pending req msg, all pod requests carry correct owner ref
 pub open spec fn invariants_since_phase_iii(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
     always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())))
+    .and(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(helper_invariants::all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))))
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iii(vsts, cluster, controller_id))),
 {
-    always_p_is_stable(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())));
+    stable_and_always_n!(
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(helper_invariants::all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))
+    );
+}
+
+// Phase IV: 3 message-type owner ref invariants + builtin_controllers_do_not_delete_pods_owned_by_vsts
+pub open spec fn invariants_since_phase_iv(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    )))
+    .and(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    ))))
+    .and(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    ))))
+    .and(always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))))
+}
+
+pub proof fn invariants_since_phase_iv_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_iv(vsts, cluster, controller_id))),
+{
+    stable_and_always_n!(
+        lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
+            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        )),
+        lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))
+    );
+}
+
+// Phase V: all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
+pub open spec fn invariants_since_phase_v(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)))
+}
+
+pub proof fn invariants_since_phase_v_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_v(vsts, cluster, controller_id))),
+{
+    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)));
 }
 
 // The combination of invariants and all phases
@@ -396,26 +453,32 @@ pub open spec fn assumption_and_invariants_of_all_phases(vsts: VStatefulSetView,
     .and(invariants_since_phase_i(controller_id, vsts))
     .and(invariants_since_phase_ii(controller_id, vsts))
     .and(invariants_since_phase_iii(vsts, cluster, controller_id))
+    .and(invariants_since_phase_iv(vsts, cluster, controller_id))
+    .and(invariants_since_phase_v(vsts, cluster, controller_id))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
         valid(stable(invariants(vsts, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 3 ==> valid(stable(#[trigger] spec_before_phase_n(i, vsts, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vsts, cluster, controller_id))),
 {
-    reveal_with_fuel(spec_before_phase_n, 3);
+    reveal_with_fuel(spec_before_phase_n, 5);
     invariants_is_stable(vsts, cluster, controller_id);
     always_p_is_stable(lift_state(Cluster::desired_state_is(vsts)));
     invariants_since_phase_i_is_stable(controller_id, vsts);
     invariants_since_phase_ii_is_stable(controller_id, vsts);
     invariants_since_phase_iii_is_stable(vsts, cluster, controller_id);
+    invariants_since_phase_iv_is_stable(vsts, cluster, controller_id);
+    invariants_since_phase_v_is_stable(vsts, cluster, controller_id);
     stable_and_n!(
         invariants(vsts, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vsts))),
         invariants_since_phase_i(controller_id, vsts),
         invariants_since_phase_ii(controller_id, vsts),
-        invariants_since_phase_iii(vsts, cluster, controller_id)
+        invariants_since_phase_iii(vsts, cluster, controller_id),
+        invariants_since_phase_iv(vsts, cluster, controller_id),
+        invariants_since_phase_v(vsts, cluster, controller_id)
     );
 }
 
@@ -429,6 +492,10 @@ pub open spec fn invariants_since_phase_n(n: nat, vsts: VStatefulSetView, cluste
         invariants_since_phase_ii(controller_id, vsts)
     } else if n == 3 {
         invariants_since_phase_iii(vsts, cluster, controller_id)
+    } else if n == 4 {
+        invariants_since_phase_iv(vsts, cluster, controller_id)
+    } else if n == 5 {
+        invariants_since_phase_v(vsts, cluster, controller_id)
     } else {
         true_pred()
     }
@@ -439,7 +506,7 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 {
     if n == 1 {
         invariants(vsts, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vsts))))
-    } else if 2 <= n <= 4 {
+    } else if 2 <= n <= 6 {
         spec_before_phase_n((n-1) as nat, vsts, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vsts, cluster, controller_id))
     } else {
         true_pred()
@@ -448,12 +515,21 @@ pub open spec fn spec_before_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cl
 
 pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     next_with_wf(cluster, controller_id)
+    .and(always(lift_state(vsts_rely_conditions(cluster, controller_id))))
+    .and(always(lift_state(vsts_rely_conditions_pod_monkey())))
 }
 
 pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
+    always_p_is_stable(lift_state(vsts_rely_conditions(cluster, controller_id)));
+    always_p_is_stable(lift_state(vsts_rely_conditions_pod_monkey()));
+    stable_and_n!(
+        next_with_wf(cluster, controller_id),
+        always(lift_state(vsts_rely_conditions(cluster, controller_id))),
+        always(lift_state(vsts_rely_conditions_pod_monkey()))
+    );
 }
 
 }
