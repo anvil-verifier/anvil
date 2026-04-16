@@ -292,7 +292,7 @@ ensures
             &&& #[trigger] managed_vrs_list.contains(vrs)
             &&& vrs.object_ref() == new_vrs.object_ref()
             &&& vrs.status is Some
-            &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+            &&& vrs.status->0.replicas == get_replicas(vrs.spec.replicas)
         }) by {
             VReplicaSetView::marshal_preserves_integrity();
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs.object_ref()));
@@ -325,7 +325,7 @@ ensures
     res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_matches_req_msg(res.0, req_msg),
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
-    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, if vd.spec.replicas.unwrap_or(1) > 0 {1} else {0})), n)(s_prime),
+    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, if get_replicas(vd.spec.replicas) > 0 {1} else {0})), n)(s_prime),
     filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime))
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(None, s)),
     // created obj has different key and uid from all old_vrs in local_state
@@ -640,7 +640,7 @@ ensures
         lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(vd, cluster, controller_id, new_vrs_key, s);
     }
     let nv_uid_replicas = choose |nv_uid_replicas: (Uid, int)| {
-        &&&vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
+        &&&get_replicas(vd.spec.replicas) > 0 ==> nv_uid_replicas.1 > 0
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)
     };
     lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(

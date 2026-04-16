@@ -86,7 +86,7 @@ pub open spec fn ru_resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& #[trigger] managed_vrs_list.contains(vrs)
         &&& vrs.object_ref() == new_vrs_key
         &&& vrs.status is Some
-        &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+        &&& vrs.status->0.replicas == get_replicas(vrs.spec.replicas)
     }
 }
 
@@ -117,14 +117,14 @@ pub open spec fn ru_new_vrs_and_no_old_vrs_from_resp_objs(
             }
             &&& old_vrs_list.len() == 0
             // reasoning on nondeterminism in new vrs choice
-            &&& etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
+            &&& get_replicas(etcd_vrs.spec.replicas) > 0 ==> {
                 &&& new_vrs->0.object_ref() == new_vrs_key
                 &&& new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
-                &&& new_vrs->0.spec.replicas.unwrap_or(1) > 0
+                &&& get_replicas(new_vrs->0.spec.replicas) > 0
             }
             &&& new_vrs->0.object_ref() != new_vrs_key ==> {
-                &&& new_vrs->0.spec.replicas.unwrap_or(1) == 0
-                &&& vd.spec.replicas.unwrap_or(1) == 0
+                &&& get_replicas(new_vrs->0.spec.replicas) == 0
+                &&& get_replicas(vd.spec.replicas) == 0
             }
         }
     }
@@ -202,7 +202,7 @@ pub open spec fn ru_req_msg_is_scale_new_vrs_by_one_req(
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> req_vrs.spec.replicas.unwrap_or(1) > 0
+        &&& get_replicas(vd.spec.replicas) > 0 ==> get_replicas(req_vrs.spec.replicas) > 0
         &&& key == req_vrs.object_ref()
         // required by rank_never_increases
         // before the request is applied, it's < or >

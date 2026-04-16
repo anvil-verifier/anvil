@@ -317,12 +317,12 @@ ensures
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     VReplicaSetView::marshal_preserves_integrity();
                     let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()])->Ok_0;
-                    if etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1) {
+                    if get_replicas(etcd_vrs.spec.replicas) == get_replicas(vd.spec.replicas) {
                         assert(false); // diff > 0
                     }
-                    if etcd_vrs.spec.replicas.unwrap_or(1) == 0 {
-                        assert(vd.spec.replicas.unwrap_or(1) >= 0);
-                        if vd.spec.replicas.unwrap_or(1) != 0 {
+                    if get_replicas(etcd_vrs.spec.replicas) == 0 {
+                        assert(get_replicas(vd.spec.replicas) >= 0);
+                        if get_replicas(vd.spec.replicas) != 0 {
                             assert(false); // diff > 0
                         } else {
                             assert(false); // vd > 0 ==> vrs > 0
@@ -442,8 +442,8 @@ requires
     ru_resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg, new_vrs_key)(s),
     inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
     // from diff != 0
-    VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0.spec.replicas.unwrap_or(1) > 0,
-    VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0.spec.replicas.unwrap_or(1) != vd.spec.replicas.unwrap_or(1)
+    get_replicas(VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0.spec.replicas) > 0,
+    get_replicas(VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0.spec.replicas) != get_replicas(vd.spec.replicas)
 ensures
     at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime),
     local_state_at_after_scale_vrs(vd, controller_id, new_vrs_key)(s_prime),
@@ -524,7 +524,7 @@ ensures
         }
     }
     if new_vrs.object_ref() != new_vrs_key {
-        assert(etcd_new_vrs.spec.replicas.unwrap_or(1) > 0);
+        assert(get_replicas(etcd_new_vrs.spec.replicas) > 0);
         // vrs with nv_uid_key can pass the nonempty_vrs_filter, it's impossible for new_vrs to be selected here
         assert(new_vrs.metadata.uid->0 != etcd_new_vrs.metadata.uid->0);
         assert(valid_owned_obj_key(vd, s)(new_vrs.object_ref()));
@@ -541,18 +541,18 @@ ensures
         assert(!managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(new_vrs));
         assert(false);
     }
-    assert(new_vrs.status is Some && new_vrs.status->0.replicas == new_vrs.spec.replicas.unwrap_or(1)) by {
+    assert(new_vrs.status is Some && new_vrs.status->0.replicas == get_replicas(new_vrs.spec.replicas)) by {
         assert(exists |vrs| {
             &&& #[trigger] managed_vrs_list.contains(vrs)
             &&& vrs.object_ref() == new_vrs_key
             &&& vrs.status is Some
-            &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+            &&& vrs.status->0.replicas == get_replicas(vrs.spec.replicas)
         });
         let pretend_to_be_non_new_vrs = choose |vrs| {
             &&& #[trigger] managed_vrs_list.contains(vrs)
             &&& vrs.object_ref() == new_vrs_key
             &&& vrs.status is Some
-            &&& vrs.status->0.replicas == vrs.spec.replicas.unwrap_or(1)
+            &&& vrs.status->0.replicas == get_replicas(vrs.spec.replicas)
         };
         if pretend_to_be_non_new_vrs != new_vrs {
             VReplicaSetView::marshal_preserves_integrity();
@@ -587,7 +587,7 @@ requires
     resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s),
     ru_new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, resp_msg, nv_uid_key_replicas_status, new_vrs_key)(s),
 ensures
-    if (nv_uid_key_replicas_status.2 == 0 || (nv_uid_key_replicas_status.3 is Some && nv_uid_key_replicas_status.3->0 == nv_uid_key_replicas_status.2)) && nv_uid_key_replicas_status.2 != vd.spec.replicas.unwrap_or(int1!()) { // mismatch_replicas
+    if (nv_uid_key_replicas_status.2 == 0 || (nv_uid_key_replicas_status.3 is Some && nv_uid_key_replicas_status.3->0 == nv_uid_key_replicas_status.2)) && nv_uid_key_replicas_status.2 != get_replicas(vd.spec.replicas) { // mismatch_replicas
         &&& at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime)
         &&& local_state_at_after_scale_vrs(vd, controller_id, new_vrs_key)(s_prime)
         &&& ru_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id)(s_prime)
@@ -601,12 +601,12 @@ ensures
         let local_state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
         &&& local_state_prime.new_vrs is Some
-        &&& etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
+        &&& get_replicas(etcd_vrs.spec.replicas) > 0 ==> {
             &&& local_state_prime.new_vrs->0.object_ref() == new_vrs_key
             &&& local_state_prime.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
         }
         &&& local_state_prime.new_vrs->0.object_ref() != new_vrs_key ==> {
-            &&& local_state_prime.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+            &&& get_replicas(local_state_prime.new_vrs->0.spec.replicas) == 0
         }
     }),
 {
