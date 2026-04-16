@@ -599,7 +599,23 @@ ensures
             assert(spec_filter(vrs@) ==> old_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs@));
         }
     }
-    assert(old_vrs_list.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1);
+    assert(old_vrs_list.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1) by {
+        assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
+        let model_reusable_vrs = model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).0;
+        let exec_filter = |vrs: VReplicaSetView| {
+            &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
+            &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
+        };
+        let model_filter = |vrs: VReplicaSetView| {
+            &&& (model_reusable_vrs is None || vrs.metadata.uid != model_reusable_vrs->0.metadata.uid)
+            &&& (vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0)
+        };
+        assert forall |vrs: VReplicaSetView| #[trigger] vrs_list.deep_view().contains(vrs)
+            implies exec_filter(vrs) == model_filter(vrs) by {
+            assert(reusable_vrs.deep_view() == model_reusable_vrs);
+        };
+        same_filter_implies_same_result(vrs_list.deep_view(), exec_filter, model_filter);
+    };
     return (reusable_vrs, old_vrs_list);
 }
 
