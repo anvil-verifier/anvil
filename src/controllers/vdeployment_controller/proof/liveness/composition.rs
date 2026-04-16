@@ -43,13 +43,13 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set(vrs_set: Set<VReplica
             .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
         &&& exists |vrs: VReplicaSetView| {
             &&& #[trigger] vrs_set.contains(vrs)
-            &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1) // vd.spec.replicas can be Some(0)
+            &&& get_replicas(vrs.spec.replicas) == get_replicas(vd.spec.replicas) // vd.spec.replicas can be Some(0)
             &&& match_template_without_hash(vd.spec.template)(vrs)
             // no old vrs, including the 2nd new vrs (if any)
             &&& !exists |old_vrs: VReplicaSetView| {
                 &&& #[trigger] vrs_set.contains(old_vrs)
                 &&& old_vrs != vrs
-                &&& old_vrs.spec.replicas.unwrap_or(1) > 0 // != Some(0)
+                &&& get_replicas(old_vrs.spec.replicas) > 0 // != Some(0)
             }
         }
         &&& vrs_set.finite() && vrs_set.len() > 0
@@ -390,7 +390,7 @@ ensures
         &&& valid_owned_obj_key(vd, s)(k)
         &&& filter_new_vrs_keys(vd.spec.template, s)(k)
         &&& etcd_vrs.metadata.uid is Some
-        &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        &&& get_replicas(etcd_vrs.spec.replicas) == get_replicas(vd.spec.replicas)
     };
     let new_obj = s.resources()[k];
     let new_vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
@@ -399,16 +399,16 @@ ensures
         assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(new_obj));
     }
     assert(match_template_without_hash(vd.spec.template)(new_vrs));
-    assert(new_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
+    assert(get_replicas(new_vrs.spec.replicas) == get_replicas(vd.spec.replicas));
     if exists |old_vrs: VReplicaSetView| {
         &&& #[trigger] vrs_set.contains(old_vrs)
         &&& old_vrs != new_vrs
-        &&& old_vrs.spec.replicas.unwrap_or(1) > 0
+        &&& get_replicas(old_vrs.spec.replicas) > 0
     } {
         let old_vrs = choose |old_vrs: VReplicaSetView| {
             &&& #[trigger] vrs_set.contains(old_vrs)
             &&& old_vrs != new_vrs
-            &&& old_vrs.spec.replicas.unwrap_or(1) > 0
+            &&& get_replicas(old_vrs.spec.replicas) > 0
         };
         let old_k = old_vrs.object_ref();
         assert(s.resources().contains_key(old_k));
@@ -429,7 +429,7 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let new_vrs = choose |vrs: VReplicaSetView| {
         &&& #[trigger] vrs_set.contains(vrs)
-        &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        &&& get_replicas(vrs.spec.replicas) == get_replicas(vd.spec.replicas)
         &&& match_template_without_hash(vd.spec.template)(vrs)
     };
     assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
@@ -447,7 +447,7 @@ ensures
                         let havoc_obj = s.resources()[havoc_vrs.object_ref()];
                         assert(s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind()).contains(havoc_obj));
                     }
-                    assert(havoc_vrs.spec.replicas.unwrap_or(1) > 0) by {
+                    assert(get_replicas(havoc_vrs.spec.replicas) > 0) by {
                         assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).len() > 0) by {
                             assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
                             // Cluster::etcd_is_finite() |= s.resources().values().is_finite()

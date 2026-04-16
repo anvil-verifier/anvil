@@ -31,8 +31,8 @@ pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetVi
 // Compute the absolute difference between desired replicas and new VRS replicas
 // This is the ranking function for iterative_esr
 pub open spec fn replicas_diff(vd: VDeploymentView, new_vrs: VReplicaSetView) -> nat {
-    let desired = vd.spec.replicas.unwrap_or(1);
-    let current = new_vrs.spec.replicas.unwrap_or(1);
+    let desired = get_replicas(vd.spec.replicas);
+    let current = get_replicas(new_vrs.spec.replicas);
     if desired >= current {
         (desired - current) as nat
     } else {
@@ -52,10 +52,10 @@ pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeployment
     |s: ClusterState| {
         // don't touch vrs if there is no need to patch replicas
         let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(
-            if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
-                vd.spec.replicas.unwrap_or(1) - diff
+            if get_replicas(vd.spec.replicas) > get_replicas(vrs.spec.replicas) {
+                get_replicas(vd.spec.replicas) - diff
             } else {
-                vd.spec.replicas.unwrap_or(1) + diff
+                get_replicas(vd.spec.replicas) + diff
             }
         ));
         &&& vrs_liveness::desired_state_is(vrs_with_replicas)(s)
@@ -67,10 +67,10 @@ pub open spec fn desired_state_is_vrs_with_replicas_diff_and_key(vd: VDeployment
 pub open spec fn current_state_matches_vrs_with_replicas_diff_and_key(vd: VDeploymentView, vrs: VReplicaSetView, vrs_key: ObjectRef, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vrs_with_replicas = vrs.with_spec(vrs.spec.with_replicas(
-            if vd.spec.replicas.unwrap_or(1) > vrs.spec.replicas.unwrap_or(1) {
-                vd.spec.replicas.unwrap_or(1) - diff
+            if get_replicas(vd.spec.replicas) > get_replicas(vrs.spec.replicas) {
+                get_replicas(vd.spec.replicas) - diff
             } else {
-                vd.spec.replicas.unwrap_or(1) + diff
+                get_replicas(vd.spec.replicas) + diff
             }
         ));
         &&& vrs_liveness::current_state_matches(vrs_with_replicas)(s)
@@ -91,7 +91,7 @@ pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: V
             .filter(|vrs: VReplicaSetView| is_old_vrs_of(vrs, vd, new_vrs_key))
             .map(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs))
         &&& vrs_set.finite()
-        &&& forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs.spec.replicas.unwrap_or(1) == 0
+        &&& forall |vrs| #[trigger] vrs_set.contains(vrs) ==> get_replicas(vrs.spec.replicas) == 0
     }
 }
 
@@ -304,13 +304,13 @@ ensures
             // assert(next_local_state.old_vrs_index == 0);
             // let etcd_obj = s_prime.resources()[new_vrs_key];
             // let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            // if next_local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 {
+            // if next_local_state.new_vrs is Some && get_replicas(etcd_vrs.spec.replicas) > 0 {
             //     assert(next_local_state.new_vrs->0.object_ref() == new_vrs_key);
             //     assert(next_local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0);
             // }
             // assert(next_local_state.new_vrs is Some && next_local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
-            //     &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
-            //     &&& next_local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
+            //     &&& get_replicas(vd.spec.replicas) == 0 // optional, can be implied from above
+            //     &&& next_local_state.new_vrs->get_replicas(0.spec.replicas) == 0
             // });
             // assert(at_vd_step_with_vd(vd, controller_id, at_step_or![Init, AfterListVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Done, Error])(s_prime));
             // if at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS])(s_prime) {
@@ -795,7 +795,7 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
             .lemma_map_finite(|vrs: VReplicaSetView| vrs_with_no_rv_status(vrs));
     }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
-    assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies vrs_liveness::desired_state_is(vrs)(s) && vrs.spec.replicas.unwrap_or(1) == 0 by {
+    assert forall |vrs| #[trigger] vrs_set.contains(vrs) implies vrs_liveness::desired_state_is(vrs)(s) && get_replicas(vrs.spec.replicas) == 0 by {
         VReplicaSetView::marshal_preserves_integrity();
         let etcd_obj = choose |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj) && obj.object_ref() == vrs.object_ref();
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -827,9 +827,9 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
             assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
         }
         assert(vrs_liveness::desired_state_is(etcd_vrs)(s));
-        if vrs.spec.replicas.unwrap_or(1) > 0 {
+        if get_replicas(vrs.spec.replicas) > 0 {
             let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
-            assert(vrs_with_rv_status.spec.replicas.unwrap_or(1) > 0);
+            assert(get_replicas(vrs_with_rv_status.spec.replicas) > 0);
             assert(valid_owned_obj_key(vd, s)(vrs.object_ref()));
             assert(filter_old_vrs_keys(Some(etcd_new_vrs.metadata.uid->0), s)(vrs.object_ref()));
             assert(false);
@@ -863,7 +863,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
 {
     VReplicaSetView::marshal_preserves_integrity();
     // new_vrs replicas might be updated during reconciliation
-    let new_vrs = new_vrs.with_spec(new_vrs.spec.with_replicas(vd.spec.replicas.unwrap_or(1)));
+    let new_vrs = new_vrs.with_spec(new_vrs.spec.with_replicas(get_replicas(vd.spec.replicas)));
     assert(s.resources().values().filter(valid_owned_pods(vd, s)) == vrs_liveness::matching_pods(new_vrs, s.resources())) by {
         assert forall |obj: DynamicObjectView| #[trigger] s.resources().values().contains(obj)
             implies valid_owned_pods(vd, s)(obj) == vrs_liveness::owned_selector_match_is(new_vrs, obj) by {
@@ -894,7 +894,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
                         && vrs_with_no_rv_status(vrs) == vrs_with_no_rv_status(havoc_vrs) && vrs != new_vrs);
                     let havoc_vrs_in_set = choose |vrs: VReplicaSetView| #[trigger] vrs_set.contains(vrs)
                         && vrs_with_no_rv_status(vrs) == vrs_with_no_rv_status(havoc_vrs) && vrs != new_vrs;
-                    assert(havoc_vrs_in_set.spec.replicas.unwrap_or(1) > 0) by {
+                    assert(get_replicas(havoc_vrs_in_set.spec.replicas) > 0) by {
                         assert(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()).len() > 0) by {
                             assert(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()).contains(obj));
                             // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
@@ -1333,10 +1333,10 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                         false_leads_to_anything(spec, always(new_vrs_post_with_diff(n)));
                     } else {
                         let vrs_with_replicas = new_vrs.with_spec(new_vrs.spec.with_replicas(
-                            if vd.spec.replicas.unwrap_or(1) > new_vrs.spec.replicas.unwrap_or(1) {
-                                vd.spec.replicas.unwrap_or(1) - n
+                            if get_replicas(vd.spec.replicas) > get_replicas(new_vrs.spec.replicas) {
+                                get_replicas(vd.spec.replicas) - n
                             } else {
-                                vd.spec.replicas.unwrap_or(1) + n
+                                get_replicas(vd.spec.replicas) + n
                             }
                         ));
                         use_tla_forall(spec,
