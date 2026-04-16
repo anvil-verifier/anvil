@@ -524,6 +524,9 @@ pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd: VDe
 //    --> verus/source/target-verus/release/vstd/std_specs/option.rs:194:9
 //     |
 // 194 |         Some(t) => t,
+// and
+// error: variable shadowing not yet supported
+ // --> vstd/std_specs/option.rs:167:10
 pub open spec fn get_replicas(i: Option<int>) -> int {
     i.unwrap_or(int1!())
 }
