@@ -9,6 +9,7 @@ pub struct ControllerSpec {
     pub esr: TempPred<ClusterState>,
     pub liveness_dependency: TempPred<ClusterState>,
     pub safety_guarantee: TempPred<ClusterState>,
+    pub environment_rely: TempPred<ClusterState>,
     pub safety_partial_rely: spec_fn(int) -> TempPred<ClusterState>,
     pub fairness: spec_fn(Cluster) -> TempPred<ClusterState>,
     pub membership: spec_fn(Cluster, int) -> bool,
