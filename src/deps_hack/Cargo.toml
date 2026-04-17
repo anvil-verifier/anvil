@@ -31,7 +31,7 @@ anyhow = "1.0.71"
 futures = "0.3.17"
 base64 = "0.13.0"
 rand = "0.8"
-zookeeper = "0.8"
+# zookeeper = "0.8"
 chrono = "0.4.19"
 proptest = "1.4.0"
 warp = { version = "0.3", features = ["tls"] }

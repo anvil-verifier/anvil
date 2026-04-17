@@ -113,7 +113,7 @@ ensures
     assert forall |msg: Message| #![trigger list_resp_msg(msg)]
         spec.entails(list_resp_msg(msg).leads_to(tla_exists(after_ensure_vrs))) by {
         // (\A |msg|) list_resp_msg(msg) == \E |replicas: Options<int>, n: nat| after_ensure_vrs((nv_uid, nv_key, n))
-        // here replicas.is_Some == if new vrs exists, replicas->0 == new_vrs.spec.replicas.unwrap_or(int1!())
+        // here replicas.is_Some == if new vrs exists, replicas->0 == get_replicas(new_vrs.spec.replicas)
         // 1 is the default value if not set
         assert(spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Option<(Uid, ObjectRef, int, bool)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))))) by {
             assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) && inv.satisfied_by(ex) implies
@@ -124,13 +124,13 @@ ensures
                 let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
                 let nv_uid_key_replicas_sm = if new_vrs is Some {
                     let vrs = new_vrs->0;
-                    Some((vrs.metadata.uid->0, vrs.object_ref(), vrs.spec.replicas.unwrap_or(int1!()), mismatch_replicas(vd, vrs)))
+                    Some((vrs.metadata.uid->0, vrs.object_ref(), get_replicas(vrs.spec.replicas), mismatch_replicas(vd, vrs)))
                 } else {
                     None
                 };
                 let nv_uid_key_replicas = if new_vrs is Some {
                     let vrs = new_vrs->0;
-                    Some((vrs.metadata.uid->0, vrs.object_ref(), vrs.spec.replicas.unwrap_or(int1!())))
+                    Some((vrs.metadata.uid->0, vrs.object_ref(), get_replicas(vrs.spec.replicas)))
                 } else {
                     None
                 };

@@ -366,14 +366,17 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                             }
                         },
                         _ => {
+                            assert(s.in_flight().contains(msg));
                             assert(resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0));
                             assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                            assert(resource_create_response_msg(resource_key, s_prime)(msg));
                         }
                     }
                 },
                 _ => {
                     assert(s.in_flight().contains(msg));
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
+                    assert(resource_create_response_msg(resource_key, s_prime)(msg));
                 }
             }
         }

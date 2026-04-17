@@ -599,7 +599,9 @@ ensures
             assert(spec_filter(vrs@) ==> old_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs@));
         }
     }
-    assert(old_vrs_list.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1);
+    assert(old_vrs_list.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1) by {
+        assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
+    };
     return (reusable_vrs, old_vrs_list);
 }
 

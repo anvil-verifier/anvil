@@ -1222,18 +1222,20 @@ ensures
 
     assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
         implies inv(s_prime) by {
-        let new_msgs = s_prime.in_flight().sub(s.in_flight());
 
         assert forall |msg: Message|
             inv(s)
             && #[trigger] s_prime.in_flight().contains(msg)
             && msg.src.is_controller_id(controller_id)
             implies msg.dst != HostId::External(controller_id) by {
-            if s.in_flight().contains(msg) {
-                // Empty if statement required to trigger quantifiers.
-            }
-            if new_msgs.contains(msg) {
-                // Empty if statement required to trigger quantifiers.
+            if s.in_flight().contains(msg) {} else {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step { // makes proof faster
+                    Step::ControllerStep(input) => {},
+                    _ => {
+                        assert(s.in_flight().contains(msg));
+                    }
+                }
             }
         }
     };
