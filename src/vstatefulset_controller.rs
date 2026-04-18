@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 #[path = "external_shim_layer/mod.rs"]
 pub mod external_shim_layer;
+#[path = "kubernetes_api_objects/mod.rs"]
 pub mod kubernetes_api_objects;
 #[path = "kubernetes_cluster/mod.rs"]
 pub mod kubernetes_cluster;
@@ -8,13 +9,15 @@ pub mod kubernetes_cluster;
 pub mod reconciler;
 #[path = "shim_layer/mod.rs"]
 pub mod shim_layer;
+#[path = "state_machine/mod.rs"]
 pub mod state_machine;
+#[path = "temporal_logic/mod.rs"]
 pub mod temporal_logic;
+#[path = "vstd_ext/mod.rs"]
+pub mod vstd_ext;
 
 #[path = "controllers/vstatefulset_controller/mod.rs"]
 pub mod vstatefulset_controller;
-
-pub mod vstd_ext;
 
 use crate::external_shim_layer::VoidExternalShimLayer;
 use crate::vstatefulset_controller::exec::reconciler::VStatefulSetReconciler;
