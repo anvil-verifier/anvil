@@ -1,8 +1,6 @@
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::rabbitmq_controller::{
-    trusted::{spec_types::*, step::*},
-};
+use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
