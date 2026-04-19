@@ -400,7 +400,13 @@ ensures
                     } else { // use rely
                         assert(cluster.controller_models.remove(controller_id).contains_key(id));
                         assert(rmq_rely(id)(s));
-                        assume(false);
+                        if req.obj.metadata.name is Some {
+                            if req.key() == resource_key {
+                                lemma_resource_key_requires_rabbitmq_prefix(sub_resource, req.obj.metadata.name->0, rmq);
+                            }
+                        } else if req.obj.metadata.generate_name is Some {
+                            assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
+                        }
                     }
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
