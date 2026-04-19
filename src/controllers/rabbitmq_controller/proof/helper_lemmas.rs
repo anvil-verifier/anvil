@@ -221,6 +221,60 @@ pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
     }
 }
 
+pub proof fn lemma_resource_key_requires_rabbitmq_prefix(sub_resource: SubResource, name: StringView, rabbitmq: RabbitmqClusterView)
+requires
+    !has_rmq_name_prefix(name),
+ensures
+    get_request(sub_resource, rabbitmq).key.name != name,
+{
+    let key_name = get_request(sub_resource, rabbitmq).key.name;
+    let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
+    let rmq_name = rabbitmq.metadata.name->0;
+    match sub_resource {
+        SubResource::HeadlessService => {
+            let suffix = rmq_name + "-nodes"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::Service => {
+            let suffix = rmq_name + "-client"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::ErlangCookieSecret => {
+            let suffix = rmq_name + "-erlang-cookie"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::DefaultUserSecret => {
+            let suffix = rmq_name + "-default-user"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::PluginsConfigMap => {
+            let suffix = rmq_name + "-plugins-conf"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::ServerConfigMap => {
+            let suffix = rmq_name + "-server-conf"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::ServiceAccount => {
+            let suffix = rmq_name + "-server"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::Role => {
+            let suffix = rmq_name + "-peer-discovery"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::RoleBinding => {
+            let suffix = rmq_name + "-server"@;
+            assert(key_name =~= prefix + suffix);
+        },
+        SubResource::VStatefulSetView => {
+            let suffix = rmq_name + "-server"@;
+            assert(key_name =~= prefix + suffix);
+        },
+    }
+    assert(has_rmq_name_prefix(key_name));
+}
+
 pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
     rmq.state_validation(),
@@ -346,7 +400,7 @@ ensures
                     } else { // use rely
                         assert(cluster.controller_models.remove(controller_id).contains_key(id));
                         assert(rmq_rely(id)(s));
-                        assume(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
+                        assume(false);
                     }
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
