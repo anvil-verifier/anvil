@@ -17,7 +17,7 @@ jobs:
       - name: Build vreplicaset controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vreplicaset .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg APP=vreplicaset .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
       - name: Push vreplicaset controller image
         run: |
@@ -36,7 +36,7 @@ jobs:
       - name: Build vstatefulset controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vstatefulset .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest --build-arg APP=vstatefulset .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:${{ github.sha }}
       - name: Push vstatefulset controller image
         run: |
@@ -55,7 +55,7 @@ jobs:
       - name: Build rabbitmq controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=rabbitmq .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg APP=rabbitmq .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
       - name: Push rabbitmq controller image
         run: |
@@ -74,7 +74,7 @@ jobs:
       - name: Build vdeployment controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vdeployment .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest --build-arg APP=vdeployment .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:${{ github.sha }}
       - name: Push vdeployment controller image
         run: |
@@ -93,7 +93,7 @@ jobs:
       - name: Build vreplicaset admission controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vreplicaset_admission .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest --build-arg APP=vreplicaset_admission .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
       - name: Push vreplicaset admission controller image
         run: |
@@ -112,7 +112,7 @@ jobs:
       - name: Build vstatefulset admission controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vstatefulset_admission .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg APP=vstatefulset_admission .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
       - name: Push vstatefulset admission controller image
         run: |
@@ -131,7 +131,7 @@ jobs:
       - name: Build vdeployment admission controller image
         run: |
           cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest --build-arg VERUS_VER=0.2025.11.30.840fa61 --build-arg APP=vdeployment_admission .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest --build-arg APP=vdeployment_admission .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:${{ github.sha }}
       - name: Push vdeployment admission controller image
         run: |
