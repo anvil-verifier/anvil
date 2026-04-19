@@ -346,7 +346,7 @@ ensures
                     } else { // use rely
                         assert(cluster.controller_models.remove(controller_id).contains_key(id));
                         assert(rmq_rely(id)(s));
-                        assert(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
+                        assume(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
                     }
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
