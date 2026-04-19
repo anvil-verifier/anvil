@@ -7,9 +7,16 @@ SHELL ["/bin/bash", "-c"]
 
 RUN mkdir /anvil
 COPY . /anvil
-RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev git
+RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev jq
 
-# install Rust (needed to build Verus from source)
+# install the latest Verus release
+RUN VERUS_VER=$(curl -sSL https://api.github.com/repos/verus-lang/verus/releases/latest | jq -r .tag_name | sed 's|^release/||') \
+ && wget -q "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VER}/verus-${VERUS_VER}-x86-linux.zip" \
+ && unzip "verus-${VERUS_VER}-x86-linux.zip" \
+ && rm "verus-${VERUS_VER}-x86-linux.zip"
+ENV PATH="${PATH}:/verus-x86-linux"
+
+# install Rust
 RUN curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
 
 # build Verus from source (main branch)
