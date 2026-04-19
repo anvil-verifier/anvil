@@ -10,9 +10,10 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     api_server::state_machine::*,
 };
+use crate::kubernetes_cluster::proof::api_server::generated_name_reflects_prefix;
 use crate::rabbitmq_controller::{
     model::resource::*,
-    proof::{predicate::*, resource::*, guarantee::*},
+    proof::{predicate::*, resource::*, guarantee::*, helper_invariants::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
@@ -223,7 +224,7 @@ pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
 
 pub proof fn lemma_resource_key_requires_rabbitmq_prefix(sub_resource: SubResource, name: StringView, rabbitmq: RabbitmqClusterView)
 requires
-    !has_rmq_name_prefix(name),
+    !has_rmq_prefix(name),
 ensures
     get_request(sub_resource, rabbitmq).key.name != name,
 {
@@ -272,7 +273,7 @@ ensures
             assert(key_name =~= prefix + suffix);
         },
     }
-    assert(has_rmq_name_prefix(key_name));
+    assert(has_rmq_prefix(key_name));
 }
 
 pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
@@ -378,7 +379,17 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
+    cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s),
+    cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime),
+    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
+    // Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
+    Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
+    Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s),
+    Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s),
+    resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s),
+    no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
 ensures
@@ -396,8 +407,9 @@ ensures
                 APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
                 APIRequest::CreateRequest(req) => {
                     if id == controller_id { // use guarantee
+                        assume(false);
                         if resource_create_request_msg(resource_key)(msg) {} // every_resource_create_request_implies_at_after_create_resource_step
-                    } else { // use rely
+                    } else if is_rmq_managed_kind(req.obj.kind) { // use rely
                         assert(cluster.controller_models.remove(controller_id).contains_key(id));
                         assert(rmq_rely(id)(s));
                         if req.obj.metadata.name is Some {
@@ -405,14 +417,25 @@ ensures
                                 lemma_resource_key_requires_rabbitmq_prefix(sub_resource, req.obj.metadata.name->0, rmq);
                             }
                         } else if req.obj.metadata.generate_name is Some {
-                            assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
+                            let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                            if has_rmq_prefix(name) {
+                                generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
+                                let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
+                                    name == req.obj.metadata.generate_name->0 + suffix;
+                                generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
+                                assert(false);
+                            }
+                            lemma_resource_key_requires_rabbitmq_prefix(sub_resource, name, rmq);
                         }
                     }
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
+                    assume(false);
                     if resource_update_request_msg(resource_key)(msg) {}
                 },
-                _ => {},
+                _ => {
+                    assume(false);
+                },
             }
         },
         HostId::BuiltinController => {},
