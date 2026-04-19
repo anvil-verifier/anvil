@@ -7,17 +7,21 @@ SHELL ["/bin/bash", "-c"]
 
 RUN mkdir /anvil
 COPY . /anvil
-RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev jq
+RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev git
 
-# install the latest Verus release
-RUN VERUS_VER=$(curl -sSL https://api.github.com/repos/verus-lang/verus/releases/latest | jq -r .tag_name | sed 's|^release/||') \
- && wget -q "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VER}/verus-${VERUS_VER}-x86-linux.zip" \
- && unzip "verus-${VERUS_VER}-x86-linux.zip" \
- && rm "verus-${VERUS_VER}-x86-linux.zip"
-ENV PATH="${PATH}:/verus-x86-linux"
-
-# install Rust
+# install Rust (needed to build Verus from source)
 RUN curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+
+# build Verus from source (main branch)
+RUN git clone --depth 1 https://github.com/verus-lang/verus.git /verus-src \
+ && . "$HOME/.cargo/env" \
+ && cd /verus-src/source \
+ && ./tools/get-z3.sh \
+ && source ../tools/activate \
+ && vargo build --release \
+ && mv target-verus/release /verus-x86-linux \
+ && rm -rf /verus-src
+ENV PATH="${PATH}:/verus-x86-linux"
 
 # build controller
 RUN . "$HOME/.cargo/env" && cd /anvil && ./build.sh ${APP}_controller.rs --no-verify
