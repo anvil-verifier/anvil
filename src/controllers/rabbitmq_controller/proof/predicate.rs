@@ -439,17 +439,16 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
     |s: ClusterState| {
         let step = after_update_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-        let req = msg.content.get_update_request();
+        let req = msg.content.get_get_then_update_request();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-        &&& resource_update_request_msg(resource_key)(msg)
+        &&& resource_get_then_update_request_msg(resource_key)(msg)
         &&& s.resources().contains_key(resource_key)
-        &&& msg.content.get_update_request().obj.metadata.resource_version is Some
-        &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
-        &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_update_request().obj)(s)
+        &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
+        &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_get_then_update_request().obj)(s)
         // sanity check
         &&& req.obj.metadata.name is Some
         &&& req.name == req.obj.metadata.name->0
@@ -468,16 +467,15 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
     |s: ClusterState| {
         let step = after_update_k_request_step(sub_resource);
         let resource_key = get_request(sub_resource, rabbitmq).key;
-        let req = req_msg.content.get_update_request();
+        let req = req_msg.content.get_get_then_update_request();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, rabbitmq.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-        &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
+        &&& resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
         &&& s.resources().contains_key(resource_key)
-        &&& req_msg.content.get_update_request().obj.metadata.resource_version is Some
-        &&& req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
-        &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req_msg.content.get_update_request().obj)(s)
+        &&& req_msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
+        &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req_msg.content.get_get_then_update_request().obj)(s)
         // sanity check
         &&& req.obj.metadata.name is Some
         &&& req.name == req.obj.metadata.name->0
@@ -503,7 +501,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-        &&& resource_update_request_msg(key)(msg)
+        &&& resource_get_then_update_request_msg(key)(msg)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
@@ -526,7 +524,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-        &&& resource_update_request_msg(key)(msg)
+        &&& resource_get_then_update_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_update_response().res is Ok
@@ -577,11 +575,11 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rmq.object_ref())(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
-        &&& every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
+        &&& every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
         &&& every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rmq)(s)
-        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rmq)(s)
+        &&& no_interfering_non_delete_requests_in_flight(sub_resource, controller_id, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s)
@@ -621,8 +619,8 @@ pub open spec fn inductive_current_state_matches(rmq: RabbitmqClusterView, sub_r
                 &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
                 &&& req_msg.dst == HostId::APIServer
                 &&& req_msg.content is APIRequest
-                &&& resource_update_request_msg(resource_key)(req_msg)
-                &&& req_obj_matches_sub_resource_requirements(sub_resource, rmq, req_msg.content.get_update_request().obj)(s)
+                &&& resource_get_then_update_request_msg(resource_key)(req_msg)
+                &&& req_obj_matches_sub_resource_requirements(sub_resource, rmq, req_msg.content.get_get_then_update_request().obj)(s)
                 // we don't care if update request succeed or not
             } else {
                 s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is None

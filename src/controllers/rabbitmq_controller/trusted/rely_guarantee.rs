@@ -26,11 +26,11 @@ pub open spec fn rmq_rely(other_id: int) -> StatePred<ClusterState> {
             match (msg.content->APIRequest_0) {
                 APIRequest::CreateRequest(req) => rmq_rely_create_req(req),
                 APIRequest::UpdateRequest(req) => rmq_rely_update_req(req)(s),
-                APIRequest::GetThenUpdateRequest(req) => rmq_rely_get_then_update_req(req)(s),
+                APIRequest::GetThenUpdateRequest(req) => rmq_rely_get_then_update_req(req),
                 APIRequest::DeleteRequest(req) => rmq_rely_delete_req(req)(s),
-                APIRequest::GetThenDeleteRequest(req) => rmq_rely_get_then_delete_req(req)(s),
+                APIRequest::GetThenDeleteRequest(req) => rmq_rely_get_then_delete_req(req),
                 APIRequest::UpdateStatusRequest(req) => rmq_rely_update_status_req(req)(s),
-                APIRequest::GetThenUpdateStatusRequest(req) => rmq_rely_get_then_update_status_req(req)(s),
+                APIRequest::GetThenUpdateStatusRequest(req) => rmq_rely_get_then_update_status_req(req),
                 // Get/List requests do not interfere
                 _ => true,
             }
@@ -72,32 +72,28 @@ pub open spec fn rmq_rely_update_req(req: UpdateRequest) -> StatePred<ClusterSta
     }
 }
 
-pub open spec fn rmq_rely_get_then_update_req(req: GetThenUpdateRequest) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) // if req could interfere
-            ==> req.owner_ref.controller == Some(true) // if req could succeed
-                ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
-    }
+pub open spec fn rmq_rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
+    &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) // if req could interfere
+        ==> req.owner_ref.controller == Some(true) // if req could succeed
+            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
 }
 
+// only requires for CM kind to prevent its resource version from changing
 pub open spec fn rmq_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
-        &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) ==> {
+        &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) ==>
             req.obj.metadata.resource_version is Some
             && etcd_obj.metadata.resource_version is Some
             && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())
-        }
     }
 }
 
-pub open spec fn rmq_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) // if req could interfere
-            ==> req.owner_ref.controller == Some(true) // if req could succeed
-                ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
-    }
+pub open spec fn rmq_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> bool {
+    &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) // if req could interfere
+        ==> req.owner_ref.controller == Some(true) // if req could succeed
+            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
 }
 
 pub open spec fn rmq_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
@@ -112,12 +108,10 @@ pub open spec fn rmq_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
     }
 }
 
-pub open spec fn rmq_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& is_rmq_managed_kind(req.key().kind) && has_rmq_prefix(req.key.name) && s.resources().contains_key(req.key()) // if req could interfere
-            ==> req.owner_ref.controller == Some(true) // if req could succeed
-                ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
-    }
+pub open spec fn rmq_rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
+    &&& is_rmq_managed_kind(req.key().kind) && has_rmq_prefix(req.key.name) // if req could interfere
+        ==> req.owner_ref.controller == Some(true) // if req could succeed
+            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
 }
 
 // RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name,
@@ -132,11 +126,9 @@ pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
 
 // RMQ only updates objects of rmq-managed kind with rabbitmq prefix in the name,
 // owned by exactly one RabbitmqCluster.
-pub open spec fn rmq_guarantee_update_req(req: UpdateRequest) -> bool {
+pub open spec fn rmq_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
-    &&& req.obj.metadata.owner_references is Some
-    &&& exists |rabbitmq: RabbitmqClusterView|
-        req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
+    &&& req.owner_ref.kind == RabbitmqClusterView::kind()
 }
 
 pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
@@ -148,7 +140,7 @@ pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
         } ==> match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
             APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            APIRequest::GetThenUpdateRequest(req) => rmq_guarantee_get_then_update_req(req),
             _ => false, // rmq doesn't send other requests
         }
     }

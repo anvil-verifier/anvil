@@ -59,12 +59,10 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(controller_id: int, c
     let next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)(s)
-        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)(s)
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s)
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime)
     };
     lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(controller_id, cluster, spec, rabbitmq);
-    lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
     cluster.lemma_always_each_object_in_etcd_is_well_formed::<RabbitmqClusterView>(spec);
     always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     assert forall |s, s_prime| #[trigger] next(s, s_prime) implies stateful_set_not_scaled_down(rabbitmq)(s, s_prime) by {
@@ -76,9 +74,9 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(controller_id: int, c
                 if input.content.is_delete_request() {
                     assert(VStatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0.spec == VStatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec);
                 } else {
-                    if resource_update_request_msg(sts_key)(input) {} else {}
-                    assert(s.resources()[sts_key].metadata.resource_version->0 == input.content.get_update_request().obj.metadata.resource_version->0);
-                    assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) == replicas_of_stateful_set(input.content.get_update_request().obj));
+                    if resource_get_then_update_request_msg(sts_key)(input) {} else {}
+                    assert(s.resources()[sts_key].metadata.resource_version->0 == input.content.get_get_then_update_request().obj.metadata.resource_version->0);
+                    assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) == replicas_of_stateful_set(input.content.get_get_then_update_request().obj));
                     assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) >= replicas_of_stateful_set(s.resources()[sts_key]));
                 }
             }
@@ -87,7 +85,6 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(controller_id: int, c
     invariant_n!(
         spec, lift_action(next), lift_action(inv),
         lift_action(cluster.next()), lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)),
-        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()), later(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))
     );
 }
@@ -97,10 +94,10 @@ spec fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabb
         let sts_key = make_stateful_set_key(rabbitmq);
         forall |msg: Message|
             #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(sts_key)(msg)
+            && resource_get_then_update_request_msg(sts_key)(msg)
             && s.resources().contains_key(sts_key)
-            && s.resources()[sts_key].metadata.resource_version->0 == msg.content.get_update_request().obj.metadata.resource_version->0
-            ==> replicas_of_stateful_set(s.resources()[sts_key]) <= replicas_of_stateful_set(msg.content.get_update_request().obj)
+            && s.resources()[sts_key].metadata.resource_version->0 == msg.content.get_get_then_update_request().obj.metadata.resource_version->0
+            ==> replicas_of_stateful_set(s.resources()[sts_key]) <= replicas_of_stateful_set(msg.content.get_get_then_update_request().obj)
     }
 }
 
@@ -120,7 +117,6 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s)
         &&& cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()(s_prime)
         &&& replicas_of_etcd_stateful_set_satisfies_order(controller_id, rabbitmq)(s_prime)
-        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq)(s)
@@ -129,7 +125,6 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
     always_to_always_later(spec, lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()));
     lemma_always_replicas_of_etcd_stateful_set_satisfies_order(controller_id, cluster, spec, rabbitmq);
     always_to_always_later(spec, lift_state(replicas_of_etcd_stateful_set_satisfies_order(controller_id, rabbitmq)));
-    lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, sts_key);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
@@ -137,29 +132,28 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
         spec, lift_action(next), lift_action(cluster.next()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()), later(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>())),
         later(lift_state(replicas_of_etcd_stateful_set_satisfies_order(controller_id, rabbitmq))),
-        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::VStatefulSetView, rabbitmq)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(controller_id, SubResource::VStatefulSetView, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg) && s_prime.resources().contains_key(sts_key)
-        && s_prime.resources()[sts_key].metadata.resource_version->0 == msg.content.get_update_request().obj.metadata.resource_version->0
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_get_then_update_request_msg(sts_key)(msg) && s_prime.resources().contains_key(sts_key)
+        && s_prime.resources()[sts_key].metadata.resource_version->0 == msg.content.get_get_then_update_request().obj.metadata.resource_version->0
         implies VStatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec.replicas->0
-        <= replicas_of_stateful_set(msg.content.get_update_request().obj) by {
+        <= replicas_of_stateful_set(msg.content.get_get_then_update_request().obj) by {
             let step = choose |step| cluster.next_step(s, s_prime, step);
             if s.in_flight().contains(msg) {
                 if !s.resources().contains_key(sts_key) || s.resources()[sts_key] != s_prime.resources()[sts_key] {
                     assert(s_prime.resources()[sts_key].metadata.resource_version->0 == s.api_server.resource_version_counter);
-                    assert(msg.content.get_update_request().obj.metadata.resource_version->0 < s.api_server.resource_version_counter);
+                    assert(msg.content.get_get_then_update_request().obj.metadata.resource_version->0 < s.api_server.resource_version_counter);
                     assert(false);
                 } else {
-                    assert(VStatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec.replicas->0 <= replicas_of_stateful_set(msg.content.get_update_request().obj));
+                    assert(VStatefulSetView::unmarshal(s_prime.resources()[sts_key])->Ok_0.spec.replicas->0 <= replicas_of_stateful_set(msg.content.get_get_then_update_request().obj));
                 }
             } else {
                 VStatefulSetView::marshal_preserves_integrity();
                 VStatefulSetView::marshal_spec_preserves_integrity();
-                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
             }
         }
     }
@@ -277,8 +271,8 @@ spec fn replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(co
                 resource_create_request_msg(sts_key)(msg)
                 ==> replicas_satisfies_order(controller_id, msg.content.get_create_request().obj, rabbitmq)(s)
             ) && (
-                resource_update_request_msg(sts_key)(msg)
-                ==> replicas_satisfies_order(controller_id, msg.content.get_update_request().obj, rabbitmq)(s)
+                resource_get_then_update_request_msg(sts_key)(msg)
+                ==> replicas_satisfies_order(controller_id, msg.content.get_get_then_update_request().obj, rabbitmq)(s)
             )
     }
 }
@@ -317,12 +311,12 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies (resource_create_request_msg(sts_key)(msg)
-        ==> replicas_satisfies_order(controller_id, msg.content.get_create_request().obj, rabbitmq)(s_prime)) && (resource_update_request_msg(sts_key)(msg)
-        ==> replicas_satisfies_order(controller_id, msg.content.get_update_request().obj, rabbitmq)(s_prime)) by {
+        ==> replicas_satisfies_order(controller_id, msg.content.get_create_request().obj, rabbitmq)(s_prime)) && (resource_get_then_update_request_msg(sts_key)(msg)
+        ==> replicas_satisfies_order(controller_id, msg.content.get_get_then_update_request().obj, rabbitmq)(s_prime)) by {
             if resource_create_request_msg(sts_key)(msg) {
                 replicas_of_stateful_set_create_request_msg_satisfies_order_induction(controller_id, cluster, rabbitmq, s, s_prime, msg);
             }
-            if resource_update_request_msg(sts_key)(msg) {
+            if resource_get_then_update_request_msg(sts_key)(msg) {
                 replicas_of_stateful_set_update_request_msg_satisfies_order_induction(controller_id, cluster, rabbitmq, s, s_prime, msg);
             }
         }
@@ -396,8 +390,8 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         // no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, rabbitmq)(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(controller_id, rabbitmq)(s),
         s_prime.in_flight().contains(msg),
-        resource_update_request_msg(make_stateful_set_key(rabbitmq))(msg),
-    ensures replicas_satisfies_order(controller_id, msg.content.get_update_request().obj, rabbitmq)(s_prime),
+        resource_get_then_update_request_msg(make_stateful_set_key(rabbitmq))(msg),
+    ensures replicas_satisfies_order(controller_id, msg.content.get_get_then_update_request().obj, rabbitmq)(s_prime),
 {
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();
@@ -410,11 +404,11 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
                 if s.resources().contains_key(key) {
                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
                 } else {
-                    let owner_refs = msg.content.get_update_request().obj.metadata.owner_references;
+                    let owner_refs = msg.content.get_get_then_update_request().obj.metadata.owner_references;
                     assert(owner_refs is Some && owner_refs->0.len() == 1);
                     assert(owner_refs->0[0].uid < s.api_server.uid_counter);
                     assert(owner_refs->0[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
-                    assert(!msg.content.get_update_request().obj.metadata.owner_references_only_contains(RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref()));
+                    assert(!msg.content.get_get_then_update_request().obj.metadata.owner_references_only_contains(RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref()));
                 }
             }
         },
@@ -422,7 +416,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
             if !s.in_flight().contains(msg) {
                 VStatefulSetView::marshal_preserves_integrity();
                 VStatefulSetView::marshal_spec_preserves_integrity();
-                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
             }
         },
         _ => {

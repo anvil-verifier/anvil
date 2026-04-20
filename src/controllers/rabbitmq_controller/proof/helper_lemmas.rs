@@ -429,9 +429,9 @@ ensures
                         }
                     }
                 },
-                APIRequest::UpdateRequest(req) => { // every_resource_update_request_implies_at_after_update_resource_step
+                APIRequest::UpdateRequest(req) => { // every_resource_get_then_update_request_implies_at_after_update_resource_step
                     assume(false);
-                    if resource_update_request_msg(resource_key)(msg) {}
+                    if resource_get_then_update_request_msg(resource_key)(msg) {}
                 },
                 _ => {
                     assume(false);

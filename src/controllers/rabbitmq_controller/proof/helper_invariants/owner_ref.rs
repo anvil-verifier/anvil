@@ -49,8 +49,8 @@ pub open spec fn object_in_every_resource_create_or_update_request_msg_only_has_
                 resource_create_request_msg(resource_key)(msg)
                 ==> owner_references_is_valid(msg.content.get_create_request().obj, s)
             ) && (
-                resource_update_request_msg(resource_key)(msg)
-                ==> owner_references_is_valid(msg.content.get_update_request().obj, s)
+                resource_get_then_update_request_msg(resource_key)(msg)
+                ==> owner_references_is_valid(msg.content.get_get_then_update_request().obj, s)
             )
     }
 }
@@ -101,7 +101,7 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
         resource_create_request_msg(resource_key)(msg) ==> owner_references_is_valid(msg.content.get_create_request().obj, s)
     };
     let update_valid = |msg: Message, s: ClusterState| {
-        resource_update_request_msg(resource_key)(msg) ==> owner_references_is_valid(msg.content.get_update_request().obj, s)
+        resource_get_then_update_request_msg(resource_key)(msg) ==> owner_references_is_valid(msg.content.get_get_then_update_request().obj, s)
     };
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies create_valid(msg, s_prime) && update_valid(msg, s_prime) by {
@@ -133,7 +133,7 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
         cluster.next()(s, s_prime),
     ensures
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_create_request().obj, s_prime),
-        resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_update_request().obj, s_prime),
+        resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) ==> owner_references_is_valid(msg.content.get_get_then_update_request().obj, s_prime),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert(s.api_server.uid_counter <= s_prime.api_server.uid_counter);
@@ -150,9 +150,9 @@ proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_ow
         assert(owner_refs is Some);
         assert(owner_refs->0.len() == 1);
         assert(owner_refs->0[0].uid < s.api_server.uid_counter);
-    } else if resource_update_request_msg(resource_key)(msg) {
-        lemma_resource_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
-        let owner_refs = msg.content.get_update_request().obj.metadata.owner_references;
+    } else if resource_get_then_update_request_msg(resource_key)(msg) {
+        lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
+        let owner_refs = msg.content.get_get_then_update_request().obj.metadata.owner_references;
         assert(owner_refs == Some(seq![cr.controller_owner_ref()]));
         assert(owner_refs is Some);
         assert(owner_refs->0.len() == 1);
@@ -188,15 +188,15 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
         &&& cluster.next()(s, s_prime)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
-        &&& no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
+        &&& no_interfering_non_delete_requests_in_flight(sub_resource, controller_id, rabbitmq)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
-    lemma_always_no_get_then_requests_and_update_resource_status_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
+    lemma_always_no_interfering_non_delete_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
     combine_spec_entails_always_n!(spec, lift_action(next), lift_action(cluster.next()),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
-        lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))
+        lift_state(no_interfering_non_delete_requests_in_flight(sub_resource, controller_id, rabbitmq))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -209,7 +209,7 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
                     assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
                     if !s.resources().contains_key(resource_key) {
                     } else if s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {
-                        if resource_update_request_msg(resource_key)(msg) {
+                        if resource_get_then_update_request_msg(resource_key)(msg) {
                         } else if resource_get_then_update_request_msg(resource_key)(msg) {}
                     } else {}
                 },

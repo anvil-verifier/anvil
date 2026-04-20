@@ -71,7 +71,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         } implies match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
             APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            APIRequest::GetThenUpdateRequest(req) => rmq_guarantee_get_then_update_req(req),
             _ => false,
         } by {
             if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -122,7 +122,7 @@ pub proof fn lemma_guarantee_from_reconcile_state(
         match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
             APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            APIRequest::GetThenUpdateRequest(req) => rmq_guarantee_get_then_update_req(req),
             _ => false,
         }
 {
@@ -142,11 +142,11 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                         if get_resp is Ok {
                             // Update path: sends UpdateRequest
                             // reconcile_helper calls Builder::update which sets owner_references
-                            assert(msg.content.is_update_request());
-                            let req = msg.content.get_update_request();
+                            assert(msg.content.is_get_then_update_request());
+                            let req = msg.content.get_get_then_update_request();
                             // The update function for every resource builder sets
                             // owner_references = Some(seq![rmq.controller_owner_ref()])
-                            assert(rmq_guarantee_update_req(req));
+                            assert(rmq_guarantee_get_then_update_req(req));
                         } else if get_resp->Err_0 is ObjectNotFound {
                             // Create path: sends CreateRequest
                             // reconcile_helper calls Builder::make which sets owner_references

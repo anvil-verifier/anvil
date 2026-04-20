@@ -14,7 +14,7 @@ use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
     proof::{predicate::*, resource::*},
-    trusted::{spec_types::*, step::*},
+    trusted::{spec_types::*, step::*, rely_guarantee::has_rmq_prefix},
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -50,12 +50,12 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(Message) -
         )
 }
 
-pub open spec fn resource_update_response_msg(key: ObjectRef, s: ClusterState) -> spec_fn(Message) -> bool {
+pub open spec fn resource_get_then_update_response_msg(key: ObjectRef, s: ClusterState) -> spec_fn(Message) -> bool {
     |msg: Message|
         msg.src is APIServer
-        && msg.content.is_update_response()
+        && msg.content.is_get_then_update_response()
         && (
-            msg.content.get_update_response().res is Ok
+            msg.content.get_get_then_update_response().res is Ok
             ==> (
                 s.resources().contains_key(key)
                 && msg.content.get_update_response().res->Ok_0 == s.resources()[key]
@@ -125,12 +125,12 @@ pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etc
 
         at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
         ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-            && resource_update_request_msg(resource_key)(pending_req)
+            && resource_get_then_update_request_msg(resource_key)(pending_req)
             && (
                 forall |msg: Message|
                     #[trigger] s.in_flight().contains(msg)
                     && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
-                    ==> resource_update_response_msg(resource_key, s)(msg)
+                    ==> resource_get_then_update_response_msg(resource_key, s)(msg)
             )
     }
 }
@@ -161,11 +161,11 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
         let key = rabbitmq.object_ref();
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            &&& resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
-            &&& msg.content.get_update_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+            &&& msg.content.get_get_then_update_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
         }
     }
 }
@@ -186,25 +186,23 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
     }
 }
 
-pub open spec fn every_resource_update_request_implies_at_after_update_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            &&& resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            // other controller can set get_then_update but not with RMQ kind in owner_ref
+            &&& msg.content.get_get_then_update_request().owner_ref.kind == RabbitmqClusterView::kind()
         } ==> {
             &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
-            &&& msg.content.get_update_request().obj.metadata.resource_version is Some
-            &&& msg.content.get_update_request().obj.metadata.resource_version->0 < s.api_server.resource_version_counter
-            &&& (
-                s.resources().contains_key(resource_key)
-                && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
-            ) ==> (
+            &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
+            &&& s.resources().contains_key(resource_key) ==> (
                 update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key]) is Ok
-                && msg.content.get_update_request().obj == update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key])->Ok_0
+                && msg.content.get_get_then_update_request().obj == update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key])->Ok_0
             )
         }
     }
@@ -213,8 +211,7 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
 pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     let key = get_request(sub_resource, rabbitmq).key;
     |s: ClusterState| {
-        s.resources().contains_key(key)
-        ==> s.resources()[key].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+        s.resources().contains_key(key) ==> s.resources()[key].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
     }
 }
 
@@ -230,14 +227,60 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
     }
 }
 
-pub open spec fn no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+// combining requests from other id constrained by rely conditions and requests from controller itself
+// delete requests are handled above and are proved as "later" invariant
+pub open spec fn no_interfering_non_delete_requests_in_flight(sub_resource: SubResource, controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |msg: Message| #[trigger] s.in_flight().contains(msg)
-        ==> !{
-            ||| resource_get_then_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_get_then_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            ||| resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+        let resource_key = get_request(sub_resource, rabbitmq).key;
+        let etcd_obj = s.resources()[resource_key];
+        &&& forall |msg: Message| #[trigger] s.in_flight().contains(msg) && msg.content is APIRequest ==> match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) => {
+                resource_create_request_msg(resource_key)(msg) && !msg.src.is_controller_id(controller_id) ==> { // controller itself can send create request
+                    &&& req.obj.metadata.name is Some ==> !has_rmq_prefix(req.obj.metadata.name->0)
+                    &&& req.obj.metadata.name is None && req.obj.metadata.generate_name is Some ==> !has_rmq_prefix(req.obj.metadata.generate_name->0)
+                }
+            },
+            APIRequest::DeleteRequest(req) => {
+                resource_delete_request_msg(resource_key)(msg) // no delete request can succeed
+                ==> s.resources().contains_key(req.key())
+                    ==> req.preconditions is Some
+                    && req.preconditions->0.resource_version is Some
+                    && etcd_obj.metadata.resource_version is Some
+                    && etcd_obj.metadata.resource_version == req.preconditions->0.resource_version
+                        ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())
+            },
+            APIRequest::UpdateRequest(req) => {
+                resource_update_request_msg(resource_key)(msg) // no update request can succeed
+                ==> s.resources().contains_key(req.key())
+                    ==> req.obj.metadata.resource_version is Some
+                    && etcd_obj.metadata.resource_version is Some
+                    && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                        ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())
+            },
+            APIRequest::UpdateStatusRequest(req) => {
+                resource_update_status_request_msg(resource_key)(msg) && resource_key.kind == Kind::ConfigMapKind // only requires for CM kind to prevent its resource version from changing
+                ==> s.resources().contains_key(req.key()) // no get_then_update_status request can succeed
+                    ==> req.obj.metadata.resource_version is Some
+                    && etcd_obj.metadata.resource_version is Some
+                    && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                        ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()) // then it should not touch objects owned by rmq
+            },
+            APIRequest::GetThenDeleteRequest(req) => {
+                resource_get_then_delete_request_msg(resource_key)(msg) && msg.src != HostId::BuiltinController
+                ==> req.owner_ref.controller == Some(true) // no get_then_delete request can succeed
+                    ==> req.owner_ref.kind != RabbitmqClusterView::kind()
+            },
+            APIRequest::GetThenUpdateRequest(req) => {
+                resource_get_then_update_request_msg(resource_key)(msg) && msg.src.is_controller_id(controller_id)
+                ==> req.owner_ref.controller == Some(true) // no get_then_update request can succeed
+                    ==> req.owner_ref.kind != RabbitmqClusterView::kind()
+            },
+            APIRequest::GetThenUpdateStatusRequest(req) => {
+                resource_get_then_update_status_request_msg(resource_key)(msg)
+                ==> req.owner_ref.controller == Some(true) // no get_then_update_status request can succeed
+                    ==> req.owner_ref.kind != RabbitmqClusterView::kind()
+            },
+            _ => true, // get/list requests are read only
         }
     }
 }

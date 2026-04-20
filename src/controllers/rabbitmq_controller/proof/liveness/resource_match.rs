@@ -763,9 +763,9 @@ ensures
     assert(s.resources() == s_prime.resources());
     let step = after_update_k_request_step(sub_resource);
     let msg = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-    let req = msg.content.get_update_request();
+    let req = msg.content.get_get_then_update_request();
     let returned_obj = resp_msg.content.get_get_response().res->Ok_0;
-    let obj = msg.content.get_update_request().obj;
+    let obj = msg.content.get_get_then_update_request().obj;
     if sub_resource == SubResource::VStatefulSetView {
         let cm_key = make_server_config_map_key(rabbitmq);
         let cm_obj = s.resources()[cm_key];
@@ -1115,15 +1115,15 @@ ensures
         Step::APIServerStep(input) => {
             let msg = input->0;
             assert(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)(s));
-            assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)(s));
+            assert(helper_invariants::every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)(s));
             assert(s.in_flight().contains(msg));
             assert(!resource_delete_request_msg(resource_key)(msg));
             assert(!resource_get_then_update_request_msg(resource_key)(msg));
             assert(!resource_get_then_delete_request_msg(resource_key)(msg));
             assert(!resource_update_status_request_msg(resource_key)(msg));
             assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
-            if resource_update_request_msg(resource_key)(msg) {
-                if msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {} else {
+            if resource_get_then_update_request_msg(resource_key)(msg) {
+                if msg.content.get_get_then_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {} else {
                     assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                 }
             } else {
@@ -1166,20 +1166,33 @@ ensures
         Step::APIServerStep(input) => {
             let msg = input->0;
             assert(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s));
-            assert(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s));
+            assert(helper_invariants::every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s));
             assert(s.in_flight().contains(msg));
             assert(!resource_delete_request_msg(resource_key)(msg));
             assert(!resource_get_then_update_request_msg(resource_key)(msg));
             assert(!resource_get_then_delete_request_msg(resource_key)(msg));
             assert(!resource_update_status_request_msg(resource_key)(msg));
             assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
-            if resource_update_request_msg(resource_key)(msg) {
-                if msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
-                    let req = msg.content.get_update_request();
-                    let old_obj = s.resources()[req.key()];
-                    let updated_obj = updated_object(req, old_obj);
+            if resource_get_then_update_request_msg(resource_key)(msg) {
+                if msg.content.get_get_then_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
+                    let req = msg.content.get_get_then_update_request();
+                    let current_obj = s.resources()[req.key()];
+                    let new_obj = DynamicObjectView {
+                        metadata: ObjectMetaView {
+                            resource_version: current_obj.metadata.resource_version,
+                            uid: current_obj.metadata.uid,
+                            ..req.obj.metadata
+                        },
+                        ..req.obj
+                    };
+                    let update_req = UpdateRequest {
+                        name: req.name,
+                        namespace: req.namespace,
+                        obj: new_obj,
+                    };
+                    let updated_obj = updated_object(update_req, new_obj);
                     assert(s.resources()[resource_key].spec == ConfigMapView::marshal_spec(make_server_config_map(rabbitmq).data));
-                    assert(updated_obj == old_obj);
+                    assert(updated_obj == current_obj);
                     assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                 } else {
                     assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);

@@ -390,9 +390,9 @@ ensures
             assert(!resource_update_status_request_msg(sts_key)(msg));
 
             assert(s.in_flight().contains(msg));
-            if resource_update_request_msg(sts_key)(msg) {
+            if resource_get_then_update_request_msg(sts_key)(msg) {
                 if s.resources().contains_key(sts_key)
-                    && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[sts_key].metadata.resource_version {
+                    && msg.content.get_get_then_update_request().owner_ref == rmq.controller_owner_ref() {
                     RabbitmqReconcileState::marshal_preserves_integrity();
                     VStatefulSetView::marshal_preserves_integrity();
                 } else {
