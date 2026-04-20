@@ -278,7 +278,7 @@ pub open spec fn resp_msg_is_ok_create_resp_containing_new_vrs(
     // strengthen valid_owned_vrs, as only one controller owner is allowed
     &&& vrs.metadata.owner_references is Some
     &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-    &&& get_replicas(vrs.spec.replicas) == created_replicas(vd.spec.replicas)
+    &&& vrs.spec.replicas.unwrap_or(1) == created_replicas(vd.spec.replicas)
     // this combined with all above ==> valid_owned_vrs
     &&& vrs.metadata.deletion_timestamp is None
     &&& s.resources().contains_key(key)
@@ -329,7 +329,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         // of course, replica isn't updated locally
         &&& req_vrs.metadata.without_resource_version() == local_vrs.metadata.without_resource_version()
         // this is important, then we know etcd_vrs can pass old_vrs_filter from the coherence predicate
-        &&& pre_update ==> get_replicas(etcd_vrs.spec.replicas) > 0
+        &&& pre_update ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
         // derive from no_duplicates(), coherence isn't affected
         &&& forall |i: int| #![trigger state.old_vrs_list[i]] 0 <= i < state.old_vrs_index ==>
             state.old_vrs_list[i].object_ref() != key
@@ -379,7 +379,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
-        &&& get_replicas(req_vrs.spec.replicas) == nv_uid_key_replicas.2
+        &&& req_vrs.spec.replicas.unwrap_or(1) == nv_uid_key_replicas.2
         &&& key == state.new_vrs->0.object_ref()
         &&& key == req_vrs.object_ref()
     }
@@ -496,7 +496,7 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_k
                 &&& filter_new_vrs_keys(vd.spec.template, s)(key)
                 &&& etcd_vrs.metadata.uid is Some
                 &&& etcd_vrs.metadata.uid->0 == uid
-                &&& get_replicas(etcd_vrs.spec.replicas) == replicas
+                &&& etcd_vrs.spec.replicas.unwrap_or(1) == replicas
             },
             None => {
                 &&& !exists |k: ObjectRef| {
@@ -514,7 +514,7 @@ pub open spec fn instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd: VDe
 -> StatePred<ClusterState> {
     |s: ClusterState| exists |nv_uid_replicas: (Uid, int)| {
         // holds after state is stable
-        &&& get_replicas(vd.spec.replicas) > 0 ==> nv_uid_replicas.1 > 0
+        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)
     }
 }
@@ -773,13 +773,13 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
             // if vd has 0 replicas, local new vrs can have 0 replicas or not
             // if the new_vrs in etcd has > 0 replicas, it will be chosen at after list step
             &&& local_state.reconcile_step == AfterScaleNewVRS || local_state.reconcile_step == AfterEnsureNewVRS ==> {
-                &&& local_state.new_vrs is Some && get_replicas(etcd_vrs.spec.replicas) > 0 ==> {
+                &&& local_state.new_vrs is Some && etcd_vrs.spec.replicas.unwrap_or(1) > 0 ==> {
                     &&& local_state.new_vrs->0.object_ref() == new_vrs_key
                     &&& local_state.new_vrs->0.metadata.uid->0 == etcd_vrs.metadata.uid->0
                 }
                 &&& local_state.new_vrs is Some && local_state.new_vrs->0.object_ref() != new_vrs_key ==> {
-                    &&& get_replicas(vd.spec.replicas) == 0 // optional, can be implied from above
-                    &&& get_replicas(local_state.new_vrs->0.spec.replicas) == 0
+                    &&& vd.spec.replicas.unwrap_or(1) == 0 // optional, can be implied from above
+                    &&& local_state.new_vrs->0.spec.replicas.unwrap_or(1) == 0
                 }
                 &&& local_state.old_vrs_index == 0
             }
