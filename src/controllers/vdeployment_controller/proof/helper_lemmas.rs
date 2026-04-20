@@ -317,7 +317,7 @@ ensures
         &&& valid_owned_obj_key(vd, s)(k)
         &&& filter_new_vrs_keys(vd.spec.template, s)(k)
         &&& etcd_vrs.metadata.uid is Some
-        &&& get_replicas(vd.spec.replicas) > 0 ==> get_replicas(etcd_vrs.spec.replicas) > 0
+        &&& vd.spec.replicas.unwrap_or(1) > 0 ==> etcd_vrs.spec.replicas.unwrap_or(1) > 0
         &&& !exists |k: ObjectRef| {
             &&& s.resources().contains_key(k)
             &&& valid_owned_obj_key(vd, s)(k)
@@ -340,7 +340,7 @@ ensures
     if current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s) {
         let new_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
         let nv_uid = new_vrs.metadata.uid->0;
-        assert(etcd_state_is(vd, controller_id, Some((nv_uid, new_vrs_key, get_replicas(new_vrs.spec.replicas))), 0)(s)) by {
+        assert(etcd_state_is(vd, controller_id, Some((nv_uid, new_vrs_key, new_vrs.spec.replicas.unwrap_or(1))), 0)(s)) by {
             let filtered_old_vrs_keys = filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid), s));
             if exists |k: ObjectRef| filtered_old_vrs_keys.contains(k) {
                 let k = choose |k: ObjectRef| filtered_old_vrs_keys.contains(k);
@@ -353,15 +353,17 @@ ensures
                 }
             }
         }
-        assert((|nv_uid_replicas: (Uid, int)| get_replicas(vd.spec.replicas) > 0 ==> nv_uid_replicas.1 > 0
-            && etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s))((nv_uid, get_replicas(new_vrs.spec.replicas))));
-        assert(instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s));
+        assert(exists |nv_uid_replicas: (Uid, int)| vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0 &&
+            #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)) by {
+            assert((|nv_uid_replicas: (Uid, int)| vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
+                && etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s))((nv_uid, new_vrs.spec.replicas.unwrap_or(1))));
+        }
     }
     // <==
     if instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s) {
         let vrs_with_nv_key = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
         let nv_uid_replicas = choose |nv_uid_replicas: (Uid, int)| {
-            &&& get_replicas(vd.spec.replicas) > 0 ==> nv_uid_replicas.1 > 0
+            &&&vd.spec.replicas.unwrap_or(1) > 0 ==> nv_uid_replicas.1 > 0
             &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s)
         };
         assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies !({
