@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     api_server::state_machine::*,
 };
-use crate::kubernetes_cluster::proof::api_server::other_objects_are_unaffected_if_request_key_does_not_match;
+use crate::kubernetes_cluster::proof::api_server::other_objects_are_unaffected_if_request_fails_to_be_applied;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
     model::resource::*,
@@ -128,7 +128,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                                     if resource_get_then_update_request_msg(resource_key)(msg) {
                                     } else if resource_create_request_msg(resource_key)(msg) {
                                     } else {
-                                        other_objects_are_unaffected_if_request_key_does_not_match(cluster, s, s_prime, input->0, resource_key);
+                                        other_objects_are_unaffected_if_request_fails_to_be_applied(cluster, s, s_prime, input->0, resource_key);
                                     }
                                 },
                                 Step::ControllerStep(_) => {},
