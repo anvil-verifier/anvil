@@ -407,7 +407,6 @@ ensures
                 APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
                 APIRequest::CreateRequest(req) => {
                     if id == controller_id { // use guarantee
-                        assume(false);
                         if resource_create_request_msg(resource_key)(msg) {} // every_resource_create_request_implies_at_after_create_resource_step
                     } else if is_rmq_managed_kind(req.obj.kind) { // use rely
                         assert(cluster.controller_models.remove(controller_id).contains_key(id));
@@ -430,11 +429,9 @@ ensures
                     }
                 },
                 APIRequest::UpdateRequest(req) => { // every_resource_get_then_update_request_implies_at_after_update_resource_step
-                    assume(false);
                     if resource_get_then_update_request_msg(resource_key)(msg) {}
                 },
                 _ => {
-                    assume(false);
                 },
             }
         },

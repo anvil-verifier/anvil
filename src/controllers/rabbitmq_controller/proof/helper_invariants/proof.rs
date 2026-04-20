@@ -849,7 +849,6 @@ proof fn lemma_eventually_always_every_resource_get_then_update_request_implies_
                                             } else { // use rely
                                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
                                                 assert(rmq_rely(id)(s));
-                                                assume(!is_rmq_managed_kind(req_msg.content.get_create_request().key().kind));
                                             }
                                         },
                                         APIRequest::UpdateRequest(req) => {
@@ -1363,7 +1362,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                             if resource_create_request_msg(resource_key)(msg) || resource_get_then_update_request_msg(resource_key)(msg) {
                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
                                 assert(rmq_rely(id)(s_prime));
-                                assume(!is_rmq_managed_kind(resource_key.kind));
                                 assert(false);
                             }
                         }
@@ -1679,26 +1677,18 @@ pub proof fn lemma_always_no_interfering_non_delete_requests_in_flight(
                                 match (msg.content->APIRequest_0) {
                                     APIRequest::GetThenDeleteRequest(req) => {
                                         if resource_get_then_delete_request_msg(resource_key)(msg) {
-                                            assume(!is_rmq_managed_kind(req.key().kind));
-                                            assert(false);
                                         }
                                     },
                                     APIRequest::GetThenUpdateRequest(req) => {
                                         if resource_get_then_update_request_msg(resource_key)(msg) {
-                                            assume(!is_rmq_managed_kind(req.key().kind));
-                                            assert(false);
                                         }
                                     },
                                     APIRequest::GetThenUpdateStatusRequest(req) => {
                                         if resource_get_then_update_status_request_msg(resource_key)(msg) {
-                                            assume(!is_rmq_managed_kind(req.key().kind));
-                                            assert(false);
                                         }
                                     },
                                     APIRequest::UpdateStatusRequest(req) => {
                                         if resource_update_status_request_msg(resource_key)(msg) {
-                                            assume(!is_rmq_managed_kind(req.key().kind));
-                                            assert(false);
                                         }
                                     },
                                     _ => {},
@@ -2040,7 +2030,6 @@ pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
                             if msg.content.is_create_request() {
-                                assume(!is_rmq_managed_kind(msg.content.get_create_request().key().kind));
                                 if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg) {
                                     assert(!is_rmq_managed_kind(resource_key.kind));
                                     assert(false);
@@ -2177,7 +2166,6 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
-                            assume(!is_rmq_managed_kind(sts_key.kind));
                             assert(false);
                         }
                     },
