@@ -188,15 +188,15 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
         &&& cluster.next()(s, s_prime)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
-        &&& no_interfering_non_delete_requests_in_flight(sub_resource, controller_id, rabbitmq)(s)
+        &&& no_interfering_requests_in_flight(sub_resource, controller_id, rabbitmq)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
-    lemma_always_no_interfering_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
+    lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref_and_no_interfering_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
     combine_spec_entails_always_n!(spec, lift_action(next), lift_action(cluster.next()),
         lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)),
         lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
-        lift_state(no_interfering_non_delete_requests_in_flight(sub_resource, controller_id, rabbitmq))
+        lift_state(no_interfering_requests_in_flight(sub_resource, controller_id, rabbitmq))
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {

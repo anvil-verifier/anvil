@@ -230,7 +230,7 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
 // combining requests from other id constrained by rely conditions and requests from controller itself
 // delete requests are handled above and are proved as "later" invariant
 // allows 1. Delete from GC 2. GetThenUpdate from RMQ controller 3. Create from RMQ controller
-pub open spec fn no_interfering_non_delete_requests_in_flight(sub_resource: SubResource, controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn no_interfering_requests_in_flight(sub_resource: SubResource, controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| #[trigger] s.in_flight().contains(msg) && msg.content is APIRequest
             ==> request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s)
@@ -243,7 +243,7 @@ pub open spec fn request_does_not_interfere(sub_resource: SubResource, controlle
         let etcd_obj = s.resources()[resource_key];
         &&& match msg.content->APIRequest_0 {
             APIRequest::CreateRequest(req) => {
-                resource_create_request_msg(resource_key)(msg) && !msg.src.is_controller_id(controller_id) ==> { // controller itself can send create request
+                !msg.src.is_controller_id(controller_id) ==> { // controller itself can send create request
                     &&& req.obj.metadata.name is Some ==> !has_rmq_prefix(req.obj.metadata.name->0)
                     &&& req.obj.metadata.name is None && req.obj.metadata.generate_name is Some ==> !has_rmq_prefix(req.obj.metadata.generate_name->0)
                 }
