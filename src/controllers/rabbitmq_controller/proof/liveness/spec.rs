@@ -650,7 +650,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_interfering_non_delete_requests_in_flight(res, controller_id, rabbitmq));
     assert_by(spec.entails(always(tla_forall(a_to_p_3))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_3(sub_resource))) by {
-            helper_invariants::lemma_always_no_interfering_non_delete_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
+            helper_invariants::lemma_always_no_interfering_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_3);
     });

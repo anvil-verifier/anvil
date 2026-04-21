@@ -80,7 +80,7 @@ pub open spec fn rmq_rely_get_then_update_req(req: GetThenUpdateRequest) -> bool
 pub open spec fn rmq_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
-        &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) ==>
+        &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) && s.resources().contains_key(req.key())
         ==> req.obj.metadata.resource_version is Some
             ==> etcd_obj.metadata.resource_version is Some && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version // if req could succeed
                 ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())

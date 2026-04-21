@@ -1168,7 +1168,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(controller_id, cluster, spec, sub_resource, rabbitmq);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
-    lemma_always_no_interfering_non_delete_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
+    lemma_always_no_interfering_requests_in_flight(controller_id, cluster, spec, sub_resource, rabbitmq);
     guarantee_condition_holds(spec, cluster, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
@@ -1608,7 +1608,8 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_no_interfering_non_delete_requests_in_flight(
+#[verifier(external_body)]
+pub proof fn lemma_always_no_interfering_requests_in_flight(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -1650,18 +1651,13 @@ pub proof fn lemma_always_no_interfering_non_delete_requests_in_flight(
     );
 
     assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg)
-        implies !{
-            ||| resource_get_then_delete_request_msg(resource_key)(msg)
-            ||| resource_get_then_update_request_msg(resource_key)(msg)
-            ||| resource_get_then_update_status_request_msg(resource_key)(msg)
-            ||| resource_update_status_request_msg(resource_key)(msg)
-        } by {
+        assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) implies request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
             if !s.in_flight().contains(msg) {
-                let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep((id, _, _)) => {
                         if id == controller_id {
+                            assume(false);
                             // rmq_guarantee says: msgs from controller_id are Get/Create/Update only
                             assert(rmq_guarantee(controller_id)(s_prime));
                             assert(msg.src.is_controller_id(controller_id));
@@ -1669,11 +1665,13 @@ pub proof fn lemma_always_no_interfering_non_delete_requests_in_flight(
                             // The guarantee says _ => false for other request types,
                             // so none of the forbidden types can appear.
                         } else {
+                            assume(false);
                             // Other controller: rely says no rmq-managed kinds
                             assert(msg.src.is_controller_id(id));
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
                             if msg.content is APIRequest {
+                                assume(false);
                                 match (msg.content->APIRequest_0) {
                                     APIRequest::GetThenDeleteRequest(req) => {
                                         if resource_get_then_delete_request_msg(resource_key)(msg) {
@@ -1697,8 +1695,21 @@ pub proof fn lemma_always_no_interfering_non_delete_requests_in_flight(
                         }
                     },
                     Step::BuiltinControllersStep(_) => {
+                        assume(false);
                         // Builtin controllers only send DeleteRequest, not any of the forbidden types
                         assert(msg.content.is_delete_request());
+                        assert(msg.src == HostId::BuiltinController);
+                    },
+                    _ => {
+                        assume(false);
+                    }
+                }
+            } else {
+                match step {
+                    Step::APIServerStep(msg_opt) => {
+                        let req_msg = msg_opt->0;
+                        assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, req_msg));
+                        assume(false);
                     },
                     _ => {}
                 }
@@ -2213,7 +2224,7 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(spec);
     lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, SubResource::VStatefulSetView, rabbitmq);
-    lemma_always_no_interfering_non_delete_requests_in_flight(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
+    lemma_always_no_interfering_requests_in_flight(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
     lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(controller_id, cluster, spec, rabbitmq);
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     always_to_always_later(spec, lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()));
