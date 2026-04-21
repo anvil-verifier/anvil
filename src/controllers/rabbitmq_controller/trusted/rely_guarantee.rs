@@ -63,12 +63,10 @@ pub open spec fn rmq_rely_create_req(req: CreateRequest) -> bool {
 pub open spec fn rmq_rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
-        &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) ==> { // if req could interfere
-            req.obj.metadata.resource_version is Some
-            && etcd_obj.metadata.resource_version is Some
-            && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version // if req could succeed
+        &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) && s.resources().contains_key(req.key())
+        ==> req.obj.metadata.resource_version is Some
+            ==> etcd_obj.metadata.resource_version is Some && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version // if req could succeed
                 ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()) // then it should not touch objects owned by rmq
-        }
     }
 }
 
@@ -83,9 +81,8 @@ pub open spec fn rmq_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
         &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) && s.resources().contains_key(req.key()) ==>
-            req.obj.metadata.resource_version is Some
-            && etcd_obj.metadata.resource_version is Some
-            && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+        ==> req.obj.metadata.resource_version is Some
+            ==> etcd_obj.metadata.resource_version is Some && etcd_obj.metadata.resource_version == req.obj.metadata.resource_version // if req could succeed
                 ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())
     }
 }
@@ -100,11 +97,9 @@ pub open spec fn rmq_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
         &&& is_rmq_managed_kind(req.key().kind) && has_rmq_prefix(req.key.name) && s.resources().contains_key(req.key()) // if req could interfere
-            ==> req.preconditions is Some
-            && req.preconditions->0.resource_version is Some
-            && etcd_obj.metadata.resource_version is Some
-            && etcd_obj.metadata.resource_version == req.preconditions->0.resource_version // if req could succeed
-                ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()) // then it should not touch objects owned by rmq
+            ==> req.preconditions is Some && req.preconditions->0.resource_version is Some
+                ==> etcd_obj.metadata.resource_version is Some && etcd_obj.metadata.resource_version == req.preconditions->0.resource_version // if req could succeed
+                    ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()) // then it should not touch objects owned by rmq
     }
 }
 
