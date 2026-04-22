@@ -1252,7 +1252,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
             }
         }
         assert(q(s_prime)) by {
-            assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) implies request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime) by {
+            assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) && msg.content is APIRequest
+                implies request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     match step {
