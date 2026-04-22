@@ -14,7 +14,7 @@ use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
     proof::{predicate::*, resource::*},
-    trusted::{spec_types::*, step::*, rely_guarantee::has_rmq_prefix},
+    trusted::{spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
@@ -243,7 +243,7 @@ pub open spec fn request_does_not_interfere(sub_resource: SubResource, controlle
         let etcd_obj = s.resources()[resource_key];
         &&& match msg.content->APIRequest_0 {
             APIRequest::CreateRequest(req) => {
-                !msg.src.is_controller_id(controller_id) ==> { // controller itself can send create request
+                !msg.src.is_controller_id(controller_id) && is_rmq_managed_kind(req.obj.kind) ==> { // controller itself can send create request
                     &&& req.obj.metadata.name is Some ==> !has_rmq_prefix(req.obj.metadata.name->0)
                     &&& req.obj.metadata.name is None && req.obj.metadata.generate_name is Some ==> !has_rmq_prefix(req.obj.metadata.generate_name->0)
                 }

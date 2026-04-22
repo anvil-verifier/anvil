@@ -1271,15 +1271,14 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
                                             if !msg.src.is_controller_id(controller_id) {
+                                                assert(rmq_rely_create_req(req));
                                                 if req.obj.metadata.name is Some {
+                                                    assert(!has_rmq_prefix(req.obj.metadata.name->0));
                                                     assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime));
                                                 } else if req.obj.metadata.generate_name is Some {
                                                     assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime));
                                                 }
-                                            } else {
-                                                assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime));
                                             }
-                                            assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime));
                                         },
                                         APIRequest::UpdateRequest(req) => {
                                             assume(false);
