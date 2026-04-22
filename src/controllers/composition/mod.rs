@@ -1,4 +1,3 @@
-pub mod common;
 pub mod vreplicaset_reconciler;
 pub mod vdeployment_reconciler;
 pub mod vstatefulset_reconciler;
