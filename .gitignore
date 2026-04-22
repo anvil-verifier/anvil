@@ -8,12 +8,11 @@ src/.verus-log/
 e2e/target/
 /target
 /Cargo.lock
-src/liblib.rlib
 verifiable-controllers.code-workspace
 src/.verus-solver-log/
 src/*.d
-src/*.rlib
 src/*.o
+**/*.rlib
 tools/*.json
 vreplicaset_controller.*.txt
 vstatefulset_controller.*.txt
