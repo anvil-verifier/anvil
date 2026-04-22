@@ -7,4 +7,4 @@
 use vstd::prelude::*;
 
 
-verus! { #[verifier(external_body)] proof fn trivial() {} }
+verus! { spec fn trivial() ->bool {true} } // makes verus recognize this as a mod
