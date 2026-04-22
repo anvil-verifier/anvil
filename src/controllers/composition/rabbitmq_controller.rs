@@ -44,7 +44,6 @@ impl Composition for RabbitmqReconciler {
             safety_partial_rely: |other_id: int| always(lift_state(rmq_rely(other_id))),
             fairness: |cluster: Cluster| next_with_wf(cluster, Self::id()),
             membership: |cluster: Cluster, id: int| {
-                &&& cluster.controller_models.contains_pair(VStatefulSetReconciler::id(), vsts_controller_model())
                 &&& cluster.controller_models.contains_pair(Self::id(), rabbitmq_controller_model())
                 &&& cluster.type_is_installed_in_cluster::<RabbitmqClusterView>()
                 &&& cluster.type_is_installed_in_cluster::<VStatefulSetView>()
