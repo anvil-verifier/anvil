@@ -39,8 +39,7 @@ pub open spec fn vrs_core_set(id: int) -> CoreSet {
 
 pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
     requires
-        cluster.registry.contains_key(id),
-        cluster.registry[id] == vrs_controller_spec(id),
+        cluster.registry.contains_pair(id, vrs_controller_spec(id)),
         well_formed(cluster, vrs_core_set(id)),
     ensures
         core(cluster, vrs_core_set(id)),
@@ -50,39 +49,18 @@ pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
     let inner = cluster.cluster;
 
     // Unfold well_formed to get membership facts.
-    assert(s.members.contains(id));
+    assert(s.members.contains(id)); // trigger
     assert((cluster.registry[id].membership)(inner, id));
-    assert(inner.controller_models.contains_pair(id, vrs_controller_model()));
-    assert(inner.type_is_installed_in_cluster::<VReplicaSetView>());
-
-    // Extract spec.entails(init): spec is init ∧ always(next) ∧ fairness_forall.
-    assert(spec.entails(lift_state(inner.init()))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex)
-            implies lift_state(inner.init()).satisfied_by(ex) by {}
-    }
-
-    // Extract spec.entails(always(next)).
-    assert(spec.entails(always(lift_action(inner.next())))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex)
-            implies always(lift_action(inner.next())).satisfied_by(ex) by {}
-    }
 
     // Extract spec.entails(next_with_wf(inner, id)) from the fairness tla_forall at i=id.
     let fairness_fn = |i: int| if cluster.registry.contains_key(i) {
         (cluster.registry[i].fairness)(inner)
     } else { true_pred::<ClusterState>() };
     assert(spec.entails(next_with_wf(inner, id))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex)
-            implies next_with_wf(inner, id).satisfied_by(ex) by {
-            assert(tla_forall(fairness_fn).satisfied_by(ex));
-            tla_forall_unfold(ex, fairness_fn);
-            assert(fairness_fn(id).satisfied_by(ex));
-            assert(fairness_fn(id) == (cluster.registry[id].fairness)(inner));
-            assert((cluster.registry[id].fairness)(inner) == next_with_wf(inner, id));
-        }
+        tla_forall_apply(fairness_fn, id);
     }
 
-    // G side: spec entails always(vrs_guarantee(id)).
+    // Guarantee
     guarantee_condition_holds(spec, inner, id);
 
     let G_fn = |c: int| if s.members.contains(c) { cluster.registry[c].safety_guarantee } else { true_pred::<ClusterState>() };
@@ -90,77 +68,33 @@ pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
     let ESR_fn = |c: int| if s.members.contains(c) { cluster.registry[c].esr } else { true_pred::<ClusterState>() };
     let env_fn = |c: int| if s.members.contains(c) { cluster.registry[c].environment_rely } else { true_pred::<ClusterState>() };
 
-    // ESR side: build spec_r = spec ∧ R, then use eventually_stable_reconciliation_holds.
+    assert forall |c: int| spec.entails(#[trigger] G_fn(c)) by {
+        if s.members.contains(c) {
+            tla_forall_apply(G_fn, c);
+        }
+    }
+    spec_entails_tla_forall(spec, G_fn);
+
     let spec_r = spec.and(tla_forall(R_fn));
-
-    // spec_r inherits spec's basic entailments.
-    assert(spec_r.entails(lift_state(inner.init()))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec_r.satisfied_by(ex)
-            implies lift_state(inner.init()).satisfied_by(ex) by {
-            entails_apply(ex, spec, lift_state(inner.init()));
-        }
-    }
-    assert(spec_r.entails(next_with_wf(inner, id))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec_r.satisfied_by(ex)
-            implies next_with_wf(inner, id).satisfied_by(ex) by {
-            entails_apply(ex, spec, next_with_wf(inner, id));
-        }
-    }
-
-    // Rely hypothesis on spec_r: for each other_id in controller_models.remove(id),
-    // spec_r entails always(vrs_rely(other_id)).
-    assert forall |other_id: int| #[trigger] inner.controller_models.remove(id).contains_key(other_id)
-        implies spec_r.entails(always(lift_state(vrs_rely(other_id)))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec_r.satisfied_by(ex)
-            implies always(lift_state(vrs_rely(other_id))).satisfied_by(ex) by {
-            assert(tla_forall(R_fn).satisfied_by(ex));
-            tla_forall_unfold(ex, R_fn);
-            assert(other_id != id);
-            assert(!s.members.contains(other_id));
-            assert(R_fn((id, other_id)).satisfied_by(ex));
-        }
-    }
-
-    eventually_stable_reconciliation_holds(spec_r, inner, id);
-    // spec_r.entails(vrs_eventually_stable_reconciliation())
-
-    // Now assemble the core formula.
-    let G = tla_forall(G_fn);
-    let R = tla_forall(R_fn);
-    let env_rely = tla_forall(env_fn);
-    let ESR = tla_forall(ESR_fn);
-
-    assert(spec.entails(G.and(R.and(s.liveness_dependency).and(env_rely).implies(ESR)))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex)
-            implies G.and(R.and(s.liveness_dependency).and(env_rely).implies(ESR)).satisfied_by(ex) by {
-
-            // G: safety guarantee for every c in s.members.
-            entails_apply(ex, spec, always(lift_state(vrs_guarantee(id))));
-            assert(G.satisfied_by(ex)) by {
-                assert forall |c: int| #[trigger] G_fn(c).satisfied_by(ex) by {
-                    if s.members.contains(c) {
-                        assert(c == id);
-                        assert(cluster.registry[c] == vrs_controller_spec(id));
-                        assert(G_fn(c) == always(lift_state(vrs_guarantee(id))));
-                    }
-                }
+    assert forall |c: int| spec_r.entails(#[trigger] ESR_fn(c)) by {
+        if s.members.contains(c) {
+            assert(c == id);
+            assert forall |other_id: int| #[trigger] inner.controller_models.remove(id).contains_key(other_id)
+                implies spec_r.entails(always(lift_state(vrs_rely(other_id)))) by {
+                tla_forall_apply(R_fn, (id, other_id));
+                entails_trans(spec_r, tla_forall(R_fn), R_fn((id, other_id)));
             }
-
-            // Implication: assume R ∧ D ∧ Env, conclude ESR.
-            if R.and(s.liveness_dependency).and(env_rely).satisfied_by(ex) {
-                assert(spec_r.satisfied_by(ex));
-                entails_apply(ex, spec_r, vrs_eventually_stable_reconciliation());
-                assert(ESR.satisfied_by(ex)) by {
-                    assert forall |c: int| #[trigger] ESR_fn(c).satisfied_by(ex) by {
-                        if s.members.contains(c) {
-                            assert(c == id);
-                            assert(cluster.registry[c] == vrs_controller_spec(id));
-                            assert(ESR_fn(c) == vrs_eventually_stable_reconciliation());
-                        }
-                    }
-                }
-            }
+            entails_trans(spec_r, spec, next_with_wf(inner, id));
+            eventually_stable_reconciliation_holds(spec_r, inner, id);
+            assert(ESR_fn(c) == vrs_eventually_stable_reconciliation());
         }
+    }
+    spec_entails_tla_forall(spec_r, ESR_fn);
+    entails_implies(spec, tla_forall(R_fn), tla_forall(ESR_fn));
+
+    assert(spec.entails(tla_forall(G_fn).and(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn))))) by {
+        temp_pred_equality(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)), tla_forall(R_fn));
+        entails_and_temp(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
     }
 }
 
