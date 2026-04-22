@@ -1,8 +1,8 @@
 pub mod common;
 pub mod vreplicaset_reconciler;
 pub mod vdeployment_reconciler;
-// pub mod rabbitmq_controller;
-// pub mod vstatefulset_controller;
+pub mod vstatefulset_reconciler;
+pub mod rabbitmq_reconciler;
 
 // Turn composition into a Verus module
 use vstd::prelude::*;
