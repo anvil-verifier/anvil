@@ -88,7 +88,6 @@ pub proof fn vd_singleton_core_holds(cluster: CoreCluster, id: int)
 
     assert forall |c: int| spec_rd.entails(#[trigger] ESR_fn(c)) by {
         if s.members.contains(c) {
-            assert(c == id);
             assert forall |other_id: int| #[trigger] inner.controller_models.remove(id).contains_key(other_id)
                 implies spec_rd.entails(always(lift_state(vd_rely(other_id)))) by {
                 tla_forall_apply(R_fn, (id, other_id));
@@ -131,89 +130,49 @@ pub proof fn vrs_vd_core_holds(cluster: CoreCluster, vrs_id: int, vd_id: int)
     vrs_singleton_core_holds(cluster, vrs_id);
     vd_singleton_core_holds(cluster, vd_id);
 
-    // valid(s1.liveness_dependency): s1.liveness_dependency = true_pred(), trivially valid.
-    assert(valid(s1.liveness_dependency));
-
     // satisfies_dependency(cluster, s1, s2): esr_s1 implies s2.liveness_dependency.
-    let esr_s1 = tla_forall(|c: int| if s1.members.contains(c) { cluster.registry[c].esr } else { true_pred::<ClusterState>() });
     assert(satisfies_dependency(cluster, s1, s2)) by {
         let esr_fn_s1 = |c: int| if s1.members.contains(c) { cluster.registry[c].esr } else { true_pred::<ClusterState>() };
-        // Pull out the vrs_id slot: esr_s1 entails vrs_eventually_stable_reconciliation().
-        tla_forall_apply(esr_fn_s1, vrs_id);
+        let esr_s1 = tla_forall(esr_fn_s1);
         assert(s1.members.contains(vrs_id));
-        assert(esr_fn_s1(vrs_id) == vrs_liveness::vrs_eventually_stable_reconciliation());
-        assert(esr_s1.entails(s2.liveness_dependency));
-        // Lift to cluster_model entailment.
-        assert(spec.entails(esr_s1.implies(s2.liveness_dependency))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
-                esr_s1.implies(s2.liveness_dependency).satisfied_by(ex) by {
-                if esr_s1.satisfied_by(ex) {
-                    entails_apply(ex, esr_s1, s2.liveness_dependency);
-                }
-            }
-        }
+        tla_forall_apply(esr_fn_s1, vrs_id);
+        entails_trans(spec.and(esr_s1), esr_s1, s2.liveness_dependency);
+        entails_implies(spec, esr_s1, s2.liveness_dependency);
     }
 
-    // compatible(cluster, s1, s2): g_s1 implies r_21, g_s2 implies r_12.
+    // compatible(cluster, s1, s2): tla_forall(g_fn_s1) implies tla_forall(r21_fn), tla_forall(g_fn_s2) implies tla_forall(r12_fn).
     assert(compatible(cluster, s1, s2)) by {
         let g_fn_s1 = |c: int| if s1.members.contains(c) { cluster.registry[c].safety_guarantee } else { true_pred::<ClusterState>() };
         let g_fn_s2 = |c: int| if s2.members.contains(c) { cluster.registry[c].safety_guarantee } else { true_pred::<ClusterState>() };
         let r12_fn = |pair: (int, int)| if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
         let r21_fn = |pair: (int, int)| if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
-        let g_s1 = tla_forall(g_fn_s1);
-        let g_s2 = tla_forall(g_fn_s2);
-        let r_12 = tla_forall(r12_fn);
-        let r_21 = tla_forall(r21_fn);
-
-        // Pointwise state-level implications (auto via SMT since vrs/vd_guarantee
-        // and vrs/vd_rely are all forall-message predicates with disjoint kinds).
-        assert(lift_state(vrs_guarantee(vrs_id)).entails(lift_state(vd_rely(vrs_id))));
-        assert(lift_state(vd_guarantee(vd_id)).entails(lift_state(vrs_rely(vd_id))));
 
         entails_preserved_by_always(lift_state(vrs_guarantee(vrs_id)), lift_state(vd_rely(vrs_id)));
         entails_preserved_by_always(lift_state(vd_guarantee(vd_id)), lift_state(vrs_rely(vd_id)));
 
-        // Direction 1: g_s1 → r_21
-        assert(spec.entails(g_s1.implies(r_21))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
-                g_s1.implies(r_21).satisfied_by(ex) by {
-                if g_s1.satisfied_by(ex) {
-                    tla_forall_unfold(ex, g_fn_s1);
-                    assert(s1.members.contains(vrs_id));
-                    assert(g_fn_s1(vrs_id) == always(lift_state(vrs_guarantee(vrs_id))));
-                    assert(always(lift_state(vrs_guarantee(vrs_id))).satisfied_by(ex));
-                    entails_apply(ex, always(lift_state(vrs_guarantee(vrs_id))), always(lift_state(vd_rely(vrs_id))));
-                    assert forall |pair: (int, int)| #[trigger] r21_fn(pair).satisfied_by(ex) by {
-                        if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) {
-                            assert(pair.0 == vd_id);
-                            assert(pair.1 == vrs_id);
-                        }
-                    }
-                }
+        // Direction 1: show spec.and(tla_forall(g_fn_s1)).entails(tla_forall(r21_fn)), then entails_implies.
+        assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s1)).entails(#[trigger] r21_fn(pair)) by {
+            if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) {
+                tla_forall_apply(g_fn_s1, vrs_id);
+                entails_trans(spec.and(tla_forall(g_fn_s1)), tla_forall(g_fn_s1), always(lift_state(vrs_guarantee(vrs_id))));
+                entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vrs_guarantee(vrs_id))), always(lift_state(vd_rely(vrs_id))));
             }
         }
+        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s1)), r21_fn);
+        entails_implies(spec, tla_forall(g_fn_s1), tla_forall(r21_fn));
 
-        // Direction 2: g_s2 → r_12
-        assert(spec.entails(g_s2.implies(r_12))) by {
-            assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
-                g_s2.implies(r_12).satisfied_by(ex) by {
-                if g_s2.satisfied_by(ex) {
-                    tla_forall_unfold(ex, g_fn_s2);
-                    assert(s2.members.contains(vd_id));
-                    assert(g_fn_s2(vd_id) == always(lift_state(vd_guarantee(vd_id))));
-                    assert(always(lift_state(vd_guarantee(vd_id))).satisfied_by(ex));
-                    entails_apply(ex, always(lift_state(vd_guarantee(vd_id))), always(lift_state(vrs_rely(vd_id))));
-                    assert forall |pair: (int, int)| #[trigger] r12_fn(pair).satisfied_by(ex) by {
-                        if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) {
-                            assert(pair.0 == vrs_id);
-                            assert(pair.1 == vd_id);
-                        }
-                    }
-                }
+        // Direction 2: symmetric.
+        assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s2)).entails(#[trigger] r12_fn(pair)) by {
+            if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) {
+                tla_forall_apply(g_fn_s2, vd_id);
+                entails_trans(spec.and(tla_forall(g_fn_s2)), tla_forall(g_fn_s2), always(lift_state(vd_guarantee(vd_id))));
+                entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(vd_guarantee(vd_id))), always(lift_state(vrs_rely(vd_id))));
             }
         }
+        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
+        entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
 
-        entails_and_temp(spec, g_s1.implies(r_21), g_s2.implies(r_12));
+        entails_and_temp(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose_dep(cluster, s1, s2);

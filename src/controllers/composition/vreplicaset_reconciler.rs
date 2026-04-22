@@ -78,7 +78,6 @@ pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
     let spec_r = spec.and(tla_forall(R_fn));
     assert forall |c: int| spec_r.entails(#[trigger] ESR_fn(c)) by {
         if s.members.contains(c) {
-            assert(c == id);
             assert forall |other_id: int| #[trigger] inner.controller_models.remove(id).contains_key(other_id)
                 implies spec_r.entails(always(lift_state(vrs_rely(other_id)))) by {
                 tla_forall_apply(R_fn, (id, other_id));
