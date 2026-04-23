@@ -83,13 +83,30 @@ proof fn vsts_prefix_not_vrs_prefix(name: StringView)
     }
 }
 
-// Helper: the two custom-resource kinds VReplicaSetView and VStatefulSetView differ.
-proof fn vrs_kind_ne_vsts_kind()
-    ensures VReplicaSetView::kind() != VStatefulSetView::kind(),
+proof fn kind_strings_distinct()
+    ensures
+        "vreplicaset"@ != "vdeployment"@,
+        "vreplicaset"@ != "vstatefulset"@,
+        "vreplicaset"@ != "rabbitmq"@,
+        "vdeployment"@ != "vstatefulset"@,
+        "vdeployment"@ != "rabbitmq"@,
+        "vstatefulset"@ != "rabbitmq"@,
 {
     reveal_strlit("vreplicaset");
+    reveal_strlit("vdeployment");
     reveal_strlit("vstatefulset");
+    reveal_strlit("rabbitmq");
+
+    // Same-length pair: differentiate at index 1 ('r' vs 'd').
+    assert("vreplicaset"@ != "vdeployment"@) by {
+        assert("vreplicaset"@[1] != "vdeployment"@[1]);
+    };
+    // Length-different pairs: length inequality alone suffices.
     assert("vreplicaset"@.len() != "vstatefulset"@.len());
+    assert("vreplicaset"@.len() != "rabbitmq"@.len());
+    assert("vdeployment"@.len() != "vstatefulset"@.len());
+    assert("vdeployment"@.len() != "rabbitmq"@.len());
+    assert("vstatefulset"@.len() != "rabbitmq"@.len());
 }
 
 // VRS↔VSTS both manage Pods — name-prefix disambiguation is required.
@@ -339,7 +356,7 @@ proof fn all_core_holds(cluster: CoreCluster)
         vsts_guarantee_implies_vrs_rely(vsts_id());
 
         // Ambient fact for kinds used across is_rmq_managed_kind checks.
-        vrs_kind_ne_vsts_kind();
+        kind_strings_distinct();
 
         // Lift pointwise implications through always(...). Verus derives the
         // 6 cross-kind implications directly (same pattern as VRS/VD).
@@ -421,6 +438,7 @@ pub proof fn core_holds()
         well_formed(core_cluster(), all_core_set()),
         core(core_cluster(), all_core_set()),
 {
+    kind_strings_distinct();
     all_core_holds(core_cluster());
 }
 
