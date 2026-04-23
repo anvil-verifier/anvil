@@ -150,7 +150,7 @@ ensures
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
                                             if req.key().kind == Kind::PodKind {
-                                                assert(rely_guarantee::rely_create_req(req));
+                                                assert(rely_guarantee::vsts_rely_create_req(req));
                                                 let name = if req.obj.metadata.name is Some {
                                                     req.obj.metadata.name->0
                                                 } else {
@@ -201,7 +201,7 @@ ensures
                                 assert(rely_guarantee::vsts_rely_conditions_pod_monkey()(s));
                                 if msg.content.is_create_request() {
                                     let req = msg.content.get_create_request();
-                                    assert(rely_guarantee::rely_create_req(req));
+                                    assert(rely_guarantee::vsts_rely_create_req(req));
                                     let name = if req.obj.metadata.name is Some {
                                         req.obj.metadata.name->0
                                     } else {
@@ -1125,7 +1125,7 @@ ensures
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
                                             if req.key().kind == Kind::PersistentVolumeClaimKind {
-                                                assert(rely_guarantee::rely_create_req(req));
+                                                assert(rely_guarantee::vsts_rely_create_req(req));
                                                 let name = if req.obj.metadata.name is Some {
                                                     req.obj.metadata.name->0
                                                 } else {

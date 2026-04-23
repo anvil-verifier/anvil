@@ -21,8 +21,8 @@ pub open spec fn vsts_rely_conditions_pod_monkey() -> StatePred<ClusterState> {
             &&& msg.src is PodMonkey
             &&& msg.content is APIRequest
         } ==> match (msg.content->APIRequest_0) {
-            APIRequest::CreateRequest(req) => rely_create_req(req),
-            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
+            APIRequest::CreateRequest(req) => vsts_rely_create_req(req),
+            APIRequest::UpdateRequest(req) => vsts_rely_update_req(req)(s),
             _ => true, // Deletion/UpdateStatus requests are allowed
         }
     }
@@ -43,18 +43,18 @@ pub open spec fn vsts_rely(other_id: int) -> StatePred<ClusterState> {
             &&& msg.content is APIRequest
             &&& msg.src.is_controller_id(other_id)
         } ==> match (msg.content->APIRequest_0) {
-            APIRequest::CreateRequest(req) => rely_create_req(req),
-            APIRequest::UpdateRequest(req) => rely_update_req(req)(s),
-            APIRequest::GetThenUpdateRequest(req) => rely_get_then_update_req(req),
-            APIRequest::DeleteRequest(req) => rely_delete_req(req)(s),
-            APIRequest::GetThenDeleteRequest(req) => rely_get_then_delete_req(req),
+            APIRequest::CreateRequest(req) => vsts_rely_create_req(req),
+            APIRequest::UpdateRequest(req) => vsts_rely_update_req(req)(s),
+            APIRequest::GetThenUpdateRequest(req) => vsts_rely_get_then_update_req(req),
+            APIRequest::DeleteRequest(req) => vsts_rely_delete_req(req)(s),
+            APIRequest::GetThenDeleteRequest(req) => vsts_rely_get_then_delete_req(req),
             // Get/List/UpdateStatus requests are unconstrained
             _ => true,
         }
     }
 }
 
-pub open spec fn rely_create_req(req: CreateRequest) -> bool {
+pub open spec fn vsts_rely_create_req(req: CreateRequest) -> bool {
     match req.obj.kind {
         Kind::PodKind | Kind::PersistentVolumeClaimKind => {
             // no name conflict
@@ -73,7 +73,7 @@ pub open spec fn rely_create_req(req: CreateRequest) -> bool {
 }
 
 // After we support orphan adoption, we need to talk about resource version
-pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
+pub open spec fn vsts_rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         match req.obj.kind {
             Kind::PodKind | Kind::PersistentVolumeClaimKind => {
@@ -89,7 +89,7 @@ pub open spec fn rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> 
     }
 }
 
-pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
+pub open spec fn vsts_rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     match req.obj.kind {
         Kind::PodKind | Kind::PersistentVolumeClaimKind => {
             &&& !has_vsts_prefix(req.name)
@@ -102,7 +102,7 @@ pub open spec fn rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     }
 }
 
-pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
+pub open spec fn vsts_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         match req.key.kind {
             Kind::PodKind | Kind::PersistentVolumeClaimKind => {
@@ -117,7 +117,7 @@ pub open spec fn rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> 
 
 // GetThenDelete on PVC will fail because PVC owned by VSTS in etcd has no owner reference
 // but to simplify the proof, we still disallow GetThenDelete on PVC with vsts prefix
-pub open spec fn rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
+pub open spec fn vsts_rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
     match req.key.kind {
         Kind::PodKind | Kind::PersistentVolumeClaimKind => {
             &&& !has_vsts_prefix(req.key.name)

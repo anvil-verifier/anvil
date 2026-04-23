@@ -1,29 +1,19 @@
-use crate::composition::rabbitmq_reconciler::*;
-use crate::composition::vdeployment_reconciler::*;
-use crate::composition::vreplicaset_reconciler::*;
-use crate::composition::vstatefulset_reconciler::*;
+
+use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::proof::core::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
-use crate::rabbitmq_controller::trusted::rely_guarantee::*;
-use crate::rabbitmq_controller::trusted::spec_types::*;
-use crate::temporal_logic::defs::*;
-use crate::temporal_logic::rules::*;
+use crate::rabbitmq_controller::trusted::{rely_guarantee::*, spec_types::*};
 use crate::vdeployment_controller::model::install::vd_controller_model;
-use crate::vdeployment_controller::trusted::rely_guarantee::*;
-use crate::vdeployment_controller::trusted::spec_types::*;
+use crate::vdeployment_controller::trusted::{rely_guarantee::*, spec_types::*};
 use crate::vreplicaset_controller::model::install::vrs_controller_model;
 use crate::vreplicaset_controller::model::reconciler::has_vrs_prefix;
-use crate::vreplicaset_controller::trusted::rely_guarantee::*;
-use crate::vreplicaset_controller::trusted::spec_types::*;
+use crate::vreplicaset_controller::trusted::{rely_guarantee::*, spec_types::*};
 use crate::vstatefulset_controller::model::install::vsts_controller_model;
 use crate::vstatefulset_controller::proof::predicate::has_vsts_prefix;
-use crate::vstatefulset_controller::trusted::rely_guarantee::{
-    self as vsts_rg, vsts_guarantee, vsts_rely,
-};
-use crate::vstatefulset_controller::trusted::spec_types::*;
+use crate::vstatefulset_controller::trusted::{rely_guarantee::*, spec_types::*};
+use crate::composition::{rabbitmq_reconciler::*, vdeployment_reconciler::*, vreplicaset_reconciler::*, vstatefulset_reconciler::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -121,11 +111,11 @@ proof fn vrs_guarantee_implies_vsts_rely(id: int)
             && msg.content is APIRequest
             && msg.src.is_controller_id(id)
             implies (match msg.content->APIRequest_0 {
-                APIRequest::CreateRequest(req) => vsts_rg::rely_create_req(req),
-                APIRequest::UpdateRequest(req) => vsts_rg::rely_update_req(req)(s),
-                APIRequest::GetThenUpdateRequest(req) => vsts_rg::rely_get_then_update_req(req),
-                APIRequest::DeleteRequest(req) => vsts_rg::rely_delete_req(req)(s),
-                APIRequest::GetThenDeleteRequest(req) => vsts_rg::rely_get_then_delete_req(req),
+                APIRequest::CreateRequest(req) => vsts_rely_create_req(req),
+                APIRequest::UpdateRequest(req) => vsts_rely_update_req(req)(s),
+                APIRequest::GetThenUpdateRequest(req) => vsts_rely_get_then_update_req(req),
+                APIRequest::DeleteRequest(req) => vsts_rely_delete_req(req)(s),
+                APIRequest::GetThenDeleteRequest(req) => vsts_rely_get_then_delete_req(req),
                 _ => true,
             }) by {
             match msg.content->APIRequest_0 {
@@ -162,15 +152,15 @@ proof fn vsts_guarantee_implies_vrs_rely(id: int)
             }) by {
             match msg.content->APIRequest_0 {
                 APIRequest::CreateRequest(r) => {
-                    assert(vsts_rg::vsts_guarantee_create_req(r));
+                    assert(vsts_guarantee_create_req(r));
                     vsts_prefix_not_vrs_prefix(r.obj.metadata.name->0);
                 }
                 APIRequest::GetThenUpdateRequest(r) => {
-                    assert(vsts_rg::vsts_guarantee_get_then_update_req(r));
+                    assert(vsts_guarantee_get_then_update_req(r));
                     vsts_prefix_not_vrs_prefix(r.name);
                 }
                 APIRequest::GetThenDeleteRequest(r) => {
-                    assert(vsts_rg::vsts_guarantee_get_then_delete_req(r));
+                    assert(vsts_guarantee_get_then_delete_req(r));
                     vsts_prefix_not_vrs_prefix(r.key.name);
                 }
                 _ => {}
