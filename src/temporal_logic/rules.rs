@@ -194,6 +194,18 @@ proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
     };
 }
 
+// TODO: name it as unpack_conditions_from_spec and rename that function
+pub proof fn entails_implies<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires spec.and(p).entails(q)
+    ensures spec.entails(p.implies(q))
+{
+    assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.implies(q).satisfied_by(ex) by {
+        if p.satisfied_by(ex) {
+            entails_apply::<T>(ex, spec.and(p), q);
+        }
+    };
+}
+
 // Prove p implies q vacuously
 // pre:
 //     spec |= q

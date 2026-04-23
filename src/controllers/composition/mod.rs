@@ -1,10 +1,11 @@
-// pub mod vdeployment_reconciler;
-// pub mod vreplicaset_reconciler;
-// pub mod rabbitmq_controller;
-// pub mod vstatefulset_controller;
+pub mod vreplicaset_reconciler;
+pub mod vdeployment_reconciler;
+pub mod vstatefulset_reconciler;
+pub mod rabbitmq_reconciler;
+pub mod compose_all;
 
 // Turn composition into a Verus module
 use vstd::prelude::*;
 
 
-verus! { #[verifier(external_body)] proof fn trivial() {} }
+verus! { spec fn trivial() ->bool {true} } // makes verus recognize this as a mod
