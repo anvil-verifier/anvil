@@ -361,28 +361,14 @@ proof fn all_core_holds(cluster: CoreCluster)
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s1)).entails(#[trigger] r21_fn(pair)) by {
             if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) {
-                let src = pair.0;
-                let tgt = pair.1;
-                if tgt == vrs_id() {
-                    tla_forall_apply(g_fn_s1, vrs_id());
-                    entails_trans(spec.and(tla_forall(g_fn_s1)), tla_forall(g_fn_s1), always(lift_state(vrs_guarantee(vrs_id()))));
-                    if src == vsts_id() {
-                        entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vrs_guarantee(vrs_id()))), always(lift_state(vsts_rely(vrs_id()))));
-                    } else {
-                        assert(src == rmq_id());
-                        entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vrs_guarantee(vrs_id()))), always(lift_state(rmq_rely(vrs_id()))));
-                    }
-                } else {
-                    assert(tgt == vd_id());
-                    tla_forall_apply(g_fn_s1, vd_id());
-                    entails_trans(spec.and(tla_forall(g_fn_s1)), tla_forall(g_fn_s1), always(lift_state(vd_guarantee(vd_id()))));
-                    if src == vsts_id() {
-                        entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vd_guarantee(vd_id()))), always(lift_state(vsts_rely(vd_id()))));
-                    } else {
-                        assert(src == rmq_id());
-                        entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vd_guarantee(vd_id()))), always(lift_state(rmq_rely(vd_id()))));
-                    }
-                }
+                tla_forall_apply(g_fn_s1, vrs_id());
+                tla_forall_apply(g_fn_s1, vd_id());
+                entails_trans(spec.and(tla_forall(g_fn_s1)), tla_forall(g_fn_s1), always(lift_state(vrs_guarantee(vrs_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vrs_guarantee(vrs_id()))), always(lift_state(vsts_rely(vrs_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vrs_guarantee(vrs_id()))), always(lift_state(rmq_rely(vrs_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s1)), tla_forall(g_fn_s1), always(lift_state(vd_guarantee(vd_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vd_guarantee(vd_id()))), always(lift_state(vsts_rely(vd_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vd_guarantee(vd_id()))), always(lift_state(rmq_rely(vd_id()))));
             }
         }
         spec_entails_tla_forall(spec.and(tla_forall(g_fn_s1)), r21_fn);
@@ -390,33 +376,18 @@ proof fn all_core_holds(cluster: CoreCluster)
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s2)).entails(#[trigger] r12_fn(pair)) by {
             if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) {
-                let src = pair.0;
-                let tgt = pair.1;
-                if tgt == vsts_id() {
-                    tla_forall_apply(g_fn_s2, vsts_id());
-                    entails_trans(spec.and(tla_forall(g_fn_s2)), tla_forall(g_fn_s2), always(lift_state(vsts_guarantee(vsts_id()))));
-                    if src == vrs_id() {
-                        entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(vsts_guarantee(vsts_id()))), always(lift_state(vrs_rely(vsts_id()))));
-                    } else {
-                        assert(src == vd_id());
-                        entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(vsts_guarantee(vsts_id()))), always(lift_state(vd_rely(vsts_id()))));
-                    }
-                } else {
-                    assert(tgt == rmq_id());
-                    tla_forall_apply(g_fn_s2, rmq_id());
-                    entails_trans(spec.and(tla_forall(g_fn_s2)), tla_forall(g_fn_s2), always(lift_state(rmq_guarantee(rmq_id()))));
-                    if src == vrs_id() {
-                        entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(rmq_guarantee(rmq_id()))), always(lift_state(vrs_rely(rmq_id()))));
-                    } else {
-                        assert(src == vd_id());
-                        entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(rmq_guarantee(rmq_id()))), always(lift_state(vd_rely(rmq_id()))));
-                    }
-                }
+                tla_forall_apply(g_fn_s2, vsts_id());
+                tla_forall_apply(g_fn_s2, rmq_id());
+                entails_trans(spec.and(tla_forall(g_fn_s2)), tla_forall(g_fn_s2), always(lift_state(vsts_guarantee(vsts_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(vsts_guarantee(vsts_id()))), always(lift_state(vrs_rely(vsts_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(vsts_guarantee(vsts_id()))), always(lift_state(vd_rely(vsts_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s2)), tla_forall(g_fn_s2), always(lift_state(rmq_guarantee(rmq_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(rmq_guarantee(rmq_id()))), always(lift_state(vrs_rely(rmq_id()))));
+                entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(rmq_guarantee(rmq_id()))), always(lift_state(vd_rely(rmq_id()))));
             }
         }
         spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
         entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
-
         entails_and_temp(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
