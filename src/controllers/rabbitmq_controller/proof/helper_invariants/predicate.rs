@@ -254,7 +254,7 @@ pub open spec fn request_does_not_interfere(sub_resource: SubResource, controlle
                     let etcd_obj = s.resources()[resource_key];
                     &&& etcd_obj.metadata.resource_version is Some
                     &&& etcd_obj.metadata.resource_version == req.preconditions->0.resource_version
-                } ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())
+                }
             },
             APIRequest::UpdateRequest(req) => {
                 resource_update_request_msg(resource_key)(msg) && s.resources().contains_key(resource_key)
@@ -262,7 +262,7 @@ pub open spec fn request_does_not_interfere(sub_resource: SubResource, controlle
                     let etcd_obj = s.resources()[resource_key];
                     &&& etcd_obj.metadata.resource_version is Some
                     &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                } ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())
+                }
             },
             APIRequest::UpdateStatusRequest(req) => {
                 resource_update_status_request_msg(resource_key)(msg) && s.resources().contains_key(resource_key)
@@ -272,7 +272,7 @@ pub open spec fn request_does_not_interfere(sub_resource: SubResource, controlle
                     &&& req.obj.metadata.resource_version is Some
                     &&& etcd_obj.metadata.resource_version is Some
                     &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                }  ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()) // then it should not touch objects owned by rmq
+                }
             },
             APIRequest::GetThenDeleteRequest(req) => {
                 resource_get_then_delete_request_msg(resource_key)(msg)

@@ -1170,6 +1170,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     // they are proved together because there are dependencies in between
     let p = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq);
     let q = no_interfering_requests_in_flight(sub_resource, controller_id, rabbitmq);
+    let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = |s: ClusterState| {
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
         &&& no_interfering_requests_in_flight(sub_resource, controller_id, rabbitmq)(s)
@@ -1267,17 +1268,32 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                 assert(msg.src.is_controller_id(id));
                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
                                 assert(rmq_rely(id)(s_prime));
+                                assert(s.resources().contains_key(resource_key) ==>
+                                    exists |some_rmq: RabbitmqClusterView| #[trigger] s.resources()[resource_key].metadata.owner_references_contains(some_rmq.controller_owner_ref())) by {
+                                    if s.resources().contains_key(resource_key) {
+                                        let uid = choose |uid: Uid| #![auto] s.resources()[resource_key].metadata.owner_references == Some(seq![OwnerReferenceView {
+                                            block_owner_deletion: None,
+                                            controller: Some(true),
+                                            kind: RabbitmqClusterView::kind(),
+                                            name: rabbitmq.metadata.name->0,
+                                            uid: uid,
+                                        }]);
+                                        let some_rmq = RabbitmqClusterView {
+                                            metadata: ObjectMetaView {
+                                                name: rabbitmq.metadata.name,
+                                                uid: uid,
+                                                ..ObjectMetaView::default()
+                                            },
+                                            ..RabbitmqClusterView::default(),
+                                        };
+                                        assert(s.resources()[resource_key].metadata.owner_references_contains(some_rmq.controller_owner_ref()));
+                                    }
+                                }
                                 if msg.content is APIRequest {
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
                                             if !msg.src.is_controller_id(controller_id) {
                                                 assert(rmq_rely_create_req(req));
-                                                if req.obj.metadata.name is Some {
-                                                    assert(!has_rmq_prefix(req.obj.metadata.name->0));
-                                                    assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime));
-                                                } else if req.obj.metadata.generate_name is Some {
-                                                    assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime));
-                                                }
                                             }
                                         },
                                         APIRequest::UpdateRequest(req) => {
