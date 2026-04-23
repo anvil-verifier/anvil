@@ -307,7 +307,7 @@ pub open spec fn vsts_rmq_set() -> CoreSet {
     union_coreset(vsts_core_set(vsts_id()), rmq_core_set(rmq_id()), true_pred())
 }
 
-pub open spec fn all_core_set() -> CoreSet {
+pub open spec fn core_set() -> CoreSet {
     union_coreset(vrs_vd_set(), vsts_rmq_set(), true_pred())
 }
 
@@ -322,8 +322,8 @@ proof fn all_core_holds(cluster: CoreCluster)
         well_formed(cluster, vsts_core_set(vsts_id())),
         well_formed(cluster, rmq_core_set(rmq_id())),
     ensures
-        well_formed(cluster, all_core_set()),
-        core(cluster, all_core_set()),
+        well_formed(cluster, core_set()),
+        core(cluster, core_set()),
 {
     let s1 = vrs_vd_set();
     let s2 = vsts_rmq_set();
@@ -396,8 +396,8 @@ proof fn all_core_holds(cluster: CoreCluster)
 
 pub proof fn core_holds()
     ensures
-        well_formed(core_cluster(), all_core_set()),
-        core(core_cluster(), all_core_set()),
+        well_formed(core_cluster(), core_set()),
+        core(core_cluster(), core_set()),
 {
     kind_strings_distinct();
     all_core_holds(core_cluster());
