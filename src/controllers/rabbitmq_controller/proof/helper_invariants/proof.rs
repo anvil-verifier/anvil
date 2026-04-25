@@ -1184,6 +1184,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     always_to_always_later(spec, lift_state(rmq_guarantee(controller_id)));
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     always_to_always_later(spec, lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()));
@@ -1202,6 +1203,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1219,7 +1221,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
         later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1257,6 +1260,34 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                 implies request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
+                    assert(has_rmq_prefix(resource_key.name)) by {
+                        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
+                    }
+                    let etcd_obj = s.resources()[resource_key];
+                    assert(s.resources().contains_key(resource_key) ==> {// p(s)
+                        &&& etcd_obj.metadata.resource_version is Some
+                        &&& exists |some_rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref())
+                    }) by {
+                        if s.resources().contains_key(resource_key) {
+                            let uid = choose |uid: Uid| #![auto] etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                                block_owner_deletion: None,
+                                controller: Some(true),
+                                kind: RabbitmqClusterView::kind(),
+                                name: rabbitmq.metadata.name->0,
+                                uid: uid,
+                            }]);
+                            let some_rmq = RabbitmqClusterView {
+                                metadata: ObjectMetaView {
+                                    name: rabbitmq.metadata.name,
+                                    uid: Some(uid),
+                                    ..ObjectMetaView::default()
+                                },
+                                ..RabbitmqClusterView::default()
+                            };
+                            assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
+                            assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
+                        }
+                    }
                     match step {
                         Step::ControllerStep((id, _, _)) => {
                             if id == controller_id {
@@ -1268,31 +1299,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                 assert(msg.src.is_controller_id(id));
                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
                                 assert(rmq_rely(id)(s_prime));
-                                assert(has_rmq_prefix(resource_key.name)) by {
-                                    lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
-                                }
-                                assert(s.resources().contains_key(resource_key) ==> // p(s)
-                                    exists |some_rmq: RabbitmqClusterView| #[trigger] s.resources()[resource_key].metadata.owner_references_contains(some_rmq.controller_owner_ref())) by {
-                                    if s.resources().contains_key(resource_key) {
-                                        let uid = choose |uid: Uid| #![auto] s.resources()[resource_key].metadata.owner_references == Some(seq![OwnerReferenceView {
-                                            block_owner_deletion: None,
-                                            controller: Some(true),
-                                            kind: RabbitmqClusterView::kind(),
-                                            name: rabbitmq.metadata.name->0,
-                                            uid: uid,
-                                        }]);
-                                        let some_rmq = RabbitmqClusterView {
-                                            metadata: ObjectMetaView {
-                                                name: rabbitmq.metadata.name,
-                                                uid: Some(uid),
-                                                ..ObjectMetaView::default()
-                                            },
-                                            ..RabbitmqClusterView::default()
-                                        };
-                                        assert(s.resources()[resource_key].metadata.owner_references->0.contains(s.resources()[resource_key].metadata.owner_references->0[0]));
-                                        assert(s.resources()[resource_key].metadata.owner_references_contains(some_rmq.controller_owner_ref()));
-                                    }
-                                }
                                 if msg.content is APIRequest {
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
