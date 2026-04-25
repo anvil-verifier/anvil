@@ -183,8 +183,8 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                 ActionKind::Update => {
                     // AfterKRequestStep(Update, _) processes the Update response and
                     // calls state_after_update which sends a GetRequest for the next resource.
-                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is UpdateResponse {
-                        let update_resp = resp_o->0->KResponse_0->UpdateResponse_0.res;
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetThenUpdateResponse {
+                        let update_resp = resp_o->0->KResponse_0->GetThenUpdateResponse_0.res;
                         if update_resp is Ok {
                             // state_after_update returns GetRequest for next subresource
                             assert(msg.content.is_get_request());

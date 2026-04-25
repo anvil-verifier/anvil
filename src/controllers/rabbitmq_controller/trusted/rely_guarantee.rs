@@ -124,6 +124,9 @@ pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
 pub open spec fn rmq_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
     &&& req.owner_ref.kind == RabbitmqClusterView::kind()
+    &&& req.obj.metadata.owner_references is Some
+    &&& exists |rabbitmq: RabbitmqClusterView|
+        req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
 }
 
 pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
