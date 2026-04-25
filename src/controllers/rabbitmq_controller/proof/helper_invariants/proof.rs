@@ -1294,10 +1294,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                     match step {
                         Step::ControllerStep((id, _, _)) => {
                             if id == controller_id {
-                                assume(false);
                                 assert(rmq_guarantee(controller_id)(s_prime));
-                                assert(msg.src.is_controller_id(controller_id));
-                                assert(msg.content is APIRequest);
                             } else {
                                 assert(msg.src.is_controller_id(id));
                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
@@ -1365,11 +1362,18 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                         _ => {}
                     }
                 } else {
-                    assume(false);
                     match step {
                         Step::APIServerStep(msg_opt) => {
                             let req_msg = msg_opt->0;
-                            assert(request_does_not_interfere(sub_resource, controller_id, rabbitmq, req_msg)(s));
+                            match msg.src {
+                                HostId::Controller(id, _) => {
+                                    if id == controller_id { // guarantee
+                                    } else { // rely
+                                        assume(false);
+                                    }
+                                },
+                                _ => {}
+                            }
                         },
                         _ => {}
                     }
