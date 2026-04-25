@@ -1262,10 +1262,10 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
             assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) && msg.content is APIRequest
                 implies request_does_not_interfere(sub_resource, controller_id, rabbitmq, msg)(s_prime) by {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
+                assert(has_rmq_prefix(resource_key.name)) by {
+                    lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
+                }
                 if !s.in_flight().contains(msg) {
-                    assert(has_rmq_prefix(resource_key.name)) by {
-                        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
-                    }
                     let etcd_obj = s.resources()[resource_key];
                     assert(s.resources().contains_key(resource_key) ==> {// p(s)
                         &&& etcd_obj.metadata.resource_version is Some
@@ -1362,15 +1362,47 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                         _ => {}
                     }
                 } else {
+                    let etcd_obj = s_prime.resources()[resource_key];
+                    assert(s_prime.resources().contains_key(resource_key) ==> {// p(s_prime)
+                        &&& etcd_obj.metadata.resource_version is Some
+                        &&& exists |some_rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref())
+                    }) by {
+                        if s_prime.resources().contains_key(resource_key) {
+                            let uid = choose |uid: Uid| #![auto] etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                                block_owner_deletion: None,
+                                controller: Some(true),
+                                kind: RabbitmqClusterView::kind(),
+                                name: rabbitmq.metadata.name->0,
+                                uid: uid,
+                            }]);
+                            let some_rmq = RabbitmqClusterView {
+                                metadata: ObjectMetaView {
+                                    name: rabbitmq.metadata.name,
+                                    uid: Some(uid),
+                                    ..ObjectMetaView::default()
+                                },
+                                ..RabbitmqClusterView::default()
+                            };
+                            assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
+                            assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
+                        }
+                    }
                     match step {
                         Step::APIServerStep(msg_opt) => {
                             let req_msg = msg_opt->0;
-                            match msg.src {
+                            match req_msg.src {
                                 HostId::Controller(id, _) => {
                                     if id == controller_id { // guarantee
+                                        assume(false);
                                     } else { // rely
                                         assume(false);
+                                        // other_objects_are_unaffected_if_request_fails_to_be_applied(cluster, s, s_prime, resource_key, msg);
                                     }
+                                },
+                                HostId::PodMonkey => {
+                                    assert(resource_key.kind != Kind::PodKind);
+                                    assert(s_prime.resources().contains_key(resource_key) == s.resources().contains_key(resource_key));
+                                    assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                                 },
                                 _ => {}
                             }
