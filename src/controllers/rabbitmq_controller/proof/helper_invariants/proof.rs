@@ -1268,7 +1268,10 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                 assert(msg.src.is_controller_id(id));
                                 assert(cluster.controller_models.remove(controller_id).contains_key(id));
                                 assert(rmq_rely(id)(s_prime));
-                                assert(s.resources().contains_key(resource_key) ==>
+                                assert(has_rmq_prefix(resource_key.name)) by {
+                                    lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
+                                }
+                                assert(s.resources().contains_key(resource_key) ==> // p(s)
                                     exists |some_rmq: RabbitmqClusterView| #[trigger] s.resources()[resource_key].metadata.owner_references_contains(some_rmq.controller_owner_ref())) by {
                                     if s.resources().contains_key(resource_key) {
                                         let uid = choose |uid: Uid| #![auto] s.resources()[resource_key].metadata.owner_references == Some(seq![OwnerReferenceView {
@@ -1281,11 +1284,12 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                         let some_rmq = RabbitmqClusterView {
                                             metadata: ObjectMetaView {
                                                 name: rabbitmq.metadata.name,
-                                                uid: uid,
+                                                uid: Some(uid),
                                                 ..ObjectMetaView::default()
                                             },
-                                            ..RabbitmqClusterView::default(),
+                                            ..RabbitmqClusterView::default()
                                         };
+                                        assert(s.resources()[resource_key].metadata.owner_references->0.contains(s.resources()[resource_key].metadata.owner_references->0[0]));
                                         assert(s.resources()[resource_key].metadata.owner_references_contains(some_rmq.controller_owner_ref()));
                                     }
                                 }
@@ -1297,7 +1301,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                             }
                                         },
                                         APIRequest::UpdateRequest(req) => {
-                                            assume(false);
+                                            if s.resources().contains_key(resource_key) && resource_update_request_msg(resource_key)(msg) && req.obj.metadata.resource_version is Some {}
                                         },
                                         APIRequest::DeleteRequest(req) => {
                                             assume(false);

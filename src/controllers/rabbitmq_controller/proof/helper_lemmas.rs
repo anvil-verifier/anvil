@@ -222,11 +222,9 @@ pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
     }
 }
 
-pub proof fn lemma_resource_key_requires_rabbitmq_prefix(sub_resource: SubResource, name: StringView, rabbitmq: RabbitmqClusterView)
-requires
-    !has_rmq_prefix(name),
+pub proof fn lemma_resource_key_has_rmq_prefix(sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
 ensures
-    get_request(sub_resource, rabbitmq).key.name != name,
+    has_rmq_prefix(get_request(sub_resource, rabbitmq).key.name),
 {
     let key_name = get_request(sub_resource, rabbitmq).key.name;
     let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
@@ -413,7 +411,7 @@ ensures
                         assert(rmq_rely(id)(s));
                         if req.obj.metadata.name is Some {
                             if req.key() == resource_key {
-                                lemma_resource_key_requires_rabbitmq_prefix(sub_resource, req.obj.metadata.name->0, rmq);
+                                lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
                             }
                         } else if req.obj.metadata.generate_name is Some {
                             let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
@@ -424,7 +422,7 @@ ensures
                                 generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
                                 assert(false);
                             }
-                            lemma_resource_key_requires_rabbitmq_prefix(sub_resource, name, rmq);
+                            lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
                         }
                     }
                 },
