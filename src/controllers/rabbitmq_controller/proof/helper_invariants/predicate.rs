@@ -275,15 +275,16 @@ pub open spec fn request_does_not_interfere(sub_resource: SubResource, controlle
                 }
             },
             APIRequest::GetThenDeleteRequest(req) => {
-                resource_get_then_delete_request_msg(resource_key)(msg)
+                resource_get_then_delete_request_msg(resource_key)(msg) && s.resources().contains_key(resource_key) && req.owner_ref.controller == Some(true) 
                 ==> !s.resources()[resource_key].metadata.owner_references_contains(req.owner_ref)
             },
             APIRequest::GetThenUpdateRequest(req) => {
-                resource_get_then_update_request_msg(resource_key)(msg) && !msg.src.is_controller_id(controller_id)
+                resource_get_then_update_request_msg(resource_key)(msg) && s.resources().contains_key(resource_key) && !msg.src.is_controller_id(controller_id) && req.owner_ref.controller == Some(true) 
                 ==> !s.resources()[resource_key].metadata.owner_references_contains(req.owner_ref)
             },
             APIRequest::GetThenUpdateStatusRequest(req) => {
-                resource_get_then_update_status_request_msg(resource_key)(msg)
+                resource_get_then_update_status_request_msg(resource_key)(msg) && s.resources().contains_key(resource_key) && req.owner_ref.controller == Some(true) 
+                && resource_key.kind == Kind::ConfigMapKind
                 ==> !s.resources()[resource_key].metadata.owner_references_contains(req.owner_ref)
             },
             _ => true, // get/list requests are read only

@@ -88,7 +88,7 @@ pub open spec fn rmq_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
 }
 
 pub open spec fn rmq_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> bool {
-    &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) // if req could interfere
+    &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) // if req could interfere
         ==> req.owner_ref.controller == Some(true) // if req could succeed
             ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
 }

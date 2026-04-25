@@ -1185,6 +1185,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     always_to_always_later(spec, lift_state(rmq_guarantee(controller_id)));
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     always_to_always_later(spec, lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()));
@@ -1204,6 +1205,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1222,7 +1224,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -1302,38 +1305,64 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                 if msg.content is APIRequest {
                                     match (msg.content->APIRequest_0) {
                                         APIRequest::CreateRequest(req) => {
-                                            if !msg.src.is_controller_id(controller_id) {
-                                                assert(rmq_rely_create_req(req));
-                                            }
+                                            assert(rmq_rely_create_req(req));
                                         },
                                         APIRequest::UpdateRequest(req) => {
-                                            if s.resources().contains_key(resource_key) && resource_update_request_msg(resource_key)(msg) && req.obj.metadata.resource_version is Some {}
+                                            if s.resources().contains_key(resource_key)
+                                                && resource_update_request_msg(resource_key)(msg) 
+                                                && req.obj.metadata.resource_version is Some {}
                                         },
                                         APIRequest::DeleteRequest(req) => {
-                                            assume(false);
+                                            if s.resources().contains_key(resource_key)
+                                                && resource_delete_request_msg(resource_key)(msg)
+                                                && req.preconditions is Some
+                                                && req.preconditions->0.resource_version is Some {}
                                         },
                                         APIRequest::UpdateStatusRequest(req) => {
-                                            assume(false);
-                                            if resource_update_status_request_msg(resource_key)(msg) {}
+                                            if s.resources().contains_key(resource_key)
+                                                && resource_update_status_request_msg(resource_key)(msg) 
+                                                && req.obj.metadata.resource_version is Some {}
                                         },
                                         APIRequest::GetThenDeleteRequest(req) => {
-                                            assume(false);
-                                            if resource_get_then_delete_request_msg(resource_key)(msg) {}
+                                            if s.resources().contains_key(resource_key)
+                                                && resource_get_then_delete_request_msg(resource_key)(msg)
+                                                && req.owner_ref.controller == Some(true)
+                                                && etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                                assert(req.owner_ref != rabbitmq.controller_owner_ref());
+                                                lemma_singleton_contains_at_most_one_element(
+                                                    etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()), req.owner_ref, rabbitmq.controller_owner_ref()
+                                                );
+                                            }
                                         },
                                         APIRequest::GetThenUpdateRequest(req) => {
-                                            assume(false);
-                                            if resource_get_then_update_request_msg(resource_key)(msg) {}
+                                            if s.resources().contains_key(resource_key)
+                                                && resource_get_then_update_request_msg(resource_key)(msg)
+                                                && req.owner_ref.controller == Some(true)
+                                                && etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                                assert(req.owner_ref != rabbitmq.controller_owner_ref());
+                                                lemma_singleton_contains_at_most_one_element(
+                                                    etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()), req.owner_ref, rabbitmq.controller_owner_ref()
+                                                );
+                                            }
                                         },
                                         APIRequest::GetThenUpdateStatusRequest(req) => {
-                                            assume(false);
-                                            if resource_get_then_update_status_request_msg(resource_key)(msg) {}
+                                            if s.resources().contains_key(resource_key)
+                                                && resource_get_then_update_status_request_msg(resource_key)(msg)
+                                                && req.owner_ref.controller == Some(true)
+                                                && etcd_obj.metadata.owner_references_contains(req.owner_ref)
+                                                && resource_key.kind == Kind::ConfigMapKind {
+                                                assert(req.owner_ref != rabbitmq.controller_owner_ref());
+                                                lemma_singleton_contains_at_most_one_element(
+                                                    etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()), req.owner_ref, rabbitmq.controller_owner_ref()
+                                                );
+                                            }
                                         },
                                         _ => {},
                                     }
                                 }
                             }
                         },
-                        _ => {assume(false);}
+                        _ => {}
                     }
                 } else {
                     assume(false);
