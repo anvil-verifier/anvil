@@ -145,6 +145,8 @@ pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred
 // and the second holds due to the weak fairness of kubernetes api.
 //
 // This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     self, spec: TempPred<ClusterState>, key: ObjectRef, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 )
@@ -250,7 +252,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     );
 
     or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
-
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         let step = choose |step| self.next_step(s, s_prime, step);
         match step {
