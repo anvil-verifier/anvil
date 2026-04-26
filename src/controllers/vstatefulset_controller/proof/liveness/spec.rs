@@ -408,8 +408,8 @@ pub open spec fn invariants_since_phase_iv(vsts: VStatefulSetView, cluster: Clus
     always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
         helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
     )))
-    .and(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
-        helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+    .and(always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(
+        cluster.installed_types, helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
     ))))
     .and(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
         helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
@@ -424,8 +424,8 @@ pub proof fn invariants_since_phase_iv_is_stable(vsts: VStatefulSetView, cluster
         lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
             helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
         )),
-        lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
-            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(
+            cluster.installed_types, helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
         )),
         lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
             helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
