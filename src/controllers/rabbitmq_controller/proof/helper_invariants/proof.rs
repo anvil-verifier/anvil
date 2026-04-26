@@ -1938,7 +1938,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
     assert forall |s: ClusterState|
         #[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
         && no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq)(s)
-        implies Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s) by {
+        implies Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref)(s) by {
         assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg)
             implies eventual_owner_ref(msg.content.get_update_request().obj.metadata.owner_references) by {
         }
@@ -1963,7 +1963,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
     always_weaken(spec,
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))
             .and(lift_state(no_get_then_requests_and_update_resource_status_requests_in_flight(sub_resource, rabbitmq))),
-        lift_state(Cluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref))
+        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref))
     );
     always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
     always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(Cluster::object_has_no_finalizers(key)));
