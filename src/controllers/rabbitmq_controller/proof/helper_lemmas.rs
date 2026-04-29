@@ -392,7 +392,23 @@ requires
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
 ensures
     s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
-    s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
+    match sub_resource {
+        SubResource::HeadlessService | SubResource::Service
+            => ServiceView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == ServiceView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+        SubResource::ErlangCookieSecret | SubResource::DefaultUserSecret
+            => SecretView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == SecretView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+        // to prove cm resource version does not change, rely conditions prevent status update request to this kind
+        SubResource::ServerConfigMap | SubResource::PluginsConfigMap
+            => s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
+        SubResource::ServiceAccount
+            => ServiceAccountView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == ServiceAccountView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+        SubResource::Role
+            => RoleView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == RoleView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+        SubResource::RoleBinding
+            => RoleBindingView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == RoleBindingView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+        SubResource::VStatefulSetView
+            => VStatefulSetView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == VStatefulSetView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+    },
 {
     let resource_key = get_request(sub_resource, rmq).key;
     assert(s.in_flight().contains(msg));
