@@ -152,6 +152,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
