@@ -544,7 +544,7 @@ ensures
     );
 }
 
-pub proof fn lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(
+pub proof fn lemma_eventually_always_every_valid_update_msg_sets_owner_references_as_for_all(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
 requires
@@ -562,7 +562,8 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
 ensures
-    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
+    spec.entails(true_pred().leads_to(always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(
+        cluster.installed_types,
         is_vsts_pod_key(vsts),
         owner_reference_requirements(vsts)
     )))))
@@ -648,9 +649,9 @@ ensures
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
     assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex)
-        implies lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))).satisfied_by(ex) by {
+        implies lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts))).satisfied_by(ex) by {
         let s = ex.head();
-        assert forall |key: ObjectRef| #[trigger] is_vsts_pod_key(vsts)(key) implies Cluster::every_update_msg_sets_owner_references_as(key, owner_reference_requirements(vsts))(s) by {
+        assert forall |key: ObjectRef| #[trigger] is_vsts_pod_key(vsts)(key) implies Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, owner_reference_requirements(vsts))(s) by {
             assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg)
                 implies owner_reference_requirements(vsts)(msg.content.get_update_request().obj.metadata.owner_references) by {
                 assert(key_cond(key));
@@ -666,16 +667,16 @@ ensures
     };
     entails_preserved_by_always(
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
-        lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts)))
+        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts)))
     );
     entails_implies_leads_to(spec,
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
-        always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
+        always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
     );
     leads_to_trans(spec,
         true_pred(),
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
-        always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
+        always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
     );
 }
 
@@ -692,8 +693,8 @@ requires
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
         is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
-    spec.entails(always(lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
-        is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
+    spec.entails(always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(
+        cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts)
     )))),
     spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
         is_vsts_pod_key(vsts), owner_reference_requirements(vsts)

@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::{types::*, state_machine::generated_name}, builtin_controllers::garbage_collector::run_garbage_collector,
+    api_server::{types::*, state_machine::*}, builtin_controllers::garbage_collector::run_garbage_collector,
     builtin_controllers::types::*, cluster::*, message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -11,23 +11,24 @@ verus! {
 
 impl Cluster {
 
-// Everytime when we reason about update request message, we can only consider those valid ones (see validata_update_request).
-// However, listing all requirements makes spec looks cumbersome (consider using validate_create/update_request); we can only
-// list those that we need or that may appear according to the spec of system.
-//
-// For example, in some lemma we use msg.content.get_update_request().obj.kind == key.kind, so this requirement is added here.
-pub open spec fn every_update_msg_sets_owner_references_as(
-    key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+pub open spec fn every_valid_update_msg_sets_owner_references_as(
+    installed_types: InstalledTypes, key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& forall |msg: Message|
             s.in_flight().contains(msg)
             && #[trigger] resource_update_request_msg(key)(msg)
+            // the request is valid
+            && update_request_admission_check(installed_types, msg.content.get_update_request(), s.api_server) is None
             ==> requirements(msg.content.get_update_request().obj.metadata.owner_references)
-        &&& forall |msg: Message|
-            s.in_flight().contains(msg)
-            && #[trigger] resource_get_then_update_request_msg(key)(msg)
-            ==> requirements(msg.content.get_get_then_update_request().obj.metadata.owner_references)
+        &&& forall |msg: Message| {
+            let req = msg.content.get_get_then_update_request();
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_get_then_update_request_msg(key)(msg)
+            // the request is valid
+            &&& req.well_formed()
+            &&& (s.resources().contains_key(req.key()) ==> s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref))
+        } ==> requirements(msg.content.get_get_then_update_request().obj.metadata.owner_references)
     }
 }
 
@@ -144,6 +145,8 @@ pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred
 // and the second holds due to the weak fairness of kubernetes api.
 //
 // This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     self, spec: TempPred<ClusterState>, key: ObjectRef, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 )
@@ -153,7 +156,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(tla_forall(|i| self.builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)))),
-        spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         // If the current owner_references does not satisfy the eventual requirement, the gc action is enabled.
@@ -181,7 +184,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
-        &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
+        &&& Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, key, eventual_owner_ref)(s)
         &&& Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::garbage_collector_deletion_enabled(key)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s_prime) ==> Self::garbage_collector_deletion_enabled(key)(s_prime)
@@ -191,7 +194,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
         lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
-        lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
+        lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, key, eventual_owner_ref)),
         lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))),
         later(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))
@@ -249,7 +252,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     );
 
     or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
-
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         let step = choose |step| self.next_step(s, s_prime, step);
         match step {
@@ -275,7 +277,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_action(self.next()))),
         spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)))),
-        spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
     ensures spec.entails(lift_state(Self::exists_effective_delete_request_msg_for_key(key)).leads_to(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref)))),
@@ -293,7 +295,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     &&& self.next()(s, s_prime)
                     &&& Self::req_drop_disabled()(s)
                     &&& Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
-                    &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
+                    &&& Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, key, eventual_owner_ref)(s)
                     &&& Self::object_has_no_finalizers(key)(s)
                     &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
                 };
@@ -302,7 +304,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     lift_action(self.next()),
                     lift_state(Self::req_drop_disabled()),
                     lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
-                    lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
+                    lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, key, eventual_owner_ref)),
                     lift_state(Self::object_has_no_finalizers(key)),
                     lift_state(Self::each_object_in_etcd_is_weakly_well_formed())
                 );
@@ -333,11 +335,11 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
 
 // Universally quantified versions of spec fns for reasoning about all keys satisfying cond.
 
-pub open spec fn every_update_msg_sets_owner_references_as_for_all(
-    cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
+pub open spec fn every_valid_update_msg_sets_owner_references_as_for_all(
+    installed_types: InstalledTypes, cond: spec_fn(ObjectRef) -> bool, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |key: ObjectRef| #[trigger] cond(key) ==> Self::every_update_msg_sets_owner_references_as(key, requirements)(s)
+        forall |key: ObjectRef| #[trigger] cond(key) ==> Self::every_valid_update_msg_sets_owner_references_as(installed_types, key, requirements)(s)
     }
 }
 
@@ -400,7 +402,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
         spec.entails(tla_forall(|i| self.builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)))),
-        spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers_for_all(cond)))),
         // If any key satisfying cond violates the requirement, gc deletion is enabled for that key.
@@ -414,7 +416,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& self.next()(s, s_prime)
         &&& Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)(s)
-        &&& Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)(s)
+        &&& Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref)(s)
         &&& Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)(s)
         &&& Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)(s)
         &&& Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)(s_prime)
@@ -428,7 +430,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
         lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
-        lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
+        lift_state(Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref)),
         lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)),
         lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)),
         later(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref))),
@@ -458,12 +460,12 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
                         always(lift_state(Self::every_create_msg_sets_owner_references_as(k, eventual_owner_ref)))
                     );
                     entails_preserved_by_always(
-                        lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
-                        lift_state(Self::every_update_msg_sets_owner_references_as(k, eventual_owner_ref))
+                        lift_state(Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref)),
+                        lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, k, eventual_owner_ref))
                     );
                     entails_trans(spec,
-                        always(lift_state(Self::every_update_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref))),
-                        always(lift_state(Self::every_update_msg_sets_owner_references_as(k, eventual_owner_ref)))
+                        always(lift_state(Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref))),
+                        always(lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, k, eventual_owner_ref)))
                     );
                     entails_preserved_by_always(
                         lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)),

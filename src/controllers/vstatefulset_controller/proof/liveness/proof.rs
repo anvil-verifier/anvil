@@ -277,7 +277,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 entails_trans(spec, provided_spec, always(lift_state(vsts_rely_conditions_pod_monkey())));
             }
             helper_invariants::lemma_eventually_always_every_create_msg_sets_owner_references_as_for_all(spec, cluster, controller_id, vsts);
-            helper_invariants::lemma_eventually_always_every_update_msg_sets_owner_references_as_for_all(spec, cluster, controller_id, vsts);
+            helper_invariants::lemma_eventually_always_every_valid_update_msg_sets_owner_references_as_for_all(spec, cluster, controller_id, vsts);
             helper_invariants::lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(spec, cluster, controller_id, vsts);
             helper_invariants::lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(spec, cluster, controller_id, vsts);
             leads_to_always_combine_n!(
@@ -286,8 +286,8 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
                     helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
                 )),
-                lift_state(Cluster::every_update_msg_sets_owner_references_as_for_all(
-                    helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
+                lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(
+                    cluster.installed_types, helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
                 )),
                 lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
                     helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
