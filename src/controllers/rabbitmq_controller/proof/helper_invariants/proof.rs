@@ -1187,16 +1187,6 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub open spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> OwnerReferenceView {
-    OwnerReferenceView {
-        block_owner_deletion: None,
-        controller: Some(true),
-        kind: RabbitmqClusterView::kind(),
-        name: name,
-        uid: uid,
-    }
-}
-
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
@@ -2026,9 +2016,7 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
                             assert(cr.object_ref() == rabbitmq.object_ref());
                             assert(msg.content.get_create_request().obj == make(SubResource::VStatefulSetView, cr, local_state)->Ok_0);
                             assert(msg.content.get_create_request().obj.metadata.finalizers is None);
-                            assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
-                                make_owner_references_with_name_and_uid(cr_key.name, cr.metadata().uid->0)
-                            ]));
+                            assert(msg.content.get_create_request().obj.metadata.owner_references == Some(Seq::empty().push(cr.controller_owner_ref())));
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
