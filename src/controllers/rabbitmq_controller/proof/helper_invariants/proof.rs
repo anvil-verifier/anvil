@@ -1455,6 +1455,7 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s),
         Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
         Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+        Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)(s),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] rmq_rely(other_id)(s_prime),
@@ -1473,6 +1474,8 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
+        msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()),
+        msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref(),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
