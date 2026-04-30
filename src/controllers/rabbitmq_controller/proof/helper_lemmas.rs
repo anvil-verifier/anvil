@@ -870,13 +870,10 @@ ensures
     
     let step = after_update_k_request_step(sub_resource);
     let key = get_request(sub_resource, rmq).key;
-    assert(at_rabbitmq_step_with_rabbitmq(rmq, controller_id, step)(s_prime));
-    assert(Cluster::has_pending_k8s_api_req_msg(controller_id, s_prime, rmq.object_ref()));
-    assert(msg.src == HostId::Controller(controller_id, rmq.object_ref()));
-    assert(resource_get_then_update_request_msg(key)(msg));
-    assert(s_prime.in_flight().contains(resp_msg));
-    assert(resp_msg_matches_req_msg(resp_msg, msg));
-    assert(resp_msg.content.get_get_then_update_response().res is Ok);
+    assert(resp_msg.content.get_get_then_update_response().res is Ok) by {
+        // owner_references_only_contains -> owner_references_contains
+        assert(s.resources()[key].metadata.owner_references_contains(s.resources()[key].metadata.owner_references->0[0]));
+    }
     assert(state_after_update(sub_resource, rmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok);
 
     return resp_msg;
