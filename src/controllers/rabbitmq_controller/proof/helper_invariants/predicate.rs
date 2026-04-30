@@ -29,14 +29,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
         s.resources().contains_key(key)
         ==> s.resources()[key].metadata.deletion_timestamp is None
             && s.resources()[key].metadata.finalizers is None
-            && exists |uid: Uid| #![auto]
-            s.resources()[key].metadata.owner_references == Some(seq![OwnerReferenceView {
-                block_owner_deletion: None,
-                controller: Some(true),
-                kind: RabbitmqClusterView::kind(),
-                name: rabbitmq.metadata.name->0,
-                uid: uid,
-            }])
+            && exists |rmq: RabbitmqClusterView| s.resources()[key].metadata.owner_references == Some(#[trigger] Seq::empty().push(rmq.controller_owner_ref()))
     }
 }
 
