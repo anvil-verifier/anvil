@@ -417,8 +417,6 @@ ensures
     //     mention `exists |rmq|`.
     if s.resources().contains_key(resource_key) {
         let etcd_obj = s.resources()[resource_key];
-        assert(etcd_obj.metadata.deletion_timestamp is None);
-        assert(etcd_obj.metadata.finalizers is None);
         let etcd_uid = choose |uid: Uid| #![auto]
             etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
                 block_owner_deletion: None,
@@ -427,18 +425,7 @@ ensures
                 name: rmq.metadata.name->0,
                 uid: uid,
             }]);
-        let etcd_owner_ref = OwnerReferenceView {
-            block_owner_deletion: None,
-            controller: Some(true),
-            kind: RabbitmqClusterView::kind(),
-            name: rmq.metadata.name->0,
-            uid: etcd_uid,
-        };
-        assert(etcd_obj.metadata.owner_references == Some(seq![etcd_owner_ref]));
-        assert(etcd_obj.metadata.owner_references->0[0] == etcd_owner_ref);
-        assert(etcd_obj.metadata.owner_references->0.contains(etcd_owner_ref));
-        assert(etcd_obj.metadata.owner_references_contains(etcd_owner_ref));
-        let rmq2 = RabbitmqClusterView {
+        let some_rmq = RabbitmqClusterView {
             metadata: ObjectMetaView {
                 name: Some(rmq.metadata.name->0),
                 uid: Some(etcd_uid),
@@ -446,9 +433,10 @@ ensures
             },
             ..rmq
         };
-        assert(rmq2.controller_owner_ref() == etcd_owner_ref);
-        assert(etcd_obj.metadata.owner_references_contains(rmq2.controller_owner_ref()));
-        assert(exists |r: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(r.controller_owner_ref()));
+        assert(etcd_obj.metadata.owner_references->0[0] == some_rmq.controller_owner_ref());
+        assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
+        assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
+        assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
     }
 
     // Establish a concrete formula for s_prime.api_server.
