@@ -30,7 +30,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
         ==> s.resources()[key].metadata.deletion_timestamp is None
             && s.resources()[key].metadata.finalizers is None
             && exists |owner_reference: OwnerReferenceView| {
-                &&& s.resources()[key].metadata.owner_references == seq![owner_reference]
+                &&& s.resources()[key].metadata.owner_references == Some(seq![owner_reference])
                 &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
             }
     }

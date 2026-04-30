@@ -409,12 +409,6 @@ ensures
         return;
     }
 
-    // Establish that, if resource_key is in s.resources(), it has no deletion_timestamp,
-    // no finalizers, and exactly one owner_ref pointing to rmq. This is needed:
-    //   - deletion_timestamp is None: rules out the delete-during-update path in handle_update_request
-    //     (so a successful Update never removes the resource).
-    //   - rmq controller owner ref witness: lets us trigger rely conditions on update/delete that
-    //     mention `exists |rmq|`.
     if s.resources().contains_key(resource_key) {
         let etcd_obj = s.resources()[resource_key];
         let owner_ref = choose |owner_reference: OwnerReferenceView| {
@@ -425,7 +419,7 @@ ensures
             metadata: ObjectMetaView {
                 name: Some(rmq.metadata.name->0),
                 uid: Some(owner_ref.uid),
-                ..rarmqbbitmq.metadata
+                ..rmq.metadata
             },
             ..rmq
         };
@@ -441,6 +435,10 @@ ensures
 
     match msg.src {
         HostId::Controller(id, cr_key) => {
+            if id != controller_id {
+                assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                assert(rmq_rely(id)(s));
+            }
             match msg.content->APIRequest_0 {
                 APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {
                     // Read-only: api server does not modify resources.
@@ -457,8 +455,6 @@ ensures
                         }
                     } else if is_rmq_managed_kind(req.obj.kind) {
                         // id != controller_id: use rely.
-                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                        assert(rmq_rely(id)(s));
                         if req.obj.metadata.name is Some {
                             if req.key() == resource_key {
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
@@ -485,8 +481,6 @@ ensures
                         // rmq_guarantee returns false for UpdateRequest from rmq controller.
                         assert(false);
                     } else {
-                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                        assert(rmq_rely(id)(s));
                         if s.resources().contains_key(resource_key) {
                             if req.key() == resource_key {
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
@@ -508,18 +502,24 @@ ensures
                     }
                 },
                 APIRequest::DeleteRequest(req) => {
-                    // no_delete_resource_request_msg_from_gc_in_flight: no in-flight delete to resource_key.
-                    assert(!resource_delete_request_msg(resource_key)(msg));
-                    assert(req.key != resource_key);
-                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                    if id == controller_id {
+                        assert(false);
+                    } else if s.resources().contains_key(resource_key) && req.key() == resource_key {
+                        lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                        assert(is_rmq_managed_kind(req.key.kind));
+                        assert(has_rmq_prefix(req.key.name));
+                        assert(req.preconditions is Some && req.preconditions->0.resource_version is Some);
+                        assert(s.resources()[resource_key].metadata.resource_version != req.preconditions->0.resource_version);
+                        assert(delete_request_admission_check(req, s.api_server) is Some);
+                        assert(api_state_prime.resources == s.api_server.resources);
+                        assert(s_prime.resources().contains_key(resource_key));
+                    }
                 },
                 APIRequest::UpdateStatusRequest(req) => {
                     if id == controller_id {
                         // rmq_guarantee returns false for UpdateStatusRequest from rmq controller.
                         assert(false);
                     } else {
-                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                        assert(rmq_rely(id)(s));
                         if s.resources().contains_key(resource_key) {
                             if req.key() == resource_key {
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
@@ -541,38 +541,13 @@ ensures
                     }
                 },
                 APIRequest::GetThenUpdateRequest(req) => {
-                    if req.key() == resource_key {
-                        if req.owner_ref.kind == RabbitmqClusterView::kind() {
-                            assert(resource_get_then_update_request_msg(resource_key)(msg));
-                            assert(false);
-                        } else if s.resources().contains_key(resource_key) {
-                            let etcd_obj = s.resources()[resource_key];
-                            assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                    let owner_refs = etcd_obj.metadata.owner_references->0;
-                                    assert(owner_refs.contains(req.owner_ref));
-                                    let etcd_uid = choose |uid: Uid| #![auto]
-                                        etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
-                                            block_owner_deletion: None,
-                                            controller: Some(true),
-                                            kind: RabbitmqClusterView::kind(),
-                                            name: rmq.metadata.name->0,
-                                            uid: uid,
-                                        }]);
-                                    let etcd_owner_ref = OwnerReferenceView {
-                                        block_owner_deletion: None,
-                                        controller: Some(true),
-                                        kind: RabbitmqClusterView::kind(),
-                                        name: rmq.metadata.name->0,
-                                        uid: etcd_uid,
-                                    };
-                                    assert(owner_refs == seq![etcd_owner_ref]);
-                                    assert(req.owner_ref == etcd_owner_ref);
-                                    assert(false);
-                                }
-                            }
-                            assert(api_state_prime.resources == s.api_server.resources);
+                    if req.key() == resource_key && s.resources().contains_key(resource_key) {
+                        let etcd_obj = s.resources()[resource_key];
+                        let owner_refs = etcd_obj.metadata.owner_references->0;
+                        if owner_refs.contains(req.owner_ref) {
+                            lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
                         }
+                        assert(api_state_prime.resources == s.api_server.resources);
                     }
                     assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
                 },
@@ -580,36 +555,14 @@ ensures
                     if id == controller_id {
                         assert(false);
                     } else {
-                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                        assert(rmq_rely(id)(s));
                         if req.key == resource_key && s.resources().contains_key(resource_key) {
                             lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
                             assert(is_rmq_managed_kind(req.key().kind));
                             assert(has_rmq_prefix(req.key.name));
                             let etcd_obj = s.resources()[resource_key];
-                            assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                    let owner_refs = etcd_obj.metadata.owner_references->0;
-                                    assert(owner_refs.contains(req.owner_ref));
-                                    let etcd_uid = choose |uid: Uid| #![auto]
-                                        etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
-                                            block_owner_deletion: None,
-                                            controller: Some(true),
-                                            kind: RabbitmqClusterView::kind(),
-                                            name: rmq.metadata.name->0,
-                                            uid: uid,
-                                        }]);
-                                    let etcd_owner_ref = OwnerReferenceView {
-                                        block_owner_deletion: None,
-                                        controller: Some(true),
-                                        kind: RabbitmqClusterView::kind(),
-                                        name: rmq.metadata.name->0,
-                                        uid: etcd_uid,
-                                    };
-                                    assert(owner_refs == seq![etcd_owner_ref]);
-                                    assert(req.owner_ref == etcd_owner_ref);
-                                    assert(false);
-                                }
+                            let owner_refs = etcd_obj.metadata.owner_references->0;
+                            if owner_refs.contains(req.owner_ref) {
+                                lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
                             }
                             assert(api_state_prime.resources == s.api_server.resources);
                         }
@@ -621,8 +574,6 @@ ensures
                         // rmq_guarantee returns false for GetThenUpdateStatusRequest from rmq controller.
                         assert(false);
                     } else {
-                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                        assert(rmq_rely(id)(s));
                         if s.resources().contains_key(resource_key) {
                             if req.key() == resource_key {
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
@@ -630,29 +581,9 @@ ensures
                                     // For CM: rmq_rely_get_then_update_status_req gives owner_ref.kind != RabbitmqClusterView.
                                     // The owner_references_contains check fails, so handle returns TransactionAbort.
                                     let etcd_obj = s.resources()[resource_key];
-                                    assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                        if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                            let owner_refs = etcd_obj.metadata.owner_references->0;
-                                            assert(owner_refs.contains(req.owner_ref));
-                                            let etcd_uid = choose |uid: Uid| #![auto]
-                                                etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
-                                                    block_owner_deletion: None,
-                                                    controller: Some(true),
-                                                    kind: RabbitmqClusterView::kind(),
-                                                    name: rmq.metadata.name->0,
-                                                    uid: uid,
-                                                }]);
-                                            let etcd_owner_ref = OwnerReferenceView {
-                                                block_owner_deletion: None,
-                                                controller: Some(true),
-                                                kind: RabbitmqClusterView::kind(),
-                                                name: rmq.metadata.name->0,
-                                                uid: etcd_uid,
-                                            };
-                                            assert(owner_refs == seq![etcd_owner_ref]);
-                                            assert(req.owner_ref == etcd_owner_ref);
-                                            assert(false);
-                                        }
+                                    let owner_refs = etcd_obj.metadata.owner_references->0;
+                                    if owner_refs.contains(req.owner_ref) {
+                                        lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
                                     }
                                     assert(api_state_prime.resources == s.api_server.resources);
                                     assert(s_prime.resources().contains_key(resource_key));
