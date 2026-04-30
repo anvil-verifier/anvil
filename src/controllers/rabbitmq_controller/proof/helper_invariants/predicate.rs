@@ -220,10 +220,18 @@ pub open spec fn no_create_resource_request_msg_without_name_in_flight(sub_resou
     Cluster::no_create_msg_that_uses_generate_name(resource_key.kind, resource_key.namespace)
 }
 
-pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+// No delete request to resource_key from the garbage collector is in flight.
+// The garbage collector only issues a delete when an object's owner is gone, but
+// resource_key always has the current rmq's controller_owner_ref (which is alive
+// while desired_state_is(rabbitmq) holds). To rule out delete requests from other
+// controllers, callers should directly invoke the rely conditions.
+pub open spec fn no_delete_resource_request_msg_from_gc_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: ClusterState| {
-        forall |msg: Message| #[trigger] s.in_flight().contains(msg)
-            ==> !resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src == HostId::BuiltinController
+        } ==> !resource_delete_request_msg(resource_key)(msg)
     }
 }
 

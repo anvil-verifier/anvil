@@ -389,7 +389,7 @@ requires
     Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
     Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s),
     resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s),
-    no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s),
+    no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rmq)(s),
     every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s),
     every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s),
     rmq_guarantee(controller_id)(s),
@@ -524,7 +524,7 @@ ensures
                     }
                 },
                 APIRequest::DeleteRequest(req) => {
-                    // no_delete_resource_request_msg_in_flight: no in-flight delete to resource_key.
+                    // no_delete_resource_request_msg_from_gc_in_flight: no in-flight delete to resource_key.
                     assert(!resource_delete_request_msg(resource_key)(msg));
                     assert(req.key != resource_key);
                     assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
