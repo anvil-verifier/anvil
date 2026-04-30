@@ -1890,46 +1890,101 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
+        spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
+        spec.entails(always(lift_state(rmq_guarantee(controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
 {
     let key = get_request(sub_resource, rabbitmq).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
     assert forall |s: ClusterState|
-        #[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
+        #[trigger] resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
+        && object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
         && rmq_rely_conditions(cluster, controller_id)(s)
+        && rmq_guarantee(controller_id)(s)
+        && cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        && Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        && Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
+        && Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         implies Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref)(s) by {
-        assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg)
+        if s.resources().contains_key(key) {
+            let etcd_obj = s.resources()[key];
+            let etcd_uid = choose |uid: Uid| #![auto]
+                etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                    block_owner_deletion: None,
+                    controller: Some(true),
+                    kind: RabbitmqClusterView::kind(),
+                    name: rabbitmq.metadata.name->0,
+                    uid: uid,
+                }]);
+            let some_rmq = RabbitmqClusterView {
+                metadata: ObjectMetaView {
+                    name: Some(rabbitmq.metadata.name->0),
+                    uid: Some(etcd_uid),
+                    ..rabbitmq.metadata
+                },
+                ..rabbitmq
+            };
+            assert(etcd_obj.metadata.owner_references->0[0] == some_rmq.controller_owner_ref());
+            assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
+            assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
+            assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
+        }
+        assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg) && update_request_admission_check(cluster.installed_types, msg.content.get_update_request(), s.api_server) is None
             implies eventual_owner_ref(msg.content.get_update_request().obj.metadata.owner_references) by {
+            match msg.src {
+                HostId::Controller(id, _) => {
+                    if id != controller_id {
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
+                        assert(s.resources().contains_key(msg.content.get_update_request().key()));
+                        assert(false);
+                    }
+                },
+                _=> {},
+            }
         }
-        assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_get_then_update_request_msg(key)(msg)
-            implies eventual_owner_ref(msg.content.get_get_then_update_request().obj.metadata.owner_references) by {
-            assert(!resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+        assert forall |msg: Message| {
+            let req = msg.content.get_get_then_update_request();
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_get_then_update_request_msg(key)(msg)
+            &&& req.well_formed()
+            &&& s.resources().contains_key(req.key())
+            &&& s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref)
+        } implies eventual_owner_ref(msg.content.get_get_then_update_request().obj.metadata.owner_references) by {
+            match msg.src {
+                HostId::Controller(id, _) => {
+                    if id != controller_id {
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
+                        assert(s.resources().contains_key(msg.content.get_get_then_update_request().key()));
+                        assert(false);
+                    }
+                },
+                _=> {},
+            }
         }
     }
-    assert(spec.entails(always(
-        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))
-        .and(lift_state(rmq_rely_conditions(cluster, controller_id)))
-    ))) by {
-        entails_and_temp(spec,
-            always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))),
-            always(lift_state(rmq_rely_conditions(cluster, controller_id)))
-        );
-        always_and_equality(
-            lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)),
-            lift_state(rmq_rely_conditions(cluster, controller_id))
-        );
-    }
-    always_weaken(spec,
-        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))
-            .and(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref))
+    combine_spec_entails_always_n!(spec,
+        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref)),
+        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
+        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)),
+        lift_state(rmq_rely_conditions(cluster, controller_id)),
+        lift_state(rmq_guarantee(controller_id))
     );
     always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
     always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(Cluster::object_has_no_finalizers(key)));
