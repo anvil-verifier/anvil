@@ -1458,6 +1458,10 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         s_prime.in_flight().contains(msg),
         cluster.next_step(s, s_prime, step),
         resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
+        // owner_ref kind/controller is required: only such get_then_update can target our resource_key
+        // (matches the precondition shape of every_resource_get_then_update_request_implies_at_after_update_resource_step).
+        msg.content.get_get_then_update_request().owner_ref.kind == RabbitmqClusterView::kind(),
+        msg.content.get_get_then_update_request().owner_ref.controller == Some(true),
     ensures
         step is ControllerStep,
         step->ControllerStep_0.0 == controller_id,
@@ -1471,11 +1475,14 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
     // is possible by extra reasoning about the strings.
     assert(step is ControllerStep);
     let (id, _, cr_key_opt) = step->ControllerStep_0;
-    if id != controller_id { // other controller, call rely condition
+    if id != controller_id { // other controller, call rely condition to derive contradiction
         assert(cluster.controller_models.remove(controller_id).contains_key(id));
-        // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
         assert(rmq_rely(id)(s_prime));
-        assert(!resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+        // resource_key is rmq-managed and has rmq prefix.
+        // rmq_rely_get_then_update_req: is_rmq_managed_kind && rmq_prefix
+        //   ==> owner_ref.controller == Some(true) ==> owner_ref.kind != RabbitmqClusterView::kind()
+        // We have controller == Some(true) and kind == RabbitmqClusterView::kind(). Contradiction.
+        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
         assert(false);
     }
     let cr_key = cr_key_opt->0;
@@ -1584,11 +1591,14 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
     assert(step is ControllerStep);
     let (id, _, cr_key_opt) = step->ControllerStep_0;
 
-    if id != controller_id { // other controller, call rely condition
+    if id != controller_id { // other controller, call rely condition to derive contradiction
         assert(cluster.controller_models.remove(controller_id).contains_key(id));
         // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
         assert(rmq_rely(id)(s_prime));
-        assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+        // resource_create_request_msg gives us: req.obj.metadata.name is Some, name == resource_key.name.
+        // resource_key.name has rmq prefix; req.obj.kind == resource_key.kind is rmq-managed.
+        // rmq_rely_create_req: is_rmq_managed_kind(req.obj.kind) ==> name has no rmq prefix. Contradiction.
+        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
         assert(false);
     }
     let cr_key = cr_key_opt->0;
