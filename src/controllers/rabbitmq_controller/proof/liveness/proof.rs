@@ -543,7 +543,6 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
     entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq)))));
@@ -551,14 +550,12 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
     entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(res, rabbitmq)))));
     entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq)))));
     entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)))));
-    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)))));
     
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, res, rabbitmq)), sub_resource);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq)), sub_resource);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(res, rabbitmq)), sub_resource);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq)), sub_resource);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)), sub_resource);
-    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)), sub_resource);
 }
 
 #[verifier(rlimit(500))]
@@ -628,8 +625,6 @@ ensures
     entails_trans(stable_spec, invariants_since_phase_viii(controller_id, rabbitmq), always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq))));
     always_tla_forall_apply(derived_invariants_since_beginning(controller_id, cluster, rabbitmq), |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), sub_resource);
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))));
-    always_tla_forall_apply(derived_invariants_since_beginning(controller_id, cluster, rabbitmq), |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), sub_resource);
-    entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))));
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())));
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq))));
     // Combine all extracted invariants into cluster_invariants_since_reconciliation
@@ -669,7 +664,6 @@ ensures
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)),
         lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)),
         lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
         lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)),
         lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),

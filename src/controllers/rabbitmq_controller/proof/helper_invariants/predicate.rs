@@ -220,11 +220,6 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
     }
 }
 
-pub open spec fn no_create_resource_request_msg_without_name_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    Cluster::no_create_msg_that_uses_generate_name(resource_key.kind, resource_key.namespace)
-}
-
 // No delete request to resource_key from the garbage collector is in flight.
 // The garbage collector only issues a delete when an object's owner is gone, but
 // resource_key always has the current rmq's controller_owner_ref (which is alive

@@ -48,7 +48,6 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_from_gc_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, res, rabbitmq))))),
@@ -78,7 +77,6 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         spec.entails(always(lift_state(rmq_guarantee(controller_id)))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_from_gc_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)))),
@@ -104,7 +102,6 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
     let next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& no_delete_resource_request_msg_from_gc_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_guarantee(controller_id)(s)
         &&& object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)(s)
@@ -135,7 +132,6 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         lift_state(rmq_guarantee(controller_id)),
         lift_state(no_delete_resource_request_msg_from_gc_in_flight(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)),
         lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, SubResource::ServerConfigMap, rabbitmq)),
@@ -1220,7 +1216,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(controller_id, cluster, spec, sub_resource, rabbitmq);
-    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
     guarantee_condition_holds(spec, cluster, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
@@ -1237,7 +1232,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)(s)
-        &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& rmq_guarantee(controller_id)(s)
         &&& rmq_guarantee(controller_id)(s_prime)
@@ -1255,7 +1249,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(rmq_guarantee(controller_id)),
         later(lift_state(rmq_guarantee(controller_id))),
@@ -1865,14 +1858,12 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
-        spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq))))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, res, rabbitmq)), sub_resource);
-        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(res, rabbitmq)), sub_resource);
         lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(controller_id, cluster, spec, sub_resource, rabbitmq);
     }
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
@@ -1898,12 +1889,11 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         spec.entails(always(lift_state(rmq_guarantee(controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
 {
-    let key = get_request(sub_resource, rabbitmq).key;
+    let resource_key = get_request(sub_resource, rabbitmq).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
     assert forall |s: ClusterState|
         #[trigger] resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
@@ -1914,9 +1904,10 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         && Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         && Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         && Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
-        implies Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref)(s) by {
-        if s.resources().contains_key(key) {
-            let etcd_obj = s.resources()[key];
+        implies Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, resource_key, eventual_owner_ref)(s)
+            && Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, eventual_owner_ref)(s) by {
+        if s.resources().contains_key(resource_key) {
+            let etcd_obj = s.resources()[resource_key];
             let etcd_uid = choose |uid: Uid| #![auto]
                 etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
                     block_owner_deletion: None,
@@ -1938,8 +1929,10 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
             assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
             assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
         }
-        assert forall |msg: Message| s.in_flight().contains(msg) && #[trigger] resource_update_request_msg(key)(msg) && update_request_admission_check(cluster.installed_types, msg.content.get_update_request(), s.api_server) is None
-            implies eventual_owner_ref(msg.content.get_update_request().obj.metadata.owner_references) by {
+        assert forall |msg: Message| s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(resource_key)(msg)
+            && update_request_admission_check(cluster.installed_types, msg.content.get_update_request(), s.api_server) is None
+            implies false by {
             match msg.src {
                 HostId::Controller(id, _) => {
                     if id != controller_id {
@@ -1956,7 +1949,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         assert forall |msg: Message| {
             let req = msg.content.get_get_then_update_request();
             &&& s.in_flight().contains(msg)
-            &&& #[trigger] resource_get_then_update_request_msg(key)(msg)
+            &&& #[trigger] resource_get_then_update_request_msg(resource_key)(msg)
             &&& req.well_formed()
             &&& s.resources().contains_key(req.key())
             &&& s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref)
@@ -1974,9 +1967,29 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
                 _=> {},
             }
         }
+        assert forall |msg: Message| s.in_flight().contains(msg) && msg.dst is APIServer
+            && msg.content is APIRequest
+            && #[trigger] resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg)
+            && generated_name(s.api_server, msg.content.get_create_request().obj.metadata.generate_name->0) == resource_key.name
+            implies false by {
+            match msg.src {
+                HostId::Controller(id, _) => {
+                    if id != controller_id {
+                        let req = msg.content.get_create_request();
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
+                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
+                        assert(has_rmq_prefix(req.obj.metadata.generate_name->0));
+                    }
+                },
+                _=> {},
+            }
+        }
     }
     combine_spec_entails_always_n!(spec,
-        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, key, eventual_owner_ref)),
+        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, resource_key, eventual_owner_ref))
+            .and(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, eventual_owner_ref))),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
@@ -1986,23 +1999,35 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         lift_state(rmq_guarantee(controller_id))
     );
-    always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(Cluster::object_has_no_finalizers(key)));
-    always_weaken(spec, lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(key, eventual_owner_ref)));
+    always_and_equality(
+        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, resource_key, eventual_owner_ref)),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, eventual_owner_ref)));
+    entails_and_temp(spec,
+        always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as(cluster.installed_types, resource_key, eventual_owner_ref))),
+        always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, eventual_owner_ref)))
+    );
+    always_weaken(spec,
+        lift_state(every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rabbitmq)),
+        lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, eventual_owner_ref))
+    );
+    always_weaken(spec,
+        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
+        lift_state(Cluster::object_has_no_finalizers(resource_key))
+    );
 
     let state = |s: ClusterState| {
         Cluster::desired_state_is(rabbitmq)(s)
         && resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
     };
     invariant_n!(
-        spec, lift_state(state), lift_state(Cluster::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Cluster::garbage_collector_deletion_enabled(key))),
+        spec, lift_state(state), lift_state(Cluster::objects_owner_references_violates(resource_key, eventual_owner_ref)).implies(lift_state(Cluster::garbage_collector_deletion_enabled(resource_key))),
         lift_state(Cluster::desired_state_is(rabbitmq)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))
     );
-    cluster.lemma_eventually_objects_owner_references_satisfies(spec, key, eventual_owner_ref);
+    cluster.lemma_eventually_objects_owner_references_satisfies(spec, resource_key, eventual_owner_ref);
     temp_pred_equality(
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
-        lift_state(Cluster::objects_owner_references_satisfies(key, eventual_owner_ref))
+        lift_state(Cluster::objects_owner_references_satisfies(resource_key, eventual_owner_ref))
     );
 }
 
@@ -2016,64 +2041,6 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
         SubResource::PluginsConfigMap, SubResource::ServerConfigMap, SubResource::ServiceAccount, SubResource::Role,
         SubResource::RoleBinding, SubResource::VStatefulSetView]
     );
-}
-
-// We can probably hide a lot of spec functions to make this lemma faster
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
-pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster: Cluster, controller_id: int, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
-    requires
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))),
-{
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    let inv = no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq);
-    cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
-
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
-        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
-    };
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        later(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())
-    );
-
-    assert forall |s: ClusterState, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: Message| #[trigger] s_prime.in_flight().contains(msg) implies !resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg) by {
-            if !s.in_flight().contains(msg) {
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep((id, _, _)) => {
-                        if id == controller_id {
-                            assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                        } else {
-                            assert(msg.src.is_controller_id(id));
-                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                            assert(rmq_rely(id)(s_prime));
-                            if msg.content.is_create_request() {
-                                if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg) {
-                                    assert(!is_rmq_managed_kind(resource_key.kind));
-                                    assert(false);
-                                }
-                            }
-                        }
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-    init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
 #[verifier(spinoff_prover)]
@@ -2232,18 +2199,23 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s_prime)
-        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, rabbitmq)(s)
+        &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
+        &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
+        &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq)(s)
+        &&& rmq_guarantee(controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
     };
-    cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>(spec);
-    lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, SubResource::VStatefulSetView, rabbitmq);
+    cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
+    cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
+    cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
+    guarantee_condition_holds(spec, cluster, controller_id);
     lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
     lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(controller_id, cluster, spec, rabbitmq);
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
@@ -2251,14 +2223,16 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         later(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())),
-        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::VStatefulSetView, rabbitmq)),
+        lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
+        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
+        lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq)),
+        lift_state(rmq_guarantee(controller_id)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
@@ -2269,15 +2243,23 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
                 let msg = input->0;
                 match msg.content->APIRequest_0 {
                     APIRequest::CreateRequest(req) => {
-                        assert(!resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(msg));
                         if req.obj.metadata.name is Some {
-                            if !s.resources().contains_key(sts_key)
-                                && resource_create_request_msg(sts_key)(msg)
-                                && s_prime.resources().contains_key(sts_key) {
+                            if !s.resources().contains_key(sts_key) && resource_create_request_msg(sts_key)(msg) && s_prime.resources().contains_key(sts_key) {
                                 VStatefulSetView::marshal_preserves_integrity();
                             }
-                        } else if req.obj.kind == sts_key.kind && req.namespace == sts_key.namespace {
-                            assert(req.obj.metadata.generate_name is None);
+                        } else if resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(msg) {
+                            match msg.src {
+                                HostId::Controller(id, _) => {
+                                    if id != controller_id && !s.resources().contains_key(sts_key) && s_prime.resources().contains_key(sts_key) {
+                                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                        assert(rmq_rely(id)(s));
+                                        lemma_resource_key_has_rmq_prefix(SubResource::VStatefulSetView, rabbitmq);
+                                        generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
+                                        assert(false);
+                                    }
+                                },
+                                _ => {assert(false);}
+                            }
                         }
                     },
                     APIRequest::GetThenUpdateRequest(req) => {

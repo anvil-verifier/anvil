@@ -219,7 +219,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             if i == 6 {
                 helper_invariants::lemma_eventually_always_every_effective_resource_get_then_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
                 helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
@@ -389,7 +388,6 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref()))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(controller_id, res, rabbitmq)))))
     .and(always(tla_forall(|res: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key)))))
-    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)))))
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id))))
@@ -426,7 +424,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq));
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(controller_id, res, rabbitmq));
     let a_to_p_5 = |res: SubResource| lift_state(Cluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key));
-    let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq));
     let a_to_p_key_unique = |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key));
     let a_to_p_no_pending = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)));
@@ -457,7 +454,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
         tla_forall(a_to_p_4),
         tla_forall(a_to_p_5),
-        tla_forall(a_to_p_6),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
@@ -661,13 +657,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         }
         spec_entails_always_tla_forall_equality(spec, a_to_p_5);
     });
-    let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq));
-    assert_by(spec.entails(always(tla_forall(a_to_p_6))), {
-        assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_6(sub_resource))) by {
-            helper_invariants::lemma_always_no_create_resource_request_msg_without_name_in_flight(cluster, controller_id, spec, sub_resource, rabbitmq);
-        }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_6);
-    });
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(controller_id, cluster, spec);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
@@ -747,7 +736,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
         tla_forall(a_to_p_4),
         tla_forall(a_to_p_5),
-        tla_forall(a_to_p_6),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
