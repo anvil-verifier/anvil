@@ -542,7 +542,7 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
     assert forall |msg: Message| s_prime.in_flight().contains(msg) && #[trigger] resp_msg_matches_req_msg(msg, pending_req) implies resource_get_then_update_response_msg(resource_key, s_prime)(msg) by {
         assert(msg.src is APIServer);
         assert(msg.content.is_update_response());
-        if msg.content.get_update_response().res is Ok {
+        if msg.content.get_get_then_update_response().res is Ok {
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
@@ -554,13 +554,13 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                     assert(!resource_get_then_update_request_msg(resource_key)(req_msg));
                     assert(!resource_get_then_update_status_request_msg(resource_key)(req_msg));
                     match req_msg.content->APIRequest_0 {
-                        APIRequest::UpdateRequest(_) => {
+                        APIRequest::GetThenUpdateRequest(_) => {
                             if !s.in_flight().contains(msg) {
-                                assert(msg.content.get_update_response().res->Ok_0.object_ref() == req_msg.content.get_get_then_update_request().key());
-                                assert(msg.content.get_update_response().res->Ok_0.object_ref() == resource_key);
-                                assert(msg.content.get_update_response().res->Ok_0 == s_prime.resources()[req_msg.content.get_get_then_update_request().key()]);
+                                assert(msg.content.get_get_then_update_response().res->Ok_0.object_ref() == req_msg.content.get_get_then_update_request().key());
+                                assert(msg.content.get_get_then_update_response().res->Ok_0.object_ref() == resource_key);
+                                assert(msg.content.get_get_then_update_response().res->Ok_0 == s_prime.resources()[req_msg.content.get_get_then_update_request().key()]);
                                 assert(s_prime.resources().contains_key(resource_key));
-                                assert(msg.content.get_update_response().res->Ok_0 == s_prime.resources()[resource_key]);
+                                assert(msg.content.get_get_then_update_response().res->Ok_0 == s_prime.resources()[resource_key]);
                                 assert(resource_get_then_update_response_msg(resource_key, s_prime)(msg));
                             } else {
                                 if resource_get_then_update_request_msg(resource_key)(req_msg) {
@@ -848,7 +848,7 @@ proof fn lemma_eventually_always_every_resource_get_then_update_request_implies_
                                                 assert(rmq_rely(id)(s));
                                             }
                                         },
-                                        APIRequest::UpdateRequest(req) => {
+                                        APIRequest::GetThenUpdateRequest(req) => {
                                             if resource_get_then_update_request_msg(resource_key)(req_msg) {}
                                         },
                                         _ => {}, // rmq_rely_conditions
@@ -1236,7 +1236,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                             assert(req.obj.metadata.generate_name is None);
                         }
                     },
-                    APIRequest::UpdateRequest(req) => {
+                    APIRequest::GetThenUpdateRequest(req) => {
                         if resource_get_then_update_request_msg(resource_key)(msg) {} else {
                             assert(req.key() != resource_key);
                         }
@@ -2159,7 +2159,7 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
                             assert(req.obj.metadata.generate_name is None);
                         }
                     },
-                    APIRequest::UpdateRequest(req) => {
+                    APIRequest::GetThenUpdateRequest(req) => {
                         if resource_get_then_update_request_msg(sts_key)(msg) {
                             // by transition validation
                         } else {

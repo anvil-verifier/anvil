@@ -345,8 +345,8 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                    &&& resp_msg.content.get_update_response().res is Ok
-                    &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_update_response().res->Ok_0, unmarshalled_state) is Ok
+                    &&& resp_msg.content.get_get_then_update_response().res is Ok
+                    &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
                 };
                 assert((|msg| update_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
             }
@@ -901,7 +901,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     };
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let resp_msg = lemma_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
+        let resp_msg = lemma_get_then_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
         assert(s_prime.in_flight().contains(resp_msg));
     }
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -915,7 +915,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
                         lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, input->0);
                     }
                 } else {
-                    let resp_msg = lemma_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
+                    let resp_msg = lemma_get_then_update_sub_resource_request_returns_ok(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg);
                     assert(s_prime.in_flight().contains(resp_msg));
                 }
             },

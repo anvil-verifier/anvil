@@ -58,7 +58,7 @@ pub open spec fn resource_get_then_update_response_msg(key: ObjectRef, s: Cluste
             msg.content.get_get_then_update_response().res is Ok
             ==> (
                 s.resources().contains_key(key)
-                && msg.content.get_update_response().res->Ok_0 == s.resources()[key]
+                && msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[key]
             )
         )
 }

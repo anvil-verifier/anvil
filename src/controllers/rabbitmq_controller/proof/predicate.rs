@@ -484,6 +484,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& req.obj.metadata.uid is Some
         &&& req.obj.metadata.deletion_timestamp is None
         &&& req.obj.metadata.finalizers is None
+        &&& req.owner_ref == rabbitmq.controller_owner_ref()
         &&& s.resources()[resource_key].metadata.uid->0 == req.obj.metadata.uid->0
     }
 }
@@ -505,8 +506,8 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_update_response().res is Ok
-            &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_update_response().res->Ok_0, unmarshalled_state) is Ok
+            &&& resp_msg.content.get_get_then_update_response().res is Ok
+            &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
         }
     }
 }
@@ -527,8 +528,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& resource_get_then_update_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_update_response().res is Ok
-        &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_update_response().res->Ok_0, unmarshalled_state) is Ok
+        &&& resp_msg.content.get_get_then_update_response().res is Ok
+        &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
     }
 }
 
