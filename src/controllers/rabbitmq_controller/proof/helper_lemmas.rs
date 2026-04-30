@@ -391,7 +391,7 @@ requires
     resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s),
     no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rmq)(s),
     every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s),
-    every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s),
+    every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s),
     rmq_guarantee(controller_id)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),

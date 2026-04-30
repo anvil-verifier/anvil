@@ -221,15 +221,15 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)), SubResource::ServerConfigMap);
             if i == 6 {
-                helper_invariants::lemma_eventually_always_every_resource_get_then_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
+                helper_invariants::lemma_eventually_always_every_effective_resource_get_then_update_request_implies_at_after_update_resource_step_forall(controller_id, cluster, spec, rabbitmq);
                 helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(controller_id, cluster, spec, rabbitmq);
-                let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
+                let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
                 leads_to_always_combine_n!(
                     spec, true_pred(),
                     tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))
                 );
             } else if i == 7 {
-                always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
+                always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)), SubResource::ServerConfigMap);
                 helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(controller_id, cluster, spec, rabbitmq);
             } else {
                 helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(controller_id, cluster, spec, rabbitmq);
@@ -575,14 +575,14 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
 }
 
 pub open spec fn invariants_since_phase_vi(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
-    always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))
+    always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))
     .and(always(lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq))))
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_vi(controller_id, rabbitmq))),
 {
-    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
+    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq));
     stable_and_always_n!(
         tla_forall(a_to_p_1),
         lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(controller_id, SubResource::ServerConfigMap, rabbitmq)),

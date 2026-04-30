@@ -186,15 +186,20 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
     }
 }
 
-pub open spec fn every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+// "Effective": the get_then_update request is well-formed (controller == Some(true)) and
+// targets resource_key with rmq-kind owner_ref. By the rely conditions, only the rmq controller
+// itself can issue such a request -- so this implies the request is the pending req of our reconcile.
+pub open spec fn every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            // other controller can set get_then_update but not with RMQ kind in owner_ref
+            // Other controllers can send get_then_update but cannot satisfy both
+            // (kind == Rmq AND controller == Some(true)) by rely.
             &&& msg.content.get_get_then_update_request().owner_ref.kind == RabbitmqClusterView::kind()
+            &&& msg.content.get_get_then_update_request().owner_ref.controller == Some(true)
         } ==> {
             &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)

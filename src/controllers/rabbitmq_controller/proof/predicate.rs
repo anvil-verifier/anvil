@@ -577,7 +577,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
-        &&& every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
+        &&& every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
         &&& every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s)
         &&& no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rmq)(s)
         &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, rmq)(s)
