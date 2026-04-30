@@ -370,6 +370,7 @@ ensures
 }
 
 // shield_lemma
+#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
     s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )
@@ -385,29 +386,21 @@ requires
     // Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s),
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
     Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s),
     resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s),
     no_delete_resource_request_msg_in_flight(sub_resource, rmq)(s),
+    every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s),
+    every_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s),
+    rmq_guarantee(controller_id)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
 ensures
     s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
-    match sub_resource {
-        SubResource::HeadlessService | SubResource::Service
-            => ServiceView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == ServiceView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
-        SubResource::ErlangCookieSecret | SubResource::DefaultUserSecret
-            => SecretView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == SecretView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+    s.resources().contains_key(get_request(sub_resource, rmq).key) ==> match sub_resource {
         // to prove cm resource version does not change, rely conditions prevent status update request to this kind
-        SubResource::ServerConfigMap | SubResource::PluginsConfigMap
-            => s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
-        SubResource::ServiceAccount
-            => ServiceAccountView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == ServiceAccountView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
-        SubResource::Role
-            => RoleView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == RoleView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
-        SubResource::RoleBinding
-            => RoleBindingView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == RoleBindingView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
-        SubResource::VStatefulSetView
-            => VStatefulSetView::unmarshal_spec(s.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0 == VStatefulSetView::unmarshal_spec(s_prime.resources()[get_request(sub_resource, rmq).key].spec)->Ok_0,
+        SubResource::ServerConfigMap | SubResource::PluginsConfigMap => s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
+        _ => s.resources()[get_request(sub_resource, rmq).key].spec == s_prime.resources()[get_request(sub_resource, rmq).key].spec,
     },
 {
     let resource_key = get_request(sub_resource, rmq).key;
@@ -415,19 +408,77 @@ ensures
     if !(msg.content is APIRequest && msg.dst is APIServer) {
         return;
     }
+
+    // Establish that, if resource_key is in s.resources(), it has no deletion_timestamp,
+    // no finalizers, and exactly one owner_ref pointing to rmq. This is needed:
+    //   - deletion_timestamp is None: rules out the delete-during-update path in handle_update_request
+    //     (so a successful Update never removes the resource).
+    //   - rmq controller owner ref witness: lets us trigger rely conditions on update/delete that
+    //     mention `exists |rmq|`.
+    if s.resources().contains_key(resource_key) {
+        let etcd_obj = s.resources()[resource_key];
+        assert(etcd_obj.metadata.deletion_timestamp is None);
+        assert(etcd_obj.metadata.finalizers is None);
+        let etcd_uid = choose |uid: Uid| #![auto]
+            etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                block_owner_deletion: None,
+                controller: Some(true),
+                kind: RabbitmqClusterView::kind(),
+                name: rmq.metadata.name->0,
+                uid: uid,
+            }]);
+        let etcd_owner_ref = OwnerReferenceView {
+            block_owner_deletion: None,
+            controller: Some(true),
+            kind: RabbitmqClusterView::kind(),
+            name: rmq.metadata.name->0,
+            uid: etcd_uid,
+        };
+        assert(etcd_obj.metadata.owner_references == Some(seq![etcd_owner_ref]));
+        assert(etcd_obj.metadata.owner_references->0[0] == etcd_owner_ref);
+        assert(etcd_obj.metadata.owner_references->0.contains(etcd_owner_ref));
+        assert(etcd_obj.metadata.owner_references_contains(etcd_owner_ref));
+        let rmq2 = RabbitmqClusterView {
+            metadata: ObjectMetaView {
+                name: Some(rmq.metadata.name->0),
+                uid: Some(etcd_uid),
+                ..rmq.metadata
+            },
+            ..rmq
+        };
+        assert(rmq2.controller_owner_ref() == etcd_owner_ref);
+        assert(etcd_obj.metadata.owner_references_contains(rmq2.controller_owner_ref()));
+        assert(exists |r: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(r.controller_owner_ref()));
+    }
+
+    // Establish a concrete formula for s_prime.api_server.
+    let api_state_prime = transition_by_etcd(cluster.installed_types, msg, s.api_server).0;
+    assert(s_prime.api_server == api_state_prime);
+
     match msg.src {
         HostId::Controller(id, cr_key) => {
             match msg.content->APIRequest_0 {
-                APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
+                APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {
+                    // Read-only: api server does not modify resources.
+                    assert(api_state_prime.resources == s.api_server.resources);
+                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                },
                 APIRequest::CreateRequest(req) => {
-                    if id == controller_id { // use guarantee
-                        if resource_create_request_msg(resource_key)(msg) {} // every_resource_create_request_implies_at_after_create_resource_step
-                    } else if is_rmq_managed_kind(req.obj.kind) { // use rely
+                    if id == controller_id {
+                        // rmq_guarantee_create_req: req.obj.metadata.name is Some.
+                        assert(rmq_guarantee_create_req(req));
+                        if req.key() == resource_key {
+                            assert(resource_create_request_msg(resource_key)(msg));
+                            assert(false);
+                        }
+                    } else if is_rmq_managed_kind(req.obj.kind) {
+                        // id != controller_id: use rely.
                         assert(cluster.controller_models.remove(controller_id).contains_key(id));
                         assert(rmq_rely(id)(s));
                         if req.obj.metadata.name is Some {
                             if req.key() == resource_key {
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                                assert(false);
                             }
                         } else if req.obj.metadata.generate_name is Some {
                             let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
@@ -439,18 +490,211 @@ ensures
                                 assert(false);
                             }
                             lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                            assert(name != resource_key.name);
                         }
                     }
+                    // Create only inserts at most one key, never removes; if rk in s, rk in s_prime.
+                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
                 },
-                APIRequest::UpdateRequest(req) => { // every_resource_get_then_update_request_implies_at_after_update_resource_step
-                    if resource_get_then_update_request_msg(resource_key)(msg) {}
+                APIRequest::UpdateRequest(req) => {
+                    if id == controller_id {
+                        // rmq_guarantee returns false for UpdateRequest from rmq controller.
+                        assert(false);
+                    } else {
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        if s.resources().contains_key(resource_key) {
+                            if req.key() == resource_key {
+                                lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                                assert(is_rmq_managed_kind(req.obj.kind));
+                                assert(has_rmq_prefix(req.name));
+                                assert(req.obj.metadata.resource_version is Some);
+                                assert(s.resources()[resource_key].metadata.resource_version != req.obj.metadata.resource_version);
+                                assert(update_request_admission_check(cluster.installed_types, req, s.api_server) is Some);
+                                assert(api_state_prime.resources == s.api_server.resources);
+                                assert(s_prime.resources().contains_key(resource_key));
+                            } else {
+                                // req.key() != resource_key. handle_update_request only ever modifies
+                                // api_state_prime.resources at req.key(), so dom is preserved at rk.
+                                assert(req.key() != resource_key);
+                                assert(s_prime.resources().contains_key(resource_key));
+                            }
+                        }
+                        assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                    }
                 },
-                _ => {
+                APIRequest::DeleteRequest(req) => {
+                    // no_delete_resource_request_msg_in_flight: no in-flight delete to resource_key.
+                    assert(!resource_delete_request_msg(resource_key)(msg));
+                    assert(req.key != resource_key);
+                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                },
+                APIRequest::UpdateStatusRequest(req) => {
+                    if id == controller_id {
+                        // rmq_guarantee returns false for UpdateStatusRequest from rmq controller.
+                        assert(false);
+                    } else {
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        if s.resources().contains_key(resource_key) {
+                            if req.key() == resource_key {
+                                lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                                if req.obj.kind == Kind::ConfigMapKind {
+                                    // For CM: rmq_rely_update_status_req triggers and gives rv mismatch.
+                                    assert(has_rmq_prefix(req.name));
+                                    assert(req.obj.metadata.resource_version is Some);
+                                    assert(s.resources()[resource_key].metadata.resource_version != req.obj.metadata.resource_version);
+                                    assert(update_status_request_admission_check(cluster.installed_types, req, s.api_server) is Some);
+                                    assert(api_state_prime.resources == s.api_server.resources);
+                                    assert(s_prime.resources().contains_key(resource_key));
+                                }
+                                // For non-CM: status_updated_object preserves spec; contains_key preserved.
+                            } else {
+                                assert(req.key() != resource_key);
+                            }
+                        }
+                        assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                    }
+                },
+                APIRequest::GetThenUpdateRequest(req) => {
+                    if req.key() == resource_key {
+                        if req.owner_ref.kind == RabbitmqClusterView::kind() {
+                            assert(resource_get_then_update_request_msg(resource_key)(msg));
+                            assert(false);
+                        } else if s.resources().contains_key(resource_key) {
+                            let etcd_obj = s.resources()[resource_key];
+                            assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                    let owner_refs = etcd_obj.metadata.owner_references->0;
+                                    assert(owner_refs.contains(req.owner_ref));
+                                    let etcd_uid = choose |uid: Uid| #![auto]
+                                        etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                                            block_owner_deletion: None,
+                                            controller: Some(true),
+                                            kind: RabbitmqClusterView::kind(),
+                                            name: rmq.metadata.name->0,
+                                            uid: uid,
+                                        }]);
+                                    let etcd_owner_ref = OwnerReferenceView {
+                                        block_owner_deletion: None,
+                                        controller: Some(true),
+                                        kind: RabbitmqClusterView::kind(),
+                                        name: rmq.metadata.name->0,
+                                        uid: etcd_uid,
+                                    };
+                                    assert(owner_refs == seq![etcd_owner_ref]);
+                                    assert(req.owner_ref == etcd_owner_ref);
+                                    assert(false);
+                                }
+                            }
+                            assert(api_state_prime.resources == s.api_server.resources);
+                        }
+                    }
+                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                },
+                APIRequest::GetThenDeleteRequest(req) => {
+                    if id == controller_id {
+                        assert(false);
+                    } else {
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        if req.key == resource_key && s.resources().contains_key(resource_key) {
+                            lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                            assert(is_rmq_managed_kind(req.key().kind));
+                            assert(has_rmq_prefix(req.key.name));
+                            let etcd_obj = s.resources()[resource_key];
+                            assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                    let owner_refs = etcd_obj.metadata.owner_references->0;
+                                    assert(owner_refs.contains(req.owner_ref));
+                                    let etcd_uid = choose |uid: Uid| #![auto]
+                                        etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                                            block_owner_deletion: None,
+                                            controller: Some(true),
+                                            kind: RabbitmqClusterView::kind(),
+                                            name: rmq.metadata.name->0,
+                                            uid: uid,
+                                        }]);
+                                    let etcd_owner_ref = OwnerReferenceView {
+                                        block_owner_deletion: None,
+                                        controller: Some(true),
+                                        kind: RabbitmqClusterView::kind(),
+                                        name: rmq.metadata.name->0,
+                                        uid: etcd_uid,
+                                    };
+                                    assert(owner_refs == seq![etcd_owner_ref]);
+                                    assert(req.owner_ref == etcd_owner_ref);
+                                    assert(false);
+                                }
+                            }
+                            assert(api_state_prime.resources == s.api_server.resources);
+                        }
+                        assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                    }
+                },
+                APIRequest::GetThenUpdateStatusRequest(req) => {
+                    if id == controller_id {
+                        // rmq_guarantee returns false for GetThenUpdateStatusRequest from rmq controller.
+                        assert(false);
+                    } else {
+                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                        assert(rmq_rely(id)(s));
+                        if s.resources().contains_key(resource_key) {
+                            if req.key() == resource_key {
+                                lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+                                if req.obj.kind == Kind::ConfigMapKind {
+                                    // For CM: rmq_rely_get_then_update_status_req gives owner_ref.kind != RabbitmqClusterView.
+                                    // The owner_references_contains check fails, so handle returns TransactionAbort.
+                                    let etcd_obj = s.resources()[resource_key];
+                                    assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                        if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                            let owner_refs = etcd_obj.metadata.owner_references->0;
+                                            assert(owner_refs.contains(req.owner_ref));
+                                            let etcd_uid = choose |uid: Uid| #![auto]
+                                                etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
+                                                    block_owner_deletion: None,
+                                                    controller: Some(true),
+                                                    kind: RabbitmqClusterView::kind(),
+                                                    name: rmq.metadata.name->0,
+                                                    uid: uid,
+                                                }]);
+                                            let etcd_owner_ref = OwnerReferenceView {
+                                                block_owner_deletion: None,
+                                                controller: Some(true),
+                                                kind: RabbitmqClusterView::kind(),
+                                                name: rmq.metadata.name->0,
+                                                uid: etcd_uid,
+                                            };
+                                            assert(owner_refs == seq![etcd_owner_ref]);
+                                            assert(req.owner_ref == etcd_owner_ref);
+                                            assert(false);
+                                        }
+                                    }
+                                    assert(api_state_prime.resources == s.api_server.resources);
+                                    assert(s_prime.resources().contains_key(resource_key));
+                                }
+                                // For non-CM: status-only change preserves spec; contains_key preserved.
+                            } else {
+                                assert(req.key() != resource_key);
+                            }
+                        }
+                        assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                    }
                 },
             }
         },
-        HostId::BuiltinController => {},
-        _ => {},
+        HostId::BuiltinController => {
+            // all_requests_from_builtin_controllers_are_api_delete_requests forces msg to be a delete.
+            assert(msg.content.is_delete_request());
+            assert(!resource_delete_request_msg(resource_key)(msg));
+            let req = msg.content.get_delete_request();
+            assert(req.key != resource_key);
+            assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+        },
+        _ => {
+            // no_pending_request_to_api_server_from_non_controllers excludes other sources.
+            assert(false);
+        },
     }
 }
 
