@@ -1766,18 +1766,14 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
             && Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, eventual_owner_ref)(s) by {
         if s.resources().contains_key(resource_key) {
             let etcd_obj = s.resources()[resource_key];
-            let etcd_uid = choose |uid: Uid| #![auto]
-                etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
-                    block_owner_deletion: None,
-                    controller: Some(true),
-                    kind: RabbitmqClusterView::kind(),
-                    name: rabbitmq.metadata.name->0,
-                    uid: uid,
-                }]);
+            let owner_ref = choose |owner_reference: OwnerReferenceView| {
+                &&& etcd_obj.metadata.owner_references == Some(seq![owner_reference])
+                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
+            };
             let some_rmq = RabbitmqClusterView {
                 metadata: ObjectMetaView {
                     name: Some(rabbitmq.metadata.name->0),
-                    uid: Some(etcd_uid),
+                    uid: Some(owner_ref.uid),
                     ..rabbitmq.metadata
                 },
                 ..rabbitmq
@@ -2016,7 +2012,7 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
                             assert(cr.object_ref() == rabbitmq.object_ref());
                             assert(msg.content.get_create_request().obj == make(SubResource::VStatefulSetView, cr, local_state)->Ok_0);
                             assert(msg.content.get_create_request().obj.metadata.finalizers is None);
-                            assert(msg.content.get_create_request().obj.metadata.owner_references == Some(Seq::empty().push(cr.controller_owner_ref())));
+                            assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));

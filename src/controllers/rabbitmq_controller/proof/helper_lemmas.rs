@@ -417,19 +417,15 @@ ensures
     //     mention `exists |rmq|`.
     if s.resources().contains_key(resource_key) {
         let etcd_obj = s.resources()[resource_key];
-        let etcd_uid = choose |uid: Uid| #![auto]
-            etcd_obj.metadata.owner_references == Some(seq![OwnerReferenceView {
-                block_owner_deletion: None,
-                controller: Some(true),
-                kind: RabbitmqClusterView::kind(),
-                name: rmq.metadata.name->0,
-                uid: uid,
-            }]);
+        let owner_ref = choose |owner_reference: OwnerReferenceView| {
+            &&& etcd_obj.metadata.owner_references == Some(seq![owner_reference])
+            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rmq.controller_owner_ref())
+        };
         let some_rmq = RabbitmqClusterView {
             metadata: ObjectMetaView {
                 name: Some(rmq.metadata.name->0),
-                uid: Some(etcd_uid),
-                ..rmq.metadata
+                uid: Some(owner_ref.uid),
+                ..rarmqbbitmq.metadata
             },
             ..rmq
         };
