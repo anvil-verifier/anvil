@@ -804,6 +804,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
         spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq))))),
@@ -821,7 +822,8 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
-            &&& s.resources().contains_key(resource_key) ==> {
+            &&& s.resources().contains_key(resource_key)
+            &&& {
                 let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                 let updated_obj = update(sub_resource, rabbitmq, local_state, s.resources()[resource_key])->Ok_0;
                 &&& update(sub_resource, rabbitmq, local_state, s.resources()[resource_key]) is Ok
@@ -856,6 +858,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -887,24 +890,43 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                     assert(requirements(msg, s));
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
                     match step {
-                        Step::APIServerStep(input) => {
+                        Step::APIServerStep(input) => { // similar to the proofs in lemma_api_request_other_than_pending_req_msg_maintains_resource_object
                             let req_msg = input->0;
                             match req_msg.src {
                                 HostId::Controller(id, cr_key) => {
+                                    if id != controller_id {
+                                        assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                                        assert(rmq_rely(id)(s));
+                                    }
                                     match req_msg.content->APIRequest_0 {
                                         APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
                                         APIRequest::CreateRequest(req) => {
-                                            assume(false);
-                                            if id == controller_id { // use guarantee
-                                                if resource_create_request_msg(resource_key)(req_msg) {}
-                                            } else { // use rely
-                                                assert(cluster.controller_models.remove(controller_id).contains_key(id));
-                                                assert(rmq_rely(id)(s));
-                                            }
+                                            assert(s.resources().contains_key(resource_key));
                                         },
                                         APIRequest::GetThenUpdateRequest(req) => {
-                                            assume(false);
-                                            if resource_get_then_update_request_msg(resource_key)(req_msg) {}
+                                            if req.key() == resource_key {
+                                                if msg.content.get_get_then_update_request().owner_ref.kind == RabbitmqClusterView::kind()
+                                                    && msg.content.get_get_then_update_request().owner_ref.controller == Some(true) {
+                                                    assert(Cluster::pending_req_msg_is(controller_id, s, rabbitmq.object_ref(), msg));
+                                                    assert(msg == req_msg);
+                                                    assert(s.in_flight().count(msg) > 1);
+                                                    assert(false);
+                                                } else { // the request cannot pass owner ref check
+                                                    let etcd_obj = s.resources()[resource_key];
+                                                    let owner_refs = etcd_obj.metadata.owner_references->0;
+                                                    assert(owner_refs[0] == rabbitmq.controller_owner_ref());
+                                                    if owner_refs.contains(req.owner_ref) {
+                                                        lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
+                                                    }
+                                                    assert(s_prime.resources() == s.resources());
+                                                }
+                                            } else {
+                                                assert(req_msg != msg);
+                                                assume(Cluster::each_object_in_etcd_is_weakly_well_formed()(s));
+                                                assume(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s));
+                                                other_objects_are_unaffected_if_request_fails_to_be_applied(cluster, s, s_prime, req_msg, resource_key);
+                                                assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
+                                            }
                                         },
                                         APIRequest::UpdateRequest(req) => {
                                             assume(false);
@@ -957,7 +979,8 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);

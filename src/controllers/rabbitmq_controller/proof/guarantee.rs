@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
-    proof::{predicate::*, resource::*},
+    proof::{predicate::*, resource::*, helper_lemmas::lemma_resource_key_has_rmq_prefix},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::rabbitmq_controller::trusted::step::RabbitmqReconcileStep::AfterKRequestStep;
@@ -140,20 +140,15 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                     if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetResponse {
                         let get_resp = resp_o->0->KResponse_0->GetResponse_0.res;
                         if get_resp is Ok {
-                            // Update path: sends UpdateRequest
-                            // reconcile_helper calls Builder::update which sets owner_references
                             assert(msg.content.is_get_then_update_request());
                             let req = msg.content.get_get_then_update_request();
-                            // The update function for every resource builder sets
-                            // owner_references = Some(seq![rmq.controller_owner_ref()])
+                            lemma_resource_key_has_rmq_prefix(resource, rmq);
+                            assert(has_rmq_prefix(req.name));
                             assert(rmq_guarantee_get_then_update_req(req));
                         } else if get_resp->Err_0 is ObjectNotFound {
-                            // Create path: sends CreateRequest
-                            // reconcile_helper calls Builder::make which sets owner_references
                             assert(msg.content.is_create_request());
                             let req = msg.content.get_create_request();
-                            // The make function for every resource builder sets
-                            // owner_references = Some(seq![rmq.controller_owner_ref()])
+                            lemma_resource_key_has_rmq_prefix(resource, rmq);
                             assert(rmq_guarantee_create_req(req));
                         } else {
                             // Error case: no message sent (reconcile_core returns None)

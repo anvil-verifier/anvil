@@ -113,6 +113,7 @@ pub open spec fn rmq_rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool
 // owned by exactly one RabbitmqCluster.
 pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
+    &&& has_rmq_prefix(req.obj.metadata.name->0)
     &&& req.obj.metadata.name is Some
     &&& req.obj.metadata.owner_references is Some
     &&& exists |rabbitmq: RabbitmqClusterView|
@@ -123,6 +124,7 @@ pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
 // owned by exactly one RabbitmqCluster.
 pub open spec fn rmq_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
+    &&& has_rmq_prefix(req.name)
     &&& req.owner_ref.kind == RabbitmqClusterView::kind()
     &&& req.obj.metadata.owner_references is Some
     &&& exists |rabbitmq: RabbitmqClusterView|
