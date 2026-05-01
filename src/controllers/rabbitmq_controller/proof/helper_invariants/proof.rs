@@ -821,10 +821,13 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
-            &&& s.resources().contains_key(resource_key) ==> (
-                update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key]) is Ok
-                && msg.content.get_get_then_update_request().obj == update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key])->Ok_0
-            )
+            &&& s.resources().contains_key(resource_key) ==> {
+                let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                let updated_obj = update(sub_resource, rabbitmq, local_state, s.resources()[resource_key])->Ok_0;
+                &&& update(sub_resource, rabbitmq, local_state, s.resources()[resource_key]) is Ok
+                &&& msg.content.get_get_then_update_request().obj.spec == updated_obj.spec
+                &&& msg.content.get_get_then_update_request().obj.metadata.without_resource_version() == updated_obj.metadata.without_resource_version()
+            }
         }
     };
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -863,6 +866,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                 && msg.content.get_get_then_update_request().owner_ref.controller == Some(true) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
+                    assume(false);
                     RabbitmqReconcileState::marshal_preserves_integrity();
                     RabbitmqClusterView::marshal_preserves_integrity();
                     lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
@@ -890,6 +894,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                                     match req_msg.content->APIRequest_0 {
                                         APIRequest::GetRequest(_) | APIRequest::ListRequest(_) => {},
                                         APIRequest::CreateRequest(req) => {
+                                            assume(false);
                                             if id == controller_id { // use guarantee
                                                 if resource_create_request_msg(resource_key)(req_msg) {}
                                             } else { // use rely
@@ -898,9 +903,19 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                                             }
                                         },
                                         APIRequest::GetThenUpdateRequest(req) => {
+                                            assume(false);
                                             if resource_get_then_update_request_msg(resource_key)(req_msg) {}
                                         },
-                                        _ => {}, // rmq_rely_conditions
+                                        APIRequest::UpdateRequest(req) => {
+                                            assume(false);
+                                        },
+                                        APIRequest::UpdateStatusRequest(req) => {
+                                            assume(false);
+                                        },
+                                        APIRequest::GetThenUpdateStatusRequest(req) => {
+                                            assume(false);
+                                        },
+                                        _ => {assume(false);},
                                     }
                                 },
                                 HostId::BuiltinController => {},

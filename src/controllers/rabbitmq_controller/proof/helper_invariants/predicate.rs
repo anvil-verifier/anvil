@@ -201,10 +201,13 @@ pub open spec fn every_effective_resource_get_then_update_request_implies_at_aft
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
-            &&& s.resources().contains_key(resource_key) ==> (
-                update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key]) is Ok
-                && msg.content.get_get_then_update_request().obj == update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(), s.resources()[resource_key])->Ok_0
-            )
+            &&& s.resources().contains_key(resource_key) ==> {
+                let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                let updated_obj = update(sub_resource, rabbitmq, local_state, s.resources()[resource_key])->Ok_0;
+                &&& update(sub_resource, rabbitmq, local_state, s.resources()[resource_key]) is Ok
+                &&& msg.content.get_get_then_update_request().obj.spec == updated_obj.spec
+                &&& msg.content.get_get_then_update_request().obj.metadata.without_resource_version() == updated_obj.metadata.without_resource_version()
+            }
         }
     }
 }
