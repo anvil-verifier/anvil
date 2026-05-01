@@ -484,13 +484,8 @@ ensures
                         if s.resources().contains_key(resource_key) {
                             if req.key() == resource_key {
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
-                                assert(is_rmq_managed_kind(req.obj.kind));
-                                assert(has_rmq_prefix(req.name));
-                                assert(req.obj.metadata.resource_version is Some);
-                                assert(s.resources()[resource_key].metadata.resource_version != req.obj.metadata.resource_version);
                                 assert(update_request_admission_check(cluster.installed_types, req, s.api_server) is Some);
                                 assert(api_state_prime.resources == s.api_server.resources);
-                                assert(s_prime.resources().contains_key(resource_key));
                             } else {
                                 // req.key() != resource_key. handle_update_request only ever modifies
                                 // api_state_prime.resources at req.key(), so dom is preserved at rk.
@@ -505,14 +500,9 @@ ensures
                     if id == controller_id {
                         assert(false);
                     } else if s.resources().contains_key(resource_key) && req.key() == resource_key {
-                        lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
-                        assert(is_rmq_managed_kind(req.key.kind));
-                        assert(has_rmq_prefix(req.key.name));
-                        assert(req.preconditions is Some && req.preconditions->0.resource_version is Some);
-                        assert(s.resources()[resource_key].metadata.resource_version != req.preconditions->0.resource_version);
+                        lemma_resource_key_has_rmq_prefix(sub_resource, rmq);;
                         assert(delete_request_admission_check(req, s.api_server) is Some);
                         assert(api_state_prime.resources == s.api_server.resources);
-                        assert(s_prime.resources().contains_key(resource_key));
                     }
                 },
                 APIRequest::UpdateStatusRequest(req) => {
@@ -525,12 +515,8 @@ ensures
                                 lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
                                 if req.obj.kind == Kind::ConfigMapKind {
                                     // For CM: rmq_rely_update_status_req triggers and gives rv mismatch.
-                                    assert(has_rmq_prefix(req.name));
-                                    assert(req.obj.metadata.resource_version is Some);
-                                    assert(s.resources()[resource_key].metadata.resource_version != req.obj.metadata.resource_version);
                                     assert(update_status_request_admission_check(cluster.installed_types, req, s.api_server) is Some);
                                     assert(api_state_prime.resources == s.api_server.resources);
-                                    assert(s_prime.resources().contains_key(resource_key));
                                 }
                                 // For non-CM: status_updated_object preserves spec; contains_key preserved.
                             } else {
@@ -557,8 +543,6 @@ ensures
                     } else {
                         if req.key == resource_key && s.resources().contains_key(resource_key) {
                             lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
-                            assert(is_rmq_managed_kind(req.key().kind));
-                            assert(has_rmq_prefix(req.key.name));
                             let etcd_obj = s.resources()[resource_key];
                             let owner_refs = etcd_obj.metadata.owner_references->0;
                             if owner_refs.contains(req.owner_ref) {
@@ -586,7 +570,6 @@ ensures
                                         lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
                                     }
                                     assert(api_state_prime.resources == s.api_server.resources);
-                                    assert(s_prime.resources().contains_key(resource_key));
                                 }
                                 // For non-CM: status-only change preserves spec; contains_key preserved.
                             } else {
