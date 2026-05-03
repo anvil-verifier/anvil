@@ -783,7 +783,7 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(500))]
+#[verifier(rlimit(100))]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     controller_id: int,
     cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message

@@ -229,7 +229,14 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_get_response().res is Ok
-        &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
+        &&& match sub_resource {
+            // to prove cm resource version does not change, rely conditions prevent status update request to this kind
+            SubResource::ServerConfigMap | SubResource::PluginsConfigMap => resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key],
+            _ => {
+                &&& resp_msg.content.get_get_response().res->Ok_0.spec == s.resources()[key].spec
+                &&& resp_msg.content.get_get_response().res->Ok_0.metadata.without_resource_version() == s.resources()[key].metadata.without_resource_version()
+            }
+        }
     }
 }
 
