@@ -875,7 +875,6 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                 && msg.content.get_get_then_update_request().owner_ref.controller == Some(true) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
-                    assume(false);
                     RabbitmqReconcileState::marshal_preserves_integrity();
                     RabbitmqClusterView::marshal_preserves_integrity();
                     lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
@@ -883,7 +882,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                     assert(is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
                     assert(resp.content.get_get_response().res->Ok_0.metadata.resource_version == msg.content.get_get_then_update_request().obj.metadata.resource_version);
-                    if s.resources().contains_key(resource_key) && resp.content.get_get_response().res->Ok_0.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
+                    if resp.content.get_get_response().res->Ok_0.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
                         assert(resp.content.get_get_response().res->Ok_0 == s.resources()[resource_key]);
                         assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                     }
@@ -892,7 +891,22 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                         assert(s.resources()[cm_key] == s_prime.resources()[cm_key]);
                         assert(RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap().latest_config_map_rv_opt == RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap().latest_config_map_rv_opt);
                     }
+                    let local_state = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                    assert(s.resources() == s_prime.resources());
+                    let updated_obj = update(sub_resource, rabbitmq, local_state, s_prime.resources()[resource_key])->Ok_0;
+                    assert(msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()));
+                    assert(at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)) by {
+                        assert(s_prime.ongoing_reconciles(controller_id).contains_key(key));
+                        assert(local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource));
+                    }
+                    assert(Cluster::pending_req_msg_is(controller_id, s_prime, key, msg));
+                    assert(msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref());
+                    assert(s_prime.resources().contains_key(resource_key));
+                    assert(update(sub_resource, rabbitmq, local_state, s_prime.resources()[resource_key]) is Ok);
+                    assert(msg.content.get_get_then_update_request().obj.spec == updated_obj.spec);
+                    assert(msg.content.get_get_then_update_request().obj.metadata.without_resource_version() == updated_obj.metadata.without_resource_version());
                 } else {
+                    assume(false);
                     let etcd_obj = s.resources()[resource_key];
                     assert(requirements(msg, s));
                     assert(s.ongoing_reconciles(controller_id)[key] == s_prime.ongoing_reconciles(controller_id)[key]);
@@ -1442,6 +1456,9 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
         msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()),
         msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref(),
+        // s.resources().contains_key(get_request(sub_resource, rabbitmq).key),
+        // update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap(), s.resources()[get_request(sub_resource, rabbitmq).key]) is Ok,
+        // msg.content.get_get_then_update_request().obj == update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap(), s.resources()[get_request(sub_resource, rabbitmq).key])->Ok_0,
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
