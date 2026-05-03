@@ -1083,10 +1083,8 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
-    resource_state_matches(sub_resource, rabbitmq)(s),
 ensures
-    resource_state_matches(sub_resource, rabbitmq)(s_prime),
+    forall |any_sub_resources| resource_state_matches(any_sub_resources, rabbitmq)(s) ==> resource_state_matches(any_sub_resources, rabbitmq)(s_prime),
     // etcd_vsts is unchanged
     sub_resource == SubResource::VStatefulSetView ==>
         VStatefulSetView::unmarshal(s_prime.resources()[get_request(sub_resource, rabbitmq).key])->Ok_0.spec
@@ -1113,93 +1111,9 @@ ensures
     let step = choose |step| cluster.next_step(s, s_prime, step);
     match step {
         Step::APIServerStep(input) => {
-            let msg = input->0;
-            assert(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)(s));
-            assert(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rabbitmq)(s));
-            assert(s.in_flight().contains(msg));
-            assert(!resource_delete_request_msg(resource_key)(msg));
-            assert(!resource_get_then_update_request_msg(resource_key)(msg));
-            assert(!resource_get_then_delete_request_msg(resource_key)(msg));
-            assert(!resource_update_status_request_msg(resource_key)(msg));
-            assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
-            if resource_get_then_update_request_msg(resource_key)(msg) {
-                if msg.content.get_get_then_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {} else {
-                    assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
-                }
-            } else {
-                assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
-            }
-        },
-        _ => {
-            assert(s_prime.resources() == s.resources());
-        },
-    }
-}
-
-
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
-pub proof fn lemma_current_state_matches_preserves_from_s_to_s_prime_for_cm(
-    controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView,
-    s: ClusterState, s_prime: ClusterState
-)
-requires
-    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s),
-    cluster.next()(s, s_prime),
-    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s),
-ensures
-    resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s_prime),
-    cm_rv_stays_unchanged(rabbitmq)(s, s_prime),
-{
-    let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
-    let key = rabbitmq.object_ref();
-
-    RabbitmqReconcileState::marshal_preserves_integrity();
-    RabbitmqClusterView::marshal_preserves_integrity();
-    ConfigMapView::marshal_preserves_integrity();
-
-    let step = choose |step| cluster.next_step(s, s_prime, step);
-    match step {
-        Step::APIServerStep(input) => {
-            let msg = input->0;
-            assert(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(SubResource::ServerConfigMap, rabbitmq)(s));
-            assert(helper_invariants::every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, SubResource::ServerConfigMap, rabbitmq)(s));
-            assert(s.in_flight().contains(msg));
-            assert(!resource_delete_request_msg(resource_key)(msg));
-            assert(!resource_get_then_update_request_msg(resource_key)(msg));
-            assert(!resource_get_then_delete_request_msg(resource_key)(msg));
-            assert(!resource_update_status_request_msg(resource_key)(msg));
-            assert(!resource_get_then_update_status_request_msg(resource_key)(msg));
-            if resource_get_then_update_request_msg(resource_key)(msg) {
-                if msg.content.get_get_then_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
-                    let req = msg.content.get_get_then_update_request();
-                    let current_obj = s.resources()[req.key()];
-                    let new_obj = DynamicObjectView {
-                        metadata: ObjectMetaView {
-                            resource_version: current_obj.metadata.resource_version,
-                            uid: current_obj.metadata.uid,
-                            ..req.obj.metadata
-                        },
-                        ..req.obj
-                    };
-                    let update_req = UpdateRequest {
-                        name: req.name,
-                        namespace: req.namespace,
-                        obj: new_obj,
-                    };
-                    let updated_obj = updated_object(update_req, new_obj);
-                    assert(s.resources()[resource_key].spec == ConfigMapView::marshal_spec(make_server_config_map(rabbitmq).data));
-                    assert(updated_obj == current_obj);
-                    assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
-                } else {
-                    assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
-                }
-            } else {
-                assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
-            }
+            lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
+            );
         },
         _ => {
             assert(s_prime.resources() == s.resources());

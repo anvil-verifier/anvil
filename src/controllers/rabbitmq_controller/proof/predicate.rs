@@ -126,6 +126,24 @@ pub open spec fn next_resource_after(sub_resource: SubResource) -> RabbitmqRecon
     }
 }
 
+pub open spec fn sub_resources_until(sub_resource: SubResource) -> spec_fn(SubResource) -> bool {
+    |other_resource: SubResource| {
+        other_resource == sub_resource ||
+            match sub_resource {
+                SubResource::HeadlessService => true,
+                SubResource::Service => sub_resources_until(SubResource::HeadlessService)(other_resource),
+                SubResource::ErlangCookieSecret => sub_resources_until(SubResource::Service)(other_resource),
+                SubResource::DefaultUserSecret => sub_resources_until(SubResource::ErlangCookieSecret)(other_resource),
+                SubResource::PluginsConfigMap => sub_resources_until(SubResource::DefaultUserSecret)(other_resource),
+                SubResource::ServerConfigMap => sub_resources_until(SubResource::PluginsConfigMap)(other_resource),
+                SubResource::ServiceAccount => sub_resources_until(SubResource::ServerConfigMap)(other_resource),
+                SubResource::Role => sub_resources_until(SubResource::ServiceAccount)(other_resource),
+                SubResource::RoleBinding => sub_resources_until(SubResource::Role)(other_resource),
+                SubResource::VStatefulSetView => sub_resources_until(SubResource::RoleBinding)(other_resource)
+            }
+    }
+}
+
 pub open spec fn pending_req_in_flight_at_after_get_resource_step(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int
 ) -> StatePred<ClusterState> {
@@ -574,16 +592,6 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
     }
 }
 
-pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionPred<ClusterState> {
-    |s: ClusterState, s_prime: ClusterState| {
-        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
-        &&& s.resources().contains_key(cm_key)
-        &&& s_prime.resources().contains_key(cm_key)
-        &&& s.resources()[cm_key].metadata.resource_version is Some
-        &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
-    }
-}
-
 pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, controller_id: int, rmq: RabbitmqClusterView, sub_resource: SubResource) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& rmq_guarantee(controller_id)(s)
@@ -629,41 +637,53 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
 
 pub open spec fn inductive_current_state_matches(rmq: RabbitmqClusterView, sub_resource: SubResource, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let resource_key = get_request(sub_resource, rmq).key;
         &&& resource_state_matches(sub_resource, rmq)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(rmq.object_ref()) ==> {
-            &&& {
-                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, RabbitmqReconcileStep::Init)(s)
-                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_get_k_request_step(sub_resource))(s)
-                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_update_k_request_step(sub_resource))(s)
-                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, RabbitmqReconcileStep::Done)(s)
-                ||| at_rabbitmq_step_with_rabbitmq(rmq, controller_id, RabbitmqReconcileStep::Error)(s)
-            }
-            &&& if at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_get_k_request_step(sub_resource))(s) {
-                let req_msg = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
-                &&& s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is Some;
-                let request = req_msg.content->APIRequest_0;
-                &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
-                &&& req_msg.dst == HostId::APIServer
-                &&& req_msg.content is APIRequest
-                &&& request is GetRequest
-                &&& request->GetRequest_0 == get_request(sub_resource, rmq)
-                &&& forall |msg| {
-                    &&& #[trigger] s.in_flight().contains(msg)
-                    &&& msg.src is APIServer
-                    &&& resp_msg_matches_req_msg(msg, req_msg)
-                } ==> resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, msg)(s)
-            } else if at_rabbitmq_step_with_rabbitmq(rmq, controller_id, after_update_k_request_step(sub_resource))(s) {
-                let req_msg = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
-                let resource_key = get_request(sub_resource, rmq).key;
-                &&& s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is Some
-                &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
-                &&& req_msg.dst == HostId::APIServer
-                &&& req_msg.content is APIRequest
-                &&& resource_get_then_update_request_msg(resource_key)(req_msg)
-                &&& req_obj_matches_sub_resource_requirements(sub_resource, rmq, req_msg.content.get_get_then_update_request().obj)(s)
-                // we don't care if update request succeed or not
-            } else {
-                s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is None
+            let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state).unwrap();
+            let pending_req = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
+            &&& match local_state.reconcile_step {
+                // noop steps
+                RabbitmqReconcileStep::Init | RabbitmqReconcileStep::Done | RabbitmqReconcileStep::Error => true,
+                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
+                    // resource step other than sub_resource step does not send interfering requests
+                    let req_msg = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
+                    let req = req_msg.content.get_get_request();
+                    &&& s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is Some
+                    &&& req_msg.content.is_get_request()
+                    &&& if some_resource == sub_resource {
+                        &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
+                        &&& req_msg.dst == HostId::APIServer
+                        &&& req_msg.content is APIRequest
+                        &&& req == get_request(sub_resource, rmq)
+                        &&& forall |msg| {
+                            &&& #[trigger] s.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } ==> resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, msg)(s)
+                    } else {
+                        &&& req.key() != resource_key
+                    }
+                },
+                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
+                    let req = req_msg.content.get_get_then_update_request();
+                    &&& s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg is Some
+                    &&& req_msg.content.is_get_then_update_request()
+                    &&& if some_resource == sub_resource {
+                        &&& req_msg.src == HostId::Controller(controller_id, rmq.object_ref())
+                        &&& resource_get_then_update_request_msg(resource_key)(req_msg)
+                        &&& s.resources().contains_key(resource_key)
+                        &&& req.owner_ref == rmq.controller_owner_ref()
+                        &&& req_obj_matches_sub_resource_requirements(sub_resource, rmq, req.obj)(s)
+                        &&& update_req_obj_matches_etcd_immutable_fields(sub_resource, rmq, req.obj)(s)
+                        &&& req.obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
+                        &&& req.obj.spec == s.resources()[resource_key].spec
+                    } else {
+                        &&& req.key() != resource_key
+                    }
+                },
+                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) => false,
             }
         }
     }

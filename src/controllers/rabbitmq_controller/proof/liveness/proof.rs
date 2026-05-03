@@ -309,9 +309,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
     assert forall |s: ClusterState, s_prime: ClusterState|
         resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s) && #[trigger] cm_stronger_next(s, s_prime)
         implies resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s_prime) by {
-        lemma_current_state_matches_preserves_from_s_to_s_prime_for_cm(
-            controller_id, cluster, rabbitmq, s, s_prime
-        );
     }
     leads_to_stable(
         spec, lift_action(cm_stronger_next), true_pred(),
@@ -373,11 +370,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
             assert forall |s: ClusterState, s_prime: ClusterState|
                 combined(s) && #[trigger] combined_stronger_next(s, s_prime)
                 implies combined(s_prime) by {
-                // CM stays matched and cm_rv_stays_unchanged.
-                lemma_current_state_matches_preserves_from_s_to_s_prime_for_cm(
-                    controller_id, cluster, rabbitmq, s, s_prime
-                );
-                // The other resource stays matched (needs cm_rv_stays_unchanged).
                 lemma_current_state_matches_preserves_from_s_to_s_prime(
                     controller_id, cluster, sub_resource, rabbitmq, s, s_prime
                 );
