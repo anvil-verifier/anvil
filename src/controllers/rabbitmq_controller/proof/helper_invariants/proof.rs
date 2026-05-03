@@ -902,7 +902,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                     assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
                     match step {
                         Step::APIServerStep(input) => { // similar to the proofs in lemma_api_request_other_than_pending_req_msg_maintains_resource_object
-                            let req_msg = input->0;
+                            let req_msg = input->0; // TODO: dedup by adding internal-guarantee
                             match req_msg.src {
                                 HostId::Controller(id, cr_key) => {
                                     if id != controller_id {
