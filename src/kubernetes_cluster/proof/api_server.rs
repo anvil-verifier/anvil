@@ -37,6 +37,7 @@ ensures
     }
 }
 
+// this lemma is usually only used to reduce flakiness
 pub proof fn other_objects_are_unaffected_if_request_fails_to_be_applied(cluster: Cluster, s: ClusterState, s_prime: ClusterState, msg: Message, key: ObjectRef)
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
