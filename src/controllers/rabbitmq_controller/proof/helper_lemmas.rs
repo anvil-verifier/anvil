@@ -452,8 +452,7 @@ requires
     Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s),
     resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s),
     no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rmq)(s),
-    every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s),
-    every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s),
+    rmq_self_rely_guarantee(controller_id, rmq.object_ref())(s),
     rmq_guarantee(controller_id)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, rmq.object_ref()),
@@ -512,10 +511,10 @@ ensures
                     if id == controller_id {
                         // rmq_guarantee_create_req: req.obj.metadata.name is Some.
                         assert(rmq_guarantee_create_req(req));
-                        if req.key() == resource_key {
-                            assert(resource_create_request_msg(resource_key)(msg));
-                            assert(false);
-                        }
+                        // self-rely: cr_key != rmq.object_ref() ⇒ req.key() != resource_key.
+                        assert(cr_key != rmq.object_ref());
+                        assert(req.key() != make_resource_key(rmq.object_ref(), sub_resource));
+                        assert(req.key() != resource_key);
                     } else if is_rmq_managed_kind(req.obj.kind) {
                         // id != controller_id: use rely.
                         if req.obj.metadata.name is Some {
@@ -585,7 +584,17 @@ ensures
                     }
                 },
                 APIRequest::GetThenUpdateRequest(req) => {
-                    if req.key() == resource_key && s.resources().contains_key(resource_key) {
+                    if id == controller_id {
+                        // self-rely: cr_key != rmq.object_ref() ⇒ req.key() != resource_key.
+                        assert(cr_key != rmq.object_ref());
+                        assert(req.key() != make_resource_key(rmq.object_ref(), sub_resource));
+                        assert(req.key() != resource_key);
+                    } else if req.key() == resource_key && s.resources().contains_key(resource_key) {
+                        // id != controller_id: rely says effective get_then_update on rmq-managed
+                        // key with rmq prefix has owner_ref.kind != RmqCR::kind. The etcd owner_ref
+                        // (a singleton) does have kind == RmqCR::kind, so owner_refs.contains(req.owner_ref)
+                        // would force a contradiction; hence the API server's owner check fails and
+                        // s_prime.resources() == s.resources().
                         let etcd_obj = s.resources()[resource_key];
                         let owner_refs = etcd_obj.metadata.owner_references->0;
                         if owner_refs.contains(req.owner_ref) {
@@ -821,12 +830,24 @@ ensures
     let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
     let local_state = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state;
     let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
-    
+
     let step = after_update_k_request_step(sub_resource);
     let key = get_request(sub_resource, rmq).key;
+    let req = msg.content.get_get_then_update_request();
+    assert(msg.content.is_get_then_update_request());
     assert(resp_msg.content.get_get_then_update_response().res is Ok) by {
-        // owner_references_only_contains -> owner_references_contains
-        assert(s.resources()[key].metadata.owner_references_contains(s.resources()[key].metadata.owner_references->0[0]));
+        assert(req.well_formed());
+        // resource_object_only_has_owner_reference_pointing_to_current_cr gives
+        // etcd.owner_references == seq![rmq.controller_owner_ref()] exactly (with uid).
+        // req.owner_ref == rmq.controller_owner_ref() from the pending-req predicate.
+        // Combining: etcd.owner_references_contains(req.owner_ref).
+        let etcd_refs = s.resources()[key].metadata.owner_references->0;
+        assert(s.resources()[key].metadata.owner_references == Some(seq![rmq.controller_owner_ref()]));
+        assert(etcd_refs[0] == rmq.controller_owner_ref());
+        assert(req.owner_ref == rmq.controller_owner_ref());
+        assert(etcd_refs.contains(req.owner_ref)) by {
+            assert(etcd_refs[0] == req.owner_ref);
+        }
     }
     assert(state_after_update(sub_resource, rmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok);
 

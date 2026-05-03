@@ -14,7 +14,7 @@ use crate::rabbitmq_controller::proof::{resource::*, helper_invariants::*};
 use crate::rabbitmq_controller::trusted::{
     spec_types::*, step::*, liveness_theorem::*, rely_guarantee::*
 };
-use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
+use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, VStatefulSetSpecView};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -342,6 +342,38 @@ pub open spec fn req_obj_matches_sub_resource_requirements(sub_resource: SubReso
     }
 }
 
+// For a get-then-update request, the request's obj must match the etcd object on
+// fields that are immutable per `_transition_validation`. The model produces these
+// fields by inheriting from the get-response object (`..found_*` in update_*),
+// and `_transition_validation` prevents *any* in-flight update from changing them,
+// so they are stable from get-time to send-time. Required by the api-action lemma
+// to discharge the API server's owner-ref check on get-then-update.
+pub open spec fn update_req_obj_matches_etcd_immutable_fields(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let resource_key = get_request(sub_resource, rabbitmq).key;
+        match sub_resource {
+            SubResource::RoleBinding => {
+                // role_ref is immutable per RoleBindingView::_transition_validation.
+                &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref
+                    == RoleBindingView::unmarshal(s.resources()[resource_key])->Ok_0.role_ref
+            },
+            SubResource::VStatefulSetView => {
+                // All spec fields except replicas/template/persistent_volume_claim_retention_policy
+                // are immutable per VStatefulSetView::_transition_validation.
+                let req_spec = VStatefulSetView::unmarshal(obj)->Ok_0.spec;
+                let etcd_spec = VStatefulSetView::unmarshal(s.resources()[resource_key])->Ok_0.spec;
+                &&& req_spec == VStatefulSetSpecView {
+                    replicas: req_spec.replicas,
+                    template: req_spec.template,
+                    persistent_volume_claim_retention_policy: req_spec.persistent_volume_claim_retention_policy,
+                    ..etcd_spec
+                }
+            },
+            _ => true,
+        }
+    }
+}
+
 pub open spec fn pending_req_in_flight_at_after_create_resource_step(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int
 ) -> StatePred<ClusterState> {
@@ -449,6 +481,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
         &&& s.resources().contains_key(resource_key)
         &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, msg.content.get_get_then_update_request().obj)(s)
+        &&& update_req_obj_matches_etcd_immutable_fields(sub_resource, rabbitmq, msg.content.get_get_then_update_request().obj)(s)
         // sanity check
         &&& req.obj.metadata.name is Some
         &&& req.name == req.obj.metadata.name->0
@@ -476,6 +509,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& s.resources().contains_key(resource_key)
         &&& req_msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req_msg.content.get_get_then_update_request().obj)(s)
+        &&& update_req_obj_matches_etcd_immutable_fields(sub_resource, rabbitmq, req_msg.content.get_get_then_update_request().obj)(s)
         // sanity check
         &&& req.obj.metadata.name is Some
         &&& req.name == req.obj.metadata.name->0
@@ -577,8 +611,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rmq)(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
         &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s)
-        &&& every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id, sub_resource, rmq)(s)
-        &&& every_resource_create_request_implies_at_after_create_resource_step(controller_id, sub_resource, rmq)(s)
+        &&& rmq_self_rely_guarantee(controller_id, rmq.object_ref())(s)
         &&& no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rmq)(s)
