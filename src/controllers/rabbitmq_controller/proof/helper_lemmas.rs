@@ -222,6 +222,68 @@ pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
     }
 }
 
+// Sub-resource keys produced from two different RMQ cr_keys are disjoint.
+// Both cr_keys must have the RabbitmqClusterView kind (which is the case for
+// any cr_key managed by the rmq controller).
+pub proof fn lemma_diff_cr_key_implies_resource_key_neq(
+    cr_key_a: ObjectRef, cr_key_b: ObjectRef, sub_a: SubResource, sub_b: SubResource,
+)
+    requires
+        cr_key_a != cr_key_b,
+        cr_key_a.kind == RabbitmqClusterView::kind(),
+        cr_key_b.kind == RabbitmqClusterView::kind(),
+    ensures
+        make_resource_key(cr_key_a, sub_a) != make_resource_key(cr_key_b, sub_b),
+{
+    if sub_a != sub_b {
+        // Different sub-resources: existing lemma handles both cross- and same-cr_key cases.
+        lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(cr_key_a, cr_key_b, sub_a, sub_b);
+    } else {
+        // Same sub_resource ⇒ same key.kind. Difference must come from cr_key.name or .namespace.
+        let key_a = make_resource_key(cr_key_a, sub_a);
+        let key_b = make_resource_key(cr_key_b, sub_b);
+        if cr_key_a.namespace != cr_key_b.namespace {
+            // namespaces differ ⇒ key namespaces differ.
+            assert(key_a.namespace != key_b.namespace);
+        } else {
+            // Same namespace, same kind ⇒ cr_keys differ in name.
+            assert(cr_key_a.name != cr_key_b.name);
+            match sub_a {
+                SubResource::HeadlessService => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-nodes"@);
+                },
+                SubResource::Service => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-client"@);
+                },
+                SubResource::ErlangCookieSecret => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-erlang-cookie"@);
+                },
+                SubResource::DefaultUserSecret => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-default-user"@);
+                },
+                SubResource::PluginsConfigMap => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-plugins-conf"@);
+                },
+                SubResource::ServerConfigMap => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-server-conf"@);
+                },
+                SubResource::ServiceAccount => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-server"@);
+                },
+                SubResource::Role => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-peer-discovery"@);
+                },
+                SubResource::RoleBinding => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-server"@);
+                },
+                SubResource::VStatefulSetView => {
+                    lemma_cr_name_neq_implies_resource_key_name_neq(cr_key_a.name, cr_key_b.name, "-server"@);
+                },
+            }
+        }
+    }
+}
+
 pub proof fn lemma_resource_key_has_rmq_prefix(sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
 ensures
     has_rmq_prefix(get_request(sub_resource, rabbitmq).key.name),

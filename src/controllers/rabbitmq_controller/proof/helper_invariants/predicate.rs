@@ -258,6 +258,43 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
     }
 }
 
+// Self-rely-guarantee between RMQ reconciles managed by the same controller_id
+// but for different cr_keys. Says that any in-flight request issued by another
+// (cr_key', controller_id) reconcile of the same RMQ kind does not target any
+// of `cr_key`'s sub-resources. Resource keys are uniquely determined by
+// (sub_resource, cr_key), so different cr_keys produce disjoint sub-resource
+// keys; this predicate states that fact at the message level.
+//
+// Used by the shield lemma in place of the heavy
+// `every_resource_create_request_implies_…` /
+// `every_effective_…_get_then_update_…` invariants when the request comes
+// from our own controller_id but a different cr_key.
+//
+// Only Create and GetThenUpdate are constrained, mirroring rmq_guarantee
+// (rmq controller is forbidden from issuing other mutating request types).
+pub open spec fn rmq_self_rely_guarantee(controller_id: int, cr_key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+            &&& msg.src != HostId::Controller(controller_id, cr_key)
+        } ==> match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) => rmq_self_rely_guarantee_create_req(req, cr_key),
+            APIRequest::GetThenUpdateRequest(req) => rmq_self_rely_guarantee_get_then_update_req(req, cr_key),
+            _ => true,
+        }
+    }
+}
+
+pub open spec fn rmq_self_rely_guarantee_create_req(req: CreateRequest, cr_key: ObjectRef) -> bool {
+    forall |sub: SubResource| req.key() != #[trigger] make_resource_key(cr_key, sub)
+}
+
+pub open spec fn rmq_self_rely_guarantee_get_then_update_req(req: GetThenUpdateRequest, cr_key: ObjectRef) -> bool {
+    forall |sub: SubResource| req.key() != #[trigger] make_resource_key(cr_key, sub)
+}
+
 pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let sts_key = make_stateful_set_key(rabbitmq);
