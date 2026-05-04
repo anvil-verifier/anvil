@@ -642,6 +642,7 @@ pub open spec fn inductive_current_state_matches(rmq: RabbitmqClusterView, sub_r
         &&& s.ongoing_reconciles(controller_id).contains_key(rmq.object_ref()) ==> {
             let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state).unwrap();
             let pending_req = s.ongoing_reconciles(controller_id)[rmq.object_ref()].pending_req_msg->0;
+            &&& at_rabbitmq_step_with_rabbitmq(rmq, controller_id, local_state.reconcile_step)(s)
             &&& match local_state.reconcile_step {
                 // noop steps
                 RabbitmqReconcileStep::Init | RabbitmqReconcileStep::Done | RabbitmqReconcileStep::Error => true,

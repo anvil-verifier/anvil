@@ -370,9 +370,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
             assert forall |s: ClusterState, s_prime: ClusterState|
                 combined(s) && #[trigger] combined_stronger_next(s, s_prime)
                 implies combined(s_prime) by {
-                lemma_current_state_matches_preserves_from_s_to_s_prime(
-                    controller_id, cluster, sub_resource, rabbitmq, s, s_prime
-                );
+                lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(controller_id, cluster, sub_resource, rabbitmq, s, s_prime);
             }
             leads_to_stable(
                 spec, lift_action(combined_stronger_next), true_pred(),
