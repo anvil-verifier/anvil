@@ -111,14 +111,14 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     state: RabbitmqReconcileState,
-    rmq: RabbitmqClusterView,
+    rabbitmq: RabbitmqClusterView,
     resp_o: Option<ResponseView<VoidERespView>>,
 )
     requires
         msg.content is APIRequest,
-        reconcile_core(rmq, resp_o, state).1 is Some,
-        reconcile_core(rmq, resp_o, state).1->0 is KRequest,
-        msg.content->APIRequest_0 == reconcile_core(rmq, resp_o, state).1->0->KRequest_0,
+        reconcile_core(rabbitmq, resp_o, state).1 is Some,
+        reconcile_core(rabbitmq, resp_o, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(rabbitmq, resp_o, state).1->0->KRequest_0,
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
@@ -143,21 +143,21 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                         if get_resp is Ok {
                             assert(msg.content.is_get_then_update_request());
                             let req = msg.content.get_get_then_update_request();
-                            lemma_resource_key_has_rmq_prefix(resource, rmq);
+                            lemma_resource_key_has_rmq_prefix(resource, rabbitmq);
                             assert(has_rmq_prefix(req.name));
                             assert(rmq_guarantee_get_then_update_req(req));
                         } else if get_resp->Err_0 is ObjectNotFound {
                             assert(msg.content.is_create_request());
                             let req = msg.content.get_create_request();
-                            lemma_resource_key_has_rmq_prefix(resource, rmq);
+                            lemma_resource_key_has_rmq_prefix(resource, rabbitmq);
                             assert(rmq_guarantee_create_req(req));
                         } else {
                             // Error case: no message sent (reconcile_core returns None)
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
                         // Invalid/missing response: no message sent
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
                 ActionKind::Create => {
@@ -170,10 +170,10 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                             assert(msg.content.is_get_request());
                         } else {
                             // Error case: no message sent
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
                 ActionKind::Update => {
@@ -186,46 +186,46 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                             assert(msg.content.is_get_request());
                         } else {
                             // Error case: no message sent
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
             }
         },
         _ => {
             // Done/Error: no message sent
-            assert(reconcile_core(rmq, resp_o, state).1 is None);
+            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
         }
     }
 }
 
 // Mirrors lemma_guarantee_from_reconcile_state but extracts the *request key*
 // for Create / GetThenUpdate requests. Given that `msg` was just produced by
-// `reconcile_core(rmq, resp_o, state)` for some triggering CR `rmq`, this
-// lemma proves the request key is `make_resource_key(rmq.object_ref(), sub)`
+// `reconcile_core(rabbitmq, resp_o, state)` for some triggering CR `rabbitmq`, this
+// lemma proves the request key is `make_resource_key(rabbitmq.object_ref(), sub)`
 // for some `sub`, then applies `lemma_diff_cr_key_implies_resource_key_neq`
 // to conclude disjointness from any `make_resource_key(cr_key, sub')` when
-// `rmq.object_ref() != cr_key`.
+// `rabbitmq.object_ref() != cr_key`.
 //
 // Used by the inductive step of `lemma_always_rmq_self_rely_guarantee`.
 pub proof fn lemma_self_rely_guarantee_from_reconcile_state(
     msg: Message,
     state: RabbitmqReconcileState,
-    rmq: RabbitmqClusterView,
+    rabbitmq: RabbitmqClusterView,
     resp_o: Option<ResponseView<VoidERespView>>,
     cr_key: ObjectRef,
 )
     requires
         msg.content is APIRequest,
-        reconcile_core(rmq, resp_o, state).1 is Some,
-        reconcile_core(rmq, resp_o, state).1->0 is KRequest,
-        msg.content->APIRequest_0 == reconcile_core(rmq, resp_o, state).1->0->KRequest_0,
-        rmq.object_ref() != cr_key,
+        reconcile_core(rabbitmq, resp_o, state).1 is Some,
+        reconcile_core(rabbitmq, resp_o, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(rabbitmq, resp_o, state).1->0->KRequest_0,
+        rabbitmq.object_ref() != cr_key,
         cr_key.kind == RabbitmqClusterView::kind(),
-        rmq.metadata.name is Some,
-        rmq.metadata.namespace is Some,
+        rabbitmq.metadata.name is Some,
+        rabbitmq.metadata.namespace is Some,
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::CreateRequest(req) => rmq_self_rely_guarantee_create_req(req, cr_key),
@@ -249,13 +249,13 @@ pub proof fn lemma_self_rely_guarantee_from_reconcile_state(
                             assert(msg.content.is_get_then_update_request());
                             let req = msg.content.get_get_then_update_request();
                             // The model sets:
-                            //   req.namespace == rmq.metadata.namespace->0
-                            //   req.name == get_request(resource, rmq).key.name
-                            //   req.obj == update(resource, rmq, state, get_resp->Ok_0)->Ok_0
-                            // get_request(resource, rmq).key == make_resource_key(rmq.object_ref(), resource).
+                            //   req.namespace == rabbitmq.metadata.namespace->0
+                            //   req.name == get_request(resource, rabbitmq).key.name
+                            //   req.obj == update(resource, rabbitmq, state, get_resp->Ok_0)->Ok_0
+                            // get_request(resource, rabbitmq).key == make_resource_key(rabbitmq.object_ref(), resource).
                             // marshal_preserves_integrity for the typed view of `resource` lets Verus see
-                            // that req.obj.kind matches make_resource_key(rmq.object_ref(), resource).kind.
-                            assert(req.key() == make_resource_key(rmq.object_ref(), resource)) by {
+                            // that req.obj.kind matches make_resource_key(rabbitmq.object_ref(), resource).kind.
+                            assert(req.key() == make_resource_key(rabbitmq.object_ref(), resource)) by {
                                 match resource {
                                     SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
                                     SubResource::Service => ServiceView::marshal_preserves_integrity(),
@@ -271,13 +271,13 @@ pub proof fn lemma_self_rely_guarantee_from_reconcile_state(
                             }
                             assert forall |sub: SubResource|
                                 req.key() != #[trigger] make_resource_key(cr_key, sub) by {
-                                lemma_diff_cr_key_implies_resource_key_neq(rmq.object_ref(), cr_key, resource, sub);
+                                lemma_diff_cr_key_implies_resource_key_neq(rabbitmq.object_ref(), cr_key, resource, sub);
                             }
                         } else if get_resp->Err_0 is ObjectNotFound {
                             // CreateRequest case.
                             assert(msg.content.is_create_request());
                             let req = msg.content.get_create_request();
-                            assert(req.key() == make_resource_key(rmq.object_ref(), resource)) by {
+                            assert(req.key() == make_resource_key(rabbitmq.object_ref(), resource)) by {
                                 match resource {
                                     SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
                                     SubResource::Service => ServiceView::marshal_preserves_integrity(),
@@ -293,13 +293,13 @@ pub proof fn lemma_self_rely_guarantee_from_reconcile_state(
                             }
                             assert forall |sub: SubResource|
                                 req.key() != #[trigger] make_resource_key(cr_key, sub) by {
-                                lemma_diff_cr_key_implies_resource_key_neq(rmq.object_ref(), cr_key, resource, sub);
+                                lemma_diff_cr_key_implies_resource_key_neq(rabbitmq.object_ref(), cr_key, resource, sub);
                             }
                         } else {
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
                 ActionKind::Create => {
@@ -309,10 +309,10 @@ pub proof fn lemma_self_rely_guarantee_from_reconcile_state(
                         if create_resp is Ok {
                             assert(msg.content.is_get_request());
                         } else {
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
                 ActionKind::Update => {
@@ -322,16 +322,16 @@ pub proof fn lemma_self_rely_guarantee_from_reconcile_state(
                         if update_resp is Ok {
                             assert(msg.content.is_get_request());
                         } else {
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
             }
         },
         _ => {
-            assert(reconcile_core(rmq, resp_o, state).1 is None);
+            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
         }
     }
 }
@@ -425,7 +425,7 @@ pub proof fn lemma_always_rmq_self_rely_guarantee(
                         // Bridge: each_object_in_reconcile_has_consistent_key_and_valid_metadata gives
                         //   triggering_cr_dyn.object_ref() == other_cr_key
                         //   triggering_cr_dyn.metadata.well_formed_for_namespaced()
-                        // marshal_preserves_metadata bridges these to the unmarshalled rmq view.
+                        // marshal_preserves_metadata bridges these to the unmarshalled rabbitmq view.
                         assert(triggering_cr.object_ref() != cr_key);
                         assert(triggering_cr.metadata.name is Some);
                         assert(triggering_cr.metadata.namespace is Some);

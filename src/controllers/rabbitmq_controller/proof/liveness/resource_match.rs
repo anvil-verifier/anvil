@@ -1110,7 +1110,7 @@ ensures
 
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
-    let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap();
+    let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
     match step {
         Step::APIServerStep(input) => {
             let msg = input->0;
@@ -1133,8 +1133,24 @@ ensures
                         }
                     }
                 }
-            } else {
-                assume(false);
+            } else if s.ongoing_reconciles(controller_id).contains_key(cr_key) {
+                if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
+                    let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                    assert forall |msg| {
+                        &&& #[trigger] s_prime.in_flight().contains(msg)
+                        &&& msg.src is APIServer
+                        &&& resp_msg_matches_req_msg(msg, pending_req)
+                    } implies resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s_prime) by {
+                        if !new_msgs.contains(msg) {
+                            assert(s.in_flight().contains(msg));
+                        } else {
+                            let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, pending_req);
+                            assert(s_prime.in_flight().contains(resp_msg));
+                        }
+                    }
+                } else if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource) {
+                    assume(false);
+                }
             }
         },
         Step::ControllerStep(input) => {

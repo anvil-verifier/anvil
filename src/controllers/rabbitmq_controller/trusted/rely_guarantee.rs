@@ -66,14 +66,14 @@ pub open spec fn rmq_rely_update_req(req: UpdateRequest) -> StatePred<ClusterSta
         &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) && s.resources().contains_key(req.key())
         ==> req.obj.metadata.resource_version is Some // disallow unconditional update
             && (etcd_obj.metadata.resource_version == req.obj.metadata.resource_version // if req could succeed
-                ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())) // then it should not touch objects owned by rmq
+                ==> !exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref())) // then it should not touch objects owned by rabbitmq
     }
 }
 
 pub open spec fn rmq_rely_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind) && has_rmq_prefix(req.name) // if req could interfere
         ==> req.owner_ref.controller == Some(true) // if req could succeed
-            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
+            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rabbitmq
 }
 
 // only requires for CM kind to prevent its resource version from changing
@@ -83,14 +83,14 @@ pub open spec fn rmq_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
         &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) && s.resources().contains_key(req.key())
         ==> req.obj.metadata.resource_version is Some // disallow unconditional update
             && (etcd_obj.metadata.resource_version == req.obj.metadata.resource_version // if req could succeed
-                ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()))
+                ==> !exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref()))
     }
 }
 
 pub open spec fn rmq_rely_get_then_update_status_req(req: GetThenUpdateStatusRequest) -> bool {
     &&& req.obj.kind == Kind::ConfigMapKind && has_rmq_prefix(req.name) // if req could interfere
         ==> req.owner_ref.controller == Some(true) // if req could succeed
-            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
+            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rabbitmq
 }
 
 pub open spec fn rmq_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
@@ -99,17 +99,17 @@ pub open spec fn rmq_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
         &&& is_rmq_managed_kind(req.key().kind) && has_rmq_prefix(req.key.name) && s.resources().contains_key(req.key()) // if req could interfere
             ==> req.preconditions is Some && req.preconditions->0.resource_version is Some // disallow unconditional delete
                 && (etcd_obj.metadata.resource_version == req.preconditions->0.resource_version // if req could succeed
-                    ==> !exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref())) // then it should not touch objects owned by rmq
+                    ==> !exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref())) // then it should not touch objects owned by rabbitmq
     }
 }
 
 pub open spec fn rmq_rely_get_then_delete_req(req: GetThenDeleteRequest) -> bool {
     &&& is_rmq_managed_kind(req.key().kind) && has_rmq_prefix(req.key.name) // if req could interfere
         ==> req.owner_ref.controller == Some(true) // if req could succeed
-            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rmq
+            ==> req.owner_ref.kind != RabbitmqClusterView::kind() // then it should not touch objects owned by rabbitmq
 }
 
-// RMQ only creates objects of rmq-managed kind with rabbitmq prefix in the name,
+// RMQ only creates objects of rabbitmq-managed kind with rabbitmq prefix in the name,
 // owned by exactly one RabbitmqCluster.
 pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
@@ -120,7 +120,7 @@ pub open spec fn rmq_guarantee_create_req(req: CreateRequest) -> bool {
         req.obj.metadata.owner_references->0 == seq![#[trigger] rabbitmq.controller_owner_ref()]
 }
 
-// RMQ only updates objects of rmq-managed kind with rabbitmq prefix in the name,
+// RMQ only updates objects of rabbitmq-managed kind with rabbitmq prefix in the name,
 // owned by exactly one RabbitmqCluster.
 pub open spec fn rmq_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> bool {
     &&& is_rmq_managed_kind(req.obj.kind)
@@ -141,7 +141,7 @@ pub open spec fn rmq_guarantee(controller_id: int) -> StatePred<ClusterState> {
             APIRequest::GetRequest(_) => true,
             APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
             APIRequest::GetThenUpdateRequest(req) => rmq_guarantee_get_then_update_req(req),
-            _ => false, // rmq doesn't send other requests
+            _ => false, // rabbitmq doesn't send other requests
         }
     }
 }

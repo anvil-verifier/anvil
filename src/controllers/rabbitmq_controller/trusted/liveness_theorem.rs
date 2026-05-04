@@ -28,8 +28,8 @@ pub open spec fn rmq_eventually_stable_reconciliation() -> TempPred<ClusterState
     Cluster::eventually_stable_reconciliation(|vrs| current_state_matches(vrs))
 }
 
-pub open spec fn rmq_eventually_stable_reconciliation_per_cr(rmq: RabbitmqClusterView) -> TempPred<ClusterState> {
-    Cluster::eventually_stable_reconciliation_per_cr(rmq, |rmq| current_state_matches(rmq))
+pub open spec fn rmq_eventually_stable_reconciliation_per_cr(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation_per_cr(rabbitmq, |rabbitmq| current_state_matches(rabbitmq))
 }
 
 pub open spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {

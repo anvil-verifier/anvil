@@ -913,7 +913,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                     assert(etcd_obj.metadata.owner_references->0[0] == rabbitmq.controller_owner_ref());
                     assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
                     assert(etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref()));
-                    assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
+                    assert(exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref()));
                     match step {
                         Step::APIServerStep(input) => { // similar to the proofs in lemma_api_request_other_than_pending_req_msg_maintains_resource_object
                             let req_msg = input->0; // TODO: dedup by adding internal-guarantee
@@ -990,7 +990,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                                         },
                                         APIRequest::UpdateStatusRequest(req) => {
                                             if id == controller_id {
-                                                // rmq_guarantee returns false for UpdateStatusRequest from rmq controller.
+                                                // rmq_guarantee returns false for UpdateStatusRequest from rabbitmq controller.
                                                 assert(false);
                                             } else {
                                                 if s.resources().contains_key(resource_key) {
@@ -1009,7 +1009,7 @@ proof fn lemma_eventually_always_every_effective_resource_get_then_update_reques
                                         },
                                         APIRequest::GetThenUpdateStatusRequest(req) => {
                                             if id == controller_id {
-                                                // rmq_guarantee returns false for GetThenUpdateStatusRequest from rmq controller.
+                                                // rmq_guarantee returns false for GetThenUpdateStatusRequest from rabbitmq controller.
                                                 assert(false);
                                             } else {
                                                 if s.resources().contains_key(resource_key) {
@@ -1468,7 +1468,7 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
     if id != controller_id { // other controller, call rely condition to derive contradiction
         assert(cluster.controller_models.remove(controller_id).contains_key(id));
         assert(rmq_rely(id)(s_prime));
-        // resource_key is rmq-managed and has rmq prefix.
+        // resource_key is rabbitmq-managed and has rabbitmq prefix.
         // rmq_rely_get_then_update_req: is_rmq_managed_kind && rmq_prefix
         //   ==> owner_ref.controller == Some(true) ==> owner_ref.kind != RabbitmqClusterView::kind()
         // We have controller == Some(true) and kind == RabbitmqClusterView::kind(). Contradiction.
@@ -1586,8 +1586,8 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         // rmq_rely(other_id)(s_prime): msg IS in s_prime.in_flight(), so rely applies
         assert(rmq_rely(id)(s_prime));
         // resource_create_request_msg gives us: req.obj.metadata.name is Some, name == resource_key.name.
-        // resource_key.name has rmq prefix; req.obj.kind == resource_key.kind is rmq-managed.
-        // rmq_rely_create_req: is_rmq_managed_kind(req.obj.kind) ==> name has no rmq prefix. Contradiction.
+        // resource_key.name has rabbitmq prefix; req.obj.kind == resource_key.kind is rabbitmq-managed.
+        // rmq_rely_create_req: is_rmq_managed_kind(req.obj.kind) ==> name has no rabbitmq prefix. Contradiction.
         lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
         assert(false);
     }
@@ -1918,7 +1918,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
             assert(etcd_obj.metadata.owner_references->0[0] == some_rmq.controller_owner_ref());
             assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
             assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
-            assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
+            assert(exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref()));
         }
         assert forall |msg: Message| s.in_flight().contains(msg)
             && #[trigger] resource_update_request_msg(resource_key)(msg)

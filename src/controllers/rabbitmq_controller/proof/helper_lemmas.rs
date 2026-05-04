@@ -23,19 +23,19 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-pub proof fn rmq_with_different_key_implies_request_with_different_key(rmq: RabbitmqClusterView, other_rmq: RabbitmqClusterView, sub_resource: SubResource)
+pub proof fn rmq_with_different_key_implies_request_with_different_key(rabbitmq: RabbitmqClusterView, other_rmq: RabbitmqClusterView, sub_resource: SubResource)
 requires
-    rmq.object_ref() != other_rmq.object_ref()
+    rabbitmq.object_ref() != other_rmq.object_ref()
 ensures
-    get_request(sub_resource, other_rmq).key != get_request(sub_resource, rmq).key,
+    get_request(sub_resource, other_rmq).key != get_request(sub_resource, rabbitmq).key,
 {
-    let key_a = get_request(sub_resource, rmq).key;
+    let key_a = get_request(sub_resource, rabbitmq).key;
     let key_b = get_request(sub_resource, other_rmq).key;
-    if rmq.metadata.namespace->0 != other_rmq.metadata.namespace->0 {
+    if rabbitmq.metadata.namespace->0 != other_rmq.metadata.namespace->0 {
     } else {
-        assert(rmq.metadata.name->0 != other_rmq.metadata.name->0);
+        assert(rabbitmq.metadata.name->0 != other_rmq.metadata.name->0);
         let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
-        let cr_name_a = rmq.metadata.name->0;
+        let cr_name_a = rabbitmq.metadata.name->0;
         let cr_name_b = other_rmq.metadata.name->0;
         seq_unequal_preserved_by_add_prefix(prefix, cr_name_a, cr_name_b);
         match sub_resource {
@@ -224,7 +224,7 @@ pub proof fn lemma_sub_resource_neq_implies_resource_key_neq(
 
 // Sub-resource keys produced from two different RMQ cr_keys are disjoint.
 // Both cr_keys must have the RabbitmqClusterView kind (which is the case for
-// any cr_key managed by the rmq controller).
+// any cr_key managed by the rabbitmq controller).
 pub proof fn lemma_diff_cr_key_implies_resource_key_neq(
     cr_key_a: ObjectRef, cr_key_b: ObjectRef, sub_a: SubResource, sub_b: SubResource,
 )
@@ -336,15 +336,15 @@ ensures
     assert(has_rmq_prefix(key_name));
 }
 
-pub proof fn make_sts_pass_state_validation(rmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
+pub proof fn make_sts_pass_state_validation(rabbitmq: RabbitmqClusterView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
-    rmq.state_validation(),
+    rabbitmq.state_validation(),
 ensures
-    sts == make_stateful_set(rmq, cm_rv),
+    sts == make_stateful_set(rabbitmq, cm_rv),
     sts.state_validation(),
 {
-    let sts = make_stateful_set(rmq, cm_rv);
-    let name = rmq.metadata.name->0;
+    let sts = make_stateful_set(rabbitmq, cm_rv);
+    let name = rabbitmq.metadata.name->0;
     let labels = Map::empty().insert("app"@, name);
 
     // selector.match_labels is Some and non-empty
@@ -353,20 +353,20 @@ ensures
     };
 
     // selector matches template labels
-    let template_labels = make_labels(rmq);
+    let template_labels = make_labels(rabbitmq);
     assert forall |k: StringView, v: StringView| labels.contains_pair(k, v) implies template_labels.contains_pair(k, v) by {
     };
 
     // template labels don't contain StatefulSetPodNameLabel or StatefulSetOrdinalLabel
-    // make_labels(rmq) = rmq.spec.labels.insert("app"@, name)
+    // make_labels(rabbitmq) = rabbitmq.spec.labels.insert("app"@, name)
     reveal_strlit("app");
     reveal_strlit("statefulset.kubernetes.io/pod-name");
     reveal_strlit("apps.kubernetes.io/pod-index");
     assert(StatefulSetPodNameLabel == "statefulset.kubernetes.io/pod-name"@);
     assert(StatefulSetOrdinalLabel == "apps.kubernetes.io/pod-index"@);
-    // From rmq.state_validation()
-    assert(!rmq.spec.labels.contains_key(StatefulSetPodNameLabel));
-    assert(!rmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
+    // From rabbitmq.state_validation()
+    assert(!rabbitmq.spec.labels.contains_key(StatefulSetPodNameLabel));
+    assert(!rabbitmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
     // "app" != StatefulSetPodNameLabel/StatefulSetOrdinalLabel (different lengths)
     assert("app"@.len() == 3);
     assert("statefulset.kubernetes.io/pod-name"@.len() > 3);
@@ -374,11 +374,11 @@ ensures
     assert("app"@ != StatefulSetPodNameLabel);
     assert("app"@ != StatefulSetOrdinalLabel);
     // So insert("app", name) doesn't introduce those keys
-    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
-    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
 
     // Volume claim templates validation
-    if rmq.spec.persistence.storage != "0Gi"@ {
+    if rabbitmq.spec.persistence.storage != "0Gi"@ {
         reveal_strlit("persistence");
         assert(dash_free("persistence"@));
     }
@@ -386,18 +386,18 @@ ensures
     return sts;
 }
 
-pub proof fn update_sts_pass_state_validation(rmq: RabbitmqClusterView, found_sts: VStatefulSetView, cm_rv: StringView) -> (sts: VStatefulSetView)
+pub proof fn update_sts_pass_state_validation(rabbitmq: RabbitmqClusterView, found_sts: VStatefulSetView, cm_rv: StringView) -> (sts: VStatefulSetView)
 requires
-    rmq.state_validation(),
+    rabbitmq.state_validation(),
     found_sts.state_validation(),
-    found_sts.metadata.owner_references_only_contains(rmq.controller_owner_ref()),
-    found_sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rmq.metadata.name->0)),
+    found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()),
+    found_sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0)),
 ensures
-    sts == update_stateful_set(rmq, found_sts, cm_rv),
+    sts == update_stateful_set(rabbitmq, found_sts, cm_rv),
     sts.state_validation(),
 {
-    let sts = update_stateful_set(rmq, found_sts, cm_rv);
-    let name = rmq.metadata.name->0;
+    let sts = update_stateful_set(rabbitmq, found_sts, cm_rv);
+    let name = rabbitmq.metadata.name->0;
 
     // The updated sts keeps found_sts.spec.selector, which already passes validation
     // The updated sts keeps found_sts.spec.volume_claim_templates, update_strategy, ordinals, min_ready_seconds
@@ -405,7 +405,7 @@ ensures
 
     // template comes from make_stateful_set - need to prove labels don't contain reserved keys
     // and selector matches template labels
-    let template_labels = make_labels(rmq);
+    let template_labels = make_labels(rabbitmq);
     let labels = Map::empty().insert("app"@, name);
 
     // selector matches template labels (selector is preserved from found_sts)
@@ -418,15 +418,15 @@ ensures
     reveal_strlit("apps.kubernetes.io/pod-index");
     assert(StatefulSetPodNameLabel == "statefulset.kubernetes.io/pod-name"@);
     assert(StatefulSetOrdinalLabel == "apps.kubernetes.io/pod-index"@);
-    assert(!rmq.spec.labels.contains_key(StatefulSetPodNameLabel));
-    assert(!rmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
+    assert(!rabbitmq.spec.labels.contains_key(StatefulSetPodNameLabel));
+    assert(!rabbitmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
     assert("app"@.len() == 3);
     assert("statefulset.kubernetes.io/pod-name"@.len() > 3);
     assert("apps.kubernetes.io/pod-index"@.len() > 3);
     assert("app"@ != StatefulSetPodNameLabel);
     assert("app"@ != StatefulSetOrdinalLabel);
-    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
-    assert(!rmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
 
     return sts;
 }
@@ -434,7 +434,7 @@ ensures
 // shield_lemma
 #[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
-    s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
+    s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -450,22 +450,22 @@ requires
     Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s),
     Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
     Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s),
-    resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rmq)(s),
-    no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rmq)(s),
-    rmq_self_rely_guarantee(controller_id, rmq.object_ref())(s),
+    resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s),
+    no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)(s),
+    rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())(s),
     rmq_guarantee(controller_id)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
-    msg.src != HostId::Controller(controller_id, rmq.object_ref()),
+    msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()),
 ensures
-    s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
-    s.resources().contains_key(get_request(sub_resource, rmq).key) ==> match sub_resource {
+    s.resources().contains_key(get_request(sub_resource, rabbitmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rabbitmq).key),
+    s.resources().contains_key(get_request(sub_resource, rabbitmq).key) ==> match sub_resource {
         // to prove cm resource version does not change, rely conditions prevent status update request to this kind
-        SubResource::ServerConfigMap | SubResource::PluginsConfigMap => s.resources()[get_request(sub_resource, rmq).key] == s_prime.resources()[get_request(sub_resource, rmq).key],
-        _ => s.resources()[get_request(sub_resource, rmq).key].spec == s_prime.resources()[get_request(sub_resource, rmq).key].spec
-            && s.resources()[get_request(sub_resource, rmq).key].metadata.without_resource_version() == s_prime.resources()[get_request(sub_resource, rmq).key].metadata.without_resource_version(),
+        SubResource::ServerConfigMap | SubResource::PluginsConfigMap => s.resources()[get_request(sub_resource, rabbitmq).key] == s_prime.resources()[get_request(sub_resource, rabbitmq).key],
+        _ => s.resources()[get_request(sub_resource, rabbitmq).key].spec == s_prime.resources()[get_request(sub_resource, rabbitmq).key].spec
+            && s.resources()[get_request(sub_resource, rabbitmq).key].metadata.without_resource_version() == s_prime.resources()[get_request(sub_resource, rabbitmq).key].metadata.without_resource_version(),
     },
 {
-    let resource_key = get_request(sub_resource, rmq).key;
+    let resource_key = get_request(sub_resource, rabbitmq).key;
     assert(s.in_flight().contains(msg));
     if !(msg.content is APIRequest && msg.dst is APIServer) {
         return;
@@ -475,22 +475,22 @@ ensures
         let etcd_obj = s.resources()[resource_key];
         let owner_ref = choose |owner_reference: OwnerReferenceView| {
             &&& etcd_obj.metadata.owner_references == Some(seq![owner_reference])
-            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rmq.controller_owner_ref())
+            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
         };
         let some_rmq = RabbitmqClusterView {
             metadata: ObjectMetaView {
-                name: Some(rmq.metadata.name->0),
+                name: Some(rabbitmq.metadata.name->0),
                 uid: Some(owner_ref.uid),
-                ..rmq.metadata
+                ..rabbitmq.metadata
             },
-            ..rmq
+            ..rabbitmq
         };
         assert(etcd_obj.metadata.owner_references->0[0] == some_rmq.controller_owner_ref());
         assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
         assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
-        assert(exists |rmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rmq.controller_owner_ref()));
+        assert(exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref()));
     }
-    lemma_resource_key_has_rmq_prefix(sub_resource, rmq);
+    lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
 
     // Establish a concrete formula for s_prime.api_server.
     let api_state_prime = transition_by_etcd(cluster.installed_types, msg, s.api_server).0;
@@ -512,9 +512,9 @@ ensures
                     if id == controller_id {
                         // rmq_guarantee_create_req: req.obj.metadata.name is Some.
                         assert(rmq_guarantee_create_req(req));
-                        // self-rely: cr_key != rmq.object_ref() ⇒ req.key() != resource_key.
-                        assert(cr_key != rmq.object_ref());
-                        assert(req.key() != make_resource_key(rmq.object_ref(), sub_resource));
+                        // self-rely: cr_key != rabbitmq.object_ref() ⇒ req.key() != resource_key.
+                        assert(cr_key != rabbitmq.object_ref());
+                        assert(req.key() != make_resource_key(rabbitmq.object_ref(), sub_resource));
                         assert(req.key() != resource_key);
                     } else if is_rmq_managed_kind(req.obj.kind) {
                         // id != controller_id: use rely.
@@ -539,7 +539,7 @@ ensures
                 },
                 APIRequest::UpdateRequest(req) => {
                     if id == controller_id {
-                        // rmq_guarantee returns false for UpdateRequest from rmq controller.
+                        // rmq_guarantee returns false for UpdateRequest from rabbitmq controller.
                         assert(false);
                     } else {
                         if s.resources().contains_key(resource_key) {
@@ -566,7 +566,7 @@ ensures
                 },
                 APIRequest::UpdateStatusRequest(req) => {
                     if id == controller_id {
-                        // rmq_guarantee returns false for UpdateStatusRequest from rmq controller.
+                        // rmq_guarantee returns false for UpdateStatusRequest from rabbitmq controller.
                         assert(false);
                     } else {
                         if s.resources().contains_key(resource_key) {
@@ -586,13 +586,13 @@ ensures
                 },
                 APIRequest::GetThenUpdateRequest(req) => {
                     if id == controller_id {
-                        // self-rely: cr_key != rmq.object_ref() ⇒ req.key() != resource_key.
-                        assert(cr_key != rmq.object_ref());
-                        assert(req.key() != make_resource_key(rmq.object_ref(), sub_resource));
+                        // self-rely: cr_key != rabbitmq.object_ref() ⇒ req.key() != resource_key.
+                        assert(cr_key != rabbitmq.object_ref());
+                        assert(req.key() != make_resource_key(rabbitmq.object_ref(), sub_resource));
                         assert(req.key() != resource_key);
                     } else if req.key() == resource_key && s.resources().contains_key(resource_key) {
-                        // id != controller_id: rely says effective get_then_update on rmq-managed
-                        // key with rmq prefix has owner_ref.kind != RmqCR::kind. The etcd owner_ref
+                        // id != controller_id: rely says effective get_then_update on rabbitmq-managed
+                        // key with rabbitmq prefix has owner_ref.kind != RmqCR::kind. The etcd owner_ref
                         // (a singleton) does have kind == RmqCR::kind, so owner_refs.contains(req.owner_ref)
                         // would force a contradiction; hence the API server's owner check fails and
                         // s_prime.resources() == s.resources().
@@ -622,7 +622,7 @@ ensures
                 },
                 APIRequest::GetThenUpdateStatusRequest(req) => {
                     if id == controller_id {
-                        // rmq_guarantee returns false for GetThenUpdateStatusRequest from rmq controller.
+                        // rmq_guarantee returns false for GetThenUpdateStatusRequest from rabbitmq controller.
                         assert(false);
                     } else {
                         if s.resources().contains_key(resource_key) {
@@ -663,20 +663,20 @@ ensures
 }
 
 pub proof fn lemma_get_sub_resource_request_returns_ok_or_not_found(
-    s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
+    s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
-    req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rmq, controller_id, msg)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s),
 ensures
-    s.resources().contains_key(get_request(sub_resource, rmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rmq).key),
-    s.resources().contains_key(get_request(sub_resource, rmq).key) ==>
-        resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
-    !s.resources().contains_key(get_request(sub_resource, rmq).key) ==>
-        resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
+    s.resources().contains_key(get_request(sub_resource, rabbitmq).key) == s_prime.resources().contains_key(get_request(sub_resource, rabbitmq).key),
+    s.resources().contains_key(get_request(sub_resource, rabbitmq).key) ==>
+        resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s_prime),
+    !s.resources().contains_key(get_request(sub_resource, rabbitmq).key) ==>
+        resp_msg_is_the_in_flight_not_found_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s_prime),
 {
     RabbitmqReconcileState::marshal_preserves_integrity();
 
@@ -685,17 +685,17 @@ ensures
 }
 
 pub proof fn lemma_create_sub_resource_request_returns_ok(
-    s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
+    s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
-    req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rmq, controller_id, msg)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, msg)(s),
 ensures
-    resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
-    resource_state_matches(sub_resource, rmq)(s_prime),
+    resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s_prime),
+    resource_state_matches(sub_resource, rabbitmq)(s_prime),
 {
     RabbitmqReconcileState::marshal_preserves_integrity();
 
@@ -753,25 +753,25 @@ ensures
     }
     let resp_msg = handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
     assert(resp_msg.content.get_create_response().res is Ok);
-    let local_state = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state;
+    let local_state = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
     let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
-    assert(state_after_create(sub_resource, rmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok);
+    assert(state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok);
 
     return resp_msg;
 }
 
 pub proof fn lemma_get_then_update_sub_resource_request_returns_ok(
-    s: ClusterState, s_prime: ClusterState, rmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
+    s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    cluster_invariants_since_reconciliation(cluster, controller_id, rmq, sub_resource)(s),
-    req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rmq, controller_id, msg)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, msg)(s),
 ensures
-    resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rmq, controller_id, resp_msg)(s_prime),
-    resource_state_matches(sub_resource, rmq)(s_prime),
+    resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s_prime),
+    resource_state_matches(sub_resource, rabbitmq)(s_prime),
 {
     RabbitmqReconcileState::marshal_preserves_integrity();
 
@@ -829,28 +829,28 @@ ensures
     }
 
     let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
-    let local_state = s_prime.ongoing_reconciles(controller_id)[rmq.object_ref()].local_state;
+    let local_state = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
     let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
 
     let step = after_update_k_request_step(sub_resource);
-    let key = get_request(sub_resource, rmq).key;
+    let key = get_request(sub_resource, rabbitmq).key;
     let req = msg.content.get_get_then_update_request();
     assert(msg.content.is_get_then_update_request());
     assert(resp_msg.content.get_get_then_update_response().res is Ok) by {
         assert(req.well_formed());
         // resource_object_only_has_owner_reference_pointing_to_current_cr gives
-        // etcd.owner_references == seq![rmq.controller_owner_ref()] exactly (with uid).
-        // req.owner_ref == rmq.controller_owner_ref() from the pending-req predicate.
+        // etcd.owner_references == seq![rabbitmq.controller_owner_ref()] exactly (with uid).
+        // req.owner_ref == rabbitmq.controller_owner_ref() from the pending-req predicate.
         // Combining: etcd.owner_references_contains(req.owner_ref).
         let etcd_refs = s.resources()[key].metadata.owner_references->0;
-        assert(s.resources()[key].metadata.owner_references == Some(seq![rmq.controller_owner_ref()]));
-        assert(etcd_refs[0] == rmq.controller_owner_ref());
-        assert(req.owner_ref == rmq.controller_owner_ref());
+        assert(s.resources()[key].metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()]));
+        assert(etcd_refs[0] == rabbitmq.controller_owner_ref());
+        assert(req.owner_ref == rabbitmq.controller_owner_ref());
         assert(etcd_refs.contains(req.owner_ref)) by {
             assert(etcd_refs[0] == req.owner_ref);
         }
     }
-    assert(state_after_update(sub_resource, rmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok);
+    assert(state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok);
 
     return resp_msg;
 }

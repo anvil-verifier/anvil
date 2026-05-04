@@ -183,7 +183,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
 }
 
 // "Effective": the get_then_update request is well-formed (controller == Some(true)) and
-// targets resource_key with rmq-kind owner_ref. By the rely conditions, only the rmq controller
+// targets resource_key with rabbitmq-kind owner_ref. By the rely conditions, only the rabbitmq controller
 // itself can issue such a request -- so this implies the request is the pending req of our reconcile.
 pub open spec fn every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -222,7 +222,7 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
 
 // No delete request to resource_key from the garbage collector is in flight.
 // The garbage collector only issues a delete when an object's owner is gone, but
-// resource_key always has the current rmq's controller_owner_ref (which is alive
+// resource_key always has the current rabbitmq's controller_owner_ref (which is alive
 // while desired_state_is(rabbitmq) holds). To rule out delete requests from other
 // controllers, callers should directly invoke the rely conditions.
 pub open spec fn no_delete_resource_request_msg_from_gc_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
@@ -271,7 +271,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
 // from our own controller_id but a different cr_key.
 //
 // Only Create and GetThenUpdate are constrained, mirroring rmq_guarantee
-// (rmq controller is forbidden from issuing other mutating request types).
+// (rabbitmq controller is forbidden from issuing other mutating request types).
 pub open spec fn rmq_self_rely_guarantee(controller_id: int, cr_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
