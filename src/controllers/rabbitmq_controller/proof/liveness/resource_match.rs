@@ -1115,14 +1115,7 @@ ensures
     if s.ongoing_reconciles(controller_id).contains_key(cr_key) && input.0 == controller_id && input.2 == Some(cr_key) {
         let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
         let local_state_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-        if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
-            let resp_msg = input.1->0;
-            assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
-            lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
-                controller_id, cluster, true_pred(), sub_resource, rabbitmq, resp_msg, s, s_prime
-            );
-            assert(pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime));
-        } else if local_state.reconcile_step == RabbitmqReconcileStep::Init {
+        if local_state.reconcile_step == RabbitmqReconcileStep::Init {
             // Newly sent message has fresh rpc_id, no in-flight responses can match it.
             if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
                 let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
@@ -1141,6 +1134,17 @@ ensures
                     }
                 }
 
+            }
+        } else if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) = local_state.reconcile_step {
+            if some_resource == sub_resource {
+                let resp_msg = input.1->0;
+                assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
+                lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
+                    controller_id, cluster, true_pred(), sub_resource, rabbitmq, resp_msg, s, s_prime
+                );
+                assert(pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime));
+            } else {
+                assume(false);
             }
         } else {
             assume(false);
