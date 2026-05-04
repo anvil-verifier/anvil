@@ -1086,7 +1086,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
     rmq_rely_conditions(cluster, controller_id)(s),
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
-    sub_resource != SubResource::VStatefulSetView,
+    sub_resource != SubResource::VStatefulSetView, // TODO: requires CM RV to be equal
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
@@ -1149,9 +1149,7 @@ ensures
                         }
                     }
                 } else if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource) {
-                    let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-                    if msg == pending_req {
-                    }
+                    if msg == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0 {}
                 }
             }
         },
