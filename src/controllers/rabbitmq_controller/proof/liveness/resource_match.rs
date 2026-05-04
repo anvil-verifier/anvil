@@ -1072,6 +1072,105 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
+pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step(
+    controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
+    s: ClusterState, s_prime: ClusterState, input: (int, Option<Message>, Option<ObjectRef>)
+)
+requires
+    cluster.next_step(s, s_prime, Step::ControllerStep(input)),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
+    rmq_rely_conditions(cluster, controller_id)(s),
+    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
+    sub_resource != SubResource::VStatefulSetView,
+ensures
+    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    match sub_resource {
+        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+        SubResource::Role => RoleView::marshal_preserves_integrity(),
+        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+    }
+
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    let cr_key = rabbitmq.object_ref();
+    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+    // Controller steps do not touch etcd resources.
+    assert(s.resources() == s_prime.resources());
+    assert(resource_state_matches(sub_resource, rabbitmq)(s_prime));
+
+    if s.ongoing_reconciles(controller_id).contains_key(cr_key) && input.0 == controller_id && input.2 == Some(cr_key) {
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+        let local_state_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+        if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
+            let resp_msg = input.1->0;
+            assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
+            lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
+                controller_id, cluster, true_pred(), sub_resource, rabbitmq, resp_msg, s, s_prime
+            );
+            assert(pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime));
+        } else if local_state.reconcile_step == RabbitmqReconcileStep::Init {
+            // Newly sent message has fresh rpc_id, no in-flight responses can match it.
+            if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
+                let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
+                assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                    && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                    && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                    && msg != req_msg
+                    implies msg.rpc_id != req_msg.rpc_id by {
+                    if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                }
+                if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) = local_state_prime.reconcile_step {
+                    if some_resource != sub_resource{
+                        lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
+                    }
+                }
+
+            }
+        } else {
+            assume(false);
+        }
+    } else if !s.ongoing_reconciles(controller_id).contains_key(cr_key) {
+        assume(false);
+        if s_prime.ongoing_reconciles(controller_id).contains_key(cr_key) {
+            // RunScheduledReconcile inserts at Init step with no pending request.
+        }
+    } else {
+        // same controller_id, different CR
+        assume(false);
+        assert(s.ongoing_reconciles(controller_id)[cr_key] == s_prime.ongoing_reconciles(controller_id)[cr_key]);
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+        if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
+            let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+            assert forall |msg| {
+                &&& #[trigger] s_prime.in_flight().contains(msg)
+                &&& msg.src is APIServer
+                &&& resp_msg_matches_req_msg(msg, pending_req)
+            } implies resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s_prime) by {
+                if !new_msgs.contains(msg) {
+                    assert(s.in_flight().contains(msg));
+                }
+            }
+        }
+    }
+}
+
+#[verifier(spinoff_prover)]
 #[verifier(rlimit(200))]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
@@ -1154,7 +1253,9 @@ ensures
             }
         },
         Step::ControllerStep(input) => {
-            assume(false);
+            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step(
+                controller_id, cluster, sub_resource, rabbitmq, s, s_prime, input
+            );
         },
         _ => {
             assert(s_prime.resources() == s.resources());
