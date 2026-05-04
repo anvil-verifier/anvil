@@ -1115,39 +1115,57 @@ ensures
     if s.ongoing_reconciles(controller_id).contains_key(cr_key) && input.0 == controller_id && input.2 == Some(cr_key) {
         let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
         let local_state_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-        if local_state.reconcile_step == RabbitmqReconcileStep::Init {
-            // Newly sent message has fresh rpc_id, no in-flight responses can match it.
-            if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
-                let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-                assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
-                assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
-                assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
-                    && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
-                    && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
-                    && msg != req_msg
-                    implies msg.rpc_id != req_msg.rpc_id by {
-                    if !s.in_flight().contains(msg) {} // need this to invoke trigger.
-                }
-                if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) = local_state_prime.reconcile_step {
-                    if some_resource != sub_resource{
-                        lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
+        match local_state.reconcile_step {
+            RabbitmqReconcileStep::Init => {
+                // Newly sent message has fresh rpc_id, no in-flight responses can match it.
+                if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                    assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                    assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
+                    assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                        && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                        && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                        && msg != req_msg
+                        implies msg.rpc_id != req_msg.rpc_id by {
+                        if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                    }
+                    if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) = local_state_prime.reconcile_step {
+                        if some_resource != sub_resource{
+                            lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
+                        }
                     }
                 }
-
-            }
-        } else if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) = local_state.reconcile_step {
-            if some_resource == sub_resource {
-                let resp_msg = input.1->0;
-                assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
-                lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
-                    controller_id, cluster, true_pred(), sub_resource, rabbitmq, resp_msg, s, s_prime
-                );
-                assert(pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime));
-            } else {
+            },
+            RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
+                if some_resource == sub_resource {
+                    let resp_msg = input.1->0;
+                    assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
+                    lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
+                        controller_id, cluster, true_pred(), sub_resource, rabbitmq, resp_msg, s, s_prime
+                    );
+                    assert(pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id)(s_prime));
+                } else {
+                    match local_state_prime.reconcile_step {
+                        RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
+                            lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
+                        },
+                        RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) => {
+                            assert(s.resources().contains_key(resource_key));
+                        },
+                        RabbitmqReconcileStep::Error => {
+                            assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is None);
+                        },
+                        _ => {},
+                    }
+                }
+            },
+            RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
                 assume(false);
-            }
-        } else {
-            assume(false);
+            },
+            RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
+                assume(false);
+            },
+            _ => {},
         }
     } else if !s.ongoing_reconciles(controller_id).contains_key(cr_key) {
         assume(false);

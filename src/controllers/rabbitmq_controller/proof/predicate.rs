@@ -685,7 +685,11 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         &&& req.key() != resource_key
                     }
                 },
-                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) => false,
+                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) => {
+                    let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
+                    &&& req_msg.content.is_create_request()
+                }, // noop because s.resources().contains_key(resource_key)
             }
         }
     }
