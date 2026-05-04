@@ -1149,7 +1149,9 @@ ensures
                         }
                     }
                 } else if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource) {
-                    assume(false);
+                    let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                    if msg == pending_req {
+                    }
                 }
             }
         },

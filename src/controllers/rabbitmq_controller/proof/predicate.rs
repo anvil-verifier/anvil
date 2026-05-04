@@ -681,7 +681,6 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req.obj)(s)
                         &&& update_req_obj_matches_etcd_immutable_fields(sub_resource, rabbitmq, req.obj)(s)
                         &&& req.obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
-                        &&& req.obj.spec == s.resources()[resource_key].spec
                     } else {
                         &&& req.key() != resource_key
                     }
