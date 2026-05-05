@@ -1072,6 +1072,7 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState, input: (int, Option<Message>, Option<ObjectRef>)
@@ -1116,29 +1117,7 @@ ensures
         let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
         let local_state_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
         match local_state.reconcile_step {
-            RabbitmqReconcileStep::Init => {
-                assume(false);
-                // Newly sent message has fresh rpc_id, no in-flight responses can match it.
-                if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
-                    let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-                    assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
-                    assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
-                    assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
-                        && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
-                        && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
-                        && msg != req_msg
-                        implies msg.rpc_id != req_msg.rpc_id by {
-                        if !s.in_flight().contains(msg) {} // need this to invoke trigger.
-                    }
-                    if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) = local_state_prime.reconcile_step {
-                        if some_resource != sub_resource{
-                            lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
-                        }
-                    }
-                }
-            },
             RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
-                assume(false);
                 if some_resource == sub_resource {
                     let resp_msg = input.1->0;
                     assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
@@ -1154,16 +1133,12 @@ ensures
                         RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) => {
                             assert(s.resources().contains_key(resource_key));
                         },
-                        RabbitmqReconcileStep::Error => {
-                            assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is None);
-                        },
                         _ => {},
                     }
                 }
             },
-            RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
-                assume(false);
-                if local_state_prime.reconcile_step == next_resource_step_after(some_resource) {
+            RabbitmqReconcileStep::Init | RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) | RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, _) => {
+                if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, next_resource) = local_state_prime.reconcile_step {
                     if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                         assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
@@ -1182,9 +1157,6 @@ ensures
                         }
                     }
                 }
-            },
-            RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
-                assume(false);
             },
             _ => {},
         }
