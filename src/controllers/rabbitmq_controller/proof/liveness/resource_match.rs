@@ -1161,13 +1161,9 @@ ensures
             _ => {},
         }
     } else if !s.ongoing_reconciles(controller_id).contains_key(cr_key) {
-        assume(false);
-        if s_prime.ongoing_reconciles(controller_id).contains_key(cr_key) {
-            // RunScheduledReconcile inserts at Init step with no pending request.
-        }
+        if s_prime.ongoing_reconciles(controller_id).contains_key(cr_key) {} // RunScheduledReconcile inserts at Init step with no pending request.
     } else {
         // same controller_id, different CR
-        assume(false);
         assert(s.ongoing_reconciles(controller_id)[cr_key] == s_prime.ongoing_reconciles(controller_id)[cr_key]);
         let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
         if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
