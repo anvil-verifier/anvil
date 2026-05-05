@@ -437,6 +437,10 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
+        exists |owner_reference: OwnerReferenceView| {
+            &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
+        },
 {
     // Since we know that this step creates a sub resource create request message, it is easy to see that it's a controller action.
     // This action creates a resource, and there may be sub-resources sharing the same Kind, so we have to show that only the correct sub-resource
@@ -455,26 +459,17 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         assert(false);
     }
     let cr_key = cr_key_opt->0;
+    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr)->Ok_0;
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    RabbitmqReconcileState::marshal_preserves_integrity();
-    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
     let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
     let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
-    match local_step_prime {
-        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
-            match action {
-                ActionKind::Create => {},
-                _ => {
-                    assert(!msg.content.is_create_request());
-                    assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                },
-            }
-        },
-        _ => {}
-    }
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
+    assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
     // We use two helper lemmas:
     // 1. lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key: eliminates the "wrong sub-resource"
@@ -529,6 +524,8 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
             }
         },
     }
+    assert(cr_key == rabbitmq.object_ref());
+    assert(owner_reference_eq_without_uid(cr.controller_owner_ref(), rabbitmq.controller_owner_ref()));
 }
 
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_flight_forall(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
