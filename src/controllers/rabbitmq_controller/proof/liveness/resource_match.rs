@@ -1269,7 +1269,15 @@ ensures
                     if sub_resource == SubResource::VStatefulSetView {
                         if msg == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0 {
                             if some_resource == SubResource::ServerConfigMap {
-                                assume(false);
+                                ConfigMapView::marshal_preserves_integrity();
+                                assert(inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s));
+                                let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+                                let old_obj = s.resources()[cm_key];
+                                assert(old_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref())) by {
+                                    assert(old_obj.metadata.owner_references->0[0] == rabbitmq.controller_owner_ref());
+                                    assert(old_obj.metadata.owner_references->0.contains(old_obj.metadata.owner_references->0[0]));
+                                }
+                                assert(s_prime.resources()[cm_key] == s.resources()[cm_key]);
                             }
                         }
                     }
