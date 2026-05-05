@@ -82,6 +82,22 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, c
         &&& triggering_cr.spec() == rabbitmq.spec()
         &&& triggering_cr.metadata().uid == rabbitmq.metadata().uid
         &&& unmarshalled_state.reconcile_step == step
+        // After ServerConfigMap has been processed, latest_config_map_rv_opt
+        // must reflect the resource_version of the cm in etcd.
+        &&& match step {
+            RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
+                match sub_resource {
+                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::VStatefulSetView => {
+                        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+                        &&& s.resources().contains_key(cm_key)
+                        &&& s.resources()[cm_key].metadata.resource_version is Some
+                        &&& unmarshalled_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
+                    },
+                    _ => true,
+                }
+            },
+            _ => true,
+        }
     }
 }
 
@@ -629,7 +645,6 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
         &&& rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())(s)
         &&& no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
-        &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
         &&& sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)(s)
     }

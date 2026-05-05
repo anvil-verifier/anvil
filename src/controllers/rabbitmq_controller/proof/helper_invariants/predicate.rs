@@ -72,85 +72,6 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: ClusterState) -
         )
 }
 
-// This spec tells that when the reconciler is at AfterGetStatefulSet, and there is a matched response, the reponse must be
-// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
-// stateful_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
-// so we need this extra spec and lemma.
-//
-// If we don't have this, we have no idea of what is inside the response message.
-pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
-    controller_id: int,
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<ClusterState> {
-    let key = rabbitmq.object_ref();
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    |s: ClusterState| {
-        at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-        ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-            && resource_get_request_msg(resource_key)(s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
-            && (
-                forall |msg: Message|
-                    #[trigger] s.in_flight().contains(msg)
-                    && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
-                    ==> resource_get_response_msg(resource_key)(msg)
-            )
-    }
-}
-
-pub open spec fn request_at_after_get_request_step_is_resource_get_request(
-    controller_id: int,
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<ClusterState> {
-    let key = rabbitmq.object_ref();
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    |s: ClusterState| {
-        at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-        ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-            && resource_get_request_msg(resource_key)(s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
-    }
-}
-
-pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etcd(
-    controller_id: int,
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<ClusterState> {
-    let key = rabbitmq.object_ref();
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    |s: ClusterState| {
-        let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-
-        at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-        ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-            && resource_get_then_update_request_msg(resource_key)(pending_req)
-            && (
-                forall |msg: Message|
-                    #[trigger] s.in_flight().contains(msg)
-                    && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
-                    ==> resource_get_then_update_response_msg(resource_key, s)(msg)
-            )
-    }
-}
-
-pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etcd(
-    controller_id: int,
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<ClusterState> {
-    let key = rabbitmq.object_ref();
-    let resource_key = get_request(sub_resource, rabbitmq).key;
-    |s: ClusterState| {
-        let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
-
-        at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-        ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
-            && resource_create_request_msg(resource_key)(pending_req)
-            && (
-                forall |msg: Message|
-                    #[trigger] s.in_flight().contains(msg)
-                    && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0)
-                    ==> resource_create_response_msg(resource_key, s)(msg)
-            )
-    }
-}
 
 pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -162,53 +83,6 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_get_then_update_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-        }
-    }
-}
-
-pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let key = rabbitmq.object_ref();
-        forall |msg: Message| {
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-        } ==> {
-            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-            &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-            &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
-            &&& make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap()) is Ok
-            &&& msg.content.get_create_request().obj == make(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap())->Ok_0
-        }
-    }
-}
-
-// "Effective": the get_then_update request is well-formed (controller == Some(true)) and
-// targets resource_key with rabbitmq-kind owner_ref. By the rely conditions, only the rabbitmq controller
-// itself can issue such a request -- so this implies the request is the pending req of our reconcile.
-pub open spec fn every_effective_resource_get_then_update_request_implies_at_after_update_resource_step(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let key = rabbitmq.object_ref();
-        let resource_key = get_request(sub_resource, rabbitmq).key;
-        forall |msg: Message| {
-            &&& s.in_flight().contains(msg)
-            &&& #[trigger] resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-            // Other controllers can send get_then_update but cannot satisfy both
-            // (kind == Rmq AND controller == Some(true)) by rely.
-            &&& msg.content.get_get_then_update_request().owner_ref.kind == RabbitmqClusterView::kind()
-            &&& msg.content.get_get_then_update_request().owner_ref.controller == Some(true)
-        } ==> {
-            &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-            &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
-            &&& msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref()
-            &&& s.resources().contains_key(resource_key)
-            &&& {
-                let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                let updated_obj = update(sub_resource, rabbitmq, local_state, s.resources()[resource_key])->Ok_0;
-                &&& update(sub_resource, rabbitmq, local_state, s.resources()[resource_key]) is Ok
-                &&& msg.content.get_get_then_update_request().obj.spec == updated_obj.spec
-                &&& msg.content.get_get_then_update_request().obj.metadata.without_resource_version() == updated_obj.metadata.without_resource_version()
-            }
         }
     }
 }
@@ -235,29 +109,6 @@ pub open spec fn no_delete_resource_request_msg_from_gc_in_flight(sub_resource: 
     }
 }
 
-// We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
-pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id: int, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let key = rabbitmq.object_ref();
-        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-        s.ongoing_reconciles(controller_id).contains_key(key)
-        ==> match local_state.reconcile_step {
-            RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
-                match sub_resource {
-                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::VStatefulSetView => {
-                        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
-                        &&& s.resources().contains_key(cm_key)
-                        &&& s.resources()[cm_key].metadata.resource_version is Some
-                        &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
-                    },
-                    _ => true,
-                }
-            }
-            _ => true,
-        }
-    }
-}
-
 // Self-rely-guarantee between RMQ reconciles managed by the same controller_id
 // but for different cr_keys. Says that any in-flight request issued by another
 // (cr_key', controller_id) reconcile of the same RMQ kind does not target any
@@ -265,11 +116,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(controller_id
 // (sub_resource, cr_key), so different cr_keys produce disjoint sub-resource
 // keys; this predicate states that fact at the message level.
 //
-// Used by the shield lemma in place of the heavy
-// `every_resource_create_request_implies_…` /
-// `every_effective_…_get_then_update_…` invariants when the request comes
-// from our own controller_id but a different cr_key.
-//
+// Used by the shield lemma when a request comes from our own controller_id but a different cr_key.
 // Only Create and GetThenUpdate are constrained, mirroring rmq_guarantee
 // (rabbitmq controller is forbidden from issuing other mutating request types).
 pub open spec fn rmq_self_rely_guarantee(controller_id: int, cr_key: ObjectRef) -> StatePred<ClusterState> {
