@@ -1185,6 +1185,7 @@ ensures
                                     assert(resource_get_then_update_request_msg(cm_key)(req_msg));
                                     assert(resp_msg_matches_req_msg(resp_msg, req_msg));
                                     if resp_msg.content.get_get_then_update_response().res is Ok {
+                                        assert(s.resources().contains_key(cm_key));
                                         assert(resp_msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version);
                                     } else {
                                         assert(local_state_prime.reconcile_step == RabbitmqReconcileStep::Error);
@@ -1256,28 +1257,15 @@ ensures
                 }
             }
         }
-        if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap) {
-            let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-            assert forall |msg| {
-                &&& #[trigger] s_prime.in_flight().contains(msg)
-                &&& msg.src is APIServer
-                &&& resp_msg_matches_req_msg(msg, pending_req)
-                &&& msg.content.get_get_response().res is Ok
-            } implies s.resources().contains_key(cm_key) by {
-                if !new_msgs.contains(msg) {
-                    assert(s.in_flight().contains(msg));
-                }
-            }
-        }
         if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap) {
             let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-            assert(s.resources().contains_key(cm_key));
             assert forall |msg| {
                 &&& #[trigger] s_prime.in_flight().contains(msg)
                 &&& msg.src is APIServer
                 &&& resp_msg_matches_req_msg(msg, pending_req)
                 &&& msg.content.get_get_then_update_response().res is Ok
-            } implies msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version by {
+            } implies s.resources().contains_key(cm_key)
+                && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version by {
                 if !new_msgs.contains(msg) {
                     assert(s.in_flight().contains(msg));
                 }
@@ -1371,21 +1359,27 @@ ensures
                     }
                 }
             } else if s.ongoing_reconciles(controller_id).contains_key(cr_key) {
-                if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
-                    let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-                    assert forall |msg| {
-                        &&& #[trigger] s_prime.in_flight().contains(msg)
-                        &&& msg.src is APIServer
-                        &&& resp_msg_matches_req_msg(msg, pending_req)
-                    } implies resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s_prime) by {
-                        if !new_msgs.contains(msg) {
-                            assert(s.in_flight().contains(msg));
-                        } else {
-                            let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, pending_req);
-                            assert(s_prime.in_flight().contains(resp_msg));
+                match local_state.reconcile_step {
+                    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
+                        if some_resource == sub_resource {
+                            let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                            assert forall |msg| {
+                                &&& #[trigger] s_prime.in_flight().contains(msg)
+                                &&& msg.src is APIServer
+                                &&& resp_msg_matches_req_msg(msg, pending_req)
+                            } implies resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s_prime) by {
+                                if !new_msgs.contains(msg) {
+                                    assert(s.in_flight().contains(msg));
+                                } else {
+                                    let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, pending_req);
+                                    assert(s_prime.in_flight().contains(resp_msg));
+                                }
+                            }
                         }
-                    }
-                } else if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) = local_state.reconcile_step {
+                    },
+                    _ => {},
+                }
+                if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) = local_state.reconcile_step {
                     if sub_resource_needs_cm_rv(sub_resource) {
                         if msg == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0 {
                             if some_resource == SubResource::ServerConfigMap {

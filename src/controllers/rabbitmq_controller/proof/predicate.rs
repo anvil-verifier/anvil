@@ -676,12 +676,6 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req = req_msg.content.get_get_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& resource_get_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
-                    &&& some_resource == SubResource::ServerConfigMap ==> forall |msg| {
-                        &&& #[trigger] s.in_flight().contains(msg)
-                        &&& msg.src is APIServer
-                        &&& resp_msg_matches_req_msg(msg, req_msg)
-                        &&& msg.content.get_get_response().res is Ok
-                    }  ==> s.resources().contains_key(cm_key)
                     &&& if some_resource == sub_resource {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& req_msg.dst == HostId::APIServer
@@ -701,13 +695,13 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& resource_get_then_update_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
                     &&& some_resource == SubResource::ServerConfigMap ==> {
-                        &&& s.resources().contains_key(cm_key)
                         &&& forall |msg| {
                             &&& #[trigger] s.in_flight().contains(msg)
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
                             &&& msg.content.get_get_then_update_response().res is Ok
-                        } ==> msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
+                        } ==> s.resources().contains_key(cm_key)
+                            && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
                     }
                     &&& if some_resource == sub_resource {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
