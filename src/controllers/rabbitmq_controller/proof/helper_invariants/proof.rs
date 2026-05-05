@@ -29,7 +29,7 @@ use crate::reconciler::spec::io::*;
 verus! {
 
 
-pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(
+pub proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr_forall(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -50,16 +50,16 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))))),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)))))),
 {
-    assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))) by {
-        lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, cluster, spec, sub_resource, rabbitmq);
+    assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq))))) by {
+        lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, cluster, spec, sub_resource, rabbitmq);
     }
-    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)));
+    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)));
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
+proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -81,12 +81,14 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)))),
         // rely
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
-    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq))))),
 {
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let requirements = |msg: Message, s: ClusterState| {
-        resource_get_then_update_request_msg(resource_key)(msg) ==> {
+        let req = msg.content.get_get_then_update_request();
+        &&& resource_get_then_update_request_msg(resource_key)(msg) && req.owner_ref.controller == Some(true) && req.owner_ref.kind == RabbitmqClusterView::kind()
+        ==> {
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
             &&& msg.content.get_get_then_update_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
@@ -109,7 +111,8 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
     implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
-            if resource_get_then_update_request_msg(resource_key)(msg) {
+            let req = msg.content.get_get_then_update_request();
+            if resource_get_then_update_request_msg(resource_key)(msg) && req.owner_ref.controller == Some(true) && req.owner_ref.kind == RabbitmqClusterView::kind() {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     RabbitmqReconcileState::marshal_preserves_integrity();
@@ -141,7 +144,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
 
     temp_pred_equality(
-        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)),
+        lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
@@ -595,14 +598,14 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq)))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq)))))),
-        spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq))))),
+        spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq))))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource| lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(res, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq))), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource| lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(res, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq))), sub_resource);
-        always_tla_forall_apply(spec, |res: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, res, rabbitmq)), sub_resource);
+        always_tla_forall_apply(spec, |res: SubResource| lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, res, rabbitmq)), sub_resource);
         lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(controller_id, cluster, spec, sub_resource, rabbitmq);
     }
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
@@ -628,7 +631,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq))))),
         spec.entails(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq))))),
-        spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         spec.entails(always(lift_state(rmq_guarantee(controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
@@ -639,7 +642,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
     // and rely conditions; the create-side invariants come directly from the preconditions.
     assert forall |s: ClusterState|
         #[trigger] resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
-        && object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
+        && every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)(s)
         && rmq_rely_conditions(cluster, controller_id)(s)
         && rmq_guarantee(controller_id)(s)
         && cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
@@ -712,7 +715,7 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
-        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)),
+        lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         lift_state(rmq_guarantee(controller_id))
     );

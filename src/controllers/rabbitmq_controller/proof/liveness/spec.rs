@@ -183,10 +183,10 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
         } else if i == 3 {
             helper_invariants::lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_resource_forall(controller_id, cluster, spec, rabbitmq);
-            helper_invariants::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
             let a_to_p_1 = |sub_resource: SubResource| lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)));
             let a_to_p_2 = |sub_resource: SubResource| lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)));
-            let a_to_p_3 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq));
+            let a_to_p_3 = |sub_resource: SubResource| lift_state(helper_invariants::every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq));
             // Prove every_msg_from_key_is_pending_req_msg_of using the cluster-level liveness lemma.
             // Extract single-key no_pending_req for Done and Error from forall-key versions in derived_invariants_since_beginning.
             always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
@@ -498,7 +498,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, rabbitmq: R
 pub open spec fn invariants_since_phase_iii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     always(tla_forall(|sub_resource: SubResource| lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq))))))
-    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq)))))
+    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)))))
     .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))))
 }
 
@@ -507,7 +507,7 @@ pub proof fn invariants_since_phase_iii_is_stable(controller_id: int, rabbitmq: 
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)));
-    let a_to_p_3 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id, sub_resource, rabbitmq));
+    let a_to_p_3 = |sub_resource: SubResource| lift_state(helper_invariants::every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq));
     stable_and_always_n!(
         tla_forall(a_to_p_1), tla_forall(a_to_p_2), tla_forall(a_to_p_3),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))

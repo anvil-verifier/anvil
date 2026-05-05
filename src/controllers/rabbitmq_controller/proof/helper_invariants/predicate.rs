@@ -73,12 +73,14 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: ClusterState) -
 }
 
 
-pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+pub open spec fn every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id: int, sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         forall |msg: Message| {
+            let req = msg.content.get_get_then_update_request();
             &&& #[trigger] s.in_flight().contains(msg)
             &&& resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
+            &&& req.owner_ref.controller == Some(true) && req.owner_ref.kind == RabbitmqClusterView::kind()
         } ==> {
             &&& at_rabbitmq_step(key, controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
