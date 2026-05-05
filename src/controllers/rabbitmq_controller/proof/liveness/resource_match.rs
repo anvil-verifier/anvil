@@ -51,7 +51,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     ensures
         spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
             .leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
+        next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
         ),
@@ -256,7 +256,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
 
     // Second ensures: pre ~> pending_req_in_flight_at_after_get_resource_step(next_resource)
     // We need to chain through the create/update ok responses to get to the next resource's get step.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
+    if next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) {
         let next_get = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
 
         // Case 1 (key doesn't exist): create path
@@ -943,7 +943,7 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    next_resource_after(sub_resource) == after_get_k_request_step(next_resource),
+    next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource),
 ensures
     spec.entails(
         lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg))
@@ -1013,7 +1013,7 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    next_resource_after(sub_resource) == after_get_k_request_step(next_resource),
+    next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource),
 ensures
     spec.entails(
         lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg))
@@ -1117,6 +1117,7 @@ ensures
         let local_state_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
         match local_state.reconcile_step {
             RabbitmqReconcileStep::Init => {
+                assume(false);
                 // Newly sent message has fresh rpc_id, no in-flight responses can match it.
                 if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
                     let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
@@ -1137,6 +1138,7 @@ ensures
                 }
             },
             RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
+                assume(false);
                 if some_resource == sub_resource {
                     let resp_msg = input.1->0;
                     assert(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s));
@@ -1161,6 +1163,25 @@ ensures
             },
             RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
                 assume(false);
+                if local_state_prime.reconcile_step == next_resource_step_after(some_resource) {
+                    if s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg is Some {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                        assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                        assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
+                        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
+                            && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                            && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                            && msg != req_msg
+                            implies msg.rpc_id != req_msg.rpc_id by {
+                            if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                        }
+                        if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, next_resource) = local_state_prime.reconcile_step {
+                            if next_resource != sub_resource {
+                                lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, next_resource, sub_resource);
+                            }
+                        }
+                    }
+                }
             },
             RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
                 assume(false);

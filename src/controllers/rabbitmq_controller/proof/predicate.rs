@@ -111,7 +111,7 @@ pub open spec fn after_update_k_request_step(sub_resource: SubResource) -> Rabbi
     RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource)
 }
 
-pub open spec fn next_resource_after(sub_resource: SubResource) -> RabbitmqReconcileStep {
+pub open spec fn next_resource_step_after(sub_resource: SubResource) -> RabbitmqReconcileStep {
     match sub_resource {
         SubResource::HeadlessService => after_get_k_request_step(SubResource::Service),
         SubResource::Service => after_get_k_request_step(SubResource::ErlangCookieSecret),

@@ -243,9 +243,9 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
     assert forall |sub_resource: SubResource| sub_resource != SubResource::VStatefulSetView implies
     spec.entails(
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
-            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource)->AfterKRequestStep_1, rabbitmq, controller_id)))
+            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_step_after(sub_resource)->AfterKRequestStep_1, rabbitmq, controller_id)))
     ) by {
-        let next_resource = next_resource_after(sub_resource)->AfterKRequestStep_1;
+        let next_resource = next_resource_step_after(sub_resource)->AfterKRequestStep_1;
         lemma_from_after_get_resource_step_to_resource_matches(controller_id, cluster, spec, rabbitmq, sub_resource, next_resource);
     }
     // Thanks to the recursive construction of macro.
@@ -274,7 +274,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         // For non-VStatefulSetView resources, next_resource is used but the first ensures still applies to all.
         // We pass VStatefulSetView as a dummy next_resource for VStatefulSetView itself (the second ensures won't fire).
         let next_resource = if sub_resource != SubResource::VStatefulSetView {
-            next_resource_after(sub_resource)->AfterKRequestStep_1
+            next_resource_step_after(sub_resource)->AfterKRequestStep_1
         } else {
             SubResource::VStatefulSetView
         };
