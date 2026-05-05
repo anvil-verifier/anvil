@@ -286,56 +286,69 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
     }
 
     // Now we further prove stability: given true ~> resource_state_matches(sub_resource, rabbitmq)
-    // we prove true ~> []resource_state_matches(sub_resource, rabbitmq)
+    // we prove true ~> []resource_state_matches(sub_resource, rabbitmq).
     //
     // The proof proceeds in two stages:
-    // 1. First prove CM stability: true ~> []resource_state_matches(ServerConfigMap, rabbitmq)
+    // 1. First prove CM stability: true ~> []inductive_current_state_matches(ServerConfigMap, rabbitmq).
     //    The CM lemma does not need cm_rv_stays_unchanged as a precondition.
-    // 2. Then prove all other resources are stable, borrowing CM's always-true property
-    //    to obtain cm_rv_stays_unchanged.
+    // 2. For sub_resources that need cm_rv tracking (ServiceAccount, Role, RoleBinding, VStatefulSetView),
+    //    the inductive lemma also requires inductive_current_state_matches(ServerConfigMap, rabbitmq),
+    //    so we borrow Stage 1's always-true property when assembling the stability target.
 
-    // Stage 1: CM stability
-    // We show resource_state_matches(CM) is preserved by the cluster transition,
-    // then apply leads_to_stable.
+    // Stage 1: CM stability — produces true ~> []inductive_current_state_matches(SCM).
     let cm_stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime)
+        &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)));
     combine_spec_entails_always_n!(
         spec, lift_action(cm_stronger_next),
         lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap))
+        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap))),
+        lift_state(rmq_rely_conditions(cluster, controller_id))
     );
     assert forall |s: ClusterState, s_prime: ClusterState|
-        resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s) && #[trigger] cm_stronger_next(s, s_prime)
-        implies resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s_prime) by {
+        inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s)
+        && #[trigger] cm_stronger_next(s, s_prime)
+        implies inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s_prime) by {
+        lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(controller_id, cluster, SubResource::ServerConfigMap, rabbitmq, s, s_prime);
     }
     leads_to_stable(
         spec, lift_action(cm_stronger_next), true_pred(),
-        lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq))
+        lift_state(inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id))
     );
 
     // Stage 2: Other resources.
     // For each sub_resource != CM:
-    // 1. Use leads_to_with_always to get (true /\ []cm_mat) ~> (sub_mat /\ []cm_mat) from true ~> sub_mat
-    // 2. Chain with true ~> []cm_mat to get true ~> (sub_mat /\ []cm_mat)
-    // 3. Weaken to get true ~> (sub_mat /\ cm_mat) = true ~> combined
-    // 4. Show combined is preserved (leads_to_stable) to get true ~> []combined
-    // 5. Weaken to get true ~> []sub_mat
+    // - Build a `combined` predicate that includes inductive_current_state_matches(sub_resource)
+    //   and, when sub_resource_needs_cm_rv, also inductive_current_state_matches(SCM).
+    // - Use Stage 1's always-true `inductive_current_state_matches(SCM)` to lift the leads_to.
+    // - Show `combined` is preserved by `lemma_inductive_current_state_matches_preserves_from_s_to_s_prime`
+    //   and conclude true ~> []combined, then weaken to true ~> []resource_state_matches(sub_resource).
     assert forall |sub_resource: SubResource|
     spec.entails(
         true_pred().leads_to(always(lift_state(#[trigger] resource_state_matches(sub_resource, rabbitmq))))
     ) by {
         if sub_resource == SubResource::ServerConfigMap {
-            // Already proved above in Stage 1.
+            // Stage 1 gave true ~> []inductive_current_state_matches(SCM); weaken to resource_state_matches.
+            leads_to_always_enhance(
+                spec, true_pred(), true_pred(),
+                lift_state(inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)),
+                lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq))
+            );
         } else {
 
-            // Define the combined predicate.
-            let sub_mat = lift_state(resource_state_matches(sub_resource, rabbitmq));
-            let cm_mat = lift_state(resource_state_matches(SubResource::ServerConfigMap, rabbitmq));
+            // Define the combined predicate. For sub_resource_needs_cm_rv, also bundle the
+            // SCM inductive predicate (required by lemma_inductive_current_state_matches_preserves_from_s_to_s_prime).
+            let sub_mat = lift_state(inductive_current_state_matches(rabbitmq, sub_resource, controller_id));
+            let cm_mat = lift_state(inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id));
             let combined = |s: ClusterState| {
-                &&& resource_state_matches(sub_resource, rabbitmq)(s)
-                &&& resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
+                &&& inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s)
+                &&& (sub_resource_needs_cm_rv(sub_resource)
+                        ==> inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s))
             };
 
             // Step 1: leads_to_with_always gives (true /\ []cm_mat) ~> (sub_mat /\ []cm_mat)
@@ -359,25 +372,35 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
             let combined_stronger_next = |s: ClusterState, s_prime: ClusterState| {
                 &&& cluster.next()(s, s_prime)
                 &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+                &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime)
                 &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
+                &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime)
+                &&& rmq_rely_conditions(cluster, controller_id)(s)
             };
+            always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
             combine_spec_entails_always_n!(
                 spec, lift_action(combined_stronger_next),
                 lift_action(cluster.next()),
                 lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-                lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap))
+                later(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))),
+                lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
+                later(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap))),
+                lift_state(rmq_rely_conditions(cluster, controller_id))
             );
             assert forall |s: ClusterState, s_prime: ClusterState|
                 combined(s) && #[trigger] combined_stronger_next(s, s_prime)
                 implies combined(s_prime) by {
                 lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(controller_id, cluster, sub_resource, rabbitmq, s, s_prime);
+                if sub_resource_needs_cm_rv(sub_resource) {
+                    lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(controller_id, cluster, SubResource::ServerConfigMap, rabbitmq, s, s_prime);
+                }
             }
             leads_to_stable(
                 spec, lift_action(combined_stronger_next), true_pred(),
                 lift_state(combined)
             );
 
-            // Step 5: Weaken true ~> []combined to true ~> []sub_mat
+            // Step 5: Weaken true ~> []combined to true ~> []resource_state_matches(sub_resource)
             leads_to_always_enhance(
                 spec, true_pred(), true_pred(),
                 lift_state(combined),

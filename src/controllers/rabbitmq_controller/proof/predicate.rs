@@ -69,6 +69,16 @@ pub open spec fn at_rabbitmq_step(key: ObjectRef, controller_id: int, step: Rabb
     }
 }
 
+// Sub-resources whose `at_rabbitmq_step_with_rabbitmq` requires the cm_rv tracking
+// invariant (ServerConfigMap exists in etcd and `latest_config_map_rv_opt` matches).
+// These are the steps after ServerConfigMap in the reconcile chain.
+pub open spec fn sub_resource_needs_cm_rv(sub_resource: SubResource) -> bool {
+    ||| sub_resource == SubResource::ServiceAccount
+    ||| sub_resource == SubResource::Role
+    ||| sub_resource == SubResource::RoleBinding
+    ||| sub_resource == SubResource::VStatefulSetView
+}
+
 pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, controller_id: int, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
