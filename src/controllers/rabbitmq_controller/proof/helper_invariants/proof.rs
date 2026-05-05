@@ -623,7 +623,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_f
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
-        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
@@ -1160,8 +1160,11 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
 {
     assert forall |sub_resource: SubResource|
         spec.entails(true_pred().leads_to(always(lift_state(#[trigger]
-            Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq))))))
-        && spec.entails(true_pred().leads_to(always(lift_state(#[trigger]
+            Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq)))))) by {
+        lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_resource(controller_id, cluster, spec, sub_resource, rabbitmq);
+    }
+    assert forall |sub_resource: SubResource|
+        spec.entails(true_pred().leads_to(always(lift_state(#[trigger]
             Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, owner_ref_is_current_cr_only(rabbitmq)))))) by {
         lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_resource(controller_id, cluster, spec, sub_resource, rabbitmq);
     }
@@ -1239,30 +1242,21 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
                         controller_id, cluster, sub_resource, rabbitmq, s, s_prime, msg, step);
                     let cr_dyn = s.ongoing_reconciles(controller_id)[key].triggering_cr;
                     let cr = RabbitmqClusterView::unmarshal(cr_dyn).unwrap();
-                    // by `the_object_in_reconcile_has_spec_and_uid_as`: triggering_cr.metadata
-                    // matches rabbitmq's name+namespace+uid. Hence controller_owner_ref matches.
                     assert(cr.controller_owner_ref() == rabbitmq.controller_owner_ref());
                     assert(msg.content.get_create_request().obj.metadata.owner_references
                         == Some(seq![rabbitmq.controller_owner_ref()]));
                 } else {
-                    // msg already in s -> use IH on s
                     assert(requirements(msg, s));
                 }
             }
             // Branch (b): a generate-named create that could resolve to our resource_key.
             if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg) {
-                // msg.dst is APIServer, msg.content is APIRequest (== CreateRequest), so
-                // the source must be Controller or BuiltinController. BuiltinController only
-                // issues delete requests. So the source is Controller.
                 match msg.src {
                     HostId::Controller(id, _) => {
                         if id == controller_id {
-                            // Our controller never issues create-without-name (rmq_guarantee says name is Some).
                             assert(rmq_guarantee_create_req(msg.content.get_create_request()));
                             assert(false);
                         } else {
-                            // Other controller's create-without-name has no rmq prefix in generate_name
-                            // (rmq_rely). resource_key.name has rmq prefix. So generated_name != resource_key.name.
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
                             assert(rmq_rely_create_req(msg.content.get_create_request()));
@@ -1273,10 +1267,6 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
                         }
                     },
                     _ => {
-                        // Excluded by `no_pending_request_to_api_server_from_non_controllers`
-                        // (non-controller, non-builtin sources can't target APIServer with APIRequest)
-                        // and `all_requests_from_builtin_controllers_are_api_delete_requests`
-                        // (builtin -> only delete).
                         assert(false);
                     },
                 }
@@ -1306,39 +1296,28 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
     );
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
 
-    // Derive `every_create_msg_sets_owner_references_as` from `every_in_flight_req_msg_satisfies`.
-    assert_by(
-        spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)))
-            .implies(always(lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req))))),
-        {
-            assert forall |ex: Execution<ClusterState>|
-                #[trigger] always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))).satisfied_by(ex)
-                implies always(lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req))).satisfied_by(ex) by {
-                assert forall |i: nat| #[trigger] lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req)).satisfied_by(ex.suffix(i)) by {
-                    assert(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex.suffix(i)));
-                };
-            };
-        }
+    assert forall |s: ClusterState| #[trigger] Cluster::every_in_flight_req_msg_satisfies(requirements)(s)
+        implies Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req)(s) by {
+    }
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
+        lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req))
     );
-    leads_to_weaken(spec, true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
-        true_pred(), always(lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req))));
-
-    // Derive `every_create_msg_with_generate_name_matching_key_set_owner_references_as` similarly.
-    assert_by(
-        spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)))
-            .implies(always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req))))),
-        {
-            assert forall |ex: Execution<ClusterState>|
-                #[trigger] always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))).satisfied_by(ex)
-                implies always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req))).satisfied_by(ex) by {
-                assert forall |i: nat| #[trigger] lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req)).satisfied_by(ex.suffix(i)) by {
-                    assert(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex.suffix(i)));
-                };
-            };
-        }
+    leads_to_weaken(spec, true_pred(),
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        true_pred(), always(lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req)))
     );
-    leads_to_weaken(spec, true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
-        true_pred(), always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req))));
+    assert forall |s: ClusterState| #[trigger] Cluster::every_in_flight_req_msg_satisfies(requirements)(s)
+        implies Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req)(s) by {
+    }
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
+        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req))
+    );
+    leads_to_weaken(spec, true_pred(),
+        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
+        true_pred(), always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req)))
+    );
 }
 
 // Mirrors lemma_guarantee_from_reconcile_state but extracts the *request key*
