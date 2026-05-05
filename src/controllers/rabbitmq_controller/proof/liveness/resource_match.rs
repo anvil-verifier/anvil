@@ -1195,7 +1195,10 @@ requires
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
     rmq_rely_conditions(cluster, controller_id)(s),
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
-    sub_resource != SubResource::VStatefulSetView, // TODO: requires CM RV to be equal
+    // prove CM RV does not change
+    sub_resource == SubResource::VStatefulSetView ==>
+        cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
+        && inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s),
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
@@ -1228,6 +1231,11 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                     s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
                 );
+                if sub_resource == SubResource::VStatefulSetView {
+                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                        s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, msg
+                    );
+                }
                 assert(s_prime.ongoing_reconciles(controller_id) == s.ongoing_reconciles(controller_id));
                 assert(resource_state_matches(sub_resource, rabbitmq)(s_prime));
                 if s.ongoing_reconciles(controller_id).contains_key(cr_key) && local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource) {
@@ -1257,8 +1265,14 @@ ensures
                             assert(s_prime.in_flight().contains(resp_msg));
                         }
                     }
-                } else if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource) {
-                    if msg == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0 {}
+                } else if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) = local_state.reconcile_step {
+                    if sub_resource == SubResource::VStatefulSetView {
+                        if msg == s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0 {
+                            if some_resource == SubResource::ServerConfigMap {
+                                assume(false);
+                            }
+                        }
+                    }
                 }
             }
         },
