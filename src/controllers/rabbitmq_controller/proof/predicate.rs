@@ -705,7 +705,7 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                             && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
                     }
                     // there is get_then_update request and it carries correct spec and metadata
-                    // we don't care if it succeed or not, it's noop either way
+                    // we don't care if it succeed or not, it doesn't break csm in either way
                     &&& some_resource == sub_resource ==> {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& s.resources().contains_key(resource_key)

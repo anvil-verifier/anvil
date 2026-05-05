@@ -1294,14 +1294,14 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    rmq_rely_conditions(cluster, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
-    rmq_rely_conditions(cluster, controller_id)(s),
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime),
     // prove CM RV does not change
-    sub_resource_needs_cm_rv(sub_resource) ==>
-        cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
-        && inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s),
+    inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s),
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
@@ -1335,11 +1335,9 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                     s, s_prime, rabbitmq, cluster, controller_id, sub_resource, msg
                 );
-                if sub_resource_needs_cm_rv(sub_resource) {
-                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
-                        s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, msg
-                    );
-                }
+                lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                    s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, msg
+                );
                 assert(s_prime.ongoing_reconciles(controller_id) == s.ongoing_reconciles(controller_id));
                 assert(resource_state_matches(sub_resource, rabbitmq)(s_prime));
                 // maintains 3 forall quantifier
@@ -1363,16 +1361,17 @@ ensures
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, pending_req)
                             &&& msg.content.get_get_then_update_response().res is Ok
-                        } implies s_prime.resources().contains_key(cm_key)
-                            && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version by {
+                        } implies s.resources().contains_key(cm_key)
+                            && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version by {
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
                             } else {
-                                assert(false);
+                                assert(false) by {
+                                    assume(false); // cr name different or different controller
+                                }
                             }
                         }
                     }
-                    assume(false);
                     if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap) {
                         let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                         assert forall |msg| {
@@ -1384,12 +1383,16 @@ ensures
                             && msg.content.get_create_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version by {
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
+                            } else {
+                                assert(false) by {
+                                    assume(false); // cr name different or different controller
+                                }
                             }
                         }
                     }
                 }
             } else if s.ongoing_reconciles(controller_id).contains_key(cr_key) {
-                assume(false);
+                // API server can return expected response for requests below
                 match local_state.reconcile_step {
                     RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
                         if some_resource == sub_resource {
@@ -1409,8 +1412,22 @@ ensures
                         }
                     },
                     RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
-                        assume(false);
                         if some_resource == SubResource::ServerConfigMap { // Update to CM is noop
+                            let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                            assert(resource_get_then_update_request_msg(cm_key)(pending_req));
+                            // get then update gets the most recent resource version of cm in etcd
+                            assert forall |msg| {
+                                &&& #[trigger] s_prime.in_flight().contains(msg)
+                                &&& msg.src is APIServer
+                                &&& resp_msg_matches_req_msg(msg, pending_req)
+                                &&& msg.content.get_get_then_update_response().res is Ok
+                            } implies s_prime.resources().contains_key(cm_key)
+                                && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version by {
+                                if !new_msgs.contains(msg) {
+                                    assert(s.in_flight().contains(msg));
+                                }
+                            }
+                            // because of csm(cm), get_then_update is noop
                             ConfigMapView::marshal_preserves_integrity();
                             assert(inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s));
                             let old_obj = s.resources()[cm_key];
@@ -1419,24 +1436,31 @@ ensures
                                 assert(old_obj.metadata.owner_references->0.contains(old_obj.metadata.owner_references->0[0]));
                             }
                             assert(s_prime.resources()[cm_key] == s.resources()[cm_key]);
-                        } else { // req.key() != cm_key
+                        } else {
+                            lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, SubResource::ServerConfigMap);
                             assert(s_prime.resources()[cm_key] == s.resources()[cm_key]);
                         }
+                        if some_resource != sub_resource {
+                            lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
+                            assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                        } else {
+                            assert(resource_state_matches(sub_resource, rabbitmq)(s_prime));
+                        }
                     },
-                    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
+                    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
                         if some_resource == SubResource::ServerConfigMap {
                             let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                            assert(resource_create_request_msg(cm_key)(pending_req));
                             assert forall |msg| {
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
                                 &&& msg.src is APIServer
                                 &&& resp_msg_matches_req_msg(msg, pending_req)
                                 &&& msg.content.get_create_response().res is Ok
-                            } implies resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s_prime) by {
+                            } implies s_prime.resources().contains_key(cm_key)
+                                && msg.content.get_create_response().res->Ok_0.metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version by {
                                 if !new_msgs.contains(msg) {
                                     assert(s.in_flight().contains(msg));
-                                } else {
-                                    if msg.content.get_create_response() == handle_create_request(cluster.installed_types, pending_req.content.get_create_request(), s.api_server).1 {}
-                                }
+                                } else if msg.content.get_create_response() == handle_create_request(cluster.installed_types, pending_req.content.get_create_request(), s.api_server).1 {}
                             }
                         }
                     },
