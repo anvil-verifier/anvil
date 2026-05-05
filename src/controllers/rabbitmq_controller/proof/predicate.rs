@@ -676,6 +676,7 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req = req_msg.content.get_get_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& resource_get_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
+                    // get request can get ok response and corresponding key exists
                     &&& some_resource == sub_resource ==> {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& req_msg.dst == HostId::APIServer
@@ -686,12 +687,14 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                             &&& resp_msg_matches_req_msg(msg, req_msg)
                         } ==> resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s)
                     }
+                    // we don't care about get requests sent to cm as it has no side effect
                 },
                 RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     let req = req_msg.content.get_get_then_update_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& resource_get_then_update_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
+                    // if update cm receives ok response, the rv in response matches etcd and cm exists
                     &&& some_resource == SubResource::ServerConfigMap ==> {
                         &&& forall |msg| {
                             &&& #[trigger] s.in_flight().contains(msg)
@@ -701,6 +704,8 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         } ==> s.resources().contains_key(cm_key)
                             && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
                     }
+                    // there is get_then_update request and it carries correct spec and metadata
+                    // we don't care if it succeed or not, it's noop either way
                     &&& some_resource == sub_resource ==> {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& s.resources().contains_key(resource_key)
@@ -714,6 +719,7 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& resource_create_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
+                    // if create cm receives ok response, the rv in response matches etcd and cm exists
                     &&& some_resource == SubResource::ServerConfigMap ==> forall |msg| {
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& msg.src is APIServer
@@ -721,7 +727,8 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         &&& msg.content.get_create_response().res is Ok
                     } ==> s.resources().contains_key(cm_key)
                         && msg.content.get_create_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
-                }, // noop because s.resources().contains_key(resource_key)
+                    // we don't care about create requests sent to this sub_resources because we know s.resources().contains_key(resource_key)
+                },
             }
         }
     }
