@@ -1086,7 +1086,6 @@ requires
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
     rmq_rely_conditions(cluster, controller_id)(s),
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
-    sub_resource != SubResource::VStatefulSetView,
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
@@ -1182,7 +1181,7 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState
