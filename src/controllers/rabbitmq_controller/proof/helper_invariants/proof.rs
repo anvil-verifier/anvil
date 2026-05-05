@@ -371,47 +371,17 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(cr_key, key, local_step_sub_resource, sub_resource);
     }
     // Now local_step_sub_resource == sub_resource. Prove cr_key.name == key.name by contrapositive.
-    match sub_resource {
-        SubResource::ServerConfigMap => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server-conf"@);
-            }
-        },
-        SubResource::PluginsConfigMap => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-plugins-conf"@);
-            }
-        },
-        SubResource::ErlangCookieSecret => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-erlang-cookie"@);
-            }
-        },
-        SubResource::DefaultUserSecret => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-default-user"@);
-            }
-        },
-        SubResource::HeadlessService => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-nodes"@);
-            }
-        },
-        SubResource::Service => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-client"@);
-            }
-        },
-        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server"@);
-            }
-        },
-        SubResource::Role => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-peer-discovery"@);
-            }
-        },
+    if cr_key.name != key.name {
+        match sub_resource {
+            SubResource::ServerConfigMap => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server-conf"@),
+            SubResource::PluginsConfigMap => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-plugins-conf"@),
+            SubResource::ErlangCookieSecret => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-erlang-cookie"@),
+            SubResource::DefaultUserSecret => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-default-user"@),
+            SubResource::HeadlessService => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-nodes"@),
+            SubResource::Service => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-client"@),
+            SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server"@),
+            SubResource::Role => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-peer-discovery"@),
+        }
     }
 }
 
@@ -482,47 +452,17 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key(cr_key, key, local_step_sub_resource, sub_resource);
     }
     // Now local_step_sub_resource == sub_resource. Prove cr_key.name == key.name by contrapositive.
-    match sub_resource {
-        SubResource::ServerConfigMap => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server-conf"@);
-            }
-        },
-        SubResource::PluginsConfigMap => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-plugins-conf"@);
-            }
-        },
-        SubResource::ErlangCookieSecret => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-erlang-cookie"@);
-            }
-        },
-        SubResource::DefaultUserSecret => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-default-user"@);
-            }
-        },
-        SubResource::HeadlessService => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-nodes"@);
-            }
-        },
-        SubResource::Service => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-client"@);
-            }
-        },
-        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server"@);
-            }
-        },
-        SubResource::Role => {
-            if cr_key.name != key.name {
-                lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-peer-discovery"@);
-            }
-        },
+    if cr_key.name != key.name {
+        match sub_resource {
+            SubResource::ServerConfigMap => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server-conf"@),
+            SubResource::PluginsConfigMap => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-plugins-conf"@),
+            SubResource::ErlangCookieSecret => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-erlang-cookie"@),
+            SubResource::DefaultUserSecret => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-default-user"@),
+            SubResource::HeadlessService => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-nodes"@),
+            SubResource::Service => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-client"@),
+            SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::VStatefulSetView => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-server"@),
+            SubResource::Role => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-peer-discovery"@),
+        }
     }
     assert(cr_key == rabbitmq.object_ref());
     assert(owner_reference_eq_without_uid(cr.controller_owner_ref(), rabbitmq.controller_owner_ref()));
