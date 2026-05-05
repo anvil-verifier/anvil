@@ -96,14 +96,11 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, c
         // must reflect the resource_version of the cm in etcd.
         &&& match step {
             RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
-                match sub_resource {
-                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::VStatefulSetView => {
-                        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
-                        &&& s.resources().contains_key(cm_key)
-                        &&& s.resources()[cm_key].metadata.resource_version is Some
-                        &&& unmarshalled_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
-                    },
-                    _ => true,
+                &&& sub_resource_needs_cm_rv(sub_resource) ==> {
+                    let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+                    &&& s.resources().contains_key(cm_key)
+                    &&& s.resources()[cm_key].metadata.resource_version is Some
+                    &&& unmarshalled_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
                 }
             },
             _ => true,
@@ -663,6 +660,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, contr
 pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, sub_resource: SubResource, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let resource_key = get_request(sub_resource, rabbitmq).key;
+        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
         &&& resource_state_matches(sub_resource, rabbitmq)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref()) ==> {
             let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap();
@@ -708,12 +706,32 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         &&& req.obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
                     } else {
                         &&& req.key() != resource_key
+                        &&& some_resource == SubResource::ServerConfigMap && sub_resource_needs_cm_rv(sub_resource) ==> {
+                            &&& resource_get_then_update_request_msg(cm_key)(req_msg)
+                            &&& forall |msg| {
+                                &&& #[trigger] s.in_flight().contains(msg)
+                                &&& msg.src is APIServer
+                                &&& resp_msg_matches_req_msg(msg, req_msg)
+                                &&& msg.content.get_get_then_update_response().res is Ok
+                            }  ==> s.resources().contains_key(cm_key)
+                                && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
+                        }
                     }
                 },
-                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, _) => {
+                RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& req_msg.content.is_create_request()
+                    &&& some_resource == SubResource::ServerConfigMap && sub_resource_needs_cm_rv(sub_resource) ==> {
+                        &&& resource_create_request_msg(cm_key)(req_msg)
+                        &&& forall |msg| {
+                            &&& #[trigger] s.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                            &&& msg.content.get_create_response().res is Ok
+                        } ==> s.resources().contains_key(cm_key)
+                            && msg.content.get_create_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
+                    }
                 }, // noop because s.resources().contains_key(resource_key)
             }
         }
