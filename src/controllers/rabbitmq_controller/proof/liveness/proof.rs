@@ -51,9 +51,6 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     lemma_true_leads_to_always_current_state_matches(stable_spec, controller_id, cluster, rabbitmq);
     reveal_with_fuel(spec_before_phase_n, 9);
 
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 8, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 7, rabbitmq);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 6, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 5, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 4, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(stable_spec, controller_id, cluster, 3, rabbitmq);
@@ -88,7 +85,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
 
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
-        1 <= i <= 8,
+        1 <= i <= 5,
         valid(stable(spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
         spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),

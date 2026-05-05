@@ -38,7 +38,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: in
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
         valid(stable(invariants(controller_id, cluster, rabbitmq))),
-        forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
+        forall |i: nat| 1 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
 {
     reveal_with_fuel(spec_before_phase_n, 9);
     invariants_is_stable(controller_id, cluster, rabbitmq);
@@ -64,7 +64,7 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(c
         valid(stable(stable_spec(cluster, controller_id))),
         valid(stable(stable_spec(cluster, controller_id).and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))),
         valid(stable(stable_spec(cluster, controller_id).and(invariants(controller_id, cluster, rabbitmq)))),
-        forall |i: nat| 1 <= i <= 8 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
+        forall |i: nat| 1 <= i <= 5 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
 {
     stable_spec_is_stable(cluster, controller_id);
     stable_and_n!(
@@ -75,10 +75,7 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(c
         stable_spec(cluster, controller_id),
         invariants(controller_id, cluster, rabbitmq)
     );
-    assert forall |i: nat|
-        1 <= i <= 8
-        && valid(stable(stable_spec(cluster, controller_id)))
-        && forall |i: nat| 1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(controller_id, i, cluster, rabbitmq)))
+    assert forall |i: nat| 1 <= i <= 5
         implies valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))) by {
         stable_and_n!(
             stable_spec(cluster, controller_id),
@@ -836,9 +833,6 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
             };
 
             // Chain through all the phases
-            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(8, stable_spec, controller_id, cluster, rabbitmq);
-            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(7, stable_spec, controller_id, cluster, rabbitmq);
-            spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(6, stable_spec, controller_id, cluster, rabbitmq);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(5, stable_spec, controller_id, cluster, rabbitmq);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(4, stable_spec, controller_id, cluster, rabbitmq);
             spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(3, stable_spec, controller_id, cluster, rabbitmq);
@@ -883,7 +877,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
 
 proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_all_phases(i: nat, spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
     requires
-        1 <= i <= 8,
+        1 <= i <= 5,
         valid(stable(spec)),
         valid(stable(spec_before_phase_n(controller_id, i, cluster, rabbitmq))),
         spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
