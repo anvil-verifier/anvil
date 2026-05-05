@@ -783,19 +783,7 @@ pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-pub open spec fn sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let sts_key = make_stateful_set_key(rabbitmq);
-        forall |msg: Message| s.in_flight().contains(msg) && resource_create_request_msg(sts_key)(msg)
-        ==> {
-            let sts = VStatefulSetView::unmarshal(msg.content.get_create_request().obj)->Ok_0;
-            &&& VStatefulSetView::unmarshal(msg.content.get_create_request().obj) is Ok
-            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
-        }
-    }
-}
-
-pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
+proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires

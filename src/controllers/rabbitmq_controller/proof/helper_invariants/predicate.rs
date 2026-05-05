@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::{
-    api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
+    prelude::*, api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
     stateful_set::*, label_selector::LabelSelectorView,
 };
 use crate::kubernetes_cluster::spec::{
@@ -23,14 +23,41 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
-    let key = get_request(sub_resource, rabbitmq).key;
+pub open spec fn requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id: int, sub_resource: SubResource, cr_key: ObjectRef) -> StatePred<ClusterState> {
+    let cr = RabbitmqClusterView {
+        metadata: ObjectMetaView {
+            name: Some(cr_key.name),
+            namespace: Some(cr_key.namespace),
+            ..ObjectMetaView::default()
+        },
+        ..RabbitmqClusterView::default()
+    };
+    let resource_key = get_request(sub_resource, cr).key;
     |s: ClusterState| {
-        s.resources().contains_key(key)
-        ==> s.resources()[key].metadata.deletion_timestamp is None
-            && s.resources()[key].metadata.finalizers is None
+        forall |msg: Message| {
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] msg.src == HostId::Controller(controller_id, cr_key)
+        } ==> {
+            &&& resource_create_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
+                &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
+            }
+            &&& resource_get_then_update_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
+                &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
+            }
+        }
+    }
+}
+
+pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    |s: ClusterState| {
+        s.resources().contains_key(resource_key)
+        ==> s.resources()[resource_key].metadata.deletion_timestamp is None
+            && s.resources()[resource_key].metadata.finalizers is None
             && exists |owner_reference: OwnerReferenceView| {
-                &&& s.resources()[key].metadata.owner_references == Some(seq![owner_reference])
+                &&& s.resources()[resource_key].metadata.owner_references == Some(seq![owner_reference])
                 &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
             }
     }
@@ -148,6 +175,18 @@ pub open spec fn rmq_self_rely_guarantee_create_req(req: CreateRequest, cr_key: 
 
 pub open spec fn rmq_self_rely_guarantee_get_then_update_req(req: GetThenUpdateRequest, cr_key: ObjectRef) -> bool {
     forall |sub: SubResource| req.key() != #[trigger] make_resource_key(cr_key, sub)
+}
+
+pub open spec fn sts_create_request_msg_has_correct_selector_with_rabbitmq_name(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let sts_key = make_stateful_set_key(rabbitmq);
+        forall |msg: Message| s.in_flight().contains(msg) && resource_create_request_msg(sts_key)(msg)
+        ==> {
+            let sts = VStatefulSetView::unmarshal(msg.content.get_create_request().obj)->Ok_0;
+            &&& VStatefulSetView::unmarshal(msg.content.get_create_request().obj) is Ok
+            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
+        }
+    }
 }
 
 pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
