@@ -92,8 +92,7 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, c
         &&& triggering_cr.spec() == rabbitmq.spec()
         &&& triggering_cr.metadata().uid == rabbitmq.metadata().uid
         &&& unmarshalled_state.reconcile_step == step
-        // After ServerConfigMap has been processed, latest_config_map_rv_opt
-        // must reflect the resource_version of the cm in etcd.
+        // as the result of kicking out cm rv invariants
         &&& match step {
             RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
                 &&& sub_resource_needs_cm_rv(sub_resource) ==> {
@@ -676,12 +675,17 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     let req = req_msg.content.get_get_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
-                    &&& req_msg.content.is_get_request()
+                    &&& resource_get_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
+                    &&& some_resource == SubResource::ServerConfigMap ==> forall |msg| {
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& msg.src is APIServer
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& msg.content.get_get_response().res is Ok
+                    }  ==> s.resources().contains_key(cm_key)
                     &&& if some_resource == sub_resource {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& req_msg.dst == HostId::APIServer
                         &&& req_msg.content is APIRequest
-                        &&& req == get_request(sub_resource, rabbitmq)
                         &&& forall |msg| {
                             &&& #[trigger] s.in_flight().contains(msg)
                             &&& msg.src is APIServer
@@ -695,10 +699,18 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     let req = req_msg.content.get_get_then_update_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
-                    &&& req_msg.content.is_get_then_update_request()
+                    &&& resource_get_then_update_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
+                    &&& some_resource == SubResource::ServerConfigMap ==> {
+                        &&& s.resources().contains_key(cm_key)
+                        &&& forall |msg| {
+                            &&& #[trigger] s.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                            &&& msg.content.get_get_then_update_response().res is Ok
+                        } ==> msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
+                    }
                     &&& if some_resource == sub_resource {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-                        &&& resource_get_then_update_request_msg(resource_key)(req_msg)
                         &&& s.resources().contains_key(resource_key)
                         &&& req.owner_ref == rabbitmq.controller_owner_ref()
                         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req.obj)(s)
@@ -706,32 +718,20 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         &&& req.obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
                     } else {
                         &&& req.key() != resource_key
-                        &&& some_resource == SubResource::ServerConfigMap && sub_resource_needs_cm_rv(sub_resource) ==> {
-                            &&& resource_get_then_update_request_msg(cm_key)(req_msg)
-                            &&& forall |msg| {
-                                &&& #[trigger] s.in_flight().contains(msg)
-                                &&& msg.src is APIServer
-                                &&& resp_msg_matches_req_msg(msg, req_msg)
-                                &&& msg.content.get_get_then_update_response().res is Ok
-                            }  ==> s.resources().contains_key(cm_key)
-                                && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
-                        }
+                        // this is enforced as a result of kicking out cm_rv invariants (does not change and local copy is coherent)
                     }
                 },
                 RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
-                    &&& req_msg.content.is_create_request()
-                    &&& some_resource == SubResource::ServerConfigMap && sub_resource_needs_cm_rv(sub_resource) ==> {
-                        &&& resource_create_request_msg(cm_key)(req_msg)
-                        &&& forall |msg| {
-                            &&& #[trigger] s.in_flight().contains(msg)
-                            &&& msg.src is APIServer
-                            &&& resp_msg_matches_req_msg(msg, req_msg)
-                            &&& msg.content.get_create_response().res is Ok
-                        } ==> s.resources().contains_key(cm_key)
-                            && msg.content.get_create_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
-                    }
+                    &&& resource_create_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
+                    &&& some_resource == SubResource::ServerConfigMap ==> forall |msg| {
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& msg.src is APIServer
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& msg.content.get_create_response().res is Ok
+                    } ==> s.resources().contains_key(cm_key)
+                        && msg.content.get_create_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
                 }, // noop because s.resources().contains_key(resource_key)
             }
         }
