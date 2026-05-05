@@ -94,6 +94,12 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
     }
 }
 
+// The owner_references requirement consumed by `Cluster::lemma_eventually_objects_owner_references_satisfies`:
+// the only valid owner_references for our sub-resource is `[rabbitmq.controller_owner_ref()]`.
+pub open spec fn owner_ref_is_current_cr_only(rabbitmq: RabbitmqClusterView) -> spec_fn(Option<Seq<OwnerReferenceView>>) -> bool {
+    |o: Option<Seq<OwnerReferenceView>>| o == Some(seq![rabbitmq.controller_owner_ref()])
+}
+
 // No delete request to resource_key from the garbage collector is in flight.
 // The garbage collector only issues a delete when an object's owner is gone, but
 // resource_key always has the current rabbitmq's controller_owner_ref (which is alive
