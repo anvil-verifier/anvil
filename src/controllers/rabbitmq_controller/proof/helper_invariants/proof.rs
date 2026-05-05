@@ -150,7 +150,6 @@ proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
-#[verifier(external_body)] // FIXME: add stronger internal-rely-guarantee?
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -169,6 +168,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     let resource_key = get_request(sub_resource, rabbitmq).key;
     // lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(controller_id, cluster, spec, sub_resource, rabbitmq);
     guarantee_condition_holds(spec, cluster, controller_id);
+    lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, cluster, spec, sub_resource, rabbitmq.object_ref());
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
@@ -189,6 +189,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& rmq_guarantee(controller_id)(s_prime)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+        &&& requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, sub_resource, rabbitmq.object_ref())(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s)
@@ -206,6 +207,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         later(lift_state(rmq_guarantee(controller_id))),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        lift_state(requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, sub_resource, rabbitmq.object_ref())),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
         later(lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests())),
@@ -245,8 +247,18 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                 match msg.src {
                     HostId::Controller(id, _) => {
                         if id == controller_id {
-                            assert(rmq_guarantee(controller_id)(s));
-                            assume(false);
+                            if resource_create_request_msg(resource_key)(msg) {
+                                assert(exists |owner_reference: OwnerReferenceView| {
+                                    &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                                    &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
+                                });
+                            }
+                            if resource_get_then_update_request_msg(resource_key)(msg) {
+                                assert(exists |owner_reference: OwnerReferenceView| {
+                                    &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                                    &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
+                                });
+                            }
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s));
@@ -328,6 +340,8 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
         // since init
+        msg.content.get_get_then_update_request().obj.metadata.finalizers is None,
+        msg.content.get_get_then_update_request().obj.metadata.deletion_timestamp is None,
         exists |owner_reference: OwnerReferenceView| {
             &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
@@ -406,6 +420,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), controller_id, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
+        msg.content.get_create_request().obj.metadata.finalizers is None,
         exists |owner_reference: OwnerReferenceView| {
             &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
@@ -493,11 +508,15 @@ proof fn lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_
     let resource_key = get_request(sub_resource, cr).key;
     let inv = requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, sub_resource, cr_key);
     let requirements = |msg: Message| msg.src == HostId::Controller(controller_id, cr_key) ==> {
-        &&& resource_create_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
+        &&& resource_create_request_msg(resource_key)(msg) ==> msg.content.get_create_request().obj.metadata.finalizers is None // deletion_timestamp is ignored during creation
+        && exists |owner_reference: OwnerReferenceView| {
             &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
         }
-        &&& resource_get_then_update_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
+        &&& resource_get_then_update_request_msg(resource_key)(msg) ==>
+        msg.content.get_get_then_update_request().obj.metadata.finalizers is None
+        && msg.content.get_get_then_update_request().obj.metadata.deletion_timestamp is None
+        && exists |owner_reference: OwnerReferenceView| {
             &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
         }

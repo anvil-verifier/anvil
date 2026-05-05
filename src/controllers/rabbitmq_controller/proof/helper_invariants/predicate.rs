@@ -38,11 +38,15 @@ pub open spec fn requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_c
             &&& s.in_flight().contains(msg)
             &&& #[trigger] msg.src == HostId::Controller(controller_id, cr_key)
         } ==> {
-            &&& resource_create_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
+            &&& resource_create_request_msg(resource_key)(msg) ==> msg.content.get_create_request().obj.metadata.finalizers is None // deletion_timestamp is ignored during creation
+            && exists |owner_reference: OwnerReferenceView| {
                 &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
                 &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
             }
-            &&& resource_get_then_update_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
+            &&& resource_get_then_update_request_msg(resource_key)(msg) ==>
+            msg.content.get_get_then_update_request().obj.metadata.finalizers is None
+            && msg.content.get_get_then_update_request().obj.metadata.deletion_timestamp is None
+            && exists |owner_reference: OwnerReferenceView| {
                 &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
                 &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
             }
