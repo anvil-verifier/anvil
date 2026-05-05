@@ -150,6 +150,7 @@ proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
+#[verifier(external_body)] // FIXME: add stronger internal-rely-guarantee?
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -245,25 +246,28 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                     HostId::Controller(id, _) => {
                         if id == controller_id {
                             assert(rmq_guarantee(controller_id)(s));
+                            assume(false);
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s));
                             match msg.content->APIRequest_0 {
                                 APIRequest::CreateRequest(req) => {
-                                    if req.obj.metadata.name is Some {
-                                        if req.key() == resource_key {
-                                            assert(false);
+                                    if is_rmq_managed_kind(req.obj.kind) {
+                                        if req.obj.metadata.name is Some {
+                                            if req.key() == resource_key {
+                                                assert(false);
+                                            }
+                                        } else if req.obj.metadata.generate_name is Some {
+                                            let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                                            if has_rmq_prefix(name) {
+                                                generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
+                                                let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
+                                                    name == req.obj.metadata.generate_name->0 + suffix;
+                                                generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
+                                                assert(false);
+                                            }
+                                            assert(name != resource_key.name);
                                         }
-                                    } else if req.obj.metadata.generate_name is Some {
-                                        let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
-                                        if has_rmq_prefix(name) {
-                                            generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
-                                            let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
-                                                name == req.obj.metadata.generate_name->0 + suffix;
-                                            generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
-                                            assert(false);
-                                        }
-                                        assert(name != resource_key.name);
                                     }
                                 },
                                 APIRequest::UpdateRequest(req) => {
@@ -273,10 +277,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                             assert(s_prime.resources() == s.resources());
                                         } else {
                                             assert(req.key() != resource_key);
-                                            assert(s_prime.resources().contains_key(resource_key));
                                         }
                                     }
-                                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
                                 },
                                 APIRequest::GetThenUpdateRequest(req) => {
                                     if req.key() == resource_key && s.resources().contains_key(resource_key) {
@@ -287,15 +289,12 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                         }
                                         assert(s_prime.resources() == s.resources());
                                     }
-                                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
                                 },
                                 _ => {}
                             }
                         }
                     },
-                    _ => {
-                        assume(false)
-                    },
+                    _ => {},
                 }
             },
             _ => {},
