@@ -23,6 +23,7 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
+// TODO: merge with self-rely-guarantee
 pub open spec fn requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id: int, sub_resource: SubResource, cr_key: ObjectRef) -> StatePred<ClusterState> {
     let cr = RabbitmqClusterView {
         metadata: ObjectMetaView {
