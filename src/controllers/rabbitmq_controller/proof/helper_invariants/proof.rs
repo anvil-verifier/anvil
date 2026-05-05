@@ -217,28 +217,85 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     );
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        if s.resources().contains_key(resource_key) {
+            let etcd_obj = s.resources()[resource_key];
+            let owner_ref = choose |owner_reference: OwnerReferenceView| {
+                &&& etcd_obj.metadata.owner_references == Some(seq![owner_reference])
+                &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
+            };
+            let some_rmq = RabbitmqClusterView {
+                metadata: ObjectMetaView {
+                    name: Some(rabbitmq.metadata.name->0),
+                    uid: Some(owner_ref.uid),
+                    ..rabbitmq.metadata
+                },
+                ..rabbitmq
+            };
+            assert(etcd_obj.metadata.owner_references->0[0] == some_rmq.controller_owner_ref());
+            assert(etcd_obj.metadata.owner_references->0.contains(etcd_obj.metadata.owner_references->0[0]));
+            assert(etcd_obj.metadata.owner_references_contains(some_rmq.controller_owner_ref()));
+            assert(exists |rabbitmq: RabbitmqClusterView| #[trigger] etcd_obj.metadata.owner_references_contains(rabbitmq.controller_owner_ref()));
+        }
+        lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
-                match msg.content->APIRequest_0 {
-                    APIRequest::CreateRequest(req) => {
-                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
-                        if req.obj.metadata.name is Some {
-                            if resource_create_request_msg(resource_key)(msg) {} else {
-                                assert(s.resources().contains_key(resource_key) == s_prime.resources().contains_key(resource_key));
-                                assert(s.resources()[resource_key] == s_prime.resources()[resource_key]);
+                match msg.src {
+                    HostId::Controller(id, _) => {
+                        if id == controller_id {
+                            assert(rmq_guarantee(controller_id)(s));
+                        } else {
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
+                            assert(rmq_rely(id)(s));
+                            match msg.content->APIRequest_0 {
+                                APIRequest::CreateRequest(req) => {
+                                    if req.obj.metadata.name is Some {
+                                        if req.key() == resource_key {
+                                            assert(false);
+                                        }
+                                    } else if req.obj.metadata.generate_name is Some {
+                                        let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                                        if has_rmq_prefix(name) {
+                                            generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
+                                            let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
+                                                name == req.obj.metadata.generate_name->0 + suffix;
+                                            generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
+                                            assert(false);
+                                        }
+                                        assert(name != resource_key.name);
+                                    }
+                                },
+                                APIRequest::UpdateRequest(req) => {
+                                    if s.resources().contains_key(resource_key) {
+                                        if req.key() == resource_key {
+                                            assert(update_request_admission_check(cluster.installed_types, req, s.api_server) is Some);
+                                            assert(s_prime.resources() == s.resources());
+                                        } else {
+                                            assert(req.key() != resource_key);
+                                            assert(s_prime.resources().contains_key(resource_key));
+                                        }
+                                    }
+                                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                                },
+                                APIRequest::GetThenUpdateRequest(req) => {
+                                    if req.key() == resource_key && s.resources().contains_key(resource_key) {
+                                        let etcd_obj = s.resources()[resource_key];
+                                        let owner_refs = etcd_obj.metadata.owner_references->0;
+                                        if owner_refs.contains(req.owner_ref) {
+                                            lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
+                                        }
+                                        assert(s_prime.resources() == s.resources());
+                                    }
+                                    assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
+                                },
+                                _ => {}
                             }
-                        } else if req.obj.kind == resource_key.kind && req.namespace == resource_key.namespace {
-                            assert(req.obj.metadata.generate_name is None);
                         }
                     },
-                    APIRequest::GetThenUpdateRequest(req) => {
-                        if resource_get_then_update_request_msg(resource_key)(msg) {} else {
-                            assert(req.key() != resource_key);
-                        }
+                    _ => {
+                        assume(false)
                     },
-                    _ => {}
                 }
             },
             _ => {},
