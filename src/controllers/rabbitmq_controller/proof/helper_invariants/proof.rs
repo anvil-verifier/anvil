@@ -304,7 +304,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -331,6 +331,10 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
         msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()),
         msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref(),
+        exists |owner_reference: OwnerReferenceView| {
+            &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
+            &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
+        },
 {
     assert(step is ControllerStep);
     let (id, _, cr_key_opt) = step->ControllerStep_0;
@@ -341,26 +345,17 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         assert(false);
     }
     let cr_key = cr_key_opt->0;
+    let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr)->Ok_0;
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
     let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
     let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
-    match local_step_prime {
-        RabbitmqReconcileStep::AfterKRequestStep(action, res) => {
-            match action {
-                ActionKind::Update => {},
-                _ => {
-                    assert(!msg.content.is_get_then_update_request());
-                    assert(!resource_get_then_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
-                },
-            }
-        },
-        _ => {}
-    }
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
+    assert(msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
     // 1. lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key: eliminates the "wrong sub-resource"
     //    case for sub-resources sharing the same Kind (e.g., PluginsConfigMap vs ServerConfigMap).
     // 2. lemma_cr_name_neq_implies_resource_key_name_neq (contrapositive): if the resource key names
@@ -383,6 +378,8 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
             SubResource::Role => lemma_cr_name_neq_implies_resource_key_name_neq(cr_key.name, key.name, "-peer-discovery"@),
         }
     }
+    assert(cr_key == rabbitmq.object_ref());
+    assert(owner_reference_eq_without_uid(cr.controller_owner_ref(), rabbitmq.controller_owner_ref()));
 }
 
 #[verifier(spinoff_prover)]
