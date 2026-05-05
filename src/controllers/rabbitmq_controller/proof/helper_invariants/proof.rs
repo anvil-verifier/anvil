@@ -244,13 +244,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
-// create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles(controller_id)[key].triggering_cr.
-//
-// After the action, the controller stays at After(Create/Update, SubResource) step.
-//
-// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
-// TODO: deprecate
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(300))]
 pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
@@ -279,22 +272,12 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         Cluster::pending_req_msg_is(controller_id, s_prime, rabbitmq.object_ref(), msg),
         msg.src == HostId::Controller(controller_id, rabbitmq.object_ref()),
         msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref(),
-        // s.resources().contains_key(get_request(sub_resource, rabbitmq).key),
-        // update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap(), s.resources()[get_request(sub_resource, rabbitmq).key]) is Ok,
-        // msg.content.get_get_then_update_request().obj == update(sub_resource, rabbitmq, RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap(), s.resources()[get_request(sub_resource, rabbitmq).key])->Ok_0,
 {
-    // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
-    // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
-    // is possible by extra reasoning about the strings.
     assert(step is ControllerStep);
     let (id, _, cr_key_opt) = step->ControllerStep_0;
     if id != controller_id { // other controller, call rely condition to derive contradiction
         assert(cluster.controller_models.remove(controller_id).contains_key(id));
         assert(rmq_rely(id)(s_prime));
-        // resource_key is rabbitmq-managed and has rabbitmq prefix.
-        // rmq_rely_get_then_update_req: is_rmq_managed_kind && rmq_prefix
-        //   ==> owner_ref.controller == Some(true) ==> owner_ref.kind != RabbitmqClusterView::kind()
-        // We have controller == Some(true) and kind == RabbitmqClusterView::kind(). Contradiction.
         lemma_resource_key_has_rmq_prefix(sub_resource, rabbitmq);
         assert(false);
     }
@@ -319,8 +302,6 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         _ => {}
     }
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
-    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
-    // We use two helper lemmas:
     // 1. lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key: eliminates the "wrong sub-resource"
     //    case for sub-resources sharing the same Kind (e.g., PluginsConfigMap vs ServerConfigMap).
     // 2. lemma_cr_name_neq_implies_resource_key_name_neq (contrapositive): if the resource key names
@@ -934,6 +915,7 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep((id, _, cr_key_opt)) => {
+                        let req = msg.content.get_create_request();
                         if id == controller_id {
                             RabbitmqClusterView::marshal_preserves_integrity();
                             RabbitmqReconcileState::marshal_preserves_integrity();
@@ -943,13 +925,29 @@ pub proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbi
                             let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id, cluster, SubResource::VStatefulSetView, rabbitmq, s, s_prime, msg, step);
                             assert(cr.object_ref() == rabbitmq.object_ref());
-                            assert(msg.content.get_create_request().obj == make(SubResource::VStatefulSetView, cr, local_state)->Ok_0);
-                            assert(msg.content.get_create_request().obj.metadata.finalizers is None);
-                            assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
-                        } else {
+                            assert(req.obj == make(SubResource::VStatefulSetView, cr, local_state)->Ok_0);
+                            assert(req.obj.metadata.finalizers is None);
+                            assert(req.obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
+                        } else if is_rmq_managed_kind(req.obj.kind) {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(rmq_rely(id)(s_prime));
-                            assert(false);
+                            // id != controller_id: use rely.
+                            if req.obj.metadata.name is Some {
+                                if req.key() == sts_key {
+                                    lemma_resource_key_has_rmq_prefix(SubResource::VStatefulSetView, rabbitmq);
+                                    assert(false);
+                                }
+                            } else if req.obj.metadata.generate_name is Some {
+                                let name = generated_name(s.api_server, req.obj.metadata.generate_name->0);
+                                if has_rmq_prefix(name) {
+                                    generated_name_spec(s.api_server, req.obj.metadata.generate_name->0);
+                                    let generated_suffix = choose |suffix: StringView| #[trigger] dash_free(suffix) &&
+                                        name == req.obj.metadata.generate_name->0 + suffix;
+                                    generated_name_reflects_prefix(s.api_server, req.obj.metadata.generate_name->0, RabbitmqClusterView::kind()->CustomResourceKind_0);
+                                    assert(false);
+                                }
+                                assert(name != sts_key.name);
+                            }
                         }
                     },
                     _ => {}
