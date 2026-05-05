@@ -43,7 +43,7 @@ pub open spec fn requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_c
                 &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
             }
             &&& resource_get_then_update_request_msg(resource_key)(msg) ==> exists |owner_reference: OwnerReferenceView| {
-                &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
                 &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
             }
         }
