@@ -15,7 +15,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::kubernetes_cluster::proof::api_server::*;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::rabbitmq_controller::{
-    model::resource::*,
+    model::{resource::*, reconciler::*},
     proof::{
         predicate::*, resource::*, helper_lemmas::*, guarantee::*,
     },
@@ -168,7 +168,8 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     let resource_key = get_request(sub_resource, rabbitmq).key;
     // lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(controller_id, cluster, spec, sub_resource, rabbitmq);
     guarantee_condition_holds(spec, cluster, controller_id);
-    lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, cluster, spec, sub_resource, rabbitmq.object_ref());
+    lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, cluster, controller_id, sub_resource, rabbitmq.object_ref());
+    lemma_always_rmq_self_rely_guarantee(spec, cluster, controller_id, rabbitmq.object_ref());
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_no_pending_request_to_api_server_from_api_server_or_external(spec);
     cluster.lemma_always_all_requests_from_pod_monkey_are_api_pod_requests(spec);
@@ -189,6 +190,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         &&& rmq_guarantee(controller_id)(s_prime)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
+        &&& rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())(s)
         &&& requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, sub_resource, rabbitmq.object_ref())(s)
         &&& Cluster::no_pending_request_to_api_server_from_api_server_or_external()(s)
         &&& Cluster::all_requests_from_pod_monkey_are_api_pod_requests()(s)
@@ -207,6 +209,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         later(lift_state(rmq_guarantee(controller_id))),
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         later(lift_state(rmq_rely_conditions(cluster, controller_id))),
+        lift_state(rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())),
         lift_state(requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, sub_resource, rabbitmq.object_ref())),
         lift_state(Cluster::no_pending_request_to_api_server_from_api_server_or_external()),
         lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()),
@@ -245,19 +248,57 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 match msg.src {
-                    HostId::Controller(id, _) => {
+                    HostId::Controller(id, cr_key) => {
                         if id == controller_id {
-                            if resource_create_request_msg(resource_key)(msg) {
-                                assert(exists |owner_reference: OwnerReferenceView| {
-                                    &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
-                                    &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
-                                });
-                            }
-                            if resource_get_then_update_request_msg(resource_key)(msg) {
-                                assert(exists |owner_reference: OwnerReferenceView| {
-                                    &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
-                                    &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
-                                });
+                            if cr_key == rabbitmq.object_ref() {
+                                let cr = RabbitmqClusterView {
+                                    metadata: ObjectMetaView {
+                                        name: Some(cr_key.name),
+                                        namespace: Some(cr_key.namespace),
+                                        ..ObjectMetaView::default()
+                                    },
+                                    ..RabbitmqClusterView::default()
+                                };
+                                assert(resource_key == get_request(sub_resource, cr).key);
+                                assert(owner_reference_eq_without_uid(rabbitmq.controller_owner_ref(), cr.controller_owner_ref()));
+                                if resource_create_request_msg(resource_key)(msg) {
+                                    assert(exists |owner_reference: OwnerReferenceView| {
+                                        &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                                        &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
+                                    });
+                                    let owner_ref = choose |owner_reference: OwnerReferenceView| {
+                                        &&& msg.content.get_create_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                                        &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
+                                    };
+                                    let req_obj_owner_ref = msg.content.get_create_request().obj.metadata.owner_references->0[0];
+                                    assert(owner_reference_eq_without_uid(req_obj_owner_ref, owner_ref));
+                                    assert(owner_reference_eq_without_uid(req_obj_owner_ref, rabbitmq.controller_owner_ref()));
+                                }
+                                if resource_get_then_update_request_msg(resource_key)(msg) {
+                                    assert(exists |owner_reference: OwnerReferenceView| {
+                                        &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                                        &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
+                                    });
+                                    let owner_ref = choose |owner_reference: OwnerReferenceView| {
+                                        &&& msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![owner_reference])
+                                        &&& #[trigger] owner_reference_eq_without_uid(owner_reference, cr.controller_owner_ref())
+                                    };
+                                    let req_obj_owner_ref = msg.content.get_get_then_update_request().obj.metadata.owner_references->0[0];
+                                    assert(owner_reference_eq_without_uid(req_obj_owner_ref, owner_ref));
+                                    assert(owner_reference_eq_without_uid(req_obj_owner_ref, rabbitmq.controller_owner_ref()));
+                                }
+                            } else {
+                                assert(rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())(s));
+                                assert(s.in_flight().contains(msg));
+                                assert(resource_key == make_resource_key(rabbitmq.object_ref(), sub_resource));
+                                if msg.content.is_create_request() {
+                                    let req = msg.content.get_create_request();
+                                    assert(req.key() != resource_key);
+                                }
+                                if msg.content.is_get_then_update_request() {
+                                    let req = msg.content.get_get_then_update_request();
+                                    assert(req.key() != resource_key);
+                                }
                             }
                         } else {
                             assert(cluster.controller_models.remove(controller_id).contains_key(id));
@@ -485,7 +526,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 proof fn lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
-    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, cr_key: ObjectRef
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, sub_resource: SubResource, cr_key: ObjectRef
 )
     requires
         spec.entails(lift_state(cluster.init())),
@@ -1298,6 +1339,246 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
     );
     leads_to_weaken(spec, true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
         true_pred(), always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req))));
+}
+
+// Mirrors lemma_guarantee_from_reconcile_state but extracts the *request key*
+// for Create / GetThenUpdate requests. Given that `msg` was just produced by
+// `reconcile_core(rabbitmq, resp_o, state)` for some triggering CR `rabbitmq`, this
+// lemma proves the request key is `make_resource_key(rabbitmq.object_ref(), sub)`
+// for some `sub`, then applies `lemma_diff_cr_key_implies_resource_key_neq`
+// to conclude disjointness from any `make_resource_key(cr_key, sub')` when
+// `rabbitmq.object_ref() != cr_key`.
+//
+// Used by the inductive step of `lemma_always_rmq_self_rely_guarantee`.
+proof fn lemma_self_rely_guarantee_from_reconcile_state(
+    msg: Message,
+    state: RabbitmqReconcileState,
+    rabbitmq: RabbitmqClusterView,
+    resp_o: Option<ResponseView<VoidERespView>>,
+    cr_key: ObjectRef,
+)
+    requires
+        msg.content is APIRequest,
+        reconcile_core(rabbitmq, resp_o, state).1 is Some,
+        reconcile_core(rabbitmq, resp_o, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(rabbitmq, resp_o, state).1->0->KRequest_0,
+        rabbitmq.object_ref() != cr_key,
+        cr_key.kind == RabbitmqClusterView::kind(),
+        rabbitmq.metadata.name is Some,
+        rabbitmq.metadata.namespace is Some,
+    ensures
+        match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) => rmq_self_rely_guarantee_create_req(req, cr_key),
+            APIRequest::GetThenUpdateRequest(req) => rmq_self_rely_guarantee_get_then_update_req(req, cr_key),
+            _ => true,
+        }
+{
+    // Mirror the case structure of lemma_guarantee_from_reconcile_state.
+    match state.reconcile_step {
+        RabbitmqReconcileStep::Init => {
+            // Init sends a GetRequest, no constraint to discharge.
+            assert(msg.content.is_get_request());
+        },
+        RabbitmqReconcileStep::AfterKRequestStep(action, resource) => {
+            match action {
+                ActionKind::Get => {
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetResponse {
+                        let get_resp = resp_o->0->KResponse_0->GetResponse_0.res;
+                        if get_resp is Ok {
+                            // GetThenUpdateRequest case.
+                            assert(msg.content.is_get_then_update_request());
+                            let req = msg.content.get_get_then_update_request();
+                            // The model sets:
+                            //   req.namespace == rabbitmq.metadata.namespace->0
+                            //   req.name == get_request(resource, rabbitmq).key.name
+                            //   req.obj == update(resource, rabbitmq, state, get_resp->Ok_0)->Ok_0
+                            // get_request(resource, rabbitmq).key == make_resource_key(rabbitmq.object_ref(), resource).
+                            // marshal_preserves_integrity for the typed view of `resource` lets Verus see
+                            // that req.obj.kind matches make_resource_key(rabbitmq.object_ref(), resource).kind.
+                            assert(req.key() == make_resource_key(rabbitmq.object_ref(), resource)) by {
+                                match resource {
+                                    SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+                                    SubResource::Service => ServiceView::marshal_preserves_integrity(),
+                                    SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+                                    SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+                                    SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                                    SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                                    SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+                                    SubResource::Role => RoleView::marshal_preserves_integrity(),
+                                    SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+                                    SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+                                }
+                            }
+                            assert forall |sub: SubResource|
+                                req.key() != #[trigger] make_resource_key(cr_key, sub) by {
+                                lemma_diff_cr_key_implies_resource_key_neq(rabbitmq.object_ref(), cr_key, resource, sub);
+                            }
+                        } else if get_resp->Err_0 is ObjectNotFound {
+                            // CreateRequest case.
+                            assert(msg.content.is_create_request());
+                            let req = msg.content.get_create_request();
+                            assert(req.key() == make_resource_key(rabbitmq.object_ref(), resource)) by {
+                                match resource {
+                                    SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+                                    SubResource::Service => ServiceView::marshal_preserves_integrity(),
+                                    SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+                                    SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+                                    SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                                    SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+                                    SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+                                    SubResource::Role => RoleView::marshal_preserves_integrity(),
+                                    SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+                                    SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+                                }
+                            }
+                            assert forall |sub: SubResource|
+                                req.key() != #[trigger] make_resource_key(cr_key, sub) by {
+                                lemma_diff_cr_key_implies_resource_key_neq(rabbitmq.object_ref(), cr_key, resource, sub);
+                            }
+                        } else {
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+                        }
+                    } else {
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+                    }
+                },
+                ActionKind::Create => {
+                    // Sends GetRequest for next sub-resource; no constraint to discharge.
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is CreateResponse {
+                        let create_resp = resp_o->0->KResponse_0->CreateResponse_0.res;
+                        if create_resp is Ok {
+                            assert(msg.content.is_get_request());
+                        } else {
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+                        }
+                    } else {
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+                    }
+                },
+                ActionKind::Update => {
+                    // Sends GetRequest for next sub-resource; no constraint to discharge.
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetThenUpdateResponse {
+                        let update_resp = resp_o->0->KResponse_0->GetThenUpdateResponse_0.res;
+                        if update_resp is Ok {
+                            assert(msg.content.is_get_request());
+                        } else {
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+                        }
+                    } else {
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+                    }
+                },
+            }
+        },
+        _ => {
+            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
+        }
+    }
+}
+
+// Always-invariant lift of `rmq_self_rely_guarantee(controller_id, cr_key)`. Mirrors
+// `guarantee_condition_holds` but uses `lemma_self_rely_guarantee_from_reconcile_state`
+// for the inductive step, which yields the disjointness of the just-emitted request key
+// from any sub-resource key of `cr_key`.
+#[verifier(spinoff_prover)]
+pub proof fn lemma_always_rmq_self_rely_guarantee(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, cr_key: ObjectRef,
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        cr_key.kind == RabbitmqClusterView::kind(),
+    ensures
+        spec.entails(always(lift_state(rmq_self_rely_guarantee(controller_id, cr_key)))),
+{
+    let invariant = rmq_self_rely_guarantee(controller_id, cr_key);
+
+    cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
+
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)(s)
+    };
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id))
+    );
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        RabbitmqClusterView::marshal_preserves_integrity();
+        RabbitmqClusterView::marshal_preserves_metadata();
+        RabbitmqReconcileState::marshal_preserves_integrity();
+
+        assert forall |msg| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+            &&& msg.src != HostId::Controller(controller_id, cr_key)
+        } implies match msg.content->APIRequest_0 {
+            APIRequest::CreateRequest(req) => rmq_self_rely_guarantee_create_req(req, cr_key),
+            APIRequest::GetThenUpdateRequest(req) => rmq_self_rely_guarantee_get_then_update_req(req, cr_key),
+            _ => true,
+        } by {
+            if s.in_flight().contains(msg) {} // hint: instantiates invariant trigger
+
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            match step {
+                Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+                    if id == controller_id && new_msgs.contains(msg) {
+                        let other_cr_key = cr_key_opt->0;
+                        // The controller emits messages with src == Controller(controller_id, scheduled_cr_key).
+                        assert(msg.src == HostId::Controller(controller_id, other_cr_key));
+                        assert(other_cr_key != cr_key);
+
+                        let triggering_cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[other_cr_key].triggering_cr).unwrap();
+                        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[other_cr_key].local_state).unwrap();
+                        let resp_o: Option<ResponseView<VoidERespView>> = if resp_msg_opt is Some {
+                            if resp_msg_opt->0.content is APIResponse {
+                                Some(ResponseView::KResponse(resp_msg_opt->0.content->APIResponse_0))
+                            } else {
+                                // RMQ controller has no external model.
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        assert(msg.content->APIRequest_0 == reconcile_core(triggering_cr, resp_o, local_state).1->0->KRequest_0);
+
+                        // Bridge: each_object_in_reconcile_has_consistent_key_and_valid_metadata gives
+                        //   triggering_cr_dyn.object_ref() == other_cr_key
+                        //   triggering_cr_dyn.metadata.well_formed_for_namespaced()
+                        // marshal_preserves_metadata bridges these to the unmarshalled rabbitmq view.
+                        assert(triggering_cr.object_ref() != cr_key);
+                        assert(triggering_cr.metadata.name is Some);
+                        assert(triggering_cr.metadata.namespace is Some);
+
+                        lemma_self_rely_guarantee_from_reconcile_state(msg, local_state, triggering_cr, resp_o, cr_key);
+                    }
+                },
+                _ => {}
+            }
+        }
+    }
+
+    init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
 }
