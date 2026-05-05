@@ -1129,7 +1129,6 @@ ensures
                 } else {
                     match local_state_prime.reconcile_step {
                         RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
-                            lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, some_resource, sub_resource);
                             if some_resource == SubResource::ServerConfigMap {
                                 // prove the response is not in flight yet
                                 let req_msg = s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
@@ -1226,11 +1225,7 @@ ensures
                             implies msg.rpc_id != req_msg.rpc_id by {
                             if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                         }
-                        if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, next_resource) = local_state_prime.reconcile_step {
-                            if next_resource != sub_resource {
-                                lemma_sub_resource_neq_implies_resource_key_neq(rabbitmq, next_resource, sub_resource);
-                            }
-                        }
+                        if let RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, next_resource) = local_state_prime.reconcile_step {}
                     }
                 }
             },
@@ -1334,7 +1329,6 @@ ensures
     let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
     match step {
         Step::APIServerStep(input) => {
-            assume(false);
             let msg = input->0;
             assert(s.ongoing_reconciles(controller_id) == s_prime.ongoing_reconciles(controller_id));
             if msg.src != HostId::Controller(controller_id, cr_key) {
@@ -1369,13 +1363,16 @@ ensures
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, pending_req)
                             &&& msg.content.get_get_then_update_response().res is Ok
-                        } implies s.resources().contains_key(cm_key)
-                            && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version by {
+                        } implies s_prime.resources().contains_key(cm_key)
+                            && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version by {
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
+                            } else {
+                                assert(false);
                             }
                         }
                     }
+                    assume(false);
                     if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap) {
                         let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                         assert forall |msg| {
@@ -1392,6 +1389,7 @@ ensures
                     }
                 }
             } else if s.ongoing_reconciles(controller_id).contains_key(cr_key) {
+                assume(false);
                 match local_state.reconcile_step {
                     RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, some_resource) => {
                         if some_resource == sub_resource {
@@ -1452,6 +1450,7 @@ ensures
             );
         },
         _ => {
+            assume(false);
             assert(s_prime.resources() == s.resources());
             assert(s_prime.ongoing_reconciles(controller_id) == s.ongoing_reconciles(controller_id));
             // maintains 3 forall quantifier

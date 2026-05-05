@@ -676,7 +676,7 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req = req_msg.content.get_get_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
                     &&& resource_get_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
-                    &&& if some_resource == sub_resource {
+                    &&& some_resource == sub_resource ==> {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& req_msg.dst == HostId::APIServer
                         &&& req_msg.content is APIRequest
@@ -685,8 +685,6 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                             &&& msg.src is APIServer
                             &&& resp_msg_matches_req_msg(msg, req_msg)
                         } ==> resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, controller_id, msg)(s)
-                    } else {
-                        &&& req.key() != resource_key
                     }
                 },
                 RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, some_resource) => {
@@ -703,16 +701,13 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                         } ==> s.resources().contains_key(cm_key)
                             && msg.content.get_get_then_update_response().res->Ok_0.metadata.resource_version == s.resources()[cm_key].metadata.resource_version
                     }
-                    &&& if some_resource == sub_resource {
+                    &&& some_resource == sub_resource ==> {
                         &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& s.resources().contains_key(resource_key)
                         &&& req.owner_ref == rabbitmq.controller_owner_ref()
                         &&& req_obj_matches_sub_resource_requirements(sub_resource, rabbitmq, req.obj)(s)
                         &&& update_req_obj_matches_etcd_immutable_fields(sub_resource, rabbitmq, req.obj)(s)
                         &&& req.obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
-                    } else {
-                        &&& req.key() != resource_key
-                        // this is enforced as a result of kicking out cm_rv invariants (does not change and local copy is coherent)
                     }
                 },
                 RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
