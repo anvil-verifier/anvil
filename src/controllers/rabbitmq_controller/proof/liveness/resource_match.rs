@@ -195,11 +195,27 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             let s = ex.head();
             let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
             let key = get_request(sub_resource, rabbitmq).key;
-            let resp_msg = choose |resp_msg| {
+            let resp_msg = choose |resp_msg: Message| {
+                let obj = resp_msg.content.get_get_response().res->Ok_0;
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                 &&& resp_msg.content.get_get_response().res is Ok
-                &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
+                &&& match sub_resource {
+                    SubResource::ServerConfigMap | SubResource::PluginsConfigMap => obj == s.resources()[key],
+                    _ => {
+                        &&& obj.spec == s.resources()[key].spec
+                        &&& obj.metadata.without_resource_version() == s.resources()[key].metadata.without_resource_version()
+                    }
+                }
+                &&& match sub_resource {
+                    SubResource::HeadlessService | SubResource::Service => ServiceView::unmarshal(obj) is Ok,
+                    SubResource::ErlangCookieSecret | SubResource::DefaultUserSecret => SecretView::unmarshal(obj) is Ok,
+                    SubResource::PluginsConfigMap | SubResource::ServerConfigMap => ConfigMapView::unmarshal(obj) is Ok,
+                    SubResource::ServiceAccount => ServiceAccountView::unmarshal(obj) is Ok,
+                    SubResource::Role => RoleView::unmarshal(obj) is Ok,
+                    SubResource::RoleBinding => RoleBindingView::unmarshal(obj) is Ok,
+                    SubResource::VStatefulSetView => VStatefulSetView::unmarshal(obj) is Ok,
+                }
             };
             assert((|msg| ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
         }
@@ -285,11 +301,14 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                 let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
                 let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
-                let resp_msg = choose |resp_msg| {
+                let key = get_request(sub_resource, rabbitmq).key;
+                let resp_msg = choose |resp_msg: Message| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     &&& resp_msg.content.get_create_response().res is Ok
                     &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok
+                    &&& sub_resource == SubResource::ServerConfigMap ==>
+                        s.resources().contains_key(key) && resp_msg.content.get_create_response().res->Ok_0 == s.resources()[key]
                 };
                 assert((|msg| create_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
             }
@@ -340,11 +359,14 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                 let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
                 let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
-                let resp_msg = choose |resp_msg| {
+                let key = get_request(sub_resource, rabbitmq).key;
+                let resp_msg = choose |resp_msg: Message| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     &&& resp_msg.content.get_get_then_update_response().res is Ok
                     &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
+                    &&& sub_resource == SubResource::ServerConfigMap ==>
+                        s.resources().contains_key(key) && resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[key]
                 };
                 assert((|msg| update_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
             }

@@ -252,6 +252,15 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
                     &&& obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
                 }
             }
+            &&& match sub_resource {
+                SubResource::HeadlessService | SubResource::Service => ServiceView::unmarshal(obj) is Ok,
+                SubResource::ErlangCookieSecret | SubResource::DefaultUserSecret => SecretView::unmarshal(obj) is Ok,
+                SubResource::PluginsConfigMap | SubResource::ServerConfigMap => ConfigMapView::unmarshal(obj) is Ok,
+                SubResource::ServiceAccount => ServiceAccountView::unmarshal(obj) is Ok,
+                SubResource::Role => RoleView::unmarshal(obj) is Ok,
+                SubResource::RoleBinding => RoleBindingView::unmarshal(obj) is Ok,
+                SubResource::VStatefulSetView => VStatefulSetView::unmarshal(obj) is Ok,
+            }
         }
     }
 }
