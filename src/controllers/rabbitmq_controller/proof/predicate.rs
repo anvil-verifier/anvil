@@ -675,10 +675,10 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     let req = req_msg.content.get_get_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
+                    &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                     &&& resource_get_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
                     // get request can get ok response and corresponding key exists
                     &&& some_resource == sub_resource ==> {
-                        &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                         &&& req_msg.dst == HostId::APIServer
                         &&& req_msg.content is APIRequest
                         &&& forall |msg| {
@@ -693,6 +693,7 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     let req = req_msg.content.get_get_then_update_request();
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
+                    &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                     &&& resource_get_then_update_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
                     // if update cm receives ok response, the rv in response matches etcd and cm exists
                     &&& some_resource == SubResource::ServerConfigMap ==> {
@@ -718,6 +719,7 @@ pub open spec fn inductive_current_state_matches(rabbitmq: RabbitmqClusterView, 
                 RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, some_resource) => {
                     let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
                     &&& s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg is Some
+                    &&& req_msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
                     &&& resource_create_request_msg(get_request(some_resource, rabbitmq).key)(req_msg)
                     // if create cm receives ok response, the rv in response matches etcd and cm exists
                     &&& some_resource == SubResource::ServerConfigMap ==> forall |msg| {

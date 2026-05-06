@@ -1356,6 +1356,7 @@ ensures
                     }
                     if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap) {
                         let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                        assert(pending_req.src == HostId::Controller(controller_id, cr_key));
                         assert forall |msg| {
                             &&& #[trigger] s_prime.in_flight().contains(msg)
                             &&& msg.src is APIServer
@@ -1366,14 +1367,14 @@ ensures
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
                             } else {
-                                assert(false) by {
-                                    assume(false); // cr name different or different controller
-                                }
+                                assert(resp_msg_matches_req_msg(msg, input->0));
+                                assert(false); // violates resp_msg_matches_req_msg
                             }
                         }
                     }
                     if local_state.reconcile_step == RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap) {
                         let pending_req = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+                        assert(pending_req.src == HostId::Controller(controller_id, cr_key));
                         assert forall |msg| {
                             &&& #[trigger] s_prime.in_flight().contains(msg)
                             &&& msg.src is APIServer
@@ -1384,9 +1385,8 @@ ensures
                             if !new_msgs.contains(msg) {
                                 assert(s.in_flight().contains(msg));
                             } else {
-                                assert(false) by {
-                                    assume(false); // cr name different or different controller
-                                }
+                                assert(resp_msg_matches_req_msg(msg, input->0));
+                                assert(false); // violates resp_msg_matches_req_msg
                             }
                         }
                     }
@@ -1474,7 +1474,6 @@ ensures
             );
         },
         _ => {
-            assume(false);
             assert(s_prime.resources() == s.resources());
             assert(s_prime.ongoing_reconciles(controller_id) == s.ongoing_reconciles(controller_id));
             // maintains 3 forall quantifier
