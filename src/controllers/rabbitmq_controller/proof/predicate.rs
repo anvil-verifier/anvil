@@ -83,15 +83,14 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, c
     |s: ClusterState| {
         let key = rabbitmq.object_ref();
         let triggering_cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
-        let local_state = s.ongoing_reconciles(controller_id)[key].local_state;
-        let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
         &&& s.ongoing_reconciles(controller_id).contains_key(key)
         &&& RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).is_ok()
-        &&& RabbitmqReconcileState::unmarshal(local_state).is_ok()
+        &&& RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).is_ok()
         &&& triggering_cr.object_ref() == rabbitmq.object_ref()
         &&& triggering_cr.spec() == rabbitmq.spec()
         &&& triggering_cr.metadata().uid == rabbitmq.metadata().uid
-        &&& unmarshalled_state.reconcile_step == step
+        &&& local_state.reconcile_step == step
         // as the result of kicking out cm rv invariants
         &&& match step {
             RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
@@ -99,7 +98,7 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, c
                     let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
                     &&& s.resources().contains_key(cm_key)
                     &&& s.resources()[cm_key].metadata.resource_version is Some
-                    &&& unmarshalled_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
+                    &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
                 }
             },
             _ => true,
@@ -257,7 +256,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         let step = after_get_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
-        let key = get_request(sub_resource, rabbitmq).key;
+        let resource_key = get_request(sub_resource, rabbitmq).key;
+        let obj = resp_msg.content.get_get_response().res->Ok_0;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
@@ -265,17 +265,26 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         &&& msg.content is APIRequest
         &&& request is GetRequest
         &&& request->GetRequest_0 == get_request(sub_resource, rabbitmq)
-        &&& s.resources().contains_key(key)
+        &&& s.resources().contains_key(resource_key)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_get_response().res is Ok
         &&& match sub_resource {
             // to prove cm resource version does not change, rely conditions prevent status update request to this kind
-            SubResource::ServerConfigMap | SubResource::PluginsConfigMap => resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key],
+            SubResource::ServerConfigMap | SubResource::PluginsConfigMap => obj == s.resources()[resource_key],
             _ => {
-                &&& resp_msg.content.get_get_response().res->Ok_0.spec == s.resources()[key].spec
-                &&& resp_msg.content.get_get_response().res->Ok_0.metadata.without_resource_version() == s.resources()[key].metadata.without_resource_version()
+                &&& obj.spec == s.resources()[resource_key].spec
+                &&& obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
             }
+        }
+        &&& match sub_resource {
+            SubResource::HeadlessService | SubResource::Service => ServiceView::unmarshal(obj) is Ok,
+            SubResource::ErlangCookieSecret | SubResource::DefaultUserSecret => SecretView::unmarshal(obj) is Ok,
+            SubResource::PluginsConfigMap | SubResource::ServerConfigMap => ConfigMapView::unmarshal(obj) is Ok,
+            SubResource::ServiceAccount => ServiceAccountView::unmarshal(obj) is Ok,
+            SubResource::Role => RoleView::unmarshal(obj) is Ok,
+            SubResource::RoleBinding => RoleBindingView::unmarshal(obj) is Ok,
+            SubResource::VStatefulSetView => VStatefulSetView::unmarshal(obj) is Ok,
         }
     }
 }
@@ -498,13 +507,13 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         let step = after_create_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
-        let key = get_request(sub_resource, rabbitmq).key;
+        let resource_key = get_request(sub_resource, rabbitmq).key;
         let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
         let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
-        &&& resource_create_request_msg(key)(msg)
+        &&& resource_create_request_msg(resource_key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_create_response().res is Ok

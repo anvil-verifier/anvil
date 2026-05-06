@@ -731,7 +731,8 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     );
 }
 
-#[verifier(rlimit(200))]
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message,
     s: ClusterState, s_prime: ClusterState
@@ -739,6 +740,7 @@ pub proof fn lemma_from_after_get_resource_step_to_after_update_resource_step_by
 requires
     cluster.next_step(s, s_prime, Step::ControllerStep((controller_id, Some(resp_msg), Some(rabbitmq.object_ref())))),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -769,7 +771,6 @@ ensures
     if sub_resource == SubResource::VStatefulSetView {
         let cm_key = make_server_config_map_key(rabbitmq);
         let cm_obj = s.resources()[cm_key];
-        assert(returned_obj == s.resources()[returned_obj.object_ref()]);
         let found_sts = VStatefulSetView::unmarshal(returned_obj).unwrap();
         let updated_sts = update_sts_pass_state_validation(rabbitmq, found_sts, int_to_string_view(cm_obj.metadata.resource_version->0));
         let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
