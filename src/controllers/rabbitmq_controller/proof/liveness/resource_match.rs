@@ -1002,6 +1002,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+    sub_resource_needs_cm_rv(sub_resource) ==> // additionally requires cm_rv tracking
+        spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)))),
     spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -1020,14 +1022,25 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
-    );
+    if !sub_resource_needs_cm_rv(sub_resource) {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    } else {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    }
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
@@ -1036,6 +1049,11 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                     s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
                 );
+                if sub_resource_needs_cm_rv(sub_resource) {
+                    lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                        s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, input->0
+                    );
+                }
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.2 == Some(key) {

@@ -610,7 +610,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
             &&& resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_get_then_update_response().res is Ok
             &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
-            &&& sub_resource == SubResource::ServerConfigMap ==>
+            &&& sub_resource == SubResource::ServerConfigMap ==> s.resources().contains_key(resource_key) &&
                 resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[resource_key]
         }
     }
@@ -634,7 +634,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_get_then_update_response().res is Ok
         &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
-        &&& sub_resource == SubResource::ServerConfigMap ==>
+        &&& sub_resource == SubResource::ServerConfigMap ==> s.resources().contains_key(resource_key) &&
             resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[resource_key]
     }
 }
