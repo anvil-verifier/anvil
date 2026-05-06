@@ -62,10 +62,9 @@ pub open spec fn at_rabbitmq_step(key: ObjectRef, controller_id: int, step: Rabb
         key.kind is CustomResourceKind
 {
     |s: ClusterState| {
-        let local_state = s.ongoing_reconciles(controller_id)[key].local_state;
-        let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
         &&& s.ongoing_reconciles(controller_id).contains_key(key)
-        &&& unmarshalled_state.reconcile_step == step
+        &&& local_state.reconcile_step == step
     }
 }
 
@@ -493,8 +492,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
         let resource_key = get_request(sub_resource, rabbitmq).key;
-        let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
-        let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
@@ -503,7 +501,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_create_response().res is Ok
-            &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok
+            &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, local_state) is Ok
             &&& sub_resource == SubResource::ServerConfigMap ==>
                 s.resources().contains_key(resource_key) && resp_msg.content.get_create_response().res->Ok_0 == s.resources()[resource_key]
         }
@@ -518,8 +516,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
         let resource_key = get_request(sub_resource, rabbitmq).key;
-        let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
-        let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
@@ -527,7 +524,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_create_response().res is Ok
-        &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok
+        &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, local_state) is Ok
         &&& sub_resource == SubResource::ServerConfigMap ==>
             s.resources().contains_key(resource_key) && resp_msg.content.get_create_response().res->Ok_0 == s.resources()[resource_key]
     }
@@ -599,8 +596,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
         let resource_key = get_request(sub_resource, rabbitmq).key;
-        let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
-        let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
@@ -609,7 +605,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_get_then_update_response().res is Ok
-            &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
+            &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, local_state) is Ok
             &&& sub_resource == SubResource::ServerConfigMap ==> s.resources().contains_key(resource_key) &&
                 resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[resource_key]
         }
@@ -624,8 +620,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
         let resource_key = get_request(sub_resource, rabbitmq).key;
-        let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
-        let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+        let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state).unwrap();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
@@ -633,7 +628,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_get_then_update_response().res is Ok
-        &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
+        &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, local_state) is Ok
         &&& sub_resource == SubResource::ServerConfigMap ==> s.resources().contains_key(resource_key) &&
             resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[resource_key]
     }

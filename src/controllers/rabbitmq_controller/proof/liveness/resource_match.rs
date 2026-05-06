@@ -909,7 +909,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
+#[verifier(rlimit(100))]
 proof fn lemma_resource_state_matches_at_after_update_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
@@ -938,14 +938,17 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime)
         &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
     if !sub_resource_needs_cm_rv(sub_resource) {
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            later(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))),
             lift_state(rmq_rely_conditions(cluster, controller_id))
         );
     } else {
@@ -953,6 +956,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
             spec, lift_action(stronger_next),
             lift_action(cluster.next()),
             lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            later(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))),
             lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
             lift_state(rmq_rely_conditions(cluster, controller_id))
         );
@@ -974,7 +978,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
                 if input->0 != req_msg {
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0);
                     if sub_resource_needs_cm_rv(sub_resource) {
-                        assert(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s));
                         lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, input->0);
                     }
                 } else {
