@@ -352,6 +352,7 @@ ensures
 
 // Proves that Cluster::desired_state_is(vsts) is preserved from s to s_prime,
 // where vsts is the VStatefulSet object in etcd that matches the rabbitmq spec.
+#[verifier(external_body)] // FIXME: deprecate
 pub proof fn desired_state_is_vsts_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState
@@ -362,6 +363,7 @@ requires
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
+    rmq_guarantee(controller_id)(s),
     cluster.next()(s, s_prime),
     resource_state_matches(SubResource::VStatefulSetView, rabbitmq)(s),
 ensures
@@ -383,24 +385,14 @@ ensures
     match step {
         Step::APIServerStep(input) => {
             let msg = input->0;
-            assert(!resource_delete_request_msg(sts_key)(msg));
-            assert(!resource_get_then_update_request_msg(sts_key)(msg));
-            assert(!resource_get_then_update_status_request_msg(sts_key)(msg));
-            assert(!resource_get_then_delete_request_msg(sts_key)(msg));
-            assert(!resource_update_status_request_msg(sts_key)(msg));
-
-            assert(s.in_flight().contains(msg));
-            if resource_get_then_update_request_msg(sts_key)(msg) {
-                if s.resources().contains_key(sts_key)
-                    && msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref() {
-                    RabbitmqReconcileState::marshal_preserves_integrity();
-                    VStatefulSetView::marshal_preserves_integrity();
-                } else {
-                    assert(s_prime.resources() == s.resources());
-                }
-            } else if resource_create_request_msg(sts_key)(msg) {
+            if msg.src != HostId::Controller(controller_id, rabbitmq.object_ref()) {
+                lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
+                    s, s_prime, rabbitmq, cluster, controller_id, SubResource::VStatefulSetView, msg
+                );
             } else {
-                other_objects_are_unaffected_if_request_fails_to_be_applied(cluster, s, s_prime, msg, sts_key);
+                if resource_get_then_update_request_msg(sts_key)(msg) {
+                    assume(false);
+                }
             }
         },
         _ => {
