@@ -231,7 +231,7 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
         let step = after_get_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content->APIRequest_0;
-        let key = get_request(sub_resource, rabbitmq).key;
+        let resource_key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, rabbitmq.object_ref())
         &&& msg.src == HostId::Controller(controller_id, rabbitmq.object_ref())
@@ -239,12 +239,20 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
         &&& msg.content is APIRequest
         &&& request is GetRequest
         &&& request->GetRequest_0 == get_request(sub_resource, rabbitmq)
-        &&& s.resources().contains_key(key)
+        &&& s.resources().contains_key(resource_key)
         &&& exists |resp_msg: Message| {
+            let obj = resp_msg.content.get_get_response().res->Ok_0;
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_get_response().res is Ok
-            &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
+            &&& match sub_resource {
+                // to prove cm resource version does not change, rely conditions prevent status update request to this kind
+                SubResource::ServerConfigMap | SubResource::PluginsConfigMap => obj == s.resources()[resource_key],
+                _ => {
+                    &&& obj.spec == s.resources()[resource_key].spec
+                    &&& obj.metadata.without_resource_version() == s.resources()[resource_key].metadata.without_resource_version()
+                }
+            }
         }
     }
 }

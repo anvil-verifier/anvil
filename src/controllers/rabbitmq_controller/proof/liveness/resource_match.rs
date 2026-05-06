@@ -8,8 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::kubernetes_cluster::spec::{
     api_server::{types::APIServerStep, state_machine::*},
-    builtin_controllers::types::BuiltinControllerChoice,
-    cluster::*,
+    builtin_controllers::types::BuiltinControllerChoice, cluster::*,
     controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -34,8 +33,7 @@ verus! {
 // The proof contains two part: resource_key exists or does not exist at first. The proof of both parts contains several times of applying
 // wf1, handle_get_request => continue_reconcile => handle_create/update_request => continue_reconcile.
 pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, sub_resource: SubResource, next_resource: SubResource
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, sub_resource: SubResource, next_resource: SubResource
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -377,8 +375,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -502,8 +499,7 @@ ensures
 
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -561,8 +557,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(200))]
 proof fn lemma_resource_state_matches_at_after_create_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
@@ -660,13 +655,14 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
 }
 
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)))),
+        sub_resource_needs_cm_rv(sub_resource) ==> // additionally requires cm_rv tracking
+            spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)))),
         spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
@@ -690,14 +686,25 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
-        lift_state(rmq_rely_conditions(cluster, controller_id))
-    );
+    if !sub_resource_needs_cm_rv(sub_resource) {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    } else {
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)),
+            lift_state(rmq_rely_conditions(cluster, controller_id))
+        );
+    }
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
@@ -712,6 +719,9 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                         s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
                     );
+                    if sub_resource_needs_cm_rv(sub_resource) {
+                        lemma_api_request_other_than_pending_req_msg_maintains_resource_object(s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, input->0);
+                    }
                 }
             },
             _ => {}
@@ -786,8 +796,7 @@ ensures
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
     requires
         
@@ -811,13 +820,15 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource))),
         lift_state(rmq_rely_conditions(cluster, controller_id))
     );
 
@@ -848,8 +859,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(200))]
 proof fn lemma_resource_state_matches_at_after_update_resource_step(
-    controller_id: int,
-    cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
+    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
     requires
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
