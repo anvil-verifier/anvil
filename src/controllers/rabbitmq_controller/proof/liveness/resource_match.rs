@@ -1088,6 +1088,8 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 proof fn lemma_from_after_update_resource_step_to_after_get_next_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView,
     resp_msg: Message

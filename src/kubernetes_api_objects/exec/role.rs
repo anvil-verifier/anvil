@@ -38,7 +38,7 @@ impl Role {
 
     #[verifier(external_body)]
     pub fn set_rules(&mut self, policy_rules: Vec<PolicyRule>)
-        ensures self@ == old(self)@.with_rules(policy_rules.deep_view()),
+        ensures final(self)@ == old(self)@.with_rules(policy_rules.deep_view()),
     {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
@@ -75,21 +75,21 @@ impl PolicyRule {
 
     #[verifier(external_body)]
     pub fn set_api_groups(&mut self, api_groups: Vec<String>)
-        ensures self@ == old(self)@.with_api_groups(api_groups.deep_view()),
+        ensures final(self)@ == old(self)@.with_api_groups(api_groups.deep_view()),
     {
         self.inner.api_groups = Some(api_groups)
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: Vec<String>)
-        ensures self@ == old(self)@.with_resources(resources.deep_view()),
+        ensures final(self)@ == old(self)@.with_resources(resources.deep_view()),
     {
         self.inner.resources = Some(resources)
     }
 
     #[verifier(external_body)]
     pub fn set_verbs(&mut self, verbs: Vec<String>)
-        ensures self@ == old(self)@.with_verbs(verbs.deep_view()),
+        ensures final(self)@ == old(self)@.with_verbs(verbs.deep_view()),
     {
         self.inner.verbs = verbs
     }

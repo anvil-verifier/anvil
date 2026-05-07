@@ -59,7 +59,7 @@ impl StringMap {
     #[verifier(external_body)]
     pub fn insert(&mut self, key: String, value: String) -> (old_v: Option<String>)
         ensures
-            self@ == old(self)@.insert(key@, value@),
+            final(self)@ == old(self)@.insert(key@, value@),
             old(self)@.contains_key(key@) == old_v is Some,
             old_v is Some ==> old_v->0@ == old(self)@[key@],
     {
@@ -69,7 +69,7 @@ impl StringMap {
     #[verifier(external_body)]
     pub fn remove(&mut self, key: &String) -> (old_v: Option<String>)
         ensures
-            self@ == old(self)@.remove(key@),
+            final(self)@ == old(self)@.remove(key@),
             old(self)@.contains_key(key@) == old_v is Some,
             old_v is Some ==> old_v->0@ == old(self)@[key@],
     {
@@ -99,7 +99,7 @@ impl StringMap {
 
     #[verifier(external_body)]
     pub fn extend(&mut self, m2: StringMap)
-        ensures self@ == old(self)@.union_prefer_right(m2@),
+        ensures final(self)@ == old(self)@.union_prefer_right(m2@),
     {
         self.inner.extend(m2.into_rust_map())
     }

@@ -37,14 +37,14 @@ impl PodTemplateSpec {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
+        ensures final(self)@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = Some(metadata.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PodSpec)
-        ensures self@ == old(self)@.with_spec(spec@),
+        ensures final(self)@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
