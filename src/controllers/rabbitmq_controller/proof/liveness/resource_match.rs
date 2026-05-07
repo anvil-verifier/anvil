@@ -53,6 +53,15 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
         ),
+        // Inductive form for every sub_resource. Stage 1 (SCM) and Stage 2 (others) in
+        // lemma_true_leads_to_always_state_matches_for_all both consume this so they can run
+        // leads_to_stable / leads_to_with_always against inductive_current_state_matches.
+        // composition.rs in turn consumes the VStatefulSetView case to feed
+        // lemma_inductive_current_state_matches_preserves_from_s_to_s_prime.
+        spec.entails(
+            lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
+                .leads_to(lift_state(inductive_current_state_matches(rabbitmq, sub_resource, controller_id)))
+        ),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let pre = pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id);
@@ -393,6 +402,15 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(next_get));
         temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
     }
+
+    // Inductive form: pending_req ~> inductive_current_state_matches(sub_resource).
+    // TODO: prove. The chain is analogous to pending_req ~> resource_state_matches above,
+    // but the post-state additionally needs the ongoing-reconcile invariants captured by
+    // inductive_current_state_matches at the AfterKRequestStep / Done states.
+    assume(spec.entails(
+        lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
+            .leads_to(lift_state(inductive_current_state_matches(rabbitmq, sub_resource, controller_id)))
+    ));
 }
 
 #[verifier(spinoff_prover)]
