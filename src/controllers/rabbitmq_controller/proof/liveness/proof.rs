@@ -678,6 +678,8 @@ ensures
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))));
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())));
     entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq))));
+    entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id))));
+    entails_trans(stable_spec, derived_invariants_since_beginning(controller_id, cluster, rabbitmq), always(lift_state(helper_invariants::rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref()))));
     // Combine all extracted invariants into cluster_invariants_since_reconciliation
     combine_spec_entails_always_n!(stable_spec,
         lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)),
@@ -715,7 +717,9 @@ ensures
         lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)),
         lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq))
+        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
+        lift_state(helper_invariants::rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref()))
     );
 }
 
