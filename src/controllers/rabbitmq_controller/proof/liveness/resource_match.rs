@@ -46,6 +46,8 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+        next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource)
+            || next_resource_step_after(sub_resource) == RabbitmqReconcileStep::Done,
     ensures
         spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
             .leads_to(lift_state(resource_state_matches(sub_resource, rabbitmq)))),
@@ -53,11 +55,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)))
         ),
-        // Inductive form for every sub_resource. Stage 1 (SCM) and Stage 2 (others) in
-        // lemma_true_leads_to_always_state_matches_for_all both consume this so they can run
-        // leads_to_stable / leads_to_with_always against inductive_current_state_matches.
-        // composition.rs in turn consumes the VStatefulSetView case to feed
-        // lemma_inductive_current_state_matches_preserves_from_s_to_s_prime.
         spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
                 .leads_to(lift_state(inductive_current_state_matches(rabbitmq, sub_resource, controller_id)))
@@ -277,159 +274,194 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(resource_state_matches(sub_resource, rabbitmq)));
     temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
 
-    // Second ensures: pre ~> pending_req_in_flight_at_after_get_resource_step(next_resource)
-    // We chain through the create/update ok responses to get to the next resource's get step.
-    // Since the transition lemmas now bundle csm in pre/post, we thread csm from the create/update
-    // step onward and weaken at the end to recover the second ensures.
+    // Second/Third ensures: chain through create/update ok responses to either
+    // (non-VStatefulSetView) at_get(next_resource) or (VStatefulSetView) Done.
+    // The updated transition lemmas now bundle inductive_current_state_matches in their post,
+    // so we land on inductive_csm[/\next_get] and weaken to recover the various ensures forms.
+    let inductive_csm = inductive_current_state_matches(rabbitmq, sub_resource, controller_id);
+
+    // Common Step 1c' / 2c' (csm /\ ok_resp): used by both branches below.
+    let create_ok_resp = at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id);
+    let csm_and_create_ok_resp = |s: ClusterState| {
+        &&& resource_state_matches(sub_resource, rabbitmq)(s)
+        &&& create_ok_resp(s)
+    };
+    let csm_and_create_ok_resp_msg = |resp_msg| lift_state(|s: ClusterState|{
+        &&& resource_state_matches(sub_resource, rabbitmq)(s)
+        &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
+    });
+    assert forall |req_msg| spec.entails(#[trigger] create_req_msg(req_msg).leads_to(lift_state(csm_and_create_ok_resp))) by {
+        lemma_resource_state_matches_at_after_create_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
+        );
+        leads_to_weaken::<ClusterState>(spec,
+            create_req_msg(req_msg),
+            lift_state(resource_state_matches(sub_resource, rabbitmq))
+                .and(lift_state(create_ok_resp)),
+            create_req_msg(req_msg),
+            lift_state(csm_and_create_ok_resp)
+        );
+    }
+    leads_to_exists_intro(spec, |msg| create_req_msg(msg), lift_state(csm_and_create_ok_resp));
+    assert(lift_state(csm_and_create_ok_resp) == tla_exists(|msg| csm_and_create_ok_resp_msg(msg))) by {
+        assert forall |ex| #[trigger] lift_state(csm_and_create_ok_resp).satisfied_by(ex) implies
+            tla_exists(|msg| csm_and_create_ok_resp_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
+            let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+            let key = get_request(sub_resource, rabbitmq).key;
+            let resp_msg = choose |resp_msg: Message| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.get_create_response().res is Ok
+                &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok
+                &&& sub_resource == SubResource::ServerConfigMap ==>
+                    s.resources().contains_key(key) && resp_msg.content.get_create_response().res->Ok_0 == s.resources()[key]
+            };
+            assert((|msg| csm_and_create_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(csm_and_create_ok_resp), tla_exists(|msg| csm_and_create_ok_resp_msg(msg)));
+    }
+
+    let update_ok_resp = at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id);
+    let csm_and_update_ok_resp = |s: ClusterState| {
+        &&& resource_state_matches(sub_resource, rabbitmq)(s)
+        &&& update_ok_resp(s)
+    };
+    let csm_and_update_ok_resp_msg = |resp_msg| lift_state(|s: ClusterState|{
+        &&& resource_state_matches(sub_resource, rabbitmq)(s)
+        &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
+    });
+    assert forall |req_msg| spec.entails(#[trigger] update_req_msg(req_msg).leads_to(lift_state(csm_and_update_ok_resp))) by {
+        lemma_resource_state_matches_at_after_update_resource_step(
+            controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
+        );
+        leads_to_weaken::<ClusterState>(spec,
+            update_req_msg(req_msg),
+            lift_state(resource_state_matches(sub_resource, rabbitmq))
+                .and(lift_state(update_ok_resp)),
+            update_req_msg(req_msg),
+            lift_state(csm_and_update_ok_resp)
+        );
+    }
+    leads_to_exists_intro(spec, |msg| update_req_msg(msg), lift_state(csm_and_update_ok_resp));
+    assert(lift_state(csm_and_update_ok_resp) == tla_exists(|msg| csm_and_update_ok_resp_msg(msg))) by {
+        assert forall |ex| #[trigger] lift_state(csm_and_update_ok_resp).satisfied_by(ex) implies
+            tla_exists(|msg| csm_and_update_ok_resp_msg(msg)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
+            let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
+            let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
+            let key = get_request(sub_resource, rabbitmq).key;
+            let resp_msg = choose |resp_msg: Message| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.get_get_then_update_response().res is Ok
+                &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
+                &&& sub_resource == SubResource::ServerConfigMap ==>
+                    s.resources().contains_key(key) && resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[key]
+            };
+            assert((|msg| csm_and_update_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
+        }
+        temp_pred_equality(lift_state(csm_and_update_ok_resp), tla_exists(|msg| csm_and_update_ok_resp_msg(msg)));
+    }
+
     if next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) {
+        // Non-VStatefulSetView: chain to inductive_csm /\ next_get.
         let next_get = pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id);
-        // csm-bundled aliases used for threading.
-        let csm_and_next_get = |s: ClusterState| {
-            &&& resource_state_matches(sub_resource, rabbitmq)(s)
+        let inductive_csm_and_next_get = |s: ClusterState| {
+            &&& inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s)
             &&& pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)(s)
         };
 
-        // Case 1 (key doesn't exist): create path
-        // Step 1c': create_req ~> csm /\ at_after_create_step_ok_resp (keep csm)
-        let create_ok_resp = at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id);
-        let csm_and_create_ok_resp = |s: ClusterState| {
-            &&& resource_state_matches(sub_resource, rabbitmq)(s)
-            &&& create_ok_resp(s)
-        };
-        assert forall |req_msg| spec.entails(#[trigger] create_req_msg(req_msg).leads_to(lift_state(csm_and_create_ok_resp))) by {
-            lemma_resource_state_matches_at_after_create_resource_step(
-                controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
-            );
-            leads_to_weaken::<ClusterState>(spec,
-                create_req_msg(req_msg),
-                lift_state(resource_state_matches(sub_resource, rabbitmq))
-                    .and(lift_state(create_ok_resp)),
-                create_req_msg(req_msg),
-                lift_state(csm_and_create_ok_resp)
-            );
-        }
-        leads_to_exists_intro(spec, |msg| create_req_msg(msg), lift_state(csm_and_create_ok_resp));
-
-        // Step 1d: csm /\ create_ok_resp ~> csm /\ next_get
-        let csm_and_create_ok_resp_msg = |resp_msg| lift_state(|s: ClusterState|{
-            &&& resource_state_matches(sub_resource, rabbitmq)(s)
-            &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
-        });
-        assert(lift_state(csm_and_create_ok_resp) == tla_exists(|msg| csm_and_create_ok_resp_msg(msg))) by {
-            assert forall |ex| #[trigger] lift_state(csm_and_create_ok_resp).satisfied_by(ex) implies
-                tla_exists(|msg| csm_and_create_ok_resp_msg(msg)).satisfied_by(ex) by {
-                let s = ex.head();
-                let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
-                let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
-                let key = get_request(sub_resource, rabbitmq).key;
-                let resp_msg = choose |resp_msg: Message| {
-                    &&& #[trigger] s.in_flight().contains(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                    &&& resp_msg.content.get_create_response().res is Ok
-                    &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res->Ok_0, unmarshalled_state) is Ok
-                    &&& sub_resource == SubResource::ServerConfigMap ==>
-                        s.resources().contains_key(key) && resp_msg.content.get_create_response().res->Ok_0 == s.resources()[key]
-                };
-                assert((|msg| csm_and_create_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(lift_state(csm_and_create_ok_resp), tla_exists(|msg| csm_and_create_ok_resp_msg(msg)));
-        }
-        assert forall |resp_msg| spec.entails(#[trigger] csm_and_create_ok_resp_msg(resp_msg).leads_to(lift_state(csm_and_next_get))) by {
+        // Step 1d: csm /\ create_ok_resp_msg ~> inductive_csm /\ next_get
+        assert forall |resp_msg| spec.entails(#[trigger] csm_and_create_ok_resp_msg(resp_msg).leads_to(lift_state(inductive_csm_and_next_get))) by {
             lemma_from_after_create_resource_step_to_after_get_next_resource_step(
                 controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
             );
         }
-        leads_to_exists_intro(spec, |msg| csm_and_create_ok_resp_msg(msg), lift_state(csm_and_next_get));
+        leads_to_exists_intro(spec, |msg| csm_and_create_ok_resp_msg(msg), lift_state(inductive_csm_and_next_get));
 
-        // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> csm /\ create_ok_resp ~> csm /\ next_get
+        // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> csm /\ create_ok_resp ~> inductive_csm /\ next_get
         leads_to_trans_n!(
             spec,
             lift_state(pre_without_key),
             lift_state(not_found_resp),
             lift_state(create_req),
             lift_state(csm_and_create_ok_resp),
-            lift_state(csm_and_next_get)
+            lift_state(inductive_csm_and_next_get)
         );
 
-        // Case 2 (key exists): update path
-        // Step 2c': update_req ~> csm /\ at_after_update_step_ok_resp (keep csm)
-        let update_ok_resp = at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq, controller_id);
-        let csm_and_update_ok_resp = |s: ClusterState| {
-            &&& resource_state_matches(sub_resource, rabbitmq)(s)
-            &&& update_ok_resp(s)
-        };
-        assert forall |req_msg| spec.entails(#[trigger] update_req_msg(req_msg).leads_to(lift_state(csm_and_update_ok_resp))) by {
-            lemma_resource_state_matches_at_after_update_resource_step(
-                controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
-            );
-            leads_to_weaken::<ClusterState>(spec,
-                update_req_msg(req_msg),
-                lift_state(resource_state_matches(sub_resource, rabbitmq))
-                    .and(lift_state(update_ok_resp)),
-                update_req_msg(req_msg),
-                lift_state(csm_and_update_ok_resp)
-            );
-        }
-        leads_to_exists_intro(spec, |msg| update_req_msg(msg), lift_state(csm_and_update_ok_resp));
-
-        // Step 2d: csm /\ update_ok_resp ~> csm /\ next_get
-        let csm_and_update_ok_resp_msg = |resp_msg| lift_state(|s: ClusterState|{
-            &&& resource_state_matches(sub_resource, rabbitmq)(s)
-            &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
-        });
-        assert(lift_state(csm_and_update_ok_resp) == tla_exists(|msg| csm_and_update_ok_resp_msg(msg))) by {
-            assert forall |ex| #[trigger] lift_state(csm_and_update_ok_resp).satisfied_by(ex) implies
-                tla_exists(|msg| csm_and_update_ok_resp_msg(msg)).satisfied_by(ex) by {
-                let s = ex.head();
-                let req_msg = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg->0;
-                let local_state = s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
-                let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
-                let key = get_request(sub_resource, rabbitmq).key;
-                let resp_msg = choose |resp_msg: Message| {
-                    &&& #[trigger] s.in_flight().contains(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                    &&& resp_msg.content.get_get_then_update_response().res is Ok
-                    &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_get_then_update_response().res->Ok_0, unmarshalled_state) is Ok
-                    &&& sub_resource == SubResource::ServerConfigMap ==>
-                        s.resources().contains_key(key) && resp_msg.content.get_get_then_update_response().res->Ok_0 == s.resources()[key]
-                };
-                assert((|msg| csm_and_update_ok_resp_msg(msg))(resp_msg).satisfied_by(ex));
-            }
-            temp_pred_equality(lift_state(csm_and_update_ok_resp), tla_exists(|msg| csm_and_update_ok_resp_msg(msg)));
-        }
-        assert forall |resp_msg| spec.entails(#[trigger] csm_and_update_ok_resp_msg(resp_msg).leads_to(lift_state(csm_and_next_get))) by {
+        // Step 2d: csm /\ update_ok_resp_msg ~> inductive_csm /\ next_get
+        assert forall |resp_msg| spec.entails(#[trigger] csm_and_update_ok_resp_msg(resp_msg).leads_to(lift_state(inductive_csm_and_next_get))) by {
             lemma_from_after_update_resource_step_to_after_get_next_resource_step(
                 controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
             );
         }
-        leads_to_exists_intro(spec, |msg| csm_and_update_ok_resp_msg(msg), lift_state(csm_and_next_get));
+        leads_to_exists_intro(spec, |msg| csm_and_update_ok_resp_msg(msg), lift_state(inductive_csm_and_next_get));
 
-        // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> csm /\ update_ok_resp ~> csm /\ next_get
+        // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> csm /\ update_ok_resp ~> inductive_csm /\ next_get
         leads_to_trans_n!(
             spec,
             lift_state(pre_with_key),
             lift_state(ok_resp),
             lift_state(update_req),
             lift_state(csm_and_update_ok_resp),
-            lift_state(csm_and_next_get)
+            lift_state(inductive_csm_and_next_get)
         );
 
-        // Combine case 1 and case 2 at csm_and_next_get, then weaken to next_get for the
-        // existing second ensures (which doesn't track csm).
-        or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(csm_and_next_get));
+        // Combine the two cases at inductive_csm_and_next_get.
+        or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm_and_next_get));
         temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
-        leads_to_weaken::<ClusterState>(spec, lift_state(pre), lift_state(csm_and_next_get), lift_state(pre), lift_state(next_get));
-    }
 
-    // Inductive form: pending_req ~> inductive_current_state_matches(sub_resource).
-    // TODO: prove. The chain is analogous to pending_req ~> resource_state_matches above,
-    // but the post-state additionally needs the ongoing-reconcile invariants captured by
-    // inductive_current_state_matches at the AfterKRequestStep / Done states.
-    assume(spec.entails(
-        lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq, controller_id))
-            .leads_to(lift_state(inductive_current_state_matches(rabbitmq, sub_resource, controller_id)))
-    ));
+        // Weaken inductive_csm_and_next_get to next_get for the second ensures.
+        leads_to_weaken::<ClusterState>(spec, lift_state(pre), lift_state(inductive_csm_and_next_get), lift_state(pre), lift_state(next_get));
+        // Weaken inductive_csm_and_next_get to inductive_csm for the third ensures.
+        leads_to_weaken::<ClusterState>(spec, lift_state(pre), lift_state(inductive_csm_and_next_get), lift_state(pre), lift_state(inductive_csm));
+    } else {
+        // VStatefulSetView: next is Done; chain to inductive_csm directly.
+
+        // Step 1d (VSTS): csm /\ create_ok_resp_msg ~> inductive_csm
+        assert forall |resp_msg| spec.entails(#[trigger] csm_and_create_ok_resp_msg(resp_msg).leads_to(lift_state(inductive_csm))) by {
+            lemma_from_after_create_resource_step_to_after_get_next_resource_step(
+                controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
+            );
+        }
+        leads_to_exists_intro(spec, |msg| csm_and_create_ok_resp_msg(msg), lift_state(inductive_csm));
+
+        // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> csm /\ create_ok_resp ~> inductive_csm
+        leads_to_trans_n!(
+            spec,
+            lift_state(pre_without_key),
+            lift_state(not_found_resp),
+            lift_state(create_req),
+            lift_state(csm_and_create_ok_resp),
+            lift_state(inductive_csm)
+        );
+
+        // Step 2d (VSTS): csm /\ update_ok_resp_msg ~> inductive_csm
+        assert forall |resp_msg| spec.entails(#[trigger] csm_and_update_ok_resp_msg(resp_msg).leads_to(lift_state(inductive_csm))) by {
+            lemma_from_after_update_resource_step_to_after_get_next_resource_step(
+                controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
+            );
+        }
+        leads_to_exists_intro(spec, |msg| csm_and_update_ok_resp_msg(msg), lift_state(inductive_csm));
+
+        // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> csm /\ update_ok_resp ~> inductive_csm
+        leads_to_trans_n!(
+            spec,
+            lift_state(pre_with_key),
+            lift_state(ok_resp),
+            lift_state(update_req),
+            lift_state(csm_and_update_ok_resp),
+            lift_state(inductive_csm)
+        );
+
+        // Combine the two cases at inductive_csm.
+        or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm));
+        temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
+    }
 }
 
 #[verifier(spinoff_prover)]
