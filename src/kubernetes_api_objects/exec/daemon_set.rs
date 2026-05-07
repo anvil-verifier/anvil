@@ -52,7 +52,7 @@ impl DaemonSet {
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: DaemonSetSpec)
-        ensures self@ == old(self)@.with_spec(spec@),
+        ensures final(self)@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -61,14 +61,14 @@ impl DaemonSet {
 impl DaemonSetSpec {
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: LabelSelector)
-        ensures self@ == old(self)@.with_selector(selector@),
+        ensures final(self)@ == old(self)@.with_selector(selector@),
     {
         self.inner.selector = selector.into_kube()
     }
 
     #[verifier(external_body)]
     pub fn set_template(&mut self, template: PodTemplateSpec)
-        ensures self@ == old(self)@.with_template(template@),
+        ensures final(self)@ == old(self)@.with_template(template@),
     {
         self.inner.template = template.into_kube()
     }

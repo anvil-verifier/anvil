@@ -242,14 +242,14 @@ impl DeploymentStrategy {
 
     #[verifier(external_body)]
     pub fn set_type(&mut self, type_: String)
-        ensures self@ == old(self)@.with_type(type_@),
+        ensures final(self)@ == old(self)@.with_type(type_@),
     {
         self.inner.type_ = Some(type_);
     }
 
     #[verifier(external_body)]
     pub fn set_rolling_update(&mut self, rolling_update: RollingUpdateDeployment)
-        ensures self@ == old(self)@.with_rolling_update(rolling_update@),
+        ensures final(self)@ == old(self)@.with_rolling_update(rolling_update@),
     {
         self.inner.rolling_update = Some(rolling_update.into_kube());
     }
@@ -297,7 +297,7 @@ impl RollingUpdateDeployment {
 
     #[verifier(external_body)]
     pub fn set_max_surge(&mut self, max_surge: i32)
-        ensures self@ == old(self)@.with_max_surge(max_surge as int),
+        ensures final(self)@ == old(self)@.with_max_surge(max_surge as int),
     {
         self.inner.max_surge = Some(
             deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_surge)
@@ -306,7 +306,7 @@ impl RollingUpdateDeployment {
 
     #[verifier(external_body)]
     pub fn set_max_unavailable(&mut self, max_unavailable: i32)
-        ensures self@ == old(self)@.with_max_unavailable(max_unavailable as int),
+        ensures final(self)@ == old(self)@.with_max_unavailable(max_unavailable as int),
     {
         self.inner.max_unavailable = Some(
             deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)

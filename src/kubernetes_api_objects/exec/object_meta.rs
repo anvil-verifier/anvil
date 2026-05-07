@@ -175,35 +175,35 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.with_name(name@),
+        ensures final(self)@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_generate_name(&mut self, generate_name: String)
-        ensures self@ == old(self)@.with_generate_name(generate_name@),
+        ensures final(self)@ == old(self)@.with_generate_name(generate_name@),
     {
         self.inner.generate_name = Some(generate_name);
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
-        ensures self@ == old(self)@.with_namespace(namespace@),
+        ensures final(self)@ == old(self)@.with_namespace(namespace@),
     {
         self.inner.namespace = Some(namespace);
     }
 
     #[verifier(external_body)]
     pub fn set_labels(&mut self, labels: StringMap)
-        ensures self@ == old(self)@.with_labels(labels@),
+        ensures final(self)@ == old(self)@.with_labels(labels@),
     {
         self.inner.labels = Some(labels.into_rust_map());
     }
 
     #[verifier(external_body)]
     pub fn add_label(&mut self, key: String, value: String)
-        ensures self@ == old(self)@.add_label(key@, value@),
+        ensures final(self)@ == old(self)@.add_label(key@, value@),
     {
         if self.inner.labels.is_none() {
             let mut labels = std::collections::BTreeMap::new();
@@ -216,7 +216,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn remove_label(&mut self, key: String)
-        ensures self@ == old(self)@.without_label(key@),
+        ensures final(self)@ == old(self)@.without_label(key@),
     {
         if self.inner.labels.is_some() {
             self.inner.labels.as_mut().unwrap().remove(&key);
@@ -225,14 +225,14 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_annotations(&mut self, annotations: StringMap)
-        ensures self@ == old(self)@.with_annotations(annotations@),
+        ensures final(self)@ == old(self)@.with_annotations(annotations@),
     {
         self.inner.annotations = Some(annotations.into_rust_map());
     }
 
     #[verifier(external_body)]
     pub fn add_annotation(&mut self, key: String, value: String)
-        ensures self@ == old(self)@.add_annotation(key@, value@),
+        ensures final(self)@ == old(self)@.add_annotation(key@, value@),
     {
         if self.inner.annotations.is_none() {
             let mut annotations = std::collections::BTreeMap::new();
@@ -245,35 +245,35 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
-        ensures self@ == old(self)@.with_owner_references(owner_references.deep_view()),
+        ensures final(self)@ == old(self)@.with_owner_references(owner_references.deep_view()),
     {
         self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
-        ensures self@ == old(self)@.with_finalizers(finalizers.deep_view()),
+        ensures final(self)@ == old(self)@.with_finalizers(finalizers.deep_view()),
     {
         self.inner.finalizers = Some(finalizers);
     }
 
     #[verifier(external_body)]
     pub fn unset_finalizers(&mut self)
-        ensures self@ == old(self)@.without_finalizers(),
+        ensures final(self)@ == old(self)@.without_finalizers(),
     {
         self.inner.finalizers = None;
     }
 
     #[verifier(external_body)]
     pub fn unset_deletion_timestamp(&mut self)
-        ensures self@ == old(self)@.without_deletion_timestamp(),
+        ensures final(self)@ == old(self)@.without_deletion_timestamp(),
     {
         self.inner.deletion_timestamp = None;
     }
 
     #[verifier(external_body)]
     pub fn unset_annotations(&mut self)
-        ensures self@ == old(self)@.without_annotations(),
+        ensures final(self)@ == old(self)@.without_annotations(),
     {
         self.inner.annotations = None;
     }

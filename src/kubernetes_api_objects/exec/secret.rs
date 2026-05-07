@@ -48,7 +48,7 @@ impl Secret {
     // TODO: data is a map of string to bytestring. May support it in the future.
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
-        ensures self@ == old(self)@.with_data(data@),
+        ensures final(self)@ == old(self)@.with_data(data@),
     {
         let string_map = data.into_rust_map();
         let mut binary_map = std::collections::BTreeMap::new();

@@ -100,42 +100,42 @@ impl Volume {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.with_name(name@),
+        ensures final(self)@ == old(self)@.with_name(name@),
     {
         self.inner.name = name;
     }
 
     #[verifier(external_body)]
     pub fn set_host_path(&mut self, host_path: HostPathVolumeSource)
-        ensures self@ == old(self)@.with_host_path(host_path@),
+        ensures final(self)@ == old(self)@.with_host_path(host_path@),
     {
         self.inner.host_path = Some(host_path.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_config_map(&mut self, config_map: ConfigMapVolumeSource)
-        ensures self@ == old(self)@.with_config_map(config_map@),
+        ensures final(self)@ == old(self)@.with_config_map(config_map@),
     {
         self.inner.config_map = Some(config_map.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_projected(&mut self, projected: ProjectedVolumeSource)
-        ensures self@ == old(self)@.with_projected(projected@),
+        ensures final(self)@ == old(self)@.with_projected(projected@),
     {
         self.inner.projected = Some(projected.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_secret(&mut self, secret: SecretVolumeSource)
-        ensures self@ == old(self)@.with_secret(secret@),
+        ensures final(self)@ == old(self)@.with_secret(secret@),
     {
         self.inner.secret = Some(secret.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_downward_api(&mut self, downward_api: DownwardAPIVolumeSource)
-        ensures self@ == old(self)@.with_downward_api(downward_api@),
+        ensures final(self)@ == old(self)@.with_downward_api(downward_api@),
     {
         self.inner.downward_api = Some(downward_api.into_kube());
     }
@@ -144,14 +144,14 @@ impl Volume {
 
     #[verifier(external_body)]
     pub fn set_empty_dir(&mut self, empty_dir: EmptyDirVolumeSource)
-        ensures self@ == old(self)@.with_empty_dir(empty_dir@),
+        ensures final(self)@ == old(self)@.with_empty_dir(empty_dir@),
     {
         self.inner.empty_dir = Some(empty_dir.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_persistent_volume_claim_source(&mut self, pvc: PersistentVolumeClaimVolumeSource)
-        ensures self@ == old(self)@.with_persistent_volume_claim_source(pvc@),
+        ensures final(self)@ == old(self)@.with_persistent_volume_claim_source(pvc@),
     {
         self.inner.persistent_volume_claim = Some(pvc.into_kube());
     }
@@ -161,7 +161,7 @@ impl Volume {
 impl HostPathVolumeSource {
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
-        ensures self@ == old(self)@.with_path(path@),
+        ensures final(self)@ == old(self)@.with_path(path@),
     {
         self.inner.path = path;
     }
@@ -170,7 +170,7 @@ impl HostPathVolumeSource {
 impl ConfigMapVolumeSource {
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.with_name(name@),
+        ensures final(self)@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
@@ -179,7 +179,7 @@ impl ConfigMapVolumeSource {
 impl SecretVolumeSource {
     #[verifier(external_body)]
     pub fn set_secret_name(&mut self, secret_name: String)
-        ensures self@ == old(self)@.with_secret_name(secret_name@),
+        ensures final(self)@ == old(self)@.with_secret_name(secret_name@),
     {
         self.inner.secret_name = Some(secret_name);
     }
@@ -188,7 +188,7 @@ impl SecretVolumeSource {
 impl ProjectedVolumeSource {
     #[verifier(external_body)]
     pub fn set_sources(&mut self, sources: Vec<VolumeProjection>)
-        ensures self@ == old(self)@.with_sources(sources.deep_view()),
+        ensures final(self)@ == old(self)@.with_sources(sources.deep_view()),
     {
         self.inner.sources = Some(sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect());
     }
@@ -197,14 +197,14 @@ impl ProjectedVolumeSource {
 impl VolumeProjection {
     #[verifier(external_body)]
     pub fn set_config_map(&mut self, config_map: ConfigMapProjection)
-        ensures self@ == old(self)@.with_config_map(config_map@),
+        ensures final(self)@ == old(self)@.with_config_map(config_map@),
     {
         self.inner.config_map = Some(config_map.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_secret(&mut self, secret: SecretProjection)
-        ensures self@ == old(self)@.with_secret(secret@),
+        ensures final(self)@ == old(self)@.with_secret(secret@),
     {
         self.inner.secret = Some(secret.into_kube());
     }
@@ -213,14 +213,14 @@ impl VolumeProjection {
 impl ConfigMapProjection {
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.with_name(name@),
+        ensures final(self)@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
-        ensures self@ == old(self)@.with_items(items.deep_view()),
+        ensures final(self)@ == old(self)@.with_items(items.deep_view()),
     {
         self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
@@ -229,14 +229,14 @@ impl ConfigMapProjection {
 impl SecretProjection {
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.with_name(name@),
+        ensures final(self)@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
-        ensures self@ == old(self)@.with_items(items.deep_view()),
+        ensures final(self)@ == old(self)@.with_items(items.deep_view()),
     {
         self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
@@ -245,14 +245,14 @@ impl SecretProjection {
 impl KeyToPath {
     #[verifier(external_body)]
     pub fn set_key(&mut self, key: String)
-        ensures self@ == old(self)@.with_key(key@),
+        ensures final(self)@ == old(self)@.with_key(key@),
     {
         self.inner.key = key;
     }
 
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
-        ensures self@ == old(self)@.with_path(path@),
+        ensures final(self)@ == old(self)@.with_path(path@),
     {
         self.inner.path = path;
     }
@@ -261,7 +261,7 @@ impl KeyToPath {
 impl DownwardAPIVolumeSource {
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<DownwardAPIVolumeFile>)
-        ensures self@ == old(self)@.with_items(items.deep_view()),
+        ensures final(self)@ == old(self)@.with_items(items.deep_view()),
     {
         self.inner.items = Some(items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect());
     }
@@ -270,14 +270,14 @@ impl DownwardAPIVolumeSource {
 impl DownwardAPIVolumeFile {
     #[verifier(external_body)]
     pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector)
-        ensures self@ == old(self)@.with_field_ref(field_ref@),
+        ensures final(self)@ == old(self)@.with_field_ref(field_ref@),
     {
         self.inner.field_ref = Some(field_ref.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
-        ensures self@ == old(self)@.with_path(path@),
+        ensures final(self)@ == old(self)@.with_path(path@),
     {
         self.inner.path = path;
     }
@@ -295,14 +295,14 @@ impl ObjectFieldSelector {
 
     #[verifier(external_body)]
     pub fn set_field_path(&mut self, field_path: String)
-        ensures self@ == old(self)@.with_field_path(field_path@),
+        ensures final(self)@ == old(self)@.with_field_path(field_path@),
     {
         self.inner.field_path = field_path;
     }
 
     #[verifier(external_body)]
     pub fn set_api_version(&mut self, api_version: String)
-        ensures self@ == old(self)@.with_api_version(api_version@),
+        ensures final(self)@ == old(self)@.with_api_version(api_version@),
     {
         self.inner.api_version = Some(api_version);
     }
@@ -311,14 +311,14 @@ impl ObjectFieldSelector {
 impl PersistentVolumeClaimVolumeSource {
     #[verifier(external_body)]
     pub fn set_claim_name(&mut self, claim_name: String) 
-        ensures self@ == old(self)@.with_claim_name(claim_name@)
+        ensures final(self)@ == old(self)@.with_claim_name(claim_name@)
     {
         self.inner.claim_name = claim_name;
     }
 
     #[verifier(external_body)]
     pub fn set_read_only(&mut self, read_only: bool)
-        ensures self@ == old(self)@.with_read_only(read_only)
+        ensures final(self)@ == old(self)@.with_read_only(read_only)
     {
         self.inner.read_only = Some(read_only);
     }
