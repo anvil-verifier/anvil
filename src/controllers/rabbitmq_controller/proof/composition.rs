@@ -352,7 +352,6 @@ ensures
 
 // Proves that Cluster::desired_state_is(vsts) is preserved from s to s_prime,
 // where vsts is the VStatefulSet object in etcd that matches the rabbitmq spec.
-#[verifier(external_body)] // FIXME: deprecate
 pub proof fn desired_state_is_vsts_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState
@@ -361,11 +360,12 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)(s),
     rmq_rely_conditions(cluster, controller_id)(s),
     rmq_guarantee(controller_id)(s),
     cluster.next()(s, s_prime),
-    resource_state_matches(SubResource::VStatefulSetView, rabbitmq)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)(s),
+    inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)(s),
+    inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)(s_prime),
 ensures
     Cluster::desired_state_is(vsts)(s),
     Cluster::desired_state_is(vsts)(s_prime),
@@ -391,7 +391,9 @@ ensures
                 );
             } else {
                 if resource_get_then_update_request_msg(sts_key)(msg) {
-                    assume(false);
+                    assert(s.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].pending_req_msg == Some(msg));
+                    let req = msg.content.get_get_then_update_request();
+                    assert(VStatefulSetView::unmarshal(req.obj)->Ok_0.spec == VStatefulSetView::unmarshal(s.resources()[sts_key])->Ok_0.spec);
                 }
             }
         },
