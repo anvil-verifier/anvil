@@ -146,24 +146,6 @@ pub open spec fn next_resource_step_after(sub_resource: SubResource) -> Rabbitmq
     }
 }
 
-pub open spec fn sub_resources_until(sub_resource: SubResource) -> spec_fn(SubResource) -> bool {
-    |other_resource: SubResource| {
-        other_resource == sub_resource ||
-            match sub_resource {
-                SubResource::HeadlessService => true,
-                SubResource::Service => sub_resources_until(SubResource::HeadlessService)(other_resource),
-                SubResource::ErlangCookieSecret => sub_resources_until(SubResource::Service)(other_resource),
-                SubResource::DefaultUserSecret => sub_resources_until(SubResource::ErlangCookieSecret)(other_resource),
-                SubResource::PluginsConfigMap => sub_resources_until(SubResource::DefaultUserSecret)(other_resource),
-                SubResource::ServerConfigMap => sub_resources_until(SubResource::PluginsConfigMap)(other_resource),
-                SubResource::ServiceAccount => sub_resources_until(SubResource::ServerConfigMap)(other_resource),
-                SubResource::Role => sub_resources_until(SubResource::ServiceAccount)(other_resource),
-                SubResource::RoleBinding => sub_resources_until(SubResource::Role)(other_resource),
-                SubResource::VStatefulSetView => sub_resources_until(SubResource::RoleBinding)(other_resource)
-            }
-    }
-}
-
 pub open spec fn pending_req_in_flight_at_after_get_resource_step(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, controller_id: int
 ) -> StatePred<ClusterState> {
