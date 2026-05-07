@@ -1070,29 +1070,34 @@ requires
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource),
+    next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) || next_resource_step_after(sub_resource) == RabbitmqReconcileStep::Done,
 ensures
-    // Bundles resource_state_matches in both pre and post: csm holds the moment we
-    // see the ok update response, and the controller step into next_get does not
-    // touch s.resources(), so csm is preserved.
-    spec.entails(
-        lift_state(|s: ClusterState| {
+    next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) ==>
+        spec.entails(lift_state(|s: ClusterState| {
             &&& resource_state_matches(sub_resource, rabbitmq)(s)
             &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
         })
-            .leads_to(lift_state(|s: ClusterState| {
-                &&& resource_state_matches(sub_resource, rabbitmq)(s)
-                &&& pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)(s)
-            }))
-    )
+        .leads_to(lift_state(|s: ClusterState| {
+            &&& inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s)
+            &&& pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)(s)
+        }))),
+    next_resource_step_after(sub_resource) == RabbitmqReconcileStep::Done ==> // SubResource::VStatefulSetView
+        spec.entails(lift_state(|s: ClusterState| {
+            &&& resource_state_matches(sub_resource, rabbitmq)(s)
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
+        }).leads_to(lift_state(inductive_current_state_matches(rabbitmq, sub_resource, controller_id)))),
 {
     let pre = |s: ClusterState| {
         &&& resource_state_matches(sub_resource, rabbitmq)(s)
         &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s)
     };
-    let post = |s: ClusterState| {
-        &&& resource_state_matches(sub_resource, rabbitmq)(s)
-        &&& pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)(s)
+    let post = if next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) {
+        |s: ClusterState| {
+            &&& inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s)
+            &&& pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq, controller_id)(s)
+        }
+    } else {
+        inductive_current_state_matches(rabbitmq, sub_resource, controller_id)
     };
     let key = rabbitmq.object_ref();
     let input = (Some(resp_msg), Some(key));
@@ -1142,7 +1147,7 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                     s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
                 );
-                if sub_resource_needs_cm_rv(sub_resource) {
+                if sub_resource == SubResource::ServerConfigMap || sub_resource_needs_cm_rv(sub_resource) {
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                         s, s_prime, rabbitmq, cluster, controller_id, SubResource::ServerConfigMap, input->0
                     );
@@ -1153,12 +1158,16 @@ ensures
                 if input.0 == controller_id && input.2 == Some(key) {
                     RabbitmqReconcileState::marshal_preserves_integrity();
                     RabbitmqClusterView::marshal_preserves_integrity();
-                    // Controller step does not touch s.resources(), so resource_state_matches preserved.
                     assert(s.resources() == s_prime.resources());
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
+    }
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        RabbitmqReconcileState::marshal_preserves_integrity();
+        RabbitmqClusterView::marshal_preserves_integrity();
     }
 
     cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next,
