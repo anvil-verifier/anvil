@@ -79,8 +79,11 @@ ensures
     eventually_stable_reconciliation_holds_per_cr(spec, cluster, controller_id, rabbitmq);
     assert(spec.entails(rmq_eventually_stable_reconciliation_per_cr(rabbitmq)));
 
+    // stable_rmq_post carries inductive_current_state_matches(VStatefulSetView) (which is
+    // strictly stronger than current_state_matches and which composition needs to feed
+    // desired_state_is_vsts_preserves_from_s_to_s_prime at both s and s_prime).
     let stable_rmq_post =
-        lift_state(current_state_matches(rabbitmq))
+        lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id))
         .and(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)))
         .and(lifted_inv);
 
@@ -105,11 +108,13 @@ ensures
             assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
             always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)))
         );
-        // Step 4: Combine: spec |= □desired ~> □(current_state_matches ∧ cluster_invariants)
+        // Step 4: Combine: spec |= □desired ~> □(inductive_current_state_matches(VSTS) ∧ cluster_invariants).
+        // The first conjunct comes from the inductive(VSTS) ensures of
+        // eventually_stable_reconciliation_holds_per_cr called above.
         leads_to_always_combine(
             spec,
             always(lift_state(Cluster::desired_state_is(rabbitmq))),
-            lift_state(current_state_matches(rabbitmq)),
+            lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)),
             lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView))
         );
         // Step 5: Establish spec |= □lifted_inv
@@ -128,7 +133,7 @@ ensures
             spec,
             lifted_inv,
             always(lift_state(Cluster::desired_state_is(rabbitmq))),
-            lift_state(current_state_matches(rabbitmq))
+            lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id))
                 .and(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView))),
             stable_rmq_post
         );
@@ -150,23 +155,29 @@ ensures
             assert((|vsts: VStatefulSetView| lift_state(vsts_pre(rabbitmq)(vsts)))(etcd_sts).satisfied_by(ex));
         }
         // (b) Stability: vsts_pre(rabbitmq)(vsts)(s) ∧ stronger_next(s, s') ==> vsts_pre(rabbitmq)(vsts)(s')
+        // We bundle inductive_current_state_matches(VStatefulSetView) at both s and s_prime so
+        // desired_state_is_vsts_preserves_from_s_to_s_prime's preconditions are discharged.
         let stronger_next = |s: ClusterState, s_prime: ClusterState| {
             &&& cluster.next()(s, s_prime)
-            &&& current_state_matches(rabbitmq)(s)
+            &&& inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)(s)
+            &&& inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)(s_prime)
             &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)(s)
             &&& rmq_rely_conditions(cluster, controller_id)(s)
         };
 
-        // Show spec entails always(stronger_next)
-        entails_preserved_by_always(stable_rmq_post, lift_state(current_state_matches(rabbitmq)));
+        // Show always(stable_rmq_post) entails always(stronger_next).
+        entails_preserved_by_always(stable_rmq_post, lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)));
         entails_preserved_by_always(stable_rmq_post, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)));
         entails_preserved_by_always(stable_rmq_post, lift_action(cluster.next()));
         entails_preserved_by_always(stable_rmq_post, lift_state(rmq_rely_conditions(cluster, controller_id)));
+        // []P entails [](later P) so we can pull inductive_csm(VSTS) at s_prime out as well.
+        always_to_always_later(always(stable_rmq_post), lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)));
         combine_spec_entails_always_n!(
             always(stable_rmq_post),
             lift_action(stronger_next),
             lift_action(cluster.next()),
-            lift_state(current_state_matches(rabbitmq)),
+            lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)),
+            later(lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id))),
             lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)),
             lift_state(rmq_rely_conditions(cluster, controller_id))
         );
