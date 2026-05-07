@@ -142,7 +142,7 @@ pub open spec fn next_resource_step_after(sub_resource: SubResource) -> Rabbitmq
         SubResource::ServiceAccount => after_get_k_request_step(SubResource::Role),
         SubResource::Role => after_get_k_request_step(SubResource::RoleBinding),
         SubResource::RoleBinding => after_get_k_request_step(SubResource::VStatefulSetView),
-        _ => RabbitmqReconcileStep::Done,
+        SubResource::VStatefulSetView => RabbitmqReconcileStep::Done,
     }
 }
 
