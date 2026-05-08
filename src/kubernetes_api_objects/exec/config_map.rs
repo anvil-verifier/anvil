@@ -39,7 +39,7 @@ impl ConfigMap {
 
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
-        ensures self@ == old(self)@.with_data(data@),
+        ensures final(self)@ == old(self)@.with_data(data@),
     {
         self.inner.data = Some(data.into_rust_map())
     }

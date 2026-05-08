@@ -131,10 +131,11 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<RabbitmqClusterView, 
                             let new_obj = Builder::update(rabbitmq, state, get_resp->Ok_0);
                             if new_obj is Ok {
                                 let updated_obj = new_obj->Ok_0;
-                                let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                                let req_o = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
                                     namespace: rabbitmq.metadata.namespace->0,
                                     name: Builder::get_request(rabbitmq).key.name,
                                     obj: updated_obj,
+                                    owner_ref: rabbitmq.controller_owner_ref(),
                                 });
                                 let state_prime = RabbitmqReconcileState {
                                     reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
@@ -209,8 +210,8 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<RabbitmqClusterView, 
                     }
                 },
                 ActionKind::Update => {
-                    let update_resp = resp_o->0->KResponse_0->UpdateResponse_0.res;
-                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is UpdateResponse
+                    let update_resp = resp_o->0->KResponse_0->GetThenUpdateResponse_0.res;
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetThenUpdateResponse
                     && update_resp is Ok {
                         let next_state = Builder::state_after_update(rabbitmq, update_resp->Ok_0, state);
                         if next_state is Ok {

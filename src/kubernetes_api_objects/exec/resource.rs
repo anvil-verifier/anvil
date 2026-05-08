@@ -40,7 +40,7 @@ macro_rules! implement_object_wrapper_type {
 
             #[verifier(external_body)]
             pub fn set_metadata(&mut self, metadata: ObjectMeta)
-                ensures self@ == old(self)@.with_metadata(metadata@),
+                ensures final(self)@ == old(self)@.with_metadata(metadata@),
             {
                 self.inner.metadata = metadata.into_kube();
             }

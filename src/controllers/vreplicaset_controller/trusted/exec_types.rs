@@ -67,14 +67,14 @@ impl VReplicaSet {
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: VReplicaSetSpec)
-        ensures self@ == old(self)@.with_spec(spec@),
+        ensures final(self)@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = spec.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_status(&mut self, status: VReplicaSetStatus)
-        ensures self@ == old(self)@.with_status(status@),
+        ensures final(self)@ == old(self)@.with_status(status@),
     {
         self.inner.status = Some(status.into_kube());
     }
@@ -152,21 +152,21 @@ impl VReplicaSetSpec {
 
     #[verifier(external_body)]
     pub fn set_replicas(&mut self, replicas: i32)
-        ensures self@ == old(self)@.with_replicas(replicas as int),
+        ensures final(self)@ == old(self)@.with_replicas(replicas as int),
     {
         self.inner.replicas = Some(replicas);
     }
 
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: LabelSelector)
-       ensures self@ == old(self)@.with_selector(selector@),
+       ensures final(self)@ == old(self)@.with_selector(selector@),
     {
         self.inner.selector = selector.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_template(&mut self, template: PodTemplateSpec)
-        ensures self@ == old(self)@.with_template(template@),
+        ensures final(self)@ == old(self)@.with_template(template@),
     {
         self.inner.template = Some(template.into_kube());
     }
@@ -182,7 +182,7 @@ impl VReplicaSetStatus {
 
     #[verifier(external_body)]
     pub fn set_replicas(&mut self, replicas: i32)
-        ensures self@ == old(self)@.with_replicas(replicas as int),
+        ensures final(self)@ == old(self)@.with_replicas(replicas as int),
     {
         self.inner.replicas = replicas;
     }

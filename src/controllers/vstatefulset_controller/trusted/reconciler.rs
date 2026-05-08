@@ -23,7 +23,7 @@ verus! {
 
     #[verifier(external_body)]
     pub fn sort_pods_by_ord(parent_name: &String, pods: &mut Vec<Pod>) 
-        ensures pods.deep_view() == old(pods).deep_view().sort_by(|p1: PodView, p2: PodView| model_reconciler::get_ordinal(parent_name@, p1.metadata.name->0)->0 >= model_reconciler::get_ordinal(parent_name@, p2.metadata.name->0)->0)
+        ensures final(pods).deep_view() == old(pods).deep_view().sort_by(|p1: PodView, p2: PodView| model_reconciler::get_ordinal(parent_name@, p1.metadata.name->0)->0 >= model_reconciler::get_ordinal(parent_name@, p2.metadata.name->0)->0)
     {
         pods.sort_by(|p1: &Pod, p2: &Pod| get_ordinal(parent_name, &p2.metadata().name().unwrap()).cmp(&get_ordinal(parent_name, &p1.metadata().name().unwrap())));
     }

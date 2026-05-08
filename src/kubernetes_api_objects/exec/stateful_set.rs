@@ -89,7 +89,7 @@ impl StatefulSet {
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: StatefulSetSpec)
-        ensures self@ == old(self)@.with_spec(spec@),
+        ensures final(self)@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -184,35 +184,35 @@ impl StatefulSetSpec {
 
     #[verifier(external_body)]
     pub fn set_replicas(&mut self, replicas: i32)
-        ensures self@ == old(self)@.with_replicas(replicas as int),
+        ensures final(self)@ == old(self)@.with_replicas(replicas as int),
     {
         self.inner.replicas = Some(replicas)
     }
 
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: LabelSelector)
-        ensures self@ == old(self)@.with_selector(selector@),
+        ensures final(self)@ == old(self)@.with_selector(selector@),
     {
         self.inner.selector = selector.into_kube()
     }
 
     #[verifier(external_body)]
     pub fn set_service_name(&mut self, service_name: String)
-        ensures self@ == old(self)@.with_service_name(service_name@),
+        ensures final(self)@ == old(self)@.with_service_name(service_name@),
     {
         self.inner.service_name = service_name
     }
 
     #[verifier(external_body)]
     pub fn set_template(&mut self, template: PodTemplateSpec)
-        ensures self@ == old(self)@.with_template(template@),
+        ensures final(self)@ == old(self)@.with_template(template@),
     {
         self.inner.template = template.into_kube()
     }
 
     #[verifier(external_body)]
     pub fn set_volume_claim_templates(&mut self, volume_claim_templates: Vec<PersistentVolumeClaim>)
-        ensures self@ == old(self)@.with_volume_claim_templates(volume_claim_templates.deep_view()),
+        ensures final(self)@ == old(self)@.with_volume_claim_templates(volume_claim_templates.deep_view()),
     {
         self.inner.volume_claim_templates = Some(
             volume_claim_templates.into_iter().map(|pvc: PersistentVolumeClaim| pvc.into_kube()).collect()
@@ -221,21 +221,21 @@ impl StatefulSetSpec {
 
     #[verifier(external_body)]
     pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
-        ensures self@ == old(self)@.with_pod_management_policy(pod_management_policy@),
+        ensures final(self)@ == old(self)@.with_pod_management_policy(pod_management_policy@),
     {
         self.inner.pod_management_policy = Some(pod_management_policy)
     }
 
     #[verifier(external_body)]
     pub fn set_pvc_retention_policy(&mut self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
-        ensures self@ == old(self)@.with_pvc_retention_policy(pvc_retention_policy@),
+        ensures final(self)@ == old(self)@.with_pvc_retention_policy(pvc_retention_policy@),
     {
         self.inner.persistent_volume_claim_retention_policy = Some(pvc_retention_policy.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn unset_pvc_retention_policy(&mut self)
-        ensures self@ == old(self)@.without_pvc_retention_policy(),
+        ensures final(self)@ == old(self)@.without_pvc_retention_policy(),
     {
         self.inner.persistent_volume_claim_retention_policy = None
     }
@@ -258,14 +258,14 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
 
     #[verifier(external_body)]
     pub fn set_when_deleted(&mut self, when_deleted: String)
-        ensures self@ == old(self)@.with_when_deleted(when_deleted@),
+        ensures final(self)@ == old(self)@.with_when_deleted(when_deleted@),
     {
         self.inner.when_deleted = Some(when_deleted)
     }
 
     #[verifier(external_body)]
     pub fn set_when_scaled(&mut self, when_scaled: String)
-        ensures self@ == old(self)@.with_when_scaled(when_scaled@),
+        ensures final(self)@ == old(self)@.with_when_scaled(when_scaled@),
     {
         self.inner.when_scaled = Some(when_scaled)
     }
@@ -291,14 +291,14 @@ impl StatefulSetUpdateStrategy {
 
     #[verifier(external_body)]
     pub fn set_type(&mut self, type_: String)
-        ensures self@ == old(self)@.with_type(type_@),
+        ensures final(self)@ == old(self)@.with_type(type_@),
     {
         self.inner.type_ = Some(type_);
     }
 
     #[verifier(external_body)]
     pub fn set_rolling_update(&mut self, rolling_update: RollingUpdateStatefulSetStrategy)
-        ensures self@ == old(self)@.with_rolling_update(rolling_update@),
+        ensures final(self)@ == old(self)@.with_rolling_update(rolling_update@),
     {
         self.inner.rolling_update = Some(rolling_update.into_kube());
     }
@@ -333,14 +333,14 @@ impl RollingUpdateStatefulSetStrategy {
 
     #[verifier(external_body)]
     pub fn set_partition(&mut self, partition: i32)
-        ensures self@ == old(self)@.with_partition(partition as int),
+        ensures final(self)@ == old(self)@.with_partition(partition as int),
     {
         self.inner.partition = Some(partition);
     }
 
     #[verifier(external_body)]
     pub fn set_max_unavailable(&mut self, max_unavailable: i32)
-        ensures self@ == old(self)@.with_max_unavailable(max_unavailable as int),
+        ensures final(self)@ == old(self)@.with_max_unavailable(max_unavailable as int),
     {
         self.inner.max_unavailable = Some(
             deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
@@ -363,7 +363,7 @@ impl StatefulSetOrdinals {
 
     #[verifier(external_body)]
     pub fn set_start(&mut self, start: i32)
-        ensures self@ == old(self)@.with_start(start as int),
+        ensures final(self)@ == old(self)@.with_start(start as int),
     {
         self.inner.start = Some(start);
     }

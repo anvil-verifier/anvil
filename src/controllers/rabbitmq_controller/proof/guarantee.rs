@@ -12,7 +12,8 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
-    proof::{predicate::*, resource::*},
+    proof::{predicate::*, resource::*, helper_invariants::predicate::*,
+        helper_lemmas::{lemma_resource_key_has_rmq_prefix, lemma_diff_cr_key_implies_resource_key_neq}},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::rabbitmq_controller::trusted::step::RabbitmqReconcileStep::AfterKRequestStep;
@@ -71,7 +72,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         } implies match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
             APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            APIRequest::GetThenUpdateRequest(req) => rmq_guarantee_get_then_update_req(req),
             _ => false,
         } by {
             if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -110,19 +111,19 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     state: RabbitmqReconcileState,
-    rmq: RabbitmqClusterView,
+    rabbitmq: RabbitmqClusterView,
     resp_o: Option<ResponseView<VoidERespView>>,
 )
     requires
         msg.content is APIRequest,
-        reconcile_core(rmq, resp_o, state).1 is Some,
-        reconcile_core(rmq, resp_o, state).1->0 is KRequest,
-        msg.content->APIRequest_0 == reconcile_core(rmq, resp_o, state).1->0->KRequest_0,
+        reconcile_core(rabbitmq, resp_o, state).1 is Some,
+        reconcile_core(rabbitmq, resp_o, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(rabbitmq, resp_o, state).1->0->KRequest_0,
     ensures
         match msg.content->APIRequest_0 {
             APIRequest::GetRequest(_) => true,
             APIRequest::CreateRequest(req) => rmq_guarantee_create_req(req),
-            APIRequest::UpdateRequest(req) => rmq_guarantee_update_req(req),
+            APIRequest::GetThenUpdateRequest(req) => rmq_guarantee_get_then_update_req(req),
             _ => false,
         }
 {
@@ -140,28 +141,23 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                     if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetResponse {
                         let get_resp = resp_o->0->KResponse_0->GetResponse_0.res;
                         if get_resp is Ok {
-                            // Update path: sends UpdateRequest
-                            // reconcile_helper calls Builder::update which sets owner_references
-                            assert(msg.content.is_update_request());
-                            let req = msg.content.get_update_request();
-                            // The update function for every resource builder sets
-                            // owner_references = Some(seq![rmq.controller_owner_ref()])
-                            assert(rmq_guarantee_update_req(req));
+                            assert(msg.content.is_get_then_update_request());
+                            let req = msg.content.get_get_then_update_request();
+                            lemma_resource_key_has_rmq_prefix(resource, rabbitmq);
+                            assert(has_rmq_prefix(req.name));
+                            assert(rmq_guarantee_get_then_update_req(req));
                         } else if get_resp->Err_0 is ObjectNotFound {
-                            // Create path: sends CreateRequest
-                            // reconcile_helper calls Builder::make which sets owner_references
                             assert(msg.content.is_create_request());
                             let req = msg.content.get_create_request();
-                            // The make function for every resource builder sets
-                            // owner_references = Some(seq![rmq.controller_owner_ref()])
+                            lemma_resource_key_has_rmq_prefix(resource, rabbitmq);
                             assert(rmq_guarantee_create_req(req));
                         } else {
                             // Error case: no message sent (reconcile_core returns None)
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
                         // Invalid/missing response: no message sent
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
                 ActionKind::Create => {
@@ -174,33 +170,33 @@ pub proof fn lemma_guarantee_from_reconcile_state(
                             assert(msg.content.is_get_request());
                         } else {
                             // Error case: no message sent
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
                 ActionKind::Update => {
                     // AfterKRequestStep(Update, _) processes the Update response and
                     // calls state_after_update which sends a GetRequest for the next resource.
-                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is UpdateResponse {
-                        let update_resp = resp_o->0->KResponse_0->UpdateResponse_0.res;
+                    if resp_o is Some && resp_o->0 is KResponse && resp_o->0->KResponse_0 is GetThenUpdateResponse {
+                        let update_resp = resp_o->0->KResponse_0->GetThenUpdateResponse_0.res;
                         if update_resp is Ok {
                             // state_after_update returns GetRequest for next subresource
                             assert(msg.content.is_get_request());
                         } else {
                             // Error case: no message sent
-                            assert(reconcile_core(rmq, resp_o, state).1 is None);
+                            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                         }
                     } else {
-                        assert(reconcile_core(rmq, resp_o, state).1 is None);
+                        assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
                     }
                 },
             }
         },
         _ => {
             // Done/Error: no message sent
-            assert(reconcile_core(rmq, resp_o, state).1 is None);
+            assert(reconcile_core(rabbitmq, resp_o, state).1 is None);
         }
     }
 }

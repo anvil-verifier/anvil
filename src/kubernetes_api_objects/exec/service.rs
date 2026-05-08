@@ -51,7 +51,7 @@ impl Service {
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: ServiceSpec)
-        ensures self@ == old(self)@.with_spec(spec@),
+        ensures final(self)@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -60,7 +60,7 @@ impl Service {
 impl ServiceSpec {
     #[verifier(external_body)]
     pub fn set_cluster_ip(&mut self, cluster_ip: String)
-        ensures self@ == old(self)@.with_cluster_ip(cluster_ip@),
+        ensures final(self)@ == old(self)@.with_cluster_ip(cluster_ip@),
     {
         self.inner.cluster_ip = Some(cluster_ip)
     }
@@ -77,7 +77,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_ports(&mut self, ports: Vec<ServicePort>)
-        ensures self@ == old(self)@.with_ports(ports.deep_view()),
+        ensures final(self)@ == old(self)@.with_ports(ports.deep_view()),
     {
         self.inner.ports = Some(ports.into_iter().map(|port: ServicePort| port.into_kube()).collect())
     }
@@ -94,7 +94,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: StringMap)
-        ensures self@ == old(self)@.with_selector(selector@),
+        ensures final(self)@ == old(self)@.with_selector(selector@),
     {
         self.inner.selector = Some(selector.into_rust_map())
     }
@@ -108,14 +108,14 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_publish_not_ready_addresses(&mut self, publish_not_ready_addresses: bool)
-        ensures self@ == old(self)@.with_publish_not_ready_addresses(publish_not_ready_addresses),
+        ensures final(self)@ == old(self)@.with_publish_not_ready_addresses(publish_not_ready_addresses),
     {
         self.inner.publish_not_ready_addresses = Some(publish_not_ready_addresses);
     }
 
     #[verifier(external_body)]
     pub fn unset_publish_not_ready_addresses(&mut self)
-        ensures self@ == old(self)@.without_publish_not_ready_addresses(),
+        ensures final(self)@ == old(self)@.without_publish_not_ready_addresses(),
     {
         self.inner.publish_not_ready_addresses = None;
     }
@@ -134,28 +134,28 @@ impl ServicePort {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.with_name(name@),
+        ensures final(self)@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_port(&mut self, port: i32)
-        ensures self@ == old(self)@.with_port(port as int),
+        ensures final(self)@ == old(self)@.with_port(port as int),
     {
         self.inner.port = port;
     }
 
     #[verifier(external_body)]
     pub fn set_app_protocol(&mut self, app_protocol: String)
-        ensures self@ == old(self)@.with_app_protocol(app_protocol@),
+        ensures final(self)@ == old(self)@.with_app_protocol(app_protocol@),
     {
         self.inner.app_protocol = Some(app_protocol);
     }
 
     #[verifier(external_body)]
     pub fn set_protocol(&mut self, protocol: String)
-        ensures self@ == old(self)@.with_protocol(protocol@),
+        ensures final(self)@ == old(self)@.with_protocol(protocol@),
     {
         self.inner.protocol = Some(protocol);
     }

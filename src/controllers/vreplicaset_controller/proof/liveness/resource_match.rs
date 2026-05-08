@@ -3051,7 +3051,8 @@ pub proof fn lemma_current_state_matches_is_stable(
     leads_to_always_enhance(spec, true_pred(), p, lift_state(post), lift_state(final_post));
 }
 
-// to reduce flakiness in lemma_current_state_matches_is_stable
+// this proof is flaky
+#[verifier(spinoff_prover)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     vrs: VReplicaSetView, cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState
 )
@@ -3190,11 +3191,14 @@ ensures
                         } else {
                             assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                         }
+                    } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s) {
+                        assert(current_state_matches(vrs)(s_prime));
                     } else {
                         assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                     }
                 } else {
-                    assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
+                    assert(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()] == s.ongoing_reconciles(controller_id)[vrs.object_ref()]);
+                    assert(s_prime.resources() == s.resources());
                 }
             } else if s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
                 assert(inductive_current_state_matches(vrs, controller_id)(s_prime));

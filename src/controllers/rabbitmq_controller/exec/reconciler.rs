@@ -131,11 +131,12 @@ pub fn reconcile_helper<
                             let new_obj = Builder::update(rabbitmq, &state, get_resp.unwrap());
                             if new_obj.is_ok() {
                                 let updated_obj = new_obj.unwrap();
-                                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                let req_o = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
                                     api_resource: Builder::get_request(rabbitmq).api_resource,
                                     name: Builder::get_request(rabbitmq).name,
                                     namespace: rabbitmq.metadata().namespace().unwrap(),
                                     obj: updated_obj,
+                                    owner_ref: rabbitmq.controller_owner_ref(),
                                 });
                                 let state_prime = RabbitmqReconcileState {
                                     reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
@@ -192,9 +193,9 @@ pub fn reconcile_helper<
                 },
                 ActionKind::Update => {
                     if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-                    && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-                    && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
-                        let next_state = Builder::state_after_update(rabbitmq, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
+                    && resp_o.as_ref().unwrap().as_k_response_ref().is_get_then_update_response()
+                    && resp_o.as_ref().unwrap().as_k_response_ref().as_get_then_update_response_ref().res.is_ok() {
+                        let next_state = Builder::state_after_update(rabbitmq, resp_o.unwrap().into_k_response().into_get_then_update_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
                             let req_o = if req.is_some() {

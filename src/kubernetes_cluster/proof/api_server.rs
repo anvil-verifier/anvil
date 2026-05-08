@@ -37,21 +37,58 @@ ensures
     }
 }
 
-#[verifier(rlimit(50))]
-pub proof fn other_objects_are_unaffected_if_request_key_does_not_match(cluster: Cluster, s: ClusterState, s_prime: ClusterState, msg: Message, key: ObjectRef)
+// this lemma is usually only used to reduce flakiness
+pub proof fn other_objects_are_unaffected_if_request_fails_to_be_applied(cluster: Cluster, s: ClusterState, s_prime: ClusterState, msg: Message, key: ObjectRef)
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
     msg.content is APIRequest,
     msg.dst is APIServer,
-    !resource_create_request_msg(key)(msg),
-    !resource_create_request_msg_without_name(key.kind, key.namespace)(msg), // can be weakened
-    !resource_delete_request_msg(key)(msg),
-    !resource_update_request_msg(key)(msg),
-    !resource_update_status_request_msg(key)(msg),
-    !resource_get_then_update_request_msg(key)(msg),
-    !resource_get_then_delete_request_msg(key)(msg),
-    !resource_get_then_update_status_request_msg(key)(msg),
+    match msg.content->APIRequest_0 {
+        APIRequest::CreateRequest(req) => { // key does not match
+            &&& req.obj.metadata.name is Some ==> req.obj.metadata.name->0 != key.name
+            &&& req.obj.metadata.name is None && req.obj.metadata.generate_name is Some ==> generated_name(s.api_server, req.obj.metadata.generate_name->0) != key.name
+        },
+        APIRequest::DeleteRequest(req) => {
+            resource_delete_request_msg(key)(msg) && s.resources().contains_key(req.key())
+            ==> req.preconditions is Some && req.preconditions->0.resource_version is Some && !{
+                let etcd_obj = s.resources()[key];
+                &&& etcd_obj.metadata.resource_version is Some
+                &&& etcd_obj.metadata.resource_version == req.preconditions->0.resource_version
+            }
+        },
+        APIRequest::UpdateRequest(req) => {
+            resource_update_request_msg(key)(msg) && s.resources().contains_key(req.key())
+            ==> req.obj.metadata.resource_version is Some && !{
+                let etcd_obj = s.resources()[key];
+                &&& etcd_obj.metadata.resource_version is Some
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+            }
+        },
+        APIRequest::UpdateStatusRequest(req) => {
+            resource_update_status_request_msg(key)(msg) && s.resources().contains_key(req.key())
+            ==> req.obj.metadata.resource_version is Some && !{
+                let etcd_obj = s.resources()[key];
+                &&& req.obj.metadata.resource_version is Some
+                &&& etcd_obj.metadata.resource_version is Some
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+            }
+        },
+        APIRequest::GetThenDeleteRequest(req) => {
+            resource_get_then_delete_request_msg(key)(msg) && s.resources().contains_key(req.key())
+            ==> !s.resources()[key].metadata.owner_references_contains(req.owner_ref)
+        },
+        APIRequest::GetThenUpdateRequest(req) => {
+            resource_get_then_update_request_msg(key)(msg) && s.resources().contains_key(req.key())
+            ==> !s.resources()[key].metadata.owner_references_contains(req.owner_ref)
+        },
+        APIRequest::GetThenUpdateStatusRequest(req) => {
+            resource_get_then_update_status_request_msg(key)(msg) && s.resources().contains_key(req.key())
+            ==> !s.resources()[key].metadata.owner_references_contains(req.owner_ref)
+        },
+        _ => true, // get/list requests are read only
+    }
 ensures
     s_prime.resources().contains_key(key) == s.resources().contains_key(key),
     s_prime.resources()[key] == s.resources()[key],
@@ -59,90 +96,15 @@ ensures
     let req = msg.content->APIRequest_0;
     match req {
         APIRequest::CreateRequest(create_req) => {
-            assert(!resource_create_request_msg(key)(msg));
-            assert(!resource_create_request_msg_without_name(key.kind, key.namespace)(msg));
-            if create_req.obj.metadata.name is Some {
-                assert(msg.content.get_create_request().key() != key);
-            } else if create_req.obj.metadata.generate_name is Some {
-                assert(create_req.obj.kind != key.kind || create_req.namespace != key.namespace);
-            }
+            if create_req.obj.metadata.name is Some {} else if create_req.obj.metadata.generate_name is Some {}
         },
-        APIRequest::DeleteRequest(delete_req) => {
-            assert(!resource_delete_request_msg(key)(msg));
-            assert(delete_req.key() != key);
-        },
-        APIRequest::UpdateRequest(update_req) => {
-            assert(!resource_update_request_msg(key)(msg));
-            assert(update_req.key() != key);
-            if update_request_admission_check(cluster.installed_types, update_req, s.api_server) is None {
-                let old_obj = s.resources()[update_req.key()];
-                assert(old_obj.object_ref() == update_req.key());
-                let uo = updated_object(update_req, old_obj);
-                assert(uo.object_ref() == update_req.key());
-            }
-        },
-        APIRequest::UpdateStatusRequest(update_status_req) => {
-            assert(!resource_update_status_request_msg(key)(msg));
-            assert(update_status_req.key() != key);
-        },
-        APIRequest::GetThenUpdateRequest(get_then_update_req) => {
-            assert(!resource_get_then_update_request_msg(key)(msg));
-            assert(get_then_update_req.key() != key);
-            if s.resources().contains_key(get_then_update_req.key()) {
-                let current_obj = s.resources()[get_then_update_req.key()];
-                if current_obj.metadata.owner_references_contains(get_then_update_req.owner_ref) {
-                    let new_obj = DynamicObjectView {
-                        metadata: ObjectMetaView {
-                            resource_version: current_obj.metadata.resource_version,
-                            uid: current_obj.metadata.uid,
-                            ..get_then_update_req.obj.metadata
-                        },
-                        ..get_then_update_req.obj
-                    };
-                    let inner_req = UpdateRequest {
-                        name: get_then_update_req.name,
-                        namespace: get_then_update_req.namespace,
-                        obj: new_obj,
-                    };
-                    assert(inner_req.key() == get_then_update_req.key());
-                    if update_request_admission_check(cluster.installed_types, inner_req, s.api_server) is None {
-                        let old_obj = s.resources()[inner_req.key()];
-                        assert(old_obj.object_ref() == inner_req.key());
-                        let uo = updated_object(inner_req, old_obj);
-                        assert(uo.object_ref() == inner_req.key());
-                    }
-                }
-            }
-        },
-        APIRequest::GetThenDeleteRequest(get_then_delete_req) => {
-            assert(!resource_get_then_delete_request_msg(key)(msg));
-            assert(get_then_delete_req.key() != key);
-        },
-        APIRequest::GetThenUpdateStatusRequest(get_then_update_status_req) => {
-            assert(!resource_get_then_update_status_request_msg(key)(msg));
-            assert(get_then_update_status_req.key() != key);
-            if s.resources().contains_key(get_then_update_status_req.key()) {
-                let current_obj = s.resources()[get_then_update_status_req.key()];
-                if current_obj.metadata.owner_references_contains(get_then_update_status_req.owner_ref) {
-                    let new_obj = DynamicObjectView {
-                        metadata: current_obj.metadata,
-                        spec: current_obj.spec,
-                        status: get_then_update_status_req.obj.status,
-                        ..current_obj
-                    };
-                    let inner_req = UpdateStatusRequest {
-                        name: get_then_update_status_req.name,
-                        namespace: get_then_update_status_req.namespace,
-                        obj: new_obj,
-                    };
-                    assert(inner_req.key().name == get_then_update_status_req.key().name);
-                    assert(inner_req.key().namespace == get_then_update_status_req.key().namespace);
-                }
-            }
-        },
-        _ => {
-            // Get and List are read-only, s_prime == s
-        }
+        APIRequest::DeleteRequest(delete_req) => {},
+        APIRequest::UpdateRequest(update_req) => {},
+        APIRequest::UpdateStatusRequest(update_status_req) => {},
+        APIRequest::GetThenUpdateRequest(get_then_update_req) => {},
+        APIRequest::GetThenDeleteRequest(get_then_delete_req) => {},
+        APIRequest::GetThenUpdateStatusRequest(get_then_update_status_req) => {},
+        _ => {}
     };
 }
 

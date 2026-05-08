@@ -27,7 +27,8 @@ pub open spec fn every_valid_update_msg_sets_owner_references_as(
             &&& #[trigger] resource_get_then_update_request_msg(key)(msg)
             // the request is valid
             &&& req.well_formed()
-            &&& (s.resources().contains_key(req.key()) ==> s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref))
+            &&& s.resources().contains_key(req.key())
+            &&& s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref)
         } ==> requirements(msg.content.get_get_then_update_request().obj.metadata.owner_references)
     }
 }
