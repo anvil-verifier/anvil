@@ -7,14 +7,14 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vdeployment_controller::trusted::spec_types;
 use crate::vstd_ext::string_view::*;
-use deps_hack::kube::Resource;
+use kube::Resource;
 use vstd::prelude::*;
 
 verus! {
 
 implement_custom_object_wrapper_type!(
     VDeployment,
-    deps_hack::VDeployment,
+    crate::crds::VDeployment,
     spec_types::VDeploymentView
 );
 
@@ -142,7 +142,7 @@ implement_view_trait!(
 
 #[verifier(external_body)]
 pub struct VDeploymentSpec {
-    inner: deps_hack::VDeploymentSpec,
+    inner: crate::crds::VDeploymentSpec,
 }
 
 impl VDeploymentSpec {
@@ -213,7 +213,7 @@ impl VDeploymentSpec {
 
 implement_field_wrapper_type!(
     DeploymentStrategy,
-    deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy,
+    k8s_openapi::api::apps::v1::DeploymentStrategy,
     spec_types::DeploymentStrategyView
 );
 
@@ -257,7 +257,7 @@ impl DeploymentStrategy {
 
 implement_field_wrapper_type!(
     RollingUpdateDeployment,
-    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment,
+    k8s_openapi::api::apps::v1::RollingUpdateDeployment,
     spec_types::RollingUpdateDeploymentView
 );
 
@@ -271,7 +271,7 @@ impl RollingUpdateDeployment {
     {
         match &self.inner.max_surge {
             Some(ms) => match ms {
-                deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
+                k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
                 // Simplification: treat string values as 1 (integer)
                 _ => Some(1),
             },
@@ -287,7 +287,7 @@ impl RollingUpdateDeployment {
     {
         match &self.inner.max_unavailable {
             Some(mu) => match mu {
-                deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
+                k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
                 // Simplification: treat string values as 1 (integer)
                 _ => Some(1),
             },
@@ -300,7 +300,7 @@ impl RollingUpdateDeployment {
         ensures final(self)@ == old(self)@.with_max_surge(max_surge as int),
     {
         self.inner.max_surge = Some(
-            deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_surge)
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_surge)
         );
     }
 
@@ -309,7 +309,7 @@ impl RollingUpdateDeployment {
         ensures final(self)@ == old(self)@.with_max_unavailable(max_unavailable as int),
     {
         self.inner.max_unavailable = Some(
-            deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
         );
     }
 }

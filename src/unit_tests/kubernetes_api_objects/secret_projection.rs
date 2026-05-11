@@ -14,7 +14,7 @@ pub fn test_default() {
     let secret_projection = SecretProjection::default();
     assert_eq!(
         secret_projection.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::SecretProjection::default()
+        k8s_openapi::api::core::v1::SecretProjection::default()
     );
 }
 
@@ -55,15 +55,15 @@ pub fn test_set_items() {
 
 #[test]
 pub fn test_kube() {
-    let kube_secret_projection = deps_hack::k8s_openapi::api::core::v1::SecretProjection {
+    let kube_secret_projection = k8s_openapi::api::core::v1::SecretProjection {
         name: Some("name".to_string()),
         items: Some(vec![
-            deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+            k8s_openapi::api::core::v1::KeyToPath {
                 key: "key1".to_string(),
                 path: "path1".to_string(),
                 ..Default::default()
             },
-            deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+            k8s_openapi::api::core::v1::KeyToPath {
                 key: "key2".to_string(),
                 path: "path2".to_string(),
                 ..Default::default()

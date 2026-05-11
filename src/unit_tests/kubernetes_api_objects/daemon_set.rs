@@ -14,7 +14,7 @@ pub fn test_default() {
     let daemon_set = DaemonSet::default();
     assert_eq!(
         daemon_set.into_kube(),
-        deps_hack::k8s_openapi::api::apps::v1::DaemonSet::default()
+        k8s_openapi::api::apps::v1::DaemonSet::default()
     );
 }
 
@@ -94,13 +94,13 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_daemon_set = deps_hack::k8s_openapi::api::apps::v1::DaemonSet {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_daemon_set = k8s_openapi::api::apps::v1::DaemonSet {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
-        spec: Some(deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
-            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+        spec: Some(k8s_openapi::api::apps::v1::DaemonSetSpec {
+            selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
                 match_labels: Some(
                     vec![("key".to_string(), "value".to_string())]
                         .into_iter()
@@ -119,13 +119,13 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_daemon_set = deps_hack::k8s_openapi::api::apps::v1::DaemonSet {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_daemon_set = k8s_openapi::api::apps::v1::DaemonSet {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
-        spec: Some(deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
-            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+        spec: Some(k8s_openapi::api::apps::v1::DaemonSetSpec {
+            selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
                 match_labels: Some(
                     vec![("key".to_string(), "value".to_string())]
                         .into_iter()

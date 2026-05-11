@@ -14,7 +14,7 @@ pub fn test_default() {
         StatefulSetPersistentVolumeClaimRetentionPolicy::default();
     assert_eq!(
         stateful_set_pvc_retention_policy.into_kube(),
-        deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default()
+        k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default()
     );
 }
 
@@ -62,7 +62,7 @@ pub fn test_clone() {
 #[test]
 pub fn test_kube() {
     let kube_stateful_set_pvc_retention_policy =
-        deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
+        k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
             when_deleted: Some("Retain".to_string()),
             when_scaled: Some("Delete".to_string()),
             ..Default::default()

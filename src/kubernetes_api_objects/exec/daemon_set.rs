@@ -24,19 +24,19 @@ verus! {
 
 implement_object_wrapper_type!(
     DaemonSet,
-    deps_hack::k8s_openapi::api::apps::v1::DaemonSet,
+    k8s_openapi::api::apps::v1::DaemonSet,
     DaemonSetView
 );
 
 implement_field_wrapper_type!(
     DaemonSetSpec,
-    deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec,
+    k8s_openapi::api::apps::v1::DaemonSetSpec,
     DaemonSetSpecView
 );
 
 implement_field_wrapper_type!(
     DaemonSetStatus,
-    deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus,
+    k8s_openapi::api::apps::v1::DaemonSetStatus,
     DaemonSetStatusView
 );
 

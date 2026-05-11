@@ -257,7 +257,7 @@ impl DynamicObject {
     pub fn set_current_deletion_timestamp(&mut self)
         ensures self@ == old(self)@.with_deletion_timestamp(model::deletion_timestamp()),
     {
-        self.as_kube_mut_ref().metadata.deletion_timestamp = Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(deps_hack::chrono::Utc::now()));
+        self.as_kube_mut_ref().metadata.deletion_timestamp = Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(chrono::Utc::now()));
     }
 
     #[verifier(external_body)]

@@ -20,7 +20,7 @@ verus! {
 
 implement_object_wrapper_type!(
     PersistentVolumeClaim,
-    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
+    k8s_openapi::api::core::v1::PersistentVolumeClaim,
     PersistentVolumeClaimView
 );
 
@@ -28,7 +28,7 @@ implement_eq!(PersistentVolumeClaim);
 
 implement_field_wrapper_type!(
     PersistentVolumeClaimSpec,
-    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
+    k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
     PersistentVolumeClaimSpecView
 );
 

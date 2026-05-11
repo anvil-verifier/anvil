@@ -12,7 +12,7 @@ pub fn test_default() {
     let role_binding = RoleBinding::default();
     assert_eq!(
         role_binding.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::RoleBinding::default()
+        k8s_openapi::api::rbac::v1::RoleBinding::default()
     );
 }
 
@@ -113,26 +113,26 @@ pub fn test_api_resource() {
 
 #[test]
 pub fn test_kube() {
-    let kube_role_binding = deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_role_binding = k8s_openapi::api::rbac::v1::RoleBinding {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             namespace: Some("namespace".to_string()),
             ..Default::default()
         },
-        role_ref: deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
+        role_ref: k8s_openapi::api::rbac::v1::RoleRef {
             api_group: "api_group".to_string(),
             kind: "kind".to_string(),
             name: "name".to_string(),
             ..Default::default()
         },
         subjects: Some(vec![
-            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+            k8s_openapi::api::rbac::v1::Subject {
                 kind: "kind1".to_string(),
                 name: "name1".to_string(),
                 namespace: Some("namespace1".to_string()),
                 ..Default::default()
             },
-            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+            k8s_openapi::api::rbac::v1::Subject {
                 kind: "kind2".to_string(),
                 name: "name2".to_string(),
                 namespace: Some("namespace2".to_string()),
@@ -149,26 +149,26 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_role_binding = deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_role_binding = k8s_openapi::api::rbac::v1::RoleBinding {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             namespace: Some("namespace".to_string()),
             ..Default::default()
         },
-        role_ref: deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
+        role_ref: k8s_openapi::api::rbac::v1::RoleRef {
             api_group: "api_group".to_string(),
             kind: "kind".to_string(),
             name: "name".to_string(),
             ..Default::default()
         },
         subjects: Some(vec![
-            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+            k8s_openapi::api::rbac::v1::Subject {
                 kind: "kind1".to_string(),
                 name: "name1".to_string(),
                 namespace: Some("namespace1".to_string()),
                 ..Default::default()
             },
-            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+            k8s_openapi::api::rbac::v1::Subject {
                 kind: "kind2".to_string(),
                 name: "name2".to_string(),
                 namespace: Some("namespace2".to_string()),

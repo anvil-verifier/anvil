@@ -22,7 +22,7 @@ use tokio::time::sleep;
 use tracing::*;
 
 use crate::common::*;
-use deps_hack::VStatefulSet;
+use verifiable_controllers::crds::VStatefulSet;
 
 pub fn rabbitmq_cluster() -> String {
     "

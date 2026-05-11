@@ -14,6 +14,6 @@ use vstd::prelude::*;
 
 implement_field_wrapper_type!(
     Toleration,
-    deps_hack::k8s_openapi::api::core::v1::Toleration,
+    k8s_openapi::api::core::v1::Toleration,
     TolerationView
 );

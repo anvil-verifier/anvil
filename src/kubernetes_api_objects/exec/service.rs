@@ -22,19 +22,19 @@ verus! {
 
 implement_object_wrapper_type!(
     Service,
-    deps_hack::k8s_openapi::api::core::v1::Service,
+    k8s_openapi::api::core::v1::Service,
     ServiceView
 );
 
 implement_field_wrapper_type!(
     ServiceSpec,
-    deps_hack::k8s_openapi::api::core::v1::ServiceSpec,
+    k8s_openapi::api::core::v1::ServiceSpec,
     ServiceSpecView
 );
 
 implement_field_wrapper_type!(
     ServicePort,
-    deps_hack::k8s_openapi::api::core::v1::ServicePort,
+    k8s_openapi::api::core::v1::ServicePort,
     ServicePortView
 );
 
@@ -70,7 +70,7 @@ impl ServiceSpec {
         ensures self@.ports == ports.deep_view()
     {
         match &self.inner.ports {
-            Some(p) => Some(p.into_iter().map(|port: &deps_hack::k8s_openapi::api::core::v1::ServicePort| ServicePort::from_kube(port.clone())).collect()),
+            Some(p) => Some(p.into_iter().map(|port: &k8s_openapi::api::core::v1::ServicePort| ServicePort::from_kube(port.clone())).collect()),
             None => None,
         }
     }

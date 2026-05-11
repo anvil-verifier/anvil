@@ -149,8 +149,19 @@ pub open spec fn pod_name_match(name: StringView, vsts_name: StringView) -> bool
     exists |ord: nat| name == pod_name(vsts_name, ord)
 }
 
+// usage: lift_local(controller_id, vsts, at_step_or![step_or_pred+])
+pub open spec fn lift_local(controller_id: int, vsts: VStatefulSetView, step_pred: spec_fn(ReconcileLocalState) -> bool) -> StatePred<ClusterState> {
+    Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), step_pred)
+}
+
+}
+
+// Macros below are defined outside `verus!{}` so rustc tracks their usage
+// (see vdeployment_controller/proof/predicate.rs for the same pattern).
+
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
+#[allow(unused_macros)]
 macro_rules! at_step {
     [ $($tokens:tt)? ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -162,6 +173,7 @@ macro_rules! at_step {
 
 // usage: at_step_or![step_or_pred,*]
 // step_or_pred = step | (step, pred)
+#[allow(unused_macros)]
 macro_rules! at_step_or {
     [ $($tokens:tt)+ ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -171,6 +183,7 @@ macro_rules! at_step_or {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! locally_at_step_or {
     ($vsts_state:expr, ($step:expr, $pred:expr)) => {
         $vsts_state.reconcile_step.eq_step($step) && $pred($vsts_state)
@@ -185,95 +198,9 @@ macro_rules! locally_at_step_or {
     };
 }
 
-// usage: lift_local(controller_id, vsts, at_step_or![step_or_pred+])
-pub open spec fn lift_local(controller_id: int, vsts: VStatefulSetView, step_pred: spec_fn(ReconcileLocalState) -> bool) -> StatePred<ClusterState> {
-    Cluster::at_expected_reconcile_states(controller_id, vsts.object_ref(), step_pred)
-}
-
 pub(crate) use locally_at_step_or;
 pub(crate) use at_step_or;
 pub(crate) use at_step;
 
-// usage: and!(pred1, pred2, ...)
-macro_rules! and {
-    ($($tokens:tt)+) => {
-        closure_to_fn_spec(|s| {
-            and_internal!(s, $($tokens)+)
-        })
-    };
-}
-
-macro_rules! and_internal {
-    ($s:expr, $head:expr) => {
-        $head($s)
-    };
-
-    ($s:expr, $head:expr, $($tail:tt)+) => {
-        and_internal!($s, $head) && and_internal!($s, $($tail)+)
-    };
-}
-
-// usage: or!(pred1, pred2, ...)
-macro_rules! or {
-    ($($tokens:tt)+) => {
-        closure_to_fn_spec(|s| {
-            or_internal!(s, $($tokens)+)
-        })
-    };
-}
-
-macro_rules! or_internal {
-    ($s:expr, $head:expr) => {
-        $head($s)
-    };
-
-    ($s:expr, $head:expr, $($tail:tt)+) => {
-        or_internal!($s, $head) || or_internal!($s, $($tail)+)
-    };
-}
-
-macro_rules! not {
-    ( $pred:expr ) => {
-        closure_to_fn_spec(|s| {
-            ! $pred(s)
-        })
-    };
-}
-
-pub(crate) use or;
-pub(crate) use or_internal;
-pub(crate) use and;
-pub(crate) use and_internal;
-pub(crate) use not;
-
-// hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
-macro_rules! nat0 {
-    () => {
-        spec_literal_nat("0")
-    };
-}
-
-macro_rules! nat1 {
-    () => {
-        spec_literal_nat("1")
-    };
-}
-
-macro_rules! int0 {
-    () => {
-        spec_literal_int("0")
-    };
-}
-
-macro_rules! int1 {
-    () => {
-        spec_literal_int("1")
-    };
-}
-
-pub(crate) use nat0;
-pub(crate) use nat1;
-pub(crate) use int0;
-pub(crate) use int1;
-
-}
+// and!/or!/not!/nat0!/nat1!/int0!/int1! live in crate::vstd_ext::math.
+pub(crate) use crate::vstd_ext::math::{and, and_internal, nat0, nat1, or, or_internal};

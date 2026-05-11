@@ -22,7 +22,7 @@ verus! {
 
 implement_object_wrapper_type!(
     Secret,
-    deps_hack::k8s_openapi::api::core::v1::Secret,
+    k8s_openapi::api::core::v1::Secret,
     SecretView
 );
 
@@ -53,7 +53,7 @@ impl Secret {
         let string_map = data.into_rust_map();
         let mut binary_map = std::collections::BTreeMap::new();
         for (key, value) in string_map {
-            binary_map.insert(key, deps_hack::k8s_openapi::ByteString(value.into_bytes()));
+            binary_map.insert(key, k8s_openapi::ByteString(value.into_bytes()));
         }
         self.inner.data = Some(binary_map)
     }

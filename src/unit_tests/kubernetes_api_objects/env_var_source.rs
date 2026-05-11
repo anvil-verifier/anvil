@@ -27,7 +27,7 @@ pub fn test_default() {
     let env_var_source = EnvVarSource::default();
     assert_eq!(
         env_var_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
+        k8s_openapi::api::core::v1::EnvVarSource::default()
     );
 }
 
@@ -43,8 +43,8 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_env_var_source = deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-        field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+    let kube_env_var_source = k8s_openapi::api::core::v1::EnvVarSource {
+        field_ref: Some(k8s_openapi::api::core::v1::ObjectFieldSelector {
             field_path: "field_path".to_string(),
             ..Default::default()
         }),

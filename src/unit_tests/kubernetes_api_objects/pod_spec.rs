@@ -16,7 +16,7 @@ pub fn test_default() {
     let pod_template_spec = PodSpec::default();
     assert_eq!(
         pod_template_spec.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::PodSpec::default()
+        k8s_openapi::api::core::v1::PodSpec::default()
     );
 }
 
@@ -33,10 +33,10 @@ pub fn test_clone() {
 #[test]
 pub fn test_set_affinity() {
     let mut pod_spec = PodSpec::default();
-    let affinity = Affinity::from_kube(deps_hack::k8s_openapi::api::core::v1::Affinity::default());
+    let affinity = Affinity::from_kube(k8s_openapi::api::core::v1::Affinity::default());
     pod_spec.set_affinity(affinity);
     assert_eq!(
-        deps_hack::k8s_openapi::api::core::v1::Affinity::default(),
+        k8s_openapi::api::core::v1::Affinity::default(),
         pod_spec.into_kube().affinity.unwrap()
     );
 }
@@ -97,10 +97,10 @@ pub fn test_set_service_account_name() {
 pub fn test_set_tolerations() {
     let mut pod_spec = PodSpec::default();
     let toleration =
-        Toleration::from_kube(deps_hack::k8s_openapi::api::core::v1::Toleration::default());
+        Toleration::from_kube(k8s_openapi::api::core::v1::Toleration::default());
     pod_spec.set_tolerations(vec![toleration]);
     assert_eq!(
-        vec![deps_hack::k8s_openapi::api::core::v1::Toleration::default()],
+        vec![k8s_openapi::api::core::v1::Toleration::default()],
         pod_spec.into_kube().tolerations.unwrap()
     );
 }
@@ -173,11 +173,11 @@ pub fn test_set_priority_class_name() {
 pub fn test_set_security_context() {
     let mut pod_spec = PodSpec::default();
     let security_context = PodSecurityContext::from_kube(
-        deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default(),
+        k8s_openapi::api::core::v1::PodSecurityContext::default(),
     );
     pod_spec.set_security_context(security_context);
     assert_eq!(
-        deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default(),
+        k8s_openapi::api::core::v1::PodSecurityContext::default(),
         pod_spec.into_kube().security_context.unwrap()
     );
 }
@@ -192,7 +192,7 @@ pub fn test_set_host_network() {
 #[test]
 pub fn test_set_image_pull_secrets() {
     let mut pod_spec = PodSpec::default();
-    let kube_local_object_reference = deps_hack::k8s_openapi::api::core::v1::LocalObjectReference {
+    let kube_local_object_reference = k8s_openapi::api::core::v1::LocalObjectReference {
         name: Some("name".to_string()),
     };
     let local_object_reference =
@@ -221,25 +221,25 @@ pub fn test_set_termination_grace_period_seconds() {
 #[test]
 pub fn test_kube() {
     let kube_pod_spec =
-        deps_hack::k8s_openapi::api::core::v1::PodSpec {
+        k8s_openapi::api::core::v1::PodSpec {
             containers:
                 vec![
-                    deps_hack::k8s_openapi::api::core::v1::Container {
+                    k8s_openapi::api::core::v1::Container {
                         name: "name".to_string(),
                         ..Default::default()
                     },
-                    deps_hack::k8s_openapi::api::core::v1::Container {
+                    k8s_openapi::api::core::v1::Container {
                         name: "name_2".to_string(),
                         ..Default::default()
                     },
                 ],
             volumes: Some(
                 vec![
-                    deps_hack::k8s_openapi::api::core::v1::Volume {
+                    k8s_openapi::api::core::v1::Volume {
                         name: "name".to_string(),
                         ..Default::default()
                     },
-                    deps_hack::k8s_openapi::api::core::v1::Volume {
+                    k8s_openapi::api::core::v1::Volume {
                         name: "name_2".to_string(),
                         ..Default::default()
                     },
@@ -248,11 +248,11 @@ pub fn test_kube() {
 
             init_containers: Some(
                 vec![
-                    deps_hack::k8s_openapi::api::core::v1::Container {
+                    k8s_openapi::api::core::v1::Container {
                         name: "name".to_string(),
                         ..Default::default()
                     },
-                    deps_hack::k8s_openapi::api::core::v1::Container {
+                    k8s_openapi::api::core::v1::Container {
                         name: "name_2".to_string(),
                         ..Default::default()
                     },
@@ -261,11 +261,11 @@ pub fn test_kube() {
             service_account_name: Some("name".to_string()),
             tolerations: Some(
                 vec![
-                    deps_hack::k8s_openapi::api::core::v1::Toleration {
+                    k8s_openapi::api::core::v1::Toleration {
                         key: Some("key".to_string()),
                         ..Default::default()
                     },
-                    deps_hack::k8s_openapi::api::core::v1::Toleration {
+                    k8s_openapi::api::core::v1::Toleration {
                         key: Some("key_2".to_string()),
                         ..Default::default()
                     },
@@ -286,17 +286,17 @@ pub fn test_kube() {
                 .collect(),
             ),
             affinity: Some(
-                deps_hack::k8s_openapi::api::core::v1::Affinity {
+                k8s_openapi::api::core::v1::Affinity {
                     node_affinity: Some(
-                        deps_hack::k8s_openapi::api::core::v1::NodeAffinity {
+                        k8s_openapi::api::core::v1::NodeAffinity {
                             required_during_scheduling_ignored_during_execution: Some(
-                                deps_hack::k8s_openapi::api::core::v1::NodeSelector {
+                                k8s_openapi::api::core::v1::NodeSelector {
                                     node_selector_terms:
                                         vec![
-                                            deps_hack::k8s_openapi::api::core::v1::NodeSelectorTerm {
+                                            k8s_openapi::api::core::v1::NodeSelectorTerm {
                                                 match_expressions: Some(
                                                     vec![
-                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                        k8s_openapi::api::core::v1::NodeSelectorRequirement {
                                                             key: "key".to_string(),
                                                             operator: "operator".to_string(),
                                                             values: Some(
@@ -307,7 +307,7 @@ pub fn test_kube() {
                                                             ),
                                                             ..Default::default()
                                                         },
-                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                        k8s_openapi::api::core::v1::NodeSelectorRequirement {
                                                             key: "key_2".to_string(),
                                                             operator: "operator_2".to_string(),
                                                             values: Some(
@@ -322,10 +322,10 @@ pub fn test_kube() {
                                                 ),
                                                 ..Default::default()
                                             },
-                                            deps_hack::k8s_openapi::api::core::v1::NodeSelectorTerm {
+                                            k8s_openapi::api::core::v1::NodeSelectorTerm {
                                                 match_fields: Some(
                                                     vec![
-                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                        k8s_openapi::api::core::v1::NodeSelectorRequirement {
                                                             key: "key".to_string(),
                                                             operator: "operator".to_string(),
                                                             values: Some(
@@ -336,7 +336,7 @@ pub fn test_kube() {
                                                             ),
                                                             ..Default::default()
                                                         },
-                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                        k8s_openapi::api::core::v1::NodeSelectorRequirement {
                                                             key: "key_2".to_string(),
                                                             operator: "operator_2".to_string(),
                                                             values: Some(
