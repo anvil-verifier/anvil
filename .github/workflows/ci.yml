@@ -76,7 +76,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify vreplicaset_controller -- --rlimit 50 --time --verify-module vreplicaset_controller
+          cargo verus focus --lib -- --rlimit 50 --time --verify-module vreplicaset_controller
 
   vdeployment-verification:
     needs: setup-toolchain
@@ -94,7 +94,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify vdeployment_controller -- --rlimit 50 --time --verify-module vdeployment_controller
+          cargo verus focus --lib -- --rlimit 50 --time --verify-module vdeployment_controller
 
   vstatefulset-verification:
     needs: setup-toolchain
@@ -112,7 +112,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify vstatefulset_controller -- --rlimit 50 --time --verify-module vstatefulset_controller
+          cargo verus focus --lib -- --rlimit 50 --time --verify-module vstatefulset_controller
 
   rabbitmq-verification:
     needs: setup-toolchain
@@ -130,7 +130,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify rabbitmq_controller -- --rlimit 50 --time --verify-module rabbitmq_controller
+          cargo verus focus --lib -- --rlimit 50 --time --verify-module rabbitmq_controller
 
   esr-composition-verification:
     needs: setup-toolchain
@@ -148,7 +148,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify esr_composition -- --rlimit 50 --time --verify-module composition
+          cargo verus focus --lib -- --rlimit 50 --time --verify-module composition
 
   tla-demo-verification:
     needs: setup-toolchain
@@ -166,7 +166,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify tla_demo -- --time --verify-module tla_demo
+          cargo verus focus --bin tla_demo -- --time
 
   framework-verification:
     needs: setup-toolchain
@@ -184,7 +184,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus verify anvil -- --rlimit 50 --time
+          cargo verus focus --lib -- --rlimit 50 --time
 
   vreplicaset-admission-e2e-test:
     needs: setup-toolchain

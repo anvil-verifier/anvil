@@ -12,7 +12,7 @@ COPY src ./src
 
 ARG APP
 RUN . "$HOME/.cargo/env" \
- && cargo verus build --release ${APP}_controller -- --no-verify --time
+ && cargo verus build --release --bin ${APP}_controller -- --no-verify --time
 
 # =============================================================================
 

@@ -28,7 +28,7 @@ build_controller_image() {
     case "$build_controller" in
         local)
             echo "Building $target_app controller binary"
-            cargo verus build --release "${target_filename}_controller" -- --no-verify "${@:2}"
+            cargo verus build --release --bin "${target_filename}_controller" -- --no-verify "${@:2}"
             echo "Building $target_app controller image"
             docker build -f docker/controller/Dockerfile.local \
                 -t "local/${target_app}-controller:v0.1.0" \

@@ -51,31 +51,37 @@ to a compatible release (typically the closest dated GitHub release).
 
 ## Build and verify
 
-```sh
-# Verify the Anvil framework (the library):
-cargo verus verify anvil -- --rlimit 50 --time
+Use `cargo verus focus` for verification. Unlike `cargo verus verify`,
+`focus` actually runs the SMT solver on the current crate. Most
+verification targets are library modules (under `src/controllers/`,
+`src/kubernetes_cluster/`, etc.), so combine `--lib` with
+`--verify-module <mod>` to narrow scope:
 
-# Verify a controller, scoped to its module:
-cargo verus verify vreplicaset_controller -- \
+```sh
+# Verify the entire Anvil framework + every controller and proof:
+cargo verus focus --lib -- --rlimit 50 --time
+
+# Verify a single controller, scoped to its module:
+cargo verus focus --lib -- \
     --rlimit 50 --time --verify-module vreplicaset_controller
 
 # Verify the composition proofs:
-cargo verus verify esr_composition -- \
+cargo verus focus --lib -- \
     --rlimit 50 --time --verify-module composition
 
-# Verify the TLA demo:
-cargo verus verify tla_demo -- --rlimit 50 --time --verify-module tla_demo
+# Verify the TLA demo (proof code lives in src/bin/tla_demo.rs):
+cargo verus focus --bin tla_demo -- --time
 ```
 
-`<bin>` is the name of any file under `src/bin/`. Pass extra Verus flags
-after `--`.
+Pass extra Verus flags after `--`. Replace `--lib` with `--bin <name>`
+to verify a specific binary's own source.
 
 ## Build and test
 
 ### Build a controller binary (fast, no verification)
 
 ```sh
-cargo verus build <controller_name> -- --no-verify
+cargo verus build --bin <controller_name> -- --no-verify
 ```
 
 The binary lands in `target/debug/<controller_name>` (or
