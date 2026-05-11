@@ -18,7 +18,7 @@ use crate::rabbitmq_controller::{
 };
 use crate::rabbitmq_controller::trusted::step::RabbitmqReconcileStep::AfterKRequestStep;
 use crate::reconciler::spec::io::*;
-use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
+use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, STATEFULSET_POD_NAME_LABEL, STATEFULSET_ORDINAL_LABEL};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};

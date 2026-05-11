@@ -16,7 +16,7 @@ use crate::rabbitmq_controller::{
     proof::{predicate::*, resource::*, guarantee::*, helper_invariants::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
-use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, StatefulSetPodNameLabel, StatefulSetOrdinalLabel};
+use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, STATEFULSET_POD_NAME_LABEL, STATEFULSET_ORDINAL_LABEL};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
@@ -357,25 +357,25 @@ ensures
     assert forall |k: StringView, v: StringView| labels.contains_pair(k, v) implies template_labels.contains_pair(k, v) by {
     };
 
-    // template labels don't contain StatefulSetPodNameLabel or StatefulSetOrdinalLabel
+    // template labels don't contain STATEFULSET_POD_NAME_LABEL or STATEFULSET_ORDINAL_LABEL
     // make_labels(rabbitmq) = rabbitmq.spec.labels.insert("app"@, name)
     reveal_strlit("app");
     reveal_strlit("statefulset.kubernetes.io/pod-name");
     reveal_strlit("apps.kubernetes.io/pod-index");
-    assert(StatefulSetPodNameLabel == "statefulset.kubernetes.io/pod-name"@);
-    assert(StatefulSetOrdinalLabel == "apps.kubernetes.io/pod-index"@);
+    assert(STATEFULSET_POD_NAME_LABEL == "statefulset.kubernetes.io/pod-name"@);
+    assert(STATEFULSET_ORDINAL_LABEL == "apps.kubernetes.io/pod-index"@);
     // From rabbitmq.state_validation()
-    assert(!rabbitmq.spec.labels.contains_key(StatefulSetPodNameLabel));
-    assert(!rabbitmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
-    // "app" != StatefulSetPodNameLabel/StatefulSetOrdinalLabel (different lengths)
+    assert(!rabbitmq.spec.labels.contains_key(STATEFULSET_POD_NAME_LABEL));
+    assert(!rabbitmq.spec.labels.contains_key(STATEFULSET_ORDINAL_LABEL));
+    // "app" != STATEFULSET_POD_NAME_LABEL/STATEFULSET_ORDINAL_LABEL (different lengths)
     assert("app"@.len() == 3);
     assert("statefulset.kubernetes.io/pod-name"@.len() > 3);
     assert("apps.kubernetes.io/pod-index"@.len() > 3);
-    assert("app"@ != StatefulSetPodNameLabel);
-    assert("app"@ != StatefulSetOrdinalLabel);
+    assert("app"@ != STATEFULSET_POD_NAME_LABEL);
+    assert("app"@ != STATEFULSET_ORDINAL_LABEL);
     // So insert("app", name) doesn't introduce those keys
-    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
-    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(STATEFULSET_POD_NAME_LABEL));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(STATEFULSET_ORDINAL_LABEL));
 
     // Volume claim templates validation
     if rabbitmq.spec.persistence.storage != "0Gi"@ {
@@ -412,21 +412,21 @@ ensures
     assert forall |k: StringView, v: StringView| labels.contains_pair(k, v) implies template_labels.contains_pair(k, v) by {
     };
 
-    // template labels don't contain StatefulSetPodNameLabel or StatefulSetOrdinalLabel
+    // template labels don't contain STATEFULSET_POD_NAME_LABEL or STATEFULSET_ORDINAL_LABEL
     reveal_strlit("app");
     reveal_strlit("statefulset.kubernetes.io/pod-name");
     reveal_strlit("apps.kubernetes.io/pod-index");
-    assert(StatefulSetPodNameLabel == "statefulset.kubernetes.io/pod-name"@);
-    assert(StatefulSetOrdinalLabel == "apps.kubernetes.io/pod-index"@);
-    assert(!rabbitmq.spec.labels.contains_key(StatefulSetPodNameLabel));
-    assert(!rabbitmq.spec.labels.contains_key(StatefulSetOrdinalLabel));
+    assert(STATEFULSET_POD_NAME_LABEL == "statefulset.kubernetes.io/pod-name"@);
+    assert(STATEFULSET_ORDINAL_LABEL == "apps.kubernetes.io/pod-index"@);
+    assert(!rabbitmq.spec.labels.contains_key(STATEFULSET_POD_NAME_LABEL));
+    assert(!rabbitmq.spec.labels.contains_key(STATEFULSET_ORDINAL_LABEL));
     assert("app"@.len() == 3);
     assert("statefulset.kubernetes.io/pod-name"@.len() > 3);
     assert("apps.kubernetes.io/pod-index"@.len() > 3);
-    assert("app"@ != StatefulSetPodNameLabel);
-    assert("app"@ != StatefulSetOrdinalLabel);
-    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetPodNameLabel));
-    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(StatefulSetOrdinalLabel));
+    assert("app"@ != STATEFULSET_POD_NAME_LABEL);
+    assert("app"@ != STATEFULSET_ORDINAL_LABEL);
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(STATEFULSET_POD_NAME_LABEL));
+    assert(!rabbitmq.spec.labels.insert("app"@, name).contains_key(STATEFULSET_ORDINAL_LABEL));
 
     return sts;
 }

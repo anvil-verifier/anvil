@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{
     persistent_volume_claim::*, resource::*, volume_resource_requirements::*,
 };
-use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, StatefulSetOrdinalLabel, StatefulSetPodNameLabel};
+use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, STATEFULSET_ORDINAL_LABEL, STATEFULSET_POD_NAME_LABEL};
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::{string_map::*, string_view::*};
 use vstd::prelude::*;
@@ -150,7 +150,7 @@ impl VStatefulSet {
         }
 
         if let Some(labels) = self.spec().template().metadata().unwrap().labels() {
-            if labels.contains_key(&StatefulSetPodNameLabel.to_string()) || labels.contains_key(&StatefulSetOrdinalLabel.to_string()) {
+            if labels.contains_key(&STATEFULSET_POD_NAME_LABEL.to_string()) || labels.contains_key(&STATEFULSET_ORDINAL_LABEL.to_string()) {
                 return false;
             }
         }

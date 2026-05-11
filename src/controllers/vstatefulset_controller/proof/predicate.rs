@@ -161,6 +161,7 @@ pub open spec fn lift_local(controller_id: int, vsts: VStatefulSetView, step_pre
 
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
+#[allow(unused_macros)]
 macro_rules! at_step {
     [ $($tokens:tt)? ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -172,6 +173,7 @@ macro_rules! at_step {
 
 // usage: at_step_or![step_or_pred,*]
 // step_or_pred = step | (step, pred)
+#[allow(unused_macros)]
 macro_rules! at_step_or {
     [ $($tokens:tt)+ ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -181,6 +183,7 @@ macro_rules! at_step_or {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! locally_at_step_or {
     ($vsts_state:expr, ($step:expr, $pred:expr)) => {
         $vsts_state.reconcile_step.eq_step($step) && $pred($vsts_state)
