@@ -43,9 +43,11 @@ kind_version: 0.23.0
 go_version:   "^1.20"
 ```
 
-The pinned Verus version is in `Cargo.toml` (`vstd = "=…"`). Match that
-version when installing `cargo verus` locally. Refer to
-`.github/workflows/ci.yml` for the exact version used by CI.
+`Cargo.toml` pins `vstd = "=…"` to a specific crates.io snapshot. CI
+fetches the latest Verus release from
+[verus-lang/verus](https://github.com/verus-lang/verus/releases/latest)
+at runtime. When you bump `vstd`, also rebuild your local Verus binary
+to a compatible release (typically the closest dated GitHub release).
 
 ## Build and verify
 

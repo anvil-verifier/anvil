@@ -1,21 +1,25 @@
 # Builder image with Rust + Verus + `cargo verus` preinstalled.
 # Tagged as ghcr.io/anvil-verifier/anvil/verus:latest and consumed by
 # docker/controller/Dockerfile.publish.
+#
+# Always installs the latest Verus release at image-build time. To pin
+# a specific version, pass --build-arg VERUS_TAG=0.YYYY.MM.DD.SHA.
 FROM rust:1.88-slim-bookworm
 
-# Pin to the same Verus release that Cargo.toml's `vstd =` line targets.
-ARG VERUS_VER=0.0.0-2026-05-10-0145
+ARG VERUS_TAG=
 WORKDIR /
 
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git wget unzip curl gcc ca-certificates \
+        git wget unzip curl gcc ca-certificates jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Translate the crates.io-style version (0.0.0-YYYY-MM-DD-HHMM) into the
-# Verus release tag format (YYYY.MM.DD.HHMM) and download the binary release.
-RUN VERUS_TAG=$(echo "$VERUS_VER" | sed 's/^0\.0\.0-//; s/-/./g') \
+RUN if [ -z "${VERUS_TAG}" ]; then \
+        VERUS_TAG=$(curl -fsSL https://api.github.com/repos/verus-lang/verus/releases/latest \
+                    | jq -r .tag_name | sed 's|^release/||'); \
+    fi \
+ && echo "Installing Verus ${VERUS_TAG}" \
  && curl -fsSL -o /tmp/verus.zip \
         "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_TAG}/verus-${VERUS_TAG}-x86-linux.zip" \
  && unzip -q /tmp/verus.zip -d /usr/local \
