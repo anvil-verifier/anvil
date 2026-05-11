@@ -4,14 +4,14 @@ use crate::kubernetes_api_objects::exec::api_resource::*;
 use crate::kubernetes_api_objects::exec::object_meta::*;
 use crate::kubernetes_api_objects::exec::resource::*;
 use crate::vstd_ext::string_map::*;
-use deps_hack::chrono::{DateTime, Utc};
-use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use chrono::{DateTime, Utc};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use vstd::prelude::*;
 use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_api_resource = deps_hack::kube::api::ApiResource {
+    let kube_api_resource = kube::api::ApiResource {
         group: "group".to_string(),
         version: "version".to_string(),
         kind: "kind".to_string(),
@@ -24,7 +24,7 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_as_kube_ref() {
-    let api_resource = ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+    let api_resource = ApiResource::from_kube(kube::api::ApiResource {
         group: "group".to_string(),
         version: "version".to_string(),
         kind: "kind".to_string(),
@@ -33,7 +33,7 @@ pub fn test_as_kube_ref() {
     });
     assert_eq!(
         api_resource.as_kube_ref(),
-        &deps_hack::kube::api::ApiResource {
+        &kube::api::ApiResource {
             group: "group".to_string(),
             version: "version".to_string(),
             kind: "kind".to_string(),

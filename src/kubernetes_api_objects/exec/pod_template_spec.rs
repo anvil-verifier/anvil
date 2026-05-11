@@ -8,7 +8,7 @@ verus! {
 
 implement_field_wrapper_type!(
     PodTemplateSpec,
-    deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec,
+    k8s_openapi::api::core::v1::PodTemplateSpec,
     PodTemplateSpecView
 );
 

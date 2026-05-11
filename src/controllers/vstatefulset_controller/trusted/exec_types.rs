@@ -10,7 +10,7 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::{string_map::*, string_view::*};
-use deps_hack::kube::Resource;
+use kube::Resource;
 use vstd::prelude::*;
 
 verus! {
@@ -20,7 +20,7 @@ verus! {
 
 implement_object_wrapper_type!(
     VStatefulSet,
-    deps_hack::VStatefulSet,
+    crate::crds::VStatefulSet,
     spec_types::VStatefulSetView
 );
 
@@ -54,7 +54,7 @@ impl VStatefulSet {
 
 implement_field_wrapper_type!(
     VStatefulSetSpec,
-    deps_hack::VStatefulSetSpec,
+    crate::crds::VStatefulSetSpec,
     spec_types::VStatefulSetSpecView
 );
 

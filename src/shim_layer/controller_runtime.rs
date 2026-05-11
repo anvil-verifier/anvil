@@ -7,10 +7,10 @@ use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::shim_layer::fault_injection::*;
 use core::fmt::Debug;
 use core::hash::Hash;
-use deps_hack::anyhow::Result;
-use deps_hack::futures::StreamExt;
-use deps_hack::k8s_openapi::api::core::v1::Pod;
-use deps_hack::kube::{
+use anyhow::Result;
+use futures::StreamExt;
+use k8s_openapi::api::core::v1::Pod;
+use kube::{
     api::{Api, DeleteParams, ListParams, PostParams, Resource},
     runtime::{
         controller::{Action, Controller},
@@ -18,10 +18,10 @@ use deps_hack::kube::{
     },
     Client, CustomResourceExt,
 };
-use deps_hack::kube_core::{ErrorResponse, NamespaceResourceScope};
-use deps_hack::serde::{de::DeserializeOwned, Serialize};
-use deps_hack::tracing::{error, info, warn};
-use deps_hack::Error;
+use kube_core::{ErrorResponse, NamespaceResourceScope};
+use serde::{de::DeserializeOwned, Serialize};
+use tracing::{error, info, warn};
+use crate::crds::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use vstd::string::*;
@@ -172,7 +172,7 @@ where
     // Get the custom resource by a quorum read to Kubernetes' storage (etcd) to get the most updated custom resource
     let get_cr_resp = cr_api.get(&cr_name).await;
     match get_cr_resp {
-        Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. }))
+        Err(kube_client::error::Error::Api(ErrorResponse { reason, .. }))
             if &reason == "NotFound" =>
         {
             warn!(
@@ -195,7 +195,7 @@ where
     info!(
         "{} Get cr {}",
         log_header,
-        deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap()
+        k8s_openapi::serde_json::to_string(&cr).unwrap()
     );
 
     let cr_wrapper = R::K::from_kube(cr);
@@ -226,7 +226,7 @@ where
                     let kube_resp: KubeAPIResponse;
                     match req {
                         KubeAPIRequest::GetRequest(get_req) => {
-                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                            let api = Api::<kube::api::DynamicObject>::namespaced_with(
                                 client.clone(),
                                 &get_req.namespace,
                                 get_req.api_resource.as_kube_ref(),
@@ -248,7 +248,7 @@ where
                             }
                         }
                         KubeAPIRequest::ListRequest(list_req) => {
-                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                            let api = Api::<kube::api::DynamicObject>::namespaced_with(
                                 client.clone(),
                                 &list_req.namespace,
                                 list_req.api_resource.as_kube_ref(),
@@ -276,7 +276,7 @@ where
                         }
                         KubeAPIRequest::CreateRequest(create_req) => {
                             check_fault_timing = true;
-                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                            let api = Api::<kube::api::DynamicObject>::namespaced_with(
                                 client.clone(),
                                 &create_req.namespace,
                                 create_req.api_resource.as_kube_ref(),
@@ -306,7 +306,7 @@ where
                         }
                         KubeAPIRequest::DeleteRequest(delete_req) => {
                             check_fault_timing = true;
-                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                            let api = Api::<kube::api::DynamicObject>::namespaced_with(
                                 client.clone(),
                                 &delete_req.namespace,
                                 delete_req.api_resource.as_kube_ref(),
@@ -340,7 +340,7 @@ where
                         }
                         KubeAPIRequest::UpdateRequest(update_req) => {
                             check_fault_timing = true;
-                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                            let api = Api::<kube::api::DynamicObject>::namespaced_with(
                                 client.clone(),
                                 &update_req.namespace,
                                 update_req.api_resource.as_kube_ref(),
@@ -370,7 +370,7 @@ where
                         }
                         KubeAPIRequest::UpdateStatusRequest(update_status_req) => {
                             check_fault_timing = true;
-                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                            let api = Api::<kube::api::DynamicObject>::namespaced_with(
                                 client.clone(),
                                 &update_status_req.namespace,
                                 update_status_req.api_resource.as_kube_ref(),
@@ -383,7 +383,7 @@ where
                                 .replace_status(
                                     &update_status_req.name,
                                     &pp,
-                                    deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update)
+                                    k8s_openapi::serde_json::to_vec(&obj_to_update)
                                         .unwrap(),
                                 )
                                 .await
@@ -480,7 +480,7 @@ pub async fn transactional_get_then_delete_by_retry(
     log_header: String,
 ) -> KubeGetThenDeleteResponse {
     // sanity check, can be removed if type invariant is supported by Verus
-    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+    let api = Api::<kube::api::DynamicObject>::namespaced_with(
         client.clone(),
         &req.namespace,
         req.api_resource.as_kube_ref(),
@@ -513,7 +513,7 @@ pub async fn transactional_get_then_delete_by_retry(
         }
         // Step 3: if the check passes, delete the object with a precondition
         // Note that resource_version and uid comes from the current object to avoid conflict error
-        let dp = DeleteParams::default().preconditions(deps_hack::kube::api::Preconditions {
+        let dp = DeleteParams::default().preconditions(kube::api::Preconditions {
             resource_version: current_obj.as_kube_ref().metadata.resource_version.clone(),
             uid: current_obj.as_kube_ref().metadata.uid.clone(),
         });
@@ -555,7 +555,7 @@ pub async fn transactional_get_then_update_by_retry(
     log_header: String,
 ) -> KubeGetThenUpdateResponse {
     // sanity check, can be removed if type invariant is supported by Verus
-    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+    let api = Api::<kube::api::DynamicObject>::namespaced_with(
         client.clone(),
         &req.namespace,
         req.api_resource.as_kube_ref(),
@@ -633,7 +633,7 @@ pub async fn transactional_get_then_update_status_by_retry(
     log_header: String,
 ) -> KubeGetThenUpdateStatusResponse {
     // sanity check, can be removed if type invariant is supported by Verus
-    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+    let api = Api::<kube::api::DynamicObject>::namespaced_with(
         client.clone(),
         &req.namespace,
         req.api_resource.as_kube_ref(),
@@ -674,7 +674,7 @@ pub async fn transactional_get_then_update_status_by_retry(
             .replace_status(
                 &req.name,
                 &pp,
-                deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap(),
+                k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap(),
             )
             .await
         {
@@ -727,9 +727,9 @@ pub struct Data {
 // to the form that can be processed by reconcile_core.
 
 // TODO: match more error types.
-pub fn kube_error_to_api_error(error: &deps_hack::kube::Error) -> APIError {
+pub fn kube_error_to_api_error(error: &kube::Error) -> APIError {
     match error {
-        deps_hack::kube::Error::Api(error_resp) => {
+        kube::Error::Api(error_resp) => {
             if &error_resp.reason == "NotFound" {
                 APIError::ObjectNotFound
             } else if &error_resp.reason == "AlreadyExists" {

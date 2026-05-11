@@ -12,7 +12,7 @@ pub fn test_default() {
     let role_ref = RoleRef::default();
     assert_eq!(
         role_ref.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default()
+        k8s_openapi::api::rbac::v1::RoleRef::default()
     );
 }
 
@@ -49,7 +49,7 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_role_ref = deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
+    let kube_role_ref = k8s_openapi::api::rbac::v1::RoleRef {
         api_group: "api_group".to_string(),
         kind: "kind".to_string(),
         name: "name".to_string(),

@@ -12,7 +12,7 @@ pub fn test_default() {
     let secret = Secret::default();
     assert_eq!(
         secret.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Secret::default()
+        k8s_openapi::api::core::v1::Secret::default()
     );
 }
 
@@ -44,7 +44,7 @@ pub fn test_set_data() {
     secret.set_data(data.clone());
     let mut binary_map = std::collections::BTreeMap::new();
     for (key, value) in data.into_rust_map() {
-        binary_map.insert(key, deps_hack::k8s_openapi::ByteString(value.into_bytes()));
+        binary_map.insert(key, k8s_openapi::ByteString(value.into_bytes()));
     }
     assert_eq!(binary_map, secret.into_kube().data.unwrap());
 }
@@ -84,15 +84,15 @@ pub fn test_api_resource() {
 
 #[test]
 pub fn test_kube() {
-    let kube_secret = deps_hack::k8s_openapi::api::core::v1::Secret {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_secret = k8s_openapi::api::core::v1::Secret {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             namespace: Some("namespace".to_string()),
             ..Default::default()
         },
         data: Some(std::collections::BTreeMap::from_iter(vec![(
             "key".to_string(),
-            deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
+            k8s_openapi::ByteString("value".to_string().into_bytes()),
         )])),
         ..Default::default()
     };
@@ -104,15 +104,15 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_secret = deps_hack::k8s_openapi::api::core::v1::Secret {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_secret = k8s_openapi::api::core::v1::Secret {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             namespace: Some("namespace".to_string()),
             ..Default::default()
         },
         data: Some(std::collections::BTreeMap::from_iter(vec![(
             "key".to_string(),
-            deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
+            k8s_openapi::ByteString("value".to_string().into_bytes()),
         )])),
         ..Default::default()
     };

@@ -15,11 +15,11 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
 
-implement_object_wrapper_type!(Role, deps_hack::k8s_openapi::api::rbac::v1::Role, RoleView);
+implement_object_wrapper_type!(Role, k8s_openapi::api::rbac::v1::Role, RoleView);
 
 implement_field_wrapper_type!(
     PolicyRule,
-    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule,
+    k8s_openapi::api::rbac::v1::PolicyRule,
     PolicyRuleView
 );
 

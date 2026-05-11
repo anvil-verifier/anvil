@@ -6,26 +6,26 @@ use crate::kubernetes_api_objects::exec::{
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vreplicaset_controller::trusted::spec_types;
-use deps_hack::kube::Resource;
+use kube::Resource;
 use vstd::prelude::*;
 
 verus! {
 
 implement_object_wrapper_type!(
     VReplicaSet,
-    deps_hack::VReplicaSet,
+    crate::crds::VReplicaSet,
     spec_types::VReplicaSetView
 );
 
 implement_field_wrapper_type!(
     VReplicaSetSpec,
-    deps_hack::VReplicaSetSpec,
+    crate::crds::VReplicaSetSpec,
     spec_types::VReplicaSetSpecView
 );
 
 implement_field_wrapper_type!(
     VReplicaSetStatus,
-    deps_hack::VReplicaSetStatus,
+    crate::crds::VReplicaSetStatus,
     spec_types::VReplicaSetStatusView
 );
 

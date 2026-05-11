@@ -12,7 +12,7 @@ pub fn test_default() {
     let service_spec = ServiceSpec::default();
     assert_eq!(
         service_spec.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ServiceSpec::default()
+        k8s_openapi::api::core::v1::ServiceSpec::default()
     );
 }
 
@@ -172,15 +172,15 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_service_spec = deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
+    let kube_service_spec = k8s_openapi::api::core::v1::ServiceSpec {
         cluster_ip: Some("ip".to_string()),
         ports: Some(vec![
-            deps_hack::k8s_openapi::api::core::v1::ServicePort {
+            k8s_openapi::api::core::v1::ServicePort {
                 port: 1,
                 app_protocol: Some("http".to_string()),
                 ..Default::default()
             },
-            deps_hack::k8s_openapi::api::core::v1::ServicePort {
+            k8s_openapi::api::core::v1::ServicePort {
                 port: 2048,
                 app_protocol: Some("tcp".to_string()),
                 ..Default::default()

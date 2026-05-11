@@ -1,80 +1,110 @@
-# How to build, verify and run controller
+# How to build, verify and run controllers
 
-## Code Structure
+This project uses [`cargo verus`](https://github.com/verus-lang/verus). All
+third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
+`Cargo.toml`; the Verus standard library (`vstd`) is pulled from
+[crates.io](https://crates.io/crates/vstd).
 
-```shell
-.
-├── build.sh # build controller only
-├── deploy
-│   └── <controller_name>
-│       └── <configuration files>
-├── deploy.sh # subscript for e2e test
-├── docker
-│   └── controller
-│       └── Dockerfile
-├── e2e
-│   └── src
-├── local-test.sh # build and perform e2e test
-├── src
-│   └── <controller_name>_controller.rs
-├──...
+## Code structure
+
 ```
-
-Controller source should be put in `src/`, with e2e test in `e2e/src` and test workload specified in `deploy/`
+.
+├── Cargo.toml          # single root package: verifiable-controllers
+├── build.md
+├── deploy/             # CRDs, RBAC, kind config, sample workloads
+├── deploy.sh           # apply deploy/<controller>/* to a kind cluster
+├── docker/
+│   ├── controller/     # Dockerfile.local / Dockerfile.publish
+│   └── verus/          # builder image used by Dockerfile.publish
+├── e2e/                # end-to-end test crate
+├── local-test.sh       # build controller image + run e2e against kind
+└── src/
+    ├── lib.rs          # framework library
+    ├── crds.rs         # k8s CRD type definitions
+    ├── kubernetes_api_objects/ kubernetes_cluster/ reconciler/
+    ├── shim_layer/ external_shim_layer/ state_machine/
+    ├── temporal_logic/ vstd_ext/ unit_tests/
+    ├── controllers/    # verified controller implementations
+    │   ├── vdeployment_controller/  vreplicaset_controller/
+    │   ├── vstatefulset_controller/ rabbitmq_controller/
+    │   └── composition/
+    └── bin/            # binary entry points (one per controller / verification target)
+        ├── anvil.rs   esr_composition.rs   tla_demo.rs
+        ├── vdeployment_controller.rs   vdeployment_admission_controller.rs
+        ├── vreplicaset_controller.rs   vreplicaset_admission_controller.rs
+        ├── vstatefulset_controller.rs  vstatefulset_admission_controller.rs
+        └── rabbitmq_controller.rs
+```
 
 ### Dependencies
 
-```shell
-# kubernetes version: v1.30
-verus_release: release/rolling/0.2025.11.30.840fa61
+```
 kind_version: 0.23.0
-go_version: "^1.20"
+go_version:   "^1.20"
 ```
 
-## Build and Verify
+The pinned Verus version is in `Cargo.toml` (`vstd = "=…"`). Match that
+version when installing `cargo verus` locally. Refer to
+`.github/workflows/ci.yml` for the exact version used by CI.
 
-- add Verus to $PATH
+## Build and verify
 
-- `./build.sh <controller_name.rs> [other verus arguments]` 
+```sh
+# Verify the Anvil framework (the library):
+cargo verus verify anvil -- --rlimit 50 --time
 
-Make sure `<controller_name>` corresponds to entry file in `src`
+# Verify a controller, scoped to its module:
+cargo verus verify vreplicaset_controller -- \
+    --rlimit 50 --time --verify-module vreplicaset_controller
 
-> More argument usage by `verus --help`
+# Verify the composition proofs:
+cargo verus verify esr_composition -- \
+    --rlimit 50 --time --verify-module composition
 
-## Build and Test
+# Verify the TLA demo:
+cargo verus verify tla_demo -- --rlimit 50 --time --verify-module tla_demo
+```
 
-### Build controller only
+`<bin>` is the name of any file under `src/bin/`. Pass extra Verus flags
+after `--`.
 
-`./build.sh <controller_name.rs> [--no-verify] [other verus arguments]`
+## Build and test
 
-`--no-verify` is optional for fast build. Controller built without this option from the section above can be directly used, but verifications could take long time.
+### Build a controller binary (fast, no verification)
+
+```sh
+cargo verus build <controller_name> -- --no-verify
+```
+
+The binary lands in `target/debug/<controller_name>` (or
+`target/release/<controller_name>` if you add `--release`).
 
 ### Test pipeline
 
-1. Build controller binary by `build.sh`
-2. Build controller docker image
+1. Build the controller binary with `cargo verus build`.
+2. Build the controller Docker image:
+   * `docker/controller/Dockerfile.local` — uses your locally-built binary.
+   * `docker/controller/Dockerfile.publish` — builds inside the Verus
+     builder image (see `docker/verus/Dockerfile`); useful when the
+     host's glibc differs from the target image.
+3. Set up a kind cluster and load the image.
+4. Apply the e2e tests from `e2e/src/` and the workload from `deploy/`
+   via `deploy.sh`.
 
-   Base image and builder image is specified in `docker/controller/Dockerfile.[local|remote]` respectively
-3. Setup cluster, apply controller image using [kind](https://kind.sigs.k8s.io/).
-4. Apply test specified in `e2e/src` and workload in `deploy` by `deploy.sh`
-
-This process can be automated with:
-
-**1-3**
+Steps 1–3 are automated:
 
 ```
-./local-test.sh <controller_name> [--build]
-Usage:
-	--build:		Call ./build.sh to build the controller before test, should have VERUS_DIR speccified
-	<empty>:		Just use existing built controller image to set up kind cluster. Assume the image is named as `local/$app-controller:v0.1.0`
+./local-test.sh <controller_name> [--build|--build-remote]
+  --build         build via `cargo verus build` on the host, then make the image
+  --build-remote  build the image using the Verus builder (Dockerfile.publish)
+  (no flag)       reuse an existing local image named local/<app>-controller:v0.1.0
 ```
 
-If deployment/test failed, you can manually run `./deploy.sh <controller_name> [local|remote]` to reset the e2e test environment.
+Step 4:
 
-**4**
-```
+```sh
 cd e2e
 cargo run -- <controller_name>
 ```
 
-> More examples in `.github/workflows/ci.yml`
+See `.github/workflows/ci.yml` for the exact CI invocations.

@@ -14,7 +14,7 @@ pub fn test_default() {
     let host_path_volume_source = HostPathVolumeSource::default();
     assert_eq!(
         host_path_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default()
+        k8s_openapi::api::core::v1::HostPathVolumeSource::default()
     );
 }
 
@@ -39,7 +39,7 @@ pub fn test_clone() {
 #[test]
 pub fn test_kube() {
     let kube_host_path_volume_source =
-        deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource {
+        k8s_openapi::api::core::v1::HostPathVolumeSource {
             path: "path".to_string(),
             ..Default::default()
         };

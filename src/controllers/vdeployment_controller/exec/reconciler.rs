@@ -10,7 +10,7 @@ use crate::vdeployment_controller::trusted::liveness_theorem as esr_theorem;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
-use deps_hack::tracing::{error, info};
+use tracing::{error, info};
 use vstd::{map::*, prelude::*, seq_lib::*, set::*};
 // for assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
 use crate::reconciler::spec::io::*;

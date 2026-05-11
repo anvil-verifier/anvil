@@ -12,7 +12,7 @@ pub fn test_default() {
     let service = Service::default();
     assert_eq!(
         service.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Service::default()
+        k8s_openapi::api::core::v1::Service::default()
     );
 }
 
@@ -75,12 +75,12 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_service = deps_hack::k8s_openapi::api::core::v1::Service {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_service = k8s_openapi::api::core::v1::Service {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
-        spec: Some(deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
+        spec: Some(k8s_openapi::api::core::v1::ServiceSpec {
             cluster_ip: Some("ip".to_string()),
             ..Default::default()
         }),
@@ -94,12 +94,12 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_service = deps_hack::k8s_openapi::api::core::v1::Service {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_service = k8s_openapi::api::core::v1::Service {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
-        spec: Some(deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
+        spec: Some(k8s_openapi::api::core::v1::ServiceSpec {
             cluster_ip: Some("ip".to_string()),
             ..Default::default()
         }),

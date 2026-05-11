@@ -1,5 +1,7 @@
-// pub mod conformance_tests;
-// pub mod executable_model;
+#![allow(unused_imports)]
+
+pub mod crds;
+
 pub mod external_shim_layer;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
@@ -10,10 +12,13 @@ pub mod temporal_logic;
 pub mod unit_tests;
 pub mod vstd_ext;
 
-pub mod vstatefulset_controller;
-pub mod rabbitmq_controller;
-pub mod vreplicaset_controller;
+#[path = "controllers/vdeployment_controller/mod.rs"]
 pub mod vdeployment_controller;
-pub mod esr_composition;
-
-use vstd::prelude::*;
+#[path = "controllers/vreplicaset_controller/mod.rs"]
+pub mod vreplicaset_controller;
+#[path = "controllers/vstatefulset_controller/mod.rs"]
+pub mod vstatefulset_controller;
+#[path = "controllers/rabbitmq_controller/mod.rs"]
+pub mod rabbitmq_controller;
+#[path = "controllers/composition/mod.rs"]
+pub mod composition;

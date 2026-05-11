@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::rabbitmq_controller::trusted::{spec_types, step::*};
 use crate::vstd_ext::{string_map::*, string_view::*};
-use deps_hack::kube::Resource;
+use kube::Resource;
 use vstd::prelude::*;
 
 verus! {
@@ -55,7 +55,7 @@ impl View for RabbitmqReconcileState {
 
 implement_custom_object_wrapper_type!(
     RabbitmqCluster,
-    deps_hack::RabbitmqCluster,
+    crate::crds::RabbitmqCluster,
     spec_types::RabbitmqClusterView
 );
 
@@ -90,7 +90,7 @@ implement_view_trait!(
 
 #[verifier(external_body)]
 pub struct RabbitmqClusterSpec {
-    inner: deps_hack::RabbitmqClusterSpec,
+    inner: crate::crds::RabbitmqClusterSpec,
 }
 
 impl RabbitmqClusterSpec {
@@ -146,7 +146,7 @@ impl RabbitmqClusterSpec {
             tolerations is Some ==> tolerations->0.deep_view() == self@.tolerations->0,
     {
         match &self.inner.tolerations {
-            Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
+            Some(tols) => Some(tols.clone().into_iter().map(|t: k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
             None => None,
         }
     }
@@ -199,7 +199,7 @@ impl RabbitmqClusterSpec {
 
 implement_field_wrapper_type!(
     RabbitmqConfig,
-    deps_hack::RabbitmqConfig,
+    crate::crds::RabbitmqConfig,
     spec_types::RabbitmqConfigView
 );
 
@@ -234,7 +234,7 @@ impl RabbitmqConfig {
 
 implement_field_wrapper_type!(
     RabbitmqClusterPersistenceSpec,
-    deps_hack::RabbitmqClusterPersistenceSpec,
+    crate::crds::RabbitmqClusterPersistenceSpec,
     spec_types::RabbitmqClusterPersistenceSpecView
 );
 
@@ -259,8 +259,8 @@ pub fn random_encoded_string(data_len: usize) -> (cookie: String)
     ensures
         cookie@ == spec_types::random_encoded_string(data_len),
 {
-    let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| deps_hack::rand::random::<std::primitive::u8>()).collect();
-    deps_hack::base64::encode(random_bytes)
+    let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| rand::random::<std::primitive::u8>()).collect();
+    base64::encode(random_bytes)
 }
 
 }

@@ -10,9 +10,9 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
-use deps_hack::tracing::{error, info, warn};
-use deps_hack::k8s_openapi::api::core::v1 as k8s_types;
-use deps_hack::kube_quantity;
+use tracing::{error, info, warn};
+use k8s_openapi::api::core::v1 as k8s_types;
+use kube_quantity;
 
 verus! {
 
@@ -28,23 +28,23 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
 
-implement_object_wrapper_type!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod, PodView);
+implement_object_wrapper_type!(Pod, k8s_openapi::api::core::v1::Pod, PodView);
 
 implement_field_wrapper_type!(
     PodSpec,
-    deps_hack::k8s_openapi::api::core::v1::PodSpec,
+    k8s_openapi::api::core::v1::PodSpec,
     PodSpecView
 );
 
 implement_field_wrapper_type!(
     PodSecurityContext,
-    deps_hack::k8s_openapi::api::core::v1::PodSecurityContext,
+    k8s_openapi::api::core::v1::PodSecurityContext,
     PodSecurityContextView
 );
 
 implement_field_wrapper_type!(
     LocalObjectReference,
-    deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
+    k8s_openapi::api::core::v1::LocalObjectReference,
     LocalObjectReferenceView
 );
 
@@ -114,7 +114,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
     }
 
     if !tolerates_not_ready {
-        tolerations.push(deps_hack::k8s_openapi::api::core::v1::Toleration {
+        tolerations.push(k8s_openapi::api::core::v1::Toleration {
             key: Some("node.kubernetes.io/not-ready".to_string()),
             operator: Some("Exists".to_string()),
             effect: Some("NoExecute".to_string()),
@@ -149,7 +149,7 @@ pub fn normalize_pod_spec(spec: &PodSpec) -> (res: PodSpec)
 #[verifier::external]
 fn normalize_and_compare_resources(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
     
-    let normalize_map = |m: &Option<std::collections::BTreeMap<String, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
+    let normalize_map = |m: &Option<std::collections::BTreeMap<String, k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
         m
         .clone()
         .unwrap_or_default()

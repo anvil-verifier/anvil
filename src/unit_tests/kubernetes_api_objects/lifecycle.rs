@@ -24,7 +24,7 @@ pub fn test_default() {
     let lifecycle = Lifecycle::default();
     assert_eq!(
         lifecycle.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Lifecycle::default()
+        k8s_openapi::api::core::v1::Lifecycle::default()
     );
 }
 
@@ -40,9 +40,9 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_lifecycle = deps_hack::k8s_openapi::api::core::v1::Lifecycle {
-        pre_stop: Some(deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
-            exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+    let kube_lifecycle = k8s_openapi::api::core::v1::Lifecycle {
+        pre_stop: Some(k8s_openapi::api::core::v1::LifecycleHandler {
+            exec: Some(k8s_openapi::api::core::v1::ExecAction {
                 command: Some(vec!["command".to_string()]),
             }),
             ..Default::default()

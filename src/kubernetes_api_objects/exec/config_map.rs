@@ -22,7 +22,7 @@ verus! {
 
 implement_object_wrapper_type!(
     ConfigMap,
-    deps_hack::k8s_openapi::api::core::v1::ConfigMap,
+    k8s_openapi::api::core::v1::ConfigMap,
     ConfigMapView
 );
 
