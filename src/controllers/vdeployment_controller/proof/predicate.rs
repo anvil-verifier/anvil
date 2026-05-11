@@ -810,45 +810,7 @@ pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller
 
 
 
-#[macro_export]
-macro_rules! and {
-    ($($tokens:tt)+) => {
-        closure_to_fn_spec(|s| {
-            and_internal!(s, $($tokens)+)
-        })
-    };
-}
-
-#[macro_export]
-macro_rules! and_internal {
-    ($s:expr, $head:expr) => {
-        $head($s)
-    };
-
-    ($s:expr, $head:expr, $($tail:tt)+) => {
-        and_internal!($s, $head) && and_internal!($s, $($tail)+)
-    };
-}
-
-#[macro_export]
-macro_rules! or {
-    ($($tokens:tt)+) => {
-        closure_to_fn_spec(|s| {
-            or_internal!(s, $($tokens)+)
-        })
-    };
-}
-
-#[macro_export]
-macro_rules! or_internal {
-    ($s:expr, $head:expr) => {
-        $head($s)
-    };
-
-    ($s:expr, $head:expr, $($tail:tt)+) => {
-        or_internal!($s, $head) || or_internal!($s, $($tail)+)
-    };
-}
+// and!/or! live in crate::vstd_ext::math (imported below).
 
 // usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
@@ -898,10 +860,7 @@ pub open spec fn lift_local(controller_id: int, vd: VDeploymentView, step_pred: 
 pub use at_step_or_internal;
 pub use at_step_or;
 pub use at_step;
-pub use or;
-pub use or_internal;
-pub use and;
-pub use and_internal;
+pub use crate::vstd_ext::math::{and, and_internal, or, or_internal};
 
 pub proof fn and_eq(p: StatePred<ClusterState>, q: StatePred<ClusterState>)
     ensures lift_state(and!(p, q)) == lift_state(p).and(lift_state(q)),
@@ -909,38 +868,6 @@ pub proof fn and_eq(p: StatePred<ClusterState>, q: StatePred<ClusterState>)
     temp_pred_equality(lift_state(and!(p, q)), lift_state(p).and(lift_state(q)))
 }
 
-// hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
-#[macro_export]
-macro_rules! nat0 {
-    () => {
-        spec_literal_nat("0")
-    };
-}
-
-#[macro_export]
-macro_rules! nat1 {
-    () => {
-        spec_literal_nat("1")
-    };
-}
-
-#[macro_export]
-macro_rules! int0 {
-    () => {
-        spec_literal_int("0")
-    };
-}
-
-#[macro_export]
-macro_rules! int1 {
-    () => {
-        spec_literal_int("1")
-    };
-}
-
-pub use nat0;
-pub use nat1;
-pub use int0;
-pub use int1;
+pub use crate::vstd_ext::math::{int0, int1, nat0, nat1};
 
 }
