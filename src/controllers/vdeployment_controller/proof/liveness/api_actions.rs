@@ -142,7 +142,7 @@ ensures
                 injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
                 // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_iset() forward to cancel it
                 // .m().to_iset() == .to_iset().m() to get rid of the map
-                resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
+                resp_objs.filter(weakened_obj_filter).lemma_to_iset_map_commutes(|o: DynamicObjectView| o.object_ref());
                 // .to_seq().f().to_iset() == .to_seq().to_iset().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
                 lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
@@ -277,7 +277,7 @@ ensures
                 injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
                 // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_iset() forward to cancel it
                 // .m().to_iset() == .to_iset().m() to get rid of the map
-                resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
+                resp_objs.filter(weakened_obj_filter).lemma_to_iset_map_commutes(|o: DynamicObjectView| o.object_ref());
                 // .to_seq().f().to_iset() == .to_seq().to_iset().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
                 lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));

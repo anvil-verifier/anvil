@@ -245,7 +245,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
     // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
     assert(matching_pods(vrs, s.resources()) == filtered_objs.to_iset());
-    filtered_objs.lemma_to_set_map_commutes(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
+    filtered_objs.lemma_to_iset_map_commutes(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
     assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_iset());
     assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
         // get rid of objects_to_pods
