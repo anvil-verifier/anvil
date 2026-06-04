@@ -164,7 +164,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
 
     assert forall |o: DynamicObjectView| #![auto]
     pre && matching_pods(vrs, s_prime.resources()).contains(o)
-    implies resp_objs.to_set().contains(o) by {
+    implies resp_objs.to_iset().contains(o) by {
         // Tricky reasoning about .to_seq
         let selector = |o: DynamicObjectView| {
             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
@@ -306,7 +306,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
             // Fix to get rid of flaky proof.
             assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
-                resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
+                resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset().contains(obj)
                 implies
                 s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
                 assert(resp_objs.contains(obj));
@@ -319,14 +319,14 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
                 s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
                 implies
-                resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) by {
+                resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset().contains(obj) by {
                 assert(s.resources().values().contains(obj));
                 assert(selector(obj));
                 assert(s.resources().values().filter(selector).contains(obj));
                 assert(s.resources().values().filter(selector).to_seq().contains(obj));
                 assert(resp_objs.contains(obj));
                 assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
-                assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj));
+                assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset().contains(obj));
             }
         }
     }

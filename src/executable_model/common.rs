@@ -662,7 +662,7 @@ pub fn filter_controller_references(owner_references: Vec<OwnerReference>) -> (r
 
 #[verifier(external_body)]
 pub fn string_vec_to_string_set(s: Vec<String>) -> (ret: StringSet)
-    ensures ret@ == s@.map_values(|s: String| s@).to_set()
+    ensures ret@ == s@.map_values(|s: String| s@).to_iset()
 {
     StringSet::from_rust_set(s.into_iter().collect())
 }

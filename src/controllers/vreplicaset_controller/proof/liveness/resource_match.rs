@@ -2128,7 +2128,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                         s, vrs, cluster, controller_id, resp_msg
                     );
 
-                    let filtered_pods_as_set = filtered_pods.to_set();
+                    let filtered_pods_as_set = filtered_pods.to_iset();
                     assert(filtered_pods_as_set.contains(filtered_pods[diff - 1]));
                 
                     // Small helper for converting the non-quantified result of lemma_filtered_pods_set_equals_matching_pods
@@ -2143,7 +2143,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                             &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
                             &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                         } by {
-                            assert(filtered_pods.to_set().contains(filtered_pods[i]));
+                            assert(filtered_pods.to_iset().contains(filtered_pods[i]));
                         }
                         assert(forall |i| {
                             &&& 0 <= i < diff

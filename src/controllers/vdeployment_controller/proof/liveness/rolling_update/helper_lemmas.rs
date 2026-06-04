@@ -171,7 +171,7 @@ ensures
                 assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs_with_nv_key));
                 assert(false);
             }
-            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set().contains(new_vrs.object_ref()));
+            assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_iset().contains(new_vrs.object_ref()));
             assert(s.resources().contains_key(havoc_vrs.object_ref()));
             assert(false);
         }

@@ -836,7 +836,7 @@ ensures
                             seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(cr_key.name, ord), needed[ord as int]->0);
                         }
                         let condemned_ord_filter = |pod: PodView| get_ordinal(cr_key.name, pod.metadata.name->0) is Some && get_ordinal(cr_key.name, pod.metadata.name->0)->0 >= replicas(vsts);
-                        assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
+                        assert(condemned.to_iset() == filtered_pods.filter(condemned_ord_filter).to_iset()) by {
                             let leq = |p1: PodView, p2: PodView| get_ordinal(cr_key.name, p1.metadata.name->0)->0 >= get_ordinal(cr_key.name, p2.metadata.name->0)->0;
                             assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
                             lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
@@ -850,7 +850,7 @@ ensures
                             let condemned_pod = condemned[i as int];
                             assert(condemned.contains(condemned_pod));
                             assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod)) by {
-                                assert(condemned.to_set().contains(condemned_pod));
+                                assert(condemned.to_iset().contains(condemned_pod));
                                 assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
                             }
                             seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);

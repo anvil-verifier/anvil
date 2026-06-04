@@ -108,7 +108,7 @@ ensures
             }
         }
         // expand to 
-        // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_iset()
         //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
         assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_iset() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
             let valid_obj_filter = |o: DynamicObjectView| {
@@ -135,15 +135,15 @@ ensures
                 }
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
-            // s.to_seq().to_set() ==> s
+            // s.to_seq().to_iset() ==> s
             assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_iset()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                 // s.r().v().finite()
                 injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
-                // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
-                // .m().to_set() == .to_set().m() to get rid of the map
+                // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_iset() forward to cancel it
+                // .m().to_iset() == .to_iset().m() to get rid of the map
                 resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
-                // .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
+                // .to_seq().f().to_iset() == .to_seq().to_iset().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
                 lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
                 // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
@@ -243,7 +243,7 @@ ensures
             }
         }
         // expand to 
-        // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_iset()
         //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
         assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_iset() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
             let valid_obj_filter = |o: DynamicObjectView| {
@@ -270,15 +270,15 @@ ensures
                 }
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
-            // s.to_seq().to_set() ==> s
+            // s.to_seq().to_iset() ==> s
             assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_iset()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                 // s.r().v().finite()
                 injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
-                // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
-                // .m().to_set() == .to_set().m() to get rid of the map
+                // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_iset() forward to cancel it
+                // .m().to_iset() == .to_iset().m() to get rid of the map
                 resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
-                // .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
+                // .to_seq().f().to_iset() == .to_seq().to_iset().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
                 lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
                 // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
@@ -296,7 +296,7 @@ ensures
         }) by {
             VReplicaSetView::marshal_preserves_integrity();
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs.object_ref()));
-            assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set().contains(new_vrs.object_ref()));
+            assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_iset().contains(new_vrs.object_ref()));
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).contains(new_vrs.object_ref()));
             assert(exists |i| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).len()
                 && managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref()))[i] == new_vrs.object_ref());

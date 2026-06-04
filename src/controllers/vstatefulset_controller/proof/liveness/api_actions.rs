@@ -101,7 +101,7 @@ ensures
             &&& s_prime.resources().contains_key(key)
             &&& weakly_eq(obj, etcd_obj)
         } by {
-            assert(owned_objs.to_set().contains(obj));
+            assert(owned_objs.to_iset().contains(obj));
             assert(s_prime.resources().values().contains(obj));
         }
     }

@@ -14,7 +14,7 @@ verus! {
 #[verifier(external_body)]
 pub proof fn lemma_sort_by_does_not_add_or_delete_elements<A>(s: Seq<A>, leq: spec_fn(A, A) -> bool)
 // we don't care if total_ordering(leq) holds here
-    ensures s.sort_by(leq).to_set() == s.to_set(),
+    ensures s.sort_by(leq).to_iset() == s.to_iset(),
     decreases s.len()
 {}
 
@@ -283,25 +283,25 @@ pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, p
 }
 
 pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, e: A)
-    ensures s.push(e).to_set() == s.to_set().insert(e)
+    ensures s.push(e).to_iset() == s.to_iset().insert(e)
 {
-    assert(s.push(e).to_set() =~= s.to_set().insert(e)) by {
-        assert forall |obj: A| s.push(e).to_set().contains(obj) implies #[trigger] s.to_set().insert(e).contains(obj) by {
+    assert(s.push(e).to_iset() =~= s.to_iset().insert(e)) by {
+        assert forall |obj: A| s.push(e).to_iset().contains(obj) implies #[trigger] s.to_iset().insert(e).contains(obj) by {
             assert(s.push(e).contains(obj));
             if obj == e {
-                assert(s.to_set().insert(e).contains(e));
+                assert(s.to_iset().insert(e).contains(e));
             } else {
                 assert(s.contains(obj));
-                assert(s.to_set().contains(obj));
-                assert(s.to_set().insert(e).contains(obj));
+                assert(s.to_iset().contains(obj));
+                assert(s.to_iset().insert(e).contains(obj));
             }
         }
-        assert forall |obj: A| s.to_set().insert(e).contains(obj) implies #[trigger] s.push(e).to_set().contains(obj) by {
+        assert forall |obj: A| s.to_iset().insert(e).contains(obj) implies #[trigger] s.push(e).to_iset().contains(obj) by {
             if obj == e {
                 assert(s.push(e).last() == e); // why this trivial line is required
                 assert(s.push(e).contains(e));
             } else {
-                assert(s.to_set().contains(obj));
+                assert(s.to_iset().contains(obj));
                 assert(s.contains(obj));
                 assert(s == s.push(e).drop_last());
             }
@@ -310,7 +310,7 @@ pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, e: A)
 }
 
 pub proof fn lemma_filter_to_set_eq_to_set_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
-    ensures s.filter(pred).to_set() == s.to_set().filter(pred),
+    ensures s.filter(pred).to_iset() == s.to_iset().filter(pred),
     decreases s.len()
 {
     reveal(Seq::filter);

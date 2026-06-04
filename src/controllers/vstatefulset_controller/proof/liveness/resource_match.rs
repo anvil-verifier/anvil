@@ -3306,7 +3306,7 @@ ensures
     // assert(next_local_state.needed == needed);
     // assert(next_local_state.condemned == condemned);
     let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod.metadata.name->0) is Some && get_ordinal(vsts_name, pod.metadata.name->0)->0 >= replicas;
-    assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
+    assert(condemned.to_iset() == filtered_pods.filter(condemned_ord_filter).to_iset()) by {
         let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1.metadata.name->0)->0 >= get_ordinal(vsts_name, p2.metadata.name->0)->0;
         assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
         lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
@@ -3318,7 +3318,7 @@ ensures
         let condemned_pod = condemned[i as int];
         assert(condemned.contains(condemned_pod));
         assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod)) by {
-            assert(condemned.to_set().contains(condemned_pod));
+            assert(condemned.to_iset().contains(condemned_pod));
             assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
         }
         seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
@@ -3363,7 +3363,7 @@ ensures
             }
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
-            assert(filtered_resp_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+            assert(filtered_resp_objs.to_iset().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             assert(get_ordinal(vsts_name, key.name) == Some(ord));
             assert(exists |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key);
             let resp_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
@@ -3403,12 +3403,12 @@ ensures
         get_ordinal_eq_pod_name(vsts_name, ord, key_with_ord(ord).name);
         assert(condemned.contains(condemned_pod)) by {
             assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
-            assert(condemned.to_set().contains(condemned_pod));
+            assert(condemned.to_iset().contains(condemned_pod));
         }
     }
     let outdated_pod_keys = needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
     assert(outdated_pod_keys.to_iset() == outdated_obj_keys_in_etcd(s, vsts)) by {
-        assert forall |key: ObjectRef| #[trigger] outdated_pod_keys.to_set().contains(key) implies outdated_obj_keys_in_etcd(s, vsts).contains(key) by {
+        assert forall |key: ObjectRef| #[trigger] outdated_pod_keys.to_iset().contains(key) implies outdated_obj_keys_in_etcd(s, vsts).contains(key) by {
             PodView::marshal_preserves_integrity();
             assert(outdated_pod_keys.contains(key));
             let i = choose |i: nat| i < outdated_pod_keys.len() && outdated_pod_keys[i as int] == key;
@@ -3419,7 +3419,7 @@ ensures
             assert(pod_spec_weakly_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
             assert(outdated_obj_key_filter(s, vsts)(key));
         }
-        assert forall |key: ObjectRef| #[trigger] outdated_obj_keys_in_etcd(s, vsts).contains(key) implies outdated_pod_keys.to_set().contains(key) by {
+        assert forall |key: ObjectRef| #[trigger] outdated_obj_keys_in_etcd(s, vsts).contains(key) implies outdated_pod_keys.to_iset().contains(key) by {
             PodView::marshal_preserves_integrity();
             let ord = choose |ord: nat| #![trigger pod_name(vsts_name, ord)] ord < replicas && key == key_with_ord(ord);
             let obj = s.resources()[key];
@@ -3431,7 +3431,7 @@ ensures
             assert(valid_owned_object_filter(vsts)(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).contains(obj));
             assert(s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
-            assert(owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
+            assert(owned_objs.to_iset().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             let obj = choose |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) && obj.object_ref() == key;
             assert(weakly_eq(obj, s.resources()[key]));
             seq_filter_contains_implies_seq_contains(objs, |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()), obj);
@@ -4300,7 +4300,7 @@ ensures
         let outdated_pod_keys = outdated_pods.map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
         assert(outdated_pod_keys[i] == outdated_pod_opt->0.object_ref());
         assert(outdated_pod_keys.contains(outdated_pods[i]->0.object_ref()));
-        assert(outdated_obj_keys_in_etcd(s, vsts).len() == outdated_pod_keys.to_set().remove(outdated_pod_opt->0.object_ref()).len() == outdated_len - 1);
+        assert(outdated_obj_keys_in_etcd(s, vsts).len() == outdated_pod_keys.to_iset().remove(outdated_pod_opt->0.object_ref()).len() == outdated_len - 1);
     } else {
         assert(get_largest_unmatched_pods(vsts, local_state.needed) is None);
         lemma_local_state_is_valid_and_coherent_with_zero_old_pods_implies_current_state_matches(
@@ -4497,14 +4497,14 @@ ensures
                                 // same as proofs in lemma_from_list_resp_to_next_state
                                 let condemned_ord_filter = |pod: PodView| get_ordinal(vsts_name, pod.metadata.name->0) is Some
                                     && get_ordinal(vsts_name, pod.metadata.name->0)->0 >= replicas(vsts);
-                                assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
+                                assert(condemned.to_iset() == filtered_pods.filter(condemned_ord_filter).to_iset()) by {
                                     let leq = |p1: PodView, p2: PodView| get_ordinal(vsts_name, p1.metadata.name->0)->0 >= get_ordinal(vsts_name, p2.metadata.name->0)->0;
                                     assert(condemned == filtered_pods.filter(condemned_ord_filter).sort_by(leq));
                                     lemma_sort_by_does_not_add_or_delete_elements(filtered_pods.filter(condemned_ord_filter), leq);
                                 }
                                 if condemned.len() > 0 {
                                     let condemned_pod = condemned[0];
-                                    assert(condemned.to_set().contains(condemned_pod));
+                                    assert(condemned.to_iset().contains(condemned_pod));
                                     seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
                                     let ord = get_ordinal(vsts_name, condemned_pod.metadata.name->0)->0;
                                     get_ordinal_eq_pod_name(vsts_name, ord, condemned_pod.metadata.name->0);
