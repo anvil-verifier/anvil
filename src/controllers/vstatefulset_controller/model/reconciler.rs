@@ -609,7 +609,7 @@ pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool 
     |pod: PodView| {
         // See https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/controller_ref_manager.go#L72-L82
         pod.metadata.owner_references_contains(vsts.controller_owner_ref())
-        // && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+        // && vsts.spec.selector.matches(pod.metadata.labels.unwrap_or(IMap::empty()))
         // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/statefulset/stateful_set.go#L311-L314
         && vsts.metadata.name is Some
         && pod.metadata.name is Some
@@ -692,7 +692,7 @@ pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: 
     PodView {
         metadata: ObjectMetaView {
             labels: Some(vsts.spec.template.metadata->0.labels
-                    .unwrap_or(Map::<StringView, StringView>::empty())
+                    .unwrap_or(IMap::<StringView, StringView>::empty())
                     .insert(StatefulSetPodNameLabel, pod.metadata.name->0)
                     .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
             owner_references: Some(make_owner_references(vsts)),

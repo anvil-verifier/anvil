@@ -7,8 +7,8 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 pub struct ControllerState {
-    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile>,
-    pub scheduled_reconciles: Map<ObjectRef, DynamicObjectView>,
+    pub ongoing_reconciles: IMap<ObjectRef, OngoingReconcile>,
+    pub scheduled_reconciles: IMap<ObjectRef, DynamicObjectView>,
     pub reconcile_id_allocator: ReconcileIdAllocator,
 }
 

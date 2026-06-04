@@ -58,7 +58,7 @@ impl VStatefulSetView {
         &&& self.spec.template.metadata is Some
         &&& self.spec.template.spec is Some
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.metadata->0.labels.unwrap_or(Map::empty()))
+        &&& self.spec.selector.matches(self.spec.template.metadata->0.labels.unwrap_or(IMap::empty()))
         &&& self.spec.template.metadata->0.labels is Some ==> {
             let labels = self.spec.template.metadata->0.labels->0;
             &&& !labels.contains_key(StatefulSetPodNameLabel)

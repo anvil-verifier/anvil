@@ -11,7 +11,7 @@ verus! {
 
 pub struct ConfigMapView {
     pub metadata: ObjectMetaView,
-    pub data: Option<Map<StringView, StringView>>,
+    pub data: Option<IMap<StringView, StringView>>,
 }
 
 // This ConfigMapSpecView is defined only to call marshal_spec and unmarshal_spec conveniently
@@ -22,7 +22,7 @@ pub struct ConfigMapView {
 //
 // We use a unit type in the tuple because there has to be at least two members in a tuple.
 // The unit type will be replaced once we support other fields than data.
-type ConfigMapSpecView = Option<Map<StringView, StringView>>;
+type ConfigMapSpecView = Option<IMap<StringView, StringView>>;
 
 impl ConfigMapView {
     pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
@@ -32,7 +32,7 @@ impl ConfigMapView {
         }
     }
 
-    pub open spec fn with_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
+    pub open spec fn with_data(self, data: IMap<StringView, StringView>) -> ConfigMapView {
         ConfigMapView {
             data: Some(data),
             ..self

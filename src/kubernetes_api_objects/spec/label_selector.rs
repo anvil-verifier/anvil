@@ -8,7 +8,7 @@ verus! {
 // LabelSelectorView is the ghost type of LabelSelector.
 
 pub struct LabelSelectorView {
-    pub match_labels: Option<Map<StringView, StringView>>,
+    pub match_labels: Option<IMap<StringView, StringView>>,
 }
 
 impl LabelSelectorView {
@@ -18,7 +18,7 @@ impl LabelSelectorView {
         }
     }
 
-    pub open spec fn with_match_labels(self, match_labels: Map<StringView, StringView>) -> LabelSelectorView {
+    pub open spec fn with_match_labels(self, match_labels: IMap<StringView, StringView>) -> LabelSelectorView {
         LabelSelectorView {
             match_labels: Some(match_labels),
             ..self
@@ -26,7 +26,7 @@ impl LabelSelectorView {
     }
 
     // TODO: handle match_expressions as well
-    pub open spec fn matches(self, labels: Map<StringView, StringView>) -> bool {
+    pub open spec fn matches(self, labels: IMap<StringView, StringView>) -> bool {
         if self.match_labels is None {
             true
         } else {

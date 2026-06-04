@@ -111,7 +111,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
     let sts_name = make_stateful_set_name(rabbitmq);
     let namespace = rabbitmq.metadata.namespace->0;
 
-    let labels = Map::empty().insert("app"@, name);
+    let labels = IMap::empty().insert("app"@, name);
     let metadata = ObjectMetaView::default()
         .with_name(sts_name)
         .with_namespace(namespace)
@@ -146,7 +146,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                         .with_spec(PersistentVolumeClaimSpecView::default()
                             .with_access_modes(seq!["ReadWriteOnce"@])
                             .with_resources(VolumeResourceRequirementsView::default()
-                                .with_requests(Map::empty()
+                                .with_requests(IMap::empty()
                                     .insert("storage"@, rabbitmq.spec.persistence.storage)
                                 )
                             )
@@ -236,8 +236,8 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ])
                 .with_resources(
                     ResourceRequirementsView {
-                        limits: Some(Map::empty().insert("cpu"@, "100m"@).insert("memory"@, "500Mi"@)),
-                        requests: Some(Map::empty().insert("cpu"@, "100m"@).insert("memory"@, "500Mi"@)),
+                        limits: Some(IMap::empty().insert("cpu"@, "100m"@).insert("memory"@, "500Mi"@)),
+                        requests: Some(IMap::empty().insert("cpu"@, "100m"@).insert("memory"@, "500Mi"@)),
                     }
                 )
                 .with_volume_mounts(seq![

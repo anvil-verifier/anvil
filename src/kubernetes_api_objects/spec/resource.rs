@@ -9,7 +9,7 @@ verus! {
 
 // StoredState represents the entire cluster state that consists of
 // many different objects in the form of DynamicObjectView
-pub type StoredState = Map<ObjectRef, DynamicObjectView>;
+pub type StoredState = IMap<ObjectRef, DynamicObjectView>;
 
 // Value represents the data that each object/field gets marshalled into
 pub type Value = StringView;

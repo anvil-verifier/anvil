@@ -22,10 +22,10 @@ pub struct ApiServerState {
 impl ApiServerState {
     pub fn new() -> ApiServerState {
         ApiServerState {
-            resources: ObjectMap::new(),
+            resources: ObjectIMap::new(),
             uid_counter: 0,
             resource_version_counter: 0,
-            stable_resources: ObjectRefSet::new(),
+            stable_resources: ObjectRefISet::new(),
         }
     }
 }

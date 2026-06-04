@@ -718,7 +718,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,
-        set![SubResource::HeadlessService, SubResource::Service, SubResource::ErlangCookieSecret, SubResource::DefaultUserSecret,
+        iset![SubResource::HeadlessService, SubResource::Service, SubResource::ErlangCookieSecret, SubResource::DefaultUserSecret,
         SubResource::PluginsConfigMap, SubResource::ServerConfigMap, SubResource::ServiceAccount, SubResource::Role,
         SubResource::RoleBinding, SubResource::VStatefulSetView]
     );
@@ -784,7 +784,7 @@ proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_
     ==> {
         let sts = VStatefulSetView::unmarshal(msg.content.get_create_request().obj)->Ok_0;
         &&& VStatefulSetView::unmarshal(msg.content.get_create_request().obj) is Ok
-        &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
+        &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(IMap::empty().insert("app"@, rabbitmq.metadata.name->0))
     };
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)

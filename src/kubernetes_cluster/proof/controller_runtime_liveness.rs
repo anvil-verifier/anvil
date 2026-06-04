@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
-use vstd::{map::*, prelude::*, set_lib::*};
+use vstd::{imap::*, prelude::*, iset_lib::*};
 
 verus! {
 
@@ -1105,7 +1105,7 @@ pub open spec fn ongoing_reconcile_before(controller_id: int, reconcile_id: Reco
 pub open spec fn ongoing_reconciles_num_is_n(controller_id: int, reconcile_id: ReconcileId, rec_num: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let ongoing_reconciles = s.ongoing_reconciles(controller_id);
-        let reconciles_before_id = Map::new(
+        let reconciles_before_id = IMap::new(
             |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
             |key| ongoing_reconciles[key]
         );
@@ -1118,7 +1118,7 @@ pub open spec fn ongoing_reconciles_num_is_n(controller_id: int, reconcile_id: R
 pub open spec fn ongoing_reconciles_num_is_at_most_n(controller_id: int, reconcile_id: ReconcileId, rec_num: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let ongoing_reconciles = s.ongoing_reconciles(controller_id);
-        let reconciles_before_id = Map::new(
+        let reconciles_before_id = IMap::new(
             |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
             |key| ongoing_reconciles[key]
         );
@@ -1164,7 +1164,7 @@ pub proof fn lemma_eventually_no_reconcile_before_reconcile_id_is_ongoing(
             implies always(true_pred().implies(tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))))).satisfied_by(ex) by {
             assert forall |i| spec.satisfied_by(ex) && #[trigger] true_pred().satisfied_by(ex.suffix(i)) implies tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))).satisfied_by(ex.suffix(i)) by {
                 let ongoing_reconciles = ex.suffix(i).head().ongoing_reconciles(controller_id);
-                let reconciles_before_id = Map::new(
+                let reconciles_before_id = IMap::new(
                     |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
                     |key| ongoing_reconciles[key]
                 );
@@ -1235,7 +1235,7 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
             assert forall |s| #[trigger] Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, 0)(s) implies no_more_ongoing_reconciles(s) by {
                 assert forall |key| Self::ongoing_reconcile_before(controller_id, reconcile_id, key)(s) implies !(#[trigger] s.ongoing_reconciles(controller_id).contains_key(key)) by {
                     let ongoing_reconciles = s.ongoing_reconciles(controller_id);
-                    let reconciles_before_id = Map::new(
+                    let reconciles_before_id = IMap::new(
                         |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
                         |key| ongoing_reconciles[key]
                     );
@@ -1275,7 +1275,7 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
                 assert forall |ex| #[trigger] lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num)).satisfied_by(ex) 
                 implies tla_exists(ongoing_reconciles_num_is_n_and_reconcile_ongoing).satisfied_by(ex) by {
                     let ongoing_reconciles = ex.head().ongoing_reconciles(controller_id);
-                    let reconciles_before_id = Map::new(
+                    let reconciles_before_id = IMap::new(
                         |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
                         |key| ongoing_reconciles[key]
                     );
@@ -1301,7 +1301,7 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
                         &&& n < rec_num
                     })).satisfied_by(ex) by {
                     let ongoing_reconciles = ex.head().ongoing_reconciles(controller_id);
-                    let reconciles_before_id = Map::new(
+                    let reconciles_before_id = IMap::new(
                         |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
                         |key| ongoing_reconciles[key]
                     );
@@ -1433,11 +1433,11 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
                     let ongoing_reconciles = s.ongoing_reconciles(controller_id);
                     let ongoing_reconciles_prime = s_prime.ongoing_reconciles(controller_id);
 
-                    let reconciles_before_id = Map::new(
+                    let reconciles_before_id = IMap::new(
                         |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
                         |key| ongoing_reconciles[key]
                     );
-                    let reconciles_before_id_prime = Map::new(
+                    let reconciles_before_id_prime = IMap::new(
                         |key| ongoing_reconciles_prime.contains_key(key) && ongoing_reconciles_prime[key].reconcile_id < reconcile_id,
                         |key| ongoing_reconciles_prime[key]
                     );
@@ -1454,7 +1454,7 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
             Step::RestartControllerStep(id) => {
                 if id == controller_id {
                     let ongoing_reconciles = s_prime.ongoing_reconciles(controller_id);
-                    let reconciles_before_id = Map::new(
+                    let reconciles_before_id = IMap::new(
                         |key| ongoing_reconciles.contains_key(key) && ongoing_reconciles[key].reconcile_id < reconcile_id,
                         |key| ongoing_reconciles[key]
                     );

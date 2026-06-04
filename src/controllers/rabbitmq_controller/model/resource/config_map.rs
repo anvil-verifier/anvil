@@ -106,7 +106,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
             ..ObjectMetaView::default()
         },
         data: Some({
-            let data = Map::empty()
+            let data = IMap::empty()
                         .insert("operatorDefaults.conf"@, default_rbmq_config(rabbitmq))
                         .insert("userDefinedConfiguration.conf"@,
                         {

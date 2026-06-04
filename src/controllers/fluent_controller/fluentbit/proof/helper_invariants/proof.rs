@@ -980,7 +980,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCluster>, p
     ensures spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {
     leads_to_always_tla_forall(
-        spec, p, a_to_p, set![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::Service, SubResource::DaemonSet]
+        spec, p, a_to_p, iset![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::Service, SubResource::DaemonSet]
     );
 }
 

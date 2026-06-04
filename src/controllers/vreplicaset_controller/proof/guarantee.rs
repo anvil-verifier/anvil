@@ -13,7 +13,7 @@ use crate::vreplicaset_controller::{
     },
 };
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*};
-use vstd::{prelude::*, map_lib::*};
+use vstd::{prelude::*, imap_lib::*};
 
 verus! {
 

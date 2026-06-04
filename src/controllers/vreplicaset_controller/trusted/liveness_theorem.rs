@@ -49,7 +49,7 @@ pub open spec fn desired_state_is(vrs: VReplicaSetView) -> StatePred<ClusterStat
     }
 }
 
-pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<DynamicObjectView> {
+pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> ISet<DynamicObjectView> {
     resources.values().filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj))
 }
 
@@ -60,7 +60,7 @@ pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjec
     &&& obj.metadata.namespace is Some
     &&& obj.metadata.namespace == vrs.metadata.namespace
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
-    &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+    &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(IMap::empty()))
     &&& obj.metadata.deletion_timestamp is None
 }
 }

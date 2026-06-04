@@ -30,12 +30,12 @@ pub open spec fn rmq_id() -> int { 4 }
 
 pub open spec fn cluster_instance() -> Cluster {
     Cluster {
-        installed_types: Map::empty()
+        installed_types: IMap::empty()
             .insert(VReplicaSetView::kind()->CustomResourceKind_0, Cluster::installed_type::<VReplicaSetView>())
             .insert(VDeploymentView::kind()->CustomResourceKind_0, Cluster::installed_type::<VDeploymentView>())
             .insert(VStatefulSetView::kind()->CustomResourceKind_0, Cluster::installed_type::<VStatefulSetView>())
             .insert(RabbitmqClusterView::kind()->CustomResourceKind_0, Cluster::installed_type::<RabbitmqClusterView>()),
-        controller_models: Map::empty()
+        controller_models: IMap::empty()
             .insert(vrs_id(), vrs_controller_model())
             .insert(vd_id(), vd_controller_model())
             .insert(vsts_id(), vsts_controller_model())
@@ -46,7 +46,7 @@ pub open spec fn cluster_instance() -> Cluster {
 pub open spec fn core_cluster() -> CoreCluster {
     CoreCluster {
         cluster: cluster_instance(),
-        registry: Map::empty()
+        registry: IMap::empty()
             .insert(vrs_id(), vrs_controller_spec(vrs_id()))
             .insert(vd_id(), vd_controller_spec(vd_id()))
             .insert(vsts_id(), vsts_controller_spec(vsts_id()))
@@ -338,8 +338,8 @@ proof fn all_core_holds(cluster: CoreCluster)
         let r12_fn = |pair: (int, int)| if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
         let r21_fn = |pair: (int, int)| if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-        assert(s1.members =~= set![vrs_id(), vd_id()]);
-        assert(s2.members =~= set![vsts_id(), rmq_id()]);
+        assert(s1.members =~= iset![vrs_id(), vd_id()]);
+        assert(s2.members =~= iset![vsts_id(), rmq_id()]);
 
         // VRS↔VSTS needs explicit prefix reasoning.
         vrs_guarantee_implies_vsts_rely(vrs_id());

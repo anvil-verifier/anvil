@@ -9,7 +9,7 @@ verus! {
 // for storing the key of the stable objects.
 #[verifier(external_body)]
 pub struct StringSet {
-    inner: std::collections::BTreeSet<std::string::String>,
+    inner: std::collections::BTreeISet<std::string::String>,
 }
 
 impl StringSet {
@@ -19,13 +19,13 @@ impl StringSet {
     pub fn new() -> (m: Self)
         ensures m@ == Set::<StringView>::empty(),
     {
-        StringSet { inner: std::collections::BTreeSet::new() }
+        StringSet { inner: std::collections::BTreeISet::new() }
     }
 
     pub fn empty() -> (m: Self)
         ensures m@ == Set::<StringView>::empty(),
     {
-        StringSet::new()
+        StringISet::new()
     }
 
     #[verifier(external_body)]
@@ -43,13 +43,13 @@ impl StringSet {
     }
 
     #[verifier(external)]
-    pub fn from_rust_set(inner: std::collections::BTreeSet<std::string::String>) -> StringSet { StringSet { inner: inner } }
+    pub fn from_rust_set(inner: std::collections::BTreeISet<std::string::String>) -> StringSet { StringSet { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_rust_set(self) -> std::collections::BTreeSet<std::string::String> { self.inner }
+    pub fn into_rust_set(self) -> std::collections::BTreeISet<std::string::String> { self.inner }
 
     #[verifier(external)]
-    pub fn as_rust_set_ref(&self) -> &std::collections::BTreeSet<std::string::String> { &self.inner }
+    pub fn as_rust_set_ref(&self) -> &std::collections::BTreeISet<std::string::String> { &self.inner }
 }
 
 }

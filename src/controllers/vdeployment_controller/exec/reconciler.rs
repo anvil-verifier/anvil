@@ -11,7 +11,7 @@ use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 use deps_hack::tracing::{error, info};
-use vstd::{map::*, prelude::*, seq_lib::*, set::*};
+use vstd::{imap::*, prelude::*, seq_lib::*, iset::*};
 // for assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
 use crate::reconciler::spec::io::*;
 
@@ -655,9 +655,9 @@ ensures
             let old_labels = vd@.spec.template.metadata.unwrap().labels.unwrap();
             assert(old_labels.dom().len() >= 0);
             assert(labels@ == old_labels.insert("pod-template-hash"@, pod_template_hash@));
-            axiom_map_insert_domain(old_labels, "pod-template-hash"@, pod_template_hash@);
+            lemma_imap_insert_domain(old_labels, "pod-template-hash"@, pod_template_hash@);
             assert(labels@.dom() == old_labels.dom().insert("pod-template-hash"@));
-            axiom_set_insert_len(old_labels.dom(), "pod-template-hash"@);
+            lemma_iset_insert_len(old_labels.dom(), "pod-template-hash"@);
         }
         assert(vrs@.spec.selector.match_labels->0 == labels@);
         assert(vrs@.spec.selector.match_labels->0.len() > 0);

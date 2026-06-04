@@ -151,7 +151,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                     .with_spec(PersistentVolumeClaimSpecView::default()
                         .with_access_modes(seq!["ReadWriteOnce"@])
                         .with_resources(VolumeResourceRequirementsView::default()
-                            .with_requests(Map::empty()
+                            .with_requests(IMap::empty()
                                 .insert("storage"@, zk.spec.persistence.storage_size)
                             )
                         )

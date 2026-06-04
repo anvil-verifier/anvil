@@ -16,9 +16,9 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { map!["app"@ => zk.metadata.name->0] }
+pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> IMap<StringView, StringView> { imap!["app"@ => zk.metadata.name->0] }
 
-pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { zk.spec.labels.union_prefer_right(make_base_labels(zk)) }
+pub open spec fn make_labels(zk: ZookeeperClusterView) -> IMap<StringView, StringView> { zk.spec.labels.union_prefer_right(make_base_labels(zk)) }
 
 pub open spec fn make_owner_references(zk: ZookeeperClusterView) -> Seq<OwnerReferenceView> { seq![zk.controller_owner_ref()] }
 

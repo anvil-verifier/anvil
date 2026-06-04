@@ -189,7 +189,7 @@ pub open spec fn sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
         ==> {
             let sts = VStatefulSetView::unmarshal(msg.content.get_create_request().obj)->Ok_0;
             &&& VStatefulSetView::unmarshal(msg.content.get_create_request().obj) is Ok
-            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
+            &&& sts.spec.selector == LabelSelectorView::default().with_match_labels(IMap::empty().insert("app"@, rabbitmq.metadata.name->0))
         }
     }
 }
@@ -199,7 +199,7 @@ pub open spec fn sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq: RabbitmqC
         let sts_key = make_stateful_set_key(rabbitmq);
         let sts = VStatefulSetView::unmarshal(s.resources()[sts_key]).unwrap();
         &&& s.resources().contains_key(sts_key)
-            ==> sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0))
+            ==> sts.spec.selector == LabelSelectorView::default().with_match_labels(IMap::empty().insert("app"@, rabbitmq.metadata.name->0))
     }
 }
 

@@ -87,7 +87,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView {
             annotations: Some(zk.spec.annotations),
             ..ConfigMapView::default().metadata
         },
-        data: Some(Map::empty()
+        data: Some(IMap::empty()
             .insert("zoo.cfg"@, make_zk_config(zk))
             .insert("log4j.properties"@, make_log4j_config())
             .insert("log4j-quiet.properties"@, make_log4j_quiet_config())

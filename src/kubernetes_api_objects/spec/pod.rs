@@ -55,7 +55,7 @@ pub struct PodSpecView {
     pub init_containers: Option<Seq<ContainerView>>,
     pub service_account_name: Option<StringView>,
     pub tolerations: Option<Seq<TolerationView>>,
-    pub node_selector: Option<Map<StringView, StringView>>,
+    pub node_selector: Option<IMap<StringView, StringView>>,
     pub runtime_class_name: Option<StringView>,
     pub dns_policy: Option<StringView>,
     pub priority_class_name: Option<StringView>,
@@ -154,7 +154,7 @@ impl PodSpecView {
         }
     }
 
-    pub open spec fn with_node_selector(self, node_selector: Map<StringView, StringView>) -> PodSpecView {
+    pub open spec fn with_node_selector(self, node_selector: IMap<StringView, StringView>) -> PodSpecView {
         PodSpecView {
             node_selector: Some(node_selector),
             ..self

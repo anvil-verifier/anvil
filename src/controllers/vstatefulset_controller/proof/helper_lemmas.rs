@@ -13,7 +13,7 @@ use crate::vstatefulset_controller::{
     trusted::{rely_guarantee::*, spec_types::*,  liveness_theorem::*, step::VStatefulSetReconcileStepView::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
-use vstd::{seq_lib::*, map_lib::*, set_lib::*};
+use vstd::{seq_lib::*, imap_lib::*, iset_lib::*};
 use vstd::prelude::*;
 
 verus! {

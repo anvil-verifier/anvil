@@ -15,7 +15,7 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
-use vstd::{map::*, map_lib::*, prelude::*};
+use vstd::{imap::*, imap_lib::*, prelude::*};
 
 verus! {
 
@@ -266,7 +266,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         assert(resp_obj_keys =~= selected_element_keys);
     });
 
-    assert(matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
+    assert(matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset() && resp_objs.no_duplicates()) by {
         // reveal API server spec
         let selector = |o: DynamicObjectView| {
             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
@@ -297,7 +297,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)) == matching_pods(vrs, s.resources()));
         
         // get rid of DS conversion, basically babysitting Verus
-        assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+        assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
             assert(resp_objs == s.resources().values().filter(selector).to_seq());
             assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
             seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));

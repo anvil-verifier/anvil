@@ -9,10 +9,10 @@ verus! {
 
 pub struct SecretView {
     pub metadata: ObjectMetaView,
-    pub data: Option<Map<StringView, StringView>>, // For view, <String, String> map is used instead of <String, Bytestring> map for now.
+    pub data: Option<IMap<StringView, StringView>>, // For view, <String, String> map is used instead of <String, Bytestring> map for now.
 }
 
-type SecretSpecView = Option<Map<StringView, StringView>>;
+type SecretSpecView = Option<IMap<StringView, StringView>>;
 
 impl SecretView {
     pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> SecretView {
@@ -22,7 +22,7 @@ impl SecretView {
         }
     }
 
-    pub open spec fn with_data(self, data: Map<StringView, StringView>) -> SecretView {
+    pub open spec fn with_data(self, data: IMap<StringView, StringView>) -> SecretView {
         SecretView {
             data: Some(data),
             ..self

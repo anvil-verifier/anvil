@@ -19,7 +19,7 @@ use crate::vstatefulset_controller::{
     },
 };
 use crate::reconciler::spec::io::*;
-use vstd::{map::*, map_lib::*, math::*, prelude::*};
+use vstd::{imap::*, imap_lib::*, math::*, prelude::*};
 
 verus! {
 

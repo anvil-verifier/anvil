@@ -1462,7 +1462,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ZKCluster>, p
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,
-        set![SubResource::HeadlessService, SubResource::ClientService, SubResource::AdminServerService,
+        iset![SubResource::HeadlessService, SubResource::ClientService, SubResource::AdminServerService,
         SubResource::ConfigMap, SubResource::VStatefulSetView]
     );
 }

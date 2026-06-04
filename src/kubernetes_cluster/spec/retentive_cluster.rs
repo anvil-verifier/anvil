@@ -12,7 +12,7 @@ pub struct ClusterHistory {
 
 pub struct RetentiveCluster {
     pub installed_types: InstalledTypes,
-    pub controller_models: Map<int, ControllerModel>,
+    pub controller_models: IMap<int, ControllerModel>,
 }
 
 // RetentiveCluster is simply the original Cluster state machine and a history of the states.

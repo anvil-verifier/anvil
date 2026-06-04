@@ -134,7 +134,7 @@ pub open spec fn valid_owned_obj_key(vd: VDeploymentView, s: ClusterState) -> sp
     }
 }
 
-pub open spec fn filter_obj_keys_managed_by_vd(vd: VDeploymentView, s: ClusterState) -> Set<ObjectRef> {
+pub open spec fn filter_obj_keys_managed_by_vd(vd: VDeploymentView, s: ClusterState) -> ISet<ObjectRef> {
     s.resources().dom().filter(valid_owned_obj_key(vd, s))
 }
 

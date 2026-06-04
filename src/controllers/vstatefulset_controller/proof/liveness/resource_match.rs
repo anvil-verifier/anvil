@@ -20,7 +20,7 @@ use crate::vstatefulset_controller::{
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*, set::*};
+use vstd::{seq_lib::*, imap_lib::*, multiset::*, relations::*, iset::*};
 use vstd::prelude::*;
 
 verus! {
@@ -3407,7 +3407,7 @@ ensures
         }
     }
     let outdated_pod_keys = needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
-    assert(outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)) by {
+    assert(outdated_pod_keys.to_iset() == outdated_obj_keys_in_etcd(s, vsts)) by {
         assert forall |key: ObjectRef| #[trigger] outdated_pod_keys.to_set().contains(key) implies outdated_obj_keys_in_etcd(s, vsts).contains(key) by {
             PodView::marshal_preserves_integrity();
             assert(outdated_pod_keys.contains(key));
@@ -3834,7 +3834,7 @@ ensures
             }
             &&& ord < state.needed_index ==> {
                 &&& s_prime.resources().contains_key(key)
-                &&& vsts.spec.selector.matches(s_prime.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+                &&& vsts.spec.selector.matches(s_prime.resources()[key].metadata.labels.unwrap_or(IMap::empty()))
             }
         } by {
             if ord == state.needed_index - 1 {
@@ -3886,9 +3886,9 @@ ensures
     assert(req.obj == new_pod.marshal());
     assert(new_pod.spec->0.without_volumes().without_hostname().without_subdomain()
         == old_pod.spec->0.without_volumes().without_hostname().without_subdomain());
-    assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))) by {
+    assert(vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(IMap::empty()))) by {
         assert(req.obj.metadata == new_pod.metadata);
-        assert(vsts.spec.selector.matches(update_identity(vsts, old_pod, needed_index).metadata.labels.unwrap_or(Map::empty())));
+        assert(vsts.spec.selector.matches(update_identity(vsts, old_pod, needed_index).metadata.labels.unwrap_or(IMap::empty())));
     }
     assert(req.obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])) by {
         assert(update_identity(vsts, old_pod, needed_index).metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
@@ -3979,7 +3979,7 @@ ensures
             }
             &&& ord < state.needed_index ==> {
                 &&& s_prime.resources().contains_key(key)
-                &&& vsts.spec.selector.matches(s_prime.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+                &&& vsts.spec.selector.matches(s_prime.resources()[key].metadata.labels.unwrap_or(IMap::empty()))
             }
         } by {
             if ord == state.needed_index - 1 {
@@ -4232,7 +4232,7 @@ ensures
                 next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
             );
         }
-        assert(outdated_pod_keys.to_set().remove(outdated_pod.object_ref()) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
+        assert(outdated_pod_keys.to_iset().remove(outdated_pod.object_ref()) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             if s.resources().contains_key(req.key()) {
                 assert(outdated_obj_keys_in_etcd(s_prime, vsts) == outdated_obj_keys_in_etcd(s, vsts).remove(req.key()));
             }
@@ -4521,7 +4521,7 @@ ensures
                                     &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
                                     &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
                                     &&& pod_spec_matches(vsts, needed_pod)
-                                    &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+                                    &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(IMap::empty()))
                                 } by {
                                     let key = ObjectRef {
                                         kind: Kind::PodKind,

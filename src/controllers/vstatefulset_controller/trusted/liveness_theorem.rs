@@ -35,7 +35,7 @@ pub open spec fn current_state_matches(vsts: VStatefulSetView) -> StatePred<Clus
             &&& pod_spec_matches(vsts, PodView::unmarshal(obj)->Ok_0)
             // labels are updated
             // note: this can be easily proved with obj.metadata->0.labels == vsts.spec.template.metadata->0.labels
-            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+            &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(IMap::empty()))
         }
         // 2. Bound PVCs exist
         &&& forall |ord: nat, i: nat| ord < replicas(vsts) && i < pvc_cnt(vsts) ==> {

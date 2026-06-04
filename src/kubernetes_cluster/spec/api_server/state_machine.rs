@@ -836,9 +836,9 @@ pub open spec fn handle_request(installed_types: InstalledTypes) -> APIServerAct
 pub open spec fn api_server(installed_types: InstalledTypes) -> APIServerStateMachine {
     StateMachine {
         init: |s: APIServerState| {
-            s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
+            s.resources == IMap::<ObjectRef, DynamicObjectView>::empty()
         },
-        actions: set![handle_request(installed_types)],
+        actions: iset![handle_request(installed_types)],
         step_to_action: |step: APIServerStep| {
             match step {
                 APIServerStep::HandleRequest => handle_request(installed_types),

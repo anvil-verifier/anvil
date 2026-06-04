@@ -15,8 +15,8 @@ pub struct ObjectMetaView {
     pub namespace: Option<StringView>,
     pub resource_version: Option<ResourceVersion>,
     pub uid: Option<Uid>,
-    pub labels: Option<Map<StringView, StringView>>,
-    pub annotations: Option<Map<StringView, StringView>>,
+    pub labels: Option<IMap<StringView, StringView>>,
+    pub annotations: Option<IMap<StringView, StringView>>,
     pub owner_references: Option<Seq<OwnerReferenceView>>,
     pub finalizers: Option<Seq<StringView>>,
     pub deletion_timestamp: Option<StringView>,
@@ -73,7 +73,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn with_labels(self, labels: Map<StringView, StringView>) -> ObjectMetaView {
+    pub open spec fn with_labels(self, labels: IMap<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             labels: Some(labels),
             ..self
@@ -82,7 +82,7 @@ impl ObjectMetaView {
 
     pub open spec fn add_label(self, key: StringView, value: StringView) -> ObjectMetaView {
         let old_map = if self.labels is None {
-            Map::empty()
+            IMap::empty()
         } else {
             self.labels->0
         };
@@ -110,7 +110,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn with_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
+    pub open spec fn with_annotations(self, annotations: IMap<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             annotations: Some(annotations),
             ..self
@@ -126,7 +126,7 @@ impl ObjectMetaView {
 
     pub open spec fn add_annotation(self, key: StringView, value: StringView) -> ObjectMetaView {
         let old_map = if self.annotations is None {
-            Map::empty()
+            IMap::empty()
         } else {
             self.annotations->0
         };
@@ -171,11 +171,11 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn finalizers_as_set(self) -> Set<StringView> {
+    pub open spec fn finalizers_as_set(self) -> ISet<StringView> {
         if self.finalizers is None {
-            Set::empty()
+            ISet::empty()
         } else {
-            self.finalizers->0.to_set()
+            self.finalizers->0.to_iset()
         }
     }
 

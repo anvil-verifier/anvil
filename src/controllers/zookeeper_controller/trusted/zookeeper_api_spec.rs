@@ -59,11 +59,11 @@ pub type ZKNodeVersion = int;
 // ZKState is basically a map from the key (the id of the zookeeper cluster and the node path)
 // to the value, and the stat data associated with the node (i.e., version number).
 pub struct ZKState {
-    pub data: Map<ZKNodeAddr, (ZKNodeValue, ZKNodeVersion)>,
+    pub data: IMap<ZKNodeAddr, (ZKNodeValue, ZKNodeVersion)>,
 }
 
 impl ZKState {
-    pub open spec fn init() -> ZKState { ZKState { data: Map::empty() } }
+    pub open spec fn init() -> ZKState { ZKState { data: IMap::empty() } }
 }
 
 pub struct ZKAPIExistsResultView {
@@ -116,7 +116,7 @@ impl ExternalAPI for ZKAPI {
     open spec fn init_state() -> ZKState { ZKState::init() }
 }
 
-pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
+pub open spec fn validate_config_map_data(data: IMap<StringView, StringView>) -> bool {
     let zk_config = data["zoo.cfg"@];
     &&& data.contains_key("zoo.cfg"@)
     &&& exists |zk: ZookeeperClusterView| zk.state_validation() && (#[trigger] make_zk_config(zk)) == zk_config

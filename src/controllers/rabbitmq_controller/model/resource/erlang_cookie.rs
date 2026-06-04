@@ -95,7 +95,7 @@ pub open spec fn update_erlang_secret(rabbitmq: RabbitmqClusterView, found_erlan
 
 pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView {
     let cookie = random_encoded_string(24);
-    let data = Map::empty()
+    let data = IMap::empty()
         .insert(".erlang.cookie"@, cookie);
     make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }

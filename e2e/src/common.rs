@@ -54,7 +54,7 @@ pub enum Error {
     #[error("Rabbitmq failed to set customized user/password!")]
     RabbitmqUserPassFailed,
 
-    #[error("Pods are inconsistent with replica set!")]
+    #[error("Pods are inconsistent with replica iset!")]
     VReplicaSetFailed,
 
     #[error("ReplicaSet list generation failed!")]
@@ -66,7 +66,7 @@ pub enum Error {
     #[error("Invalid VReplicaSet passed admission!")]
     VReplicaSetInvalidAdmissionPassed,
 
-    #[error("Pods are inconsistent with stateful set!")]
+    #[error("Pods are inconsistent with stateful iset!")]
     VStatefulSetFailed,
 
     #[error("StatefulSet list generation failed!")]

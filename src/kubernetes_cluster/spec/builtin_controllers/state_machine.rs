@@ -9,7 +9,7 @@ pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine {
         init: |s: ()| {
             true
         },
-        actions: set![
+        actions: iset![
             run_garbage_collector(),
         ],
         step_to_action: |step: BuiltinControllersStep| {

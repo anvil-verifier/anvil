@@ -88,8 +88,8 @@ pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, contr
 }
 
 // Predicates for reasoning about pods
-pub open spec fn matching_pod_entries(vrs: VReplicaSetView, resources: StoredState) -> Map<ObjectRef, DynamicObjectView> {
-    Map::new(
+pub open spec fn matching_pod_entries(vrs: VReplicaSetView, resources: StoredState) -> IMap<ObjectRef, DynamicObjectView> {
+    IMap::new(
         |key: ObjectRef| {
             let obj = resources[key];
             &&& resources.contains_key(key)
@@ -193,7 +193,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matching_pods(
     let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
-    &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+    &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset()
     &&& objects_to_pods(resp_objs) is Some
     &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
     &&& resp_objs.no_duplicates()

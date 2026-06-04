@@ -18,7 +18,7 @@ pub struct ControllerSpec {
 // composable says that when the controllers run together (with other controllers)
 // (1) all controllers' safety_guarantee hold, and
 // (2) all controllers' esr hold assuming fairness and that other controllers don't interfere with them.
-pub open spec fn composable(spec: TempPred<ClusterState>, cluster: Cluster, composition: Map<int, ControllerSpec>) -> bool {
+pub open spec fn composable(spec: TempPred<ClusterState>, cluster: Cluster, composition: IMap<int, ControllerSpec>) -> bool {
     &&& (forall |i| #[trigger] composition.contains_key(i)
         ==> (composition[i].membership)(cluster, i))
         && spec.entails(lift_state(cluster.init()))
@@ -44,7 +44,7 @@ pub trait Composition: Sized {
     spec fn id() -> int;
 
     // The controllers that have been composed
-    spec fn composed() -> Map<int, ControllerSpec>;
+    spec fn composed() -> IMap<int, ControllerSpec>;
 
     // safety_guarantee of the new controller holds
     proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster)
@@ -270,7 +270,7 @@ impl Composition for ComposeCook {
 
     uninterp spec fn id() -> int; // the actual value of id doesn't matter
 
-    open spec fn composed() -> Map<int, ControllerSpec> { Map::<int, ControllerSpec>::empty() }
+    open spec fn composed() -> IMap<int, ControllerSpec> { IMap::<int, ControllerSpec>::empty() }
 
     #[verifier(external_body)]
     proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
@@ -294,7 +294,7 @@ impl Composition for ComposeWaiter {
 
     uninterp spec fn id() -> int; // the actual value of id doesn't matter
 
-    open spec fn composed() -> Map<int, ControllerSpec> { Map::<int, ControllerSpec>::empty().insert(ComposeCook::id(), cook()) }
+    open spec fn composed() -> IMap<int, ControllerSpec> { IMap::<int, ControllerSpec>::empty().insert(ComposeCook::id(), cook()) }
 
     #[verifier(external_body)]
     proof fn safety_guarantee_holds(spec: TempPred<ClusterState>, cluster: Cluster) {}
@@ -316,7 +316,7 @@ proof fn compose_cook_and_waiter(spec: TempPred<ClusterState>, cluster: Cluster)
     requires
         ComposeCook::id() != ComposeWaiter::id(),
     ensures
-        composable(spec, cluster, Map::<int, ControllerSpec>::empty().insert(ComposeCook::id(), cook()).insert(ComposeWaiter::id(), waiter()))
+        composable(spec, cluster, IMap::<int, ControllerSpec>::empty().insert(ComposeCook::id(), cook()).insert(ComposeWaiter::id(), waiter()))
 {
     horizontal_composition::<ComposeCook>(spec, cluster);
     vertical_composition::<ComposeWaiter>(spec, cluster);

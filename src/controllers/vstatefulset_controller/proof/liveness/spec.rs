@@ -25,7 +25,7 @@ use crate::vstatefulset_controller::{
         step::*,
     },
 };
-use vstd::{map::*, map_lib::*, math::*, prelude::*};
+use vstd::{imap::*, imap_lib::*, math::*, prelude::*};
 
 verus! {
 

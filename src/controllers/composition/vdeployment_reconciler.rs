@@ -38,7 +38,7 @@ pub open spec fn vd_controller_spec(id: int) -> ControllerSpec {
 
 pub open spec fn vd_core_set(id: int) -> CoreSet {
     CoreSet {
-        members: Set::empty().insert(id),
+        members: ISet::empty().insert(id),
         liveness_dependency: vrs_liveness::vrs_eventually_stable_reconciliation(),
     }
 }

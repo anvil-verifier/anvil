@@ -138,14 +138,14 @@ pub open spec fn controller(model: ReconcileModel, controller_id: int) -> Contro
     StateMachine {
         init: |s: ControllerState| {
             s == ControllerState {
-                scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
-                ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+                scheduled_reconciles: IMap::<ObjectRef, DynamicObjectView>::empty(),
+                ongoing_reconciles: IMap::<ObjectRef, OngoingReconcile>::empty(),
                 reconcile_id_allocator: ReconcileIdAllocator {
                     reconcile_id_counter: 0,
                 },
             }
         },
-        actions: set![
+        actions: iset![
             run_scheduled_reconcile(model),
             continue_reconcile(model, controller_id),
             end_reconcile(model)

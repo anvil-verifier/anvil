@@ -20,7 +20,7 @@ verus! {
 // and a req_drop_enabled to enable/disable network message drop.
 pub struct ClusterState {
     pub api_server: APIServerState,
-    pub controller_and_externals: Map<int, ControllerAndExternalState>,
+    pub controller_and_externals: IMap<int, ControllerAndExternalState>,
     pub network: NetworkState,
     pub rpc_id_allocator: RPCIdAllocator,
     pub req_drop_enabled: bool,
@@ -48,12 +48,12 @@ impl ClusterState {
     }
 
     #[verifier(inline)]
-    pub open spec fn ongoing_reconciles(self, controller_id: int) -> Map<ObjectRef, OngoingReconcile> {
+    pub open spec fn ongoing_reconciles(self, controller_id: int) -> IMap<ObjectRef, OngoingReconcile> {
         self.controller_and_externals[controller_id].controller.ongoing_reconciles
     }
 
     #[verifier(inline)]
-    pub open spec fn scheduled_reconciles(self, controller_id: int) -> Map<ObjectRef, DynamicObjectView> {
+    pub open spec fn scheduled_reconciles(self, controller_id: int) -> IMap<ObjectRef, DynamicObjectView> {
         self.controller_and_externals[controller_id].controller.scheduled_reconciles
     }
 
@@ -91,7 +91,7 @@ pub enum Step {
 // and the controllers running in the cluster.
 pub struct Cluster {
     pub installed_types: InstalledTypes,
-    pub controller_models: Map<int, ControllerModel>,
+    pub controller_models: IMap<int, ControllerModel>,
 }
 
 // The ControllerModel includes the reconcile_model that models
@@ -386,8 +386,8 @@ impl Cluster {
                 let controller_and_external_state = s.controller_and_externals[controller_id];
                 let controller_and_external_state_prime = ControllerAndExternalState {
                     controller: ControllerState {
-                        scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
-                        ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+                        scheduled_reconciles: IMap::<ObjectRef, DynamicObjectView>::empty(),
+                        ongoing_reconciles: IMap::<ObjectRef, OngoingReconcile>::empty(),
                         reconcile_id_allocator: controller_and_external_state.controller.reconcile_id_allocator,
                     },
                     ..controller_and_external_state

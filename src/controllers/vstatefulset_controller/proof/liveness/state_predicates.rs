@@ -114,7 +114,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     &&& resp_msg.content.get_list_response().res is Ok
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
-    &&& owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
+    &&& owned_objs.to_iset().map(|obj: DynamicObjectView| obj.object_ref())
         == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
     &&& forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) ==> {
         let key = obj.object_ref();
@@ -293,25 +293,25 @@ pub open spec fn local_state_is_coherent_with_etcd(vsts: VStatefulSetView, state
             }
             &&& ord < needed_index_considering_update ==> {
                 &&& s.resources().contains_key(key)
-                &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+                &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(IMap::empty()))
             }
             &&& ord >= state.needed_index && state.needed[ord as int] is None ==>
                 !s.resources().contains_key(key)
         }
         // all outdated pods are captured
         &&& outdated_pod_keys.no_duplicates()
-        &&& outdated_pod is None ==> outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+        &&& outdated_pod is None ==> outdated_pod_keys.to_iset() == outdated_obj_keys_in_etcd(s, vsts)
         &&& outdated_pod is Some ==> match state.reconcile_step {
             AfterDeleteOutdated => if s.resources().contains_key(outdated_pod->0.object_ref()) { // not deleted yet
                 // this predicate is crafted in a way that even if we don't know if s.resources contains the key,
                 // which is the case here because the controller tolerates NotFound error,
-                outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts)
+                outdated_pod_keys.to_iset() == outdated_obj_keys_in_etcd(s, vsts)
             } else {
                 // the post condition is still strong enough
-                outdated_pod_keys.to_set().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts)
+                outdated_pod_keys.to_iset().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts)
             },
-            Done => outdated_pod_keys.to_set().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts),
-            _ => outdated_pod_keys.to_set() == outdated_obj_keys_in_etcd(s, vsts),
+            Done => outdated_pod_keys.to_iset().remove(outdated_pod->0.object_ref()) == outdated_obj_keys_in_etcd(s, vsts),
+            _ => outdated_pod_keys.to_iset() == outdated_obj_keys_in_etcd(s, vsts),
         }
         // coherence of condemned pods
         // we have 2 ways to encode this:
@@ -542,7 +542,7 @@ pub open spec fn req_msg_is_create_needed_pod_req(
     &&& pod_spec_matches(vsts, pod)
     // pass creation validation checks
     &&& req.obj.metadata.namespace is None
-    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(IMap::empty()))
     &&& pod.metadata.owner_references == Some(seq![vsts.controller_owner_ref()])
 }
 
@@ -574,7 +574,7 @@ pub open spec fn pending_create_needed_pod_resp_in_flight_and_created_pod_exists
         &&& req_msg_is_create_needed_pod_req(vsts, controller_id, req_msg, ord)
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
-        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(IMap::empty()))
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -598,7 +598,7 @@ pub open spec fn resp_msg_is_pending_create_needed_pod_resp_in_flight_and_create
         // the created Pod exists in etcd
         &&& s.resources().contains_key(key)
         &&& s.in_flight().contains(resp_msg)
-        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(Map::empty()))
+        &&& vsts.spec.selector.matches(s.resources()[key].metadata.labels.unwrap_or(IMap::empty()))
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_create_response()
         &&& resp_msg.content.get_create_response().res is Err
@@ -625,7 +625,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req(
     // the request does not change the uptodate status of the pod
     &&& pod_spec_weakly_eq(pod, old_pod)
     // pod has matching labels
-    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(IMap::empty()))
     // can pass update admission checks
     &&& req.obj.metadata.namespace is Some
     &&& req.obj.metadata.namespace->0 == vsts.metadata.namespace->0
@@ -662,7 +662,7 @@ pub open spec fn pending_get_then_update_needed_pod_resp_in_flight(
         let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
-        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(IMap::empty()))
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -685,7 +685,7 @@ pub open spec fn resp_msg_is_pending_get_then_update_needed_pod_resp_in_flight(
         let obj = s.resources()[key];
         &&& Cluster::pending_req_msg_is(controller_id, s, vsts.object_ref(), req_msg)
         &&& s.resources().contains_key(key)
-        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+        &&& vsts.spec.selector.matches(obj.metadata.labels.unwrap_or(IMap::empty()))
         &&& req_msg_is_get_then_update_needed_pod_req(vsts, controller_id, req_msg, ord, old_pod)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -948,7 +948,7 @@ pub open spec fn inductive_current_state_matches(vsts: VStatefulSetView, control
                     &&& needed_pod.metadata.name == Some(#[trigger] pod_name(vsts.metadata.name->0, ord))
                     &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
                     &&& pod_spec_matches(vsts, needed_pod)
-                    &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+                    &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(IMap::empty()))
                 }
                 &&& local_state.needed_index <= replicas(vsts)
                 &&& local_state.condemned.len() == 0
@@ -1023,7 +1023,7 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
         &&& needed_pod.metadata.name == Some(pod_name(vsts.metadata.name->0, ord))
         &&& needed_pod.metadata.namespace == Some(vsts.metadata.namespace->0)
         &&& pod_spec_matches(vsts, needed_pod)
-        &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(Map::empty()))
+        &&& vsts.spec.selector.matches(needed_pod.metadata.labels.unwrap_or(IMap::empty()))
     }
 }
 
@@ -1046,7 +1046,7 @@ pub open spec fn req_msg_is_get_then_update_needed_pod_req_after_current_state_m
     // the request does not change the uptodate status of the pod
     &&& pod_spec_weakly_eq(pod, old_pod)
     // pod has matching labels
-    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(Map::empty()))
+    &&& vsts.spec.selector.matches(req.obj.metadata.labels.unwrap_or(IMap::empty()))
 }
 
 }

@@ -26,7 +26,7 @@ pub struct StateMachine <State, Input, ActionInput, Output, Step> {
     pub init: spec_fn(State) -> bool,
 
     // The set of actions the state machine can take.
-    pub actions: Set<Action<State, ActionInput, Output>>,
+    pub actions: ISet<Action<State, ActionInput, Output>>,
 
     // Return the corresponding action of the binding step.
     pub step_to_action: spec_fn(Step) -> Action<State, ActionInput, Output>,

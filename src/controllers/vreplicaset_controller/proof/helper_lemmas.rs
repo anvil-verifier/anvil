@@ -224,7 +224,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
             &&& filtered_pods.no_duplicates()
             &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
-            &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)
+            &&& filtered_pods.to_iset() == matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)
             &&& filtered_pod_keys.no_duplicates()
         }),
 {
@@ -244,9 +244,9 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     // now we only need to prove
     // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
     // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
-    assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
+    assert(matching_pods(vrs, s.resources()) == filtered_objs.to_iset());
     filtered_objs.lemma_to_set_map_commutes(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
-    assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
+    assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_iset());
     assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
         // get rid of objects_to_pods
         true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
@@ -289,7 +289,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         }
     }
     assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len()) by {
-        assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
+        assert(matching_pods(vrs, s.resources()) == filtered_objs.to_iset());
         assert(resp_objs.no_duplicates());
         seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
         assert(filtered_objs.no_duplicates());
@@ -311,7 +311,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             resp_pods,
             |pod: PodView|
                 pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(IMap::empty()))
                 && pod.metadata.deletion_timestamp is None
                 && pod.metadata.name is Some
                 && has_vrs_prefix(pod.metadata.name->0),
@@ -321,7 +321,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             resp_pods,
             |pod: PodView|
                 pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(IMap::empty()))
                 && pod.metadata.deletion_timestamp is None
                 && pod.metadata.name is Some
                 && has_vrs_prefix(pod.metadata.name->0),
@@ -353,7 +353,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
                 resp_pods,
                 |pod: PodView|
                     pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-                    && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                    && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(IMap::empty()))
                     && pod.metadata.deletion_timestamp is None
                     && pod.metadata.name is Some
                     && has_vrs_prefix(pod.metadata.name->0),

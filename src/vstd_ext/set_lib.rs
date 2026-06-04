@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use vstd::prelude::*;
-use vstd::set::*;
-use vstd::set_lib::*;
+use vstd::iset::*;
+use vstd::iset_lib::*;
 use crate::vstd_ext::map_lib::*;
 
 verus! {
 
-pub proof fn lemma_filter_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
+pub proof fn lemma_filter_set<A>(s: ISet<A>, f: spec_fn(A) -> bool)
 ensures
     forall |a: A| #[trigger] s.filter(f).contains(a) ==> {
         &&& f(a)
@@ -16,7 +16,7 @@ ensures
     }
 {}
 
-pub proof fn finite_set_to_finite_filtered_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
+pub proof fn finite_set_to_finite_filtered_set<A>(s: ISet<A>, f: spec_fn(A) -> bool)
     requires s.finite(),
     ensures s.filter(f).finite(),
     decreases s.len()
@@ -27,7 +27,7 @@ pub proof fn finite_set_to_finite_filtered_set<A>(s: Set<A>, f: spec_fn(A) -> bo
     }
 }
 
-pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
+pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: ISet<A>)
     requires s.finite(),
     ensures forall |e: A| #[trigger] s.contains(e) <==> #[trigger] s.to_seq().contains(e)
 {
@@ -41,12 +41,12 @@ pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
     }
 }
 
-pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: Set<A>)
+pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: ISet<A>)
     requires s.finite(),
     ensures s.to_seq().no_duplicates(),
     decreases s.len()
 {
-    reveal(Set::to_seq);
+    reveal(ISet::to_seq);
     if s.len() != 0 {
         let x = s.choose();
         finite_set_to_seq_has_no_duplicates(s.remove(x));
@@ -55,7 +55,7 @@ pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: Set<A>)
     }
 }
 
-pub proof fn element_in_finite_set_exists_in_set_to_seq<A>(s: Set<A>, e: A)
+pub proof fn element_in_finite_set_exists_in_set_to_seq<A>(s: ISet<A>, e: A)
     requires s.finite(), s.contains(e),
     ensures s.to_seq().contains(e),
     decreases s.len()
@@ -73,7 +73,7 @@ pub proof fn element_in_finite_set_exists_in_set_to_seq<A>(s: Set<A>, e: A)
     }
 }
 
-pub proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
+pub proof fn element_in_seq_exists_in_original_finite_set<A>(s: ISet<A>, e: A)
     requires s.finite(), s.to_seq().contains(e),
     ensures s.contains(e),
     decreases s.len()
@@ -87,7 +87,7 @@ pub proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
     }
 }
 
-pub proof fn lemma_mk_map_insert_k<A, B>(m: Set<A>, k: A, map: spec_fn(A) -> B)
+pub proof fn lemma_mk_map_insert_k<A, B>(m: ISet<A>, k: A, map: spec_fn(A) -> B)
     ensures m.insert(k).mk_map(map) == m.mk_map(map).insert(k, map(k)),
 {
     assert(m.insert(k).mk_map(map).contains_pair(k, map(k)));
@@ -109,15 +109,15 @@ pub proof fn lemma_mk_map_insert_k<A, B>(m: Set<A>, k: A, map: spec_fn(A) -> B)
     }
 }
 
-pub proof fn lemma_to_seq_to_set_equal<A>(s: Set<A>)
+pub proof fn lemma_to_seq_to_set_equal<A>(s: ISet<A>)
     requires s.finite(),
-    ensures s.to_seq().to_set() == s,
+    ensures s.to_seq().to_iset() == s,
 {
     finite_set_to_seq_contains_all_set_elements(s);
 }
 
 // If pred(x) == pred_on_mapped(f(x)) for all x in s, then s.filter(pred).map(f) == s.map(f).filter(pred_on_mapped)
-pub proof fn commutativity_of_set_map_and_filter<A, B>(s: Set<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, f: spec_fn(A) -> B)
+pub proof fn commutativity_of_set_map_and_filter<A, B>(s: ISet<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, f: spec_fn(A) -> B)
     requires
         forall |x: A| s.contains(x) ==> pred(x) == pred_on_mapped(#[trigger] f(x)),
     ensures
@@ -142,7 +142,7 @@ pub proof fn commutativity_of_set_map_and_filter<A, B>(s: Set<A>, pred: spec_fn(
 }
 
 // s.filter(|x| p(x) && q(x)) == s.filter(p).filter(q)
-pub proof fn set_filter_conj_is_filter_filter<A>(s: Set<A>, p: spec_fn(A) -> bool, q: spec_fn(A) -> bool, pq: spec_fn(A) -> bool)
+pub proof fn set_filter_conj_is_filter_filter<A>(s: ISet<A>, p: spec_fn(A) -> bool, q: spec_fn(A) -> bool, pq: spec_fn(A) -> bool)
     requires forall |x: A| #[trigger] pq(x) == (p(x) && q(x)),
     ensures s.filter(pq) == s.filter(p).filter(q),
 {

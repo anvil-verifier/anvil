@@ -39,7 +39,7 @@ pub open spec fn rmq_controller_spec(id: int) -> ControllerSpec {
 
 pub open spec fn rmq_core_set(id: int) -> CoreSet {
     CoreSet {
-        members: Set::empty().insert(id),
+        members: ISet::empty().insert(id),
         liveness_dependency: vsts_liveness::vsts_eventually_stable_reconciliation(),
     }
 }

@@ -10,7 +10,7 @@ verus! {
 // for storing the key of the stable objects.
 #[verifier(external_body)]
 pub struct ObjectRefSet {
-    inner: std::collections::BTreeSet<ExternalObjectRef>,
+    inner: std::collections::BTreeISet<ExternalObjectRef>,
 }
 
 impl ObjectRefSet {
@@ -20,13 +20,13 @@ impl ObjectRefSet {
     pub fn new() -> (m: Self)
         ensures m@ == Set::<ObjectRef>::empty(),
     {
-        ObjectRefSet { inner: std::collections::BTreeSet::new() }
+        ObjectRefSet { inner: std::collections::BTreeISet::new() }
     }
 
     pub fn empty() -> (m: Self)
         ensures m@ == Set::<ObjectRef>::empty(),
     {
-        ObjectRefSet::new()
+        ObjectRefISet::new()
     }
 
     #[verifier(external_body)]
@@ -53,10 +53,10 @@ impl ObjectRefSet {
     }
 
     #[verifier(external)]
-    pub fn from_rust_set(inner: std::collections::BTreeSet<ExternalObjectRef>) -> ObjectRefSet { ObjectRefSet { inner: inner } }
+    pub fn from_rust_set(inner: std::collections::BTreeISet<ExternalObjectRef>) -> ObjectRefSet { ObjectRefSet { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_rust_set(self) -> std::collections::BTreeSet<ExternalObjectRef> { self.inner }
+    pub fn into_rust_set(self) -> std::collections::BTreeISet<ExternalObjectRef> { self.inner }
 }
 
 }

@@ -223,7 +223,7 @@ pub open spec fn filter_pods(pods: Seq<PodView>, vrs: VReplicaSetView) -> (filte
 pub open spec fn pod_filter(vrs: VReplicaSetView) -> spec_fn(pod: PodView) -> bool {
     |pod: PodView| {
         &&& pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-        &&& vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+        &&& vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(IMap::empty()))
         &&& pod.metadata.deletion_timestamp is None
         &&& pod.metadata.name is Some
         &&& has_vrs_prefix(pod.metadata.name->0)

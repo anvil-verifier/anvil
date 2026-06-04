@@ -103,7 +103,7 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
             .with_labels(make_labels(rabbitmq))
             .with_annotations(rabbitmq.spec.annotations)
         )
-        .with_data(Map::empty()
+        .with_data(IMap::empty()
             .insert("enabled_plugins"@, "[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management]."@)
         )
 }

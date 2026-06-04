@@ -94,8 +94,8 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
     }
 }
 
-pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
-    Map::empty()
+pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) -> IMap<StringView, StringView> {
+    IMap::empty()
         .insert("username"@, "user"@)
         .insert("password"@, "changeme"@)
         .insert("type"@, "rabbitmq"@)

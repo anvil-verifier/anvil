@@ -345,7 +345,7 @@ ensures
 {
     let sts = make_stateful_set(rabbitmq, cm_rv);
     let name = rabbitmq.metadata.name->0;
-    let labels = Map::empty().insert("app"@, name);
+    let labels = IMap::empty().insert("app"@, name);
 
     // selector.match_labels is Some and non-empty
     assert(labels.len() > 0) by {
@@ -391,7 +391,7 @@ requires
     rabbitmq.state_validation(),
     found_sts.state_validation(),
     found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()),
-    found_sts.spec.selector == LabelSelectorView::default().with_match_labels(Map::empty().insert("app"@, rabbitmq.metadata.name->0)),
+    found_sts.spec.selector == LabelSelectorView::default().with_match_labels(IMap::empty().insert("app"@, rabbitmq.metadata.name->0)),
 ensures
     sts == update_stateful_set(rabbitmq, found_sts, cm_rv),
     sts.state_validation(),
@@ -406,7 +406,7 @@ ensures
     // template comes from make_stateful_set - need to prove labels don't contain reserved keys
     // and selector matches template labels
     let template_labels = make_labels(rabbitmq);
-    let labels = Map::empty().insert("app"@, name);
+    let labels = IMap::empty().insert("app"@, name);
 
     // selector matches template labels (selector is preserved from found_sts)
     assert forall |k: StringView, v: StringView| labels.contains_pair(k, v) implies template_labels.contains_pair(k, v) by {

@@ -144,7 +144,7 @@ impl VStatefulSet {
         if self.spec().template().metadata().is_none() || self.spec().template().spec().is_none() {
             return false;
         }
-        // Map::empty() did not compile
+        // IMap::empty() did not compile
         if !self.spec().selector().matches(self.spec().template().metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
             return false;
         }

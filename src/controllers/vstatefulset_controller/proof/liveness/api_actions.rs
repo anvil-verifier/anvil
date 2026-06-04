@@ -18,7 +18,7 @@ use crate::vstatefulset_controller::{
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
+use vstd::{seq_lib::*, prelude::*, imap_lib::*, iset::*};
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
@@ -85,9 +85,9 @@ ensures
             }
         }
         // s.res.v.f(list_req_filter).to_seq.f(owner_ref_filter).to_set.map(key) == s.res.v.f(valid_owned_object_filter).map(key)
-        assert(owned_objs.to_set() == s_prime.resources().values().filter(valid_owned_object_filter(vsts))) by {
+        assert(owned_objs.to_iset() == s_prime.resources().values().filter(valid_owned_object_filter(vsts))) by {
             // move to_set ahead and cancel to_seq
-            assert(owned_objs.to_set() == s_prime.resources().values().filter(list_req_filter).filter(owner_ref_filter)) by {
+            assert(owned_objs.to_iset() == s_prime.resources().values().filter(list_req_filter).filter(owner_ref_filter)) by {
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, owner_ref_filter);
                 lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
             }
@@ -212,7 +212,7 @@ ensures
             assert(PodView::unmarshal_spec(created_obj.spec) is Ok);
         }
     }
-    assert(vsts.spec.selector.matches(created_obj.metadata.labels.unwrap_or(Map::empty())));
+    assert(vsts.spec.selector.matches(created_obj.metadata.labels.unwrap_or(IMap::empty())));
     assert(s_prime.resources() == s.resources().insert(req.key(), created_obj));
 }
 

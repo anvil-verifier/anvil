@@ -12,7 +12,7 @@ use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::
 use crate::vdeployment_controller::proof::helper_invariants;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
-use vstd::{prelude::*, set_lib::*, map_lib::*};
+use vstd::{prelude::*, iset_lib::*, imap_lib::*};
 use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {
@@ -27,15 +27,15 @@ pub open spec fn current_state_matches_vrs() -> spec_fn(VReplicaSetView) -> Stat
     |vrs: VReplicaSetView| vrs_liveness::current_state_matches(vrs)
 }
 
-pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: ISet<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s))
 }
 
-pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: ISet<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs()(vrs)(s))
 }
 
-pub open spec fn current_state_match_vd_applied_to_vrs_set(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn current_state_match_vd_applied_to_vrs_set(vrs_set: ISet<VReplicaSetView>, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& vrs_set == s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
@@ -215,8 +215,8 @@ ensures
     }
     // spec |= \E |vrs_set| [] vd_pre_and_vrs_set_pre ~> \E |vrs_set| [] vd_post_and_vrs_set_post
     assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).leads_to(tla_exists(lifted_always_vrs_set_post)))) by {
-        let pre = |vrs_set: Set<VReplicaSetView>| vrs_set.finite() && vrs_set.len() > 0;
-        assert forall |vrs_set: Set<VReplicaSetView>| pre(vrs_set)
+        let pre = |vrs_set: ISet<VReplicaSetView>| vrs_set.finite() && vrs_set.len() > 0;
+        assert forall |vrs_set: ISet<VReplicaSetView>| pre(vrs_set)
             implies #[trigger] spec.entails(lifted_always_vrs_set_pre(vrs_set).leads_to(tla_exists(lifted_always_vrs_set_post))) by {
             always_and_equality(
                 lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)),
@@ -252,7 +252,7 @@ ensures
                 tla_exists(lifted_always_vrs_set_post)
             );
         }
-        assert forall |vrs_set: Set<VReplicaSetView>| lifted_always_vrs_set_pre(vrs_set).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set))) by {
+        assert forall |vrs_set: ISet<VReplicaSetView>| lifted_always_vrs_set_pre(vrs_set).entails(lift_state(|s: ClusterState| #[trigger] pre(vrs_set))) by {
             always_entails_current(lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd)).and(lift_state(conjuncted_desired_state_is_vrs(vrs_set))));
             entails_trans_n!(
                 lifted_always_vrs_set_pre(vrs_set),
@@ -290,7 +290,7 @@ ensures
         );
     }
     // [] stable_vd_post |= \E |vrs_set| [] vd_post_and_vrs_set_post ~> [] composed_post
-    assert forall |vrs_set: Set<VReplicaSetView>| always(stable_vd_post).entails(#[trigger] lifted_always_vrs_set_post(vrs_set).leads_to(lifted_always_composed_post)) by {
+    assert forall |vrs_set: ISet<VReplicaSetView>| always(stable_vd_post).entails(#[trigger] lifted_always_vrs_set_post(vrs_set).leads_to(lifted_always_composed_post)) by {
         let stable_inv = lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id));
         assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(current_state_match_vd_applied_to_vrs_set(vrs_set, vd))
             .and(lift_state(conjuncted_current_state_matches_vrs(vrs_set))).and(stable_inv).satisfied_by(ex)
@@ -353,7 +353,7 @@ ensures
     }
 }
 
-pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState) -> (vrs_set: Set<VReplicaSetView>)
+pub proof fn current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState) -> (vrs_set: ISet<VReplicaSetView>)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -417,7 +417,7 @@ ensures
     return vrs_set;
 }
 
-pub proof fn conjuncted_current_state_matches_vrs_implies_composed_current_state_matches(vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, s: ClusterState)
+pub proof fn conjuncted_current_state_matches_vrs_implies_composed_current_state_matches(vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: ISet<VReplicaSetView>, s: ClusterState)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -464,7 +464,7 @@ ensures
 }
 
 pub proof fn composed_desired_state_preserves_from_s_to_s_prime(
-    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, s: ClusterState, s_prime: ClusterState
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: ISet<VReplicaSetView>, s: ClusterState, s_prime: ClusterState
 )
 requires
     // environment invariants

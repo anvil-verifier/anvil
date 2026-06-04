@@ -106,7 +106,7 @@ pub open spec fn pod_monkey() -> PodMonkeyStateMachine {
         init: |s: ()| {
             true
         },
-        actions: set![create_pod(), delete_pod(), update_pod(), update_pod_status()],
+        actions: iset![create_pod(), delete_pod(), update_pod(), update_pod_status()],
         step_to_action: |step: PodMonkeyStep| {
             match step {
                 PodMonkeyStep::CreatePod => create_pod(),

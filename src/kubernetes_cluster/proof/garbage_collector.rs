@@ -508,11 +508,11 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
                     false_implies_anything(spec, eventually(always(lift_state(k_to_p(k)))));
                 }
             }
-            assert(spec.entails(lift_state(|s: ClusterState| Set::new(havoc_domain(s)).finite()))) by {
-                let finite_req = |s: ClusterState| Set::new(havoc_domain(s)).finite();
+            assert(spec.entails(lift_state(|s: ClusterState| ISet::new(havoc_domain(s)).finite()))) by {
+                let finite_req = |s: ClusterState| ISet::new(havoc_domain(s)).finite();
                 assert forall |s: ClusterState| #[trigger] Self::etcd_is_finite()(s) implies finite_req(s) by {
                     let keys = s.resources().dom().filter(|k| cond(k) && !eventual_owner_ref(s.resources()[k].metadata.owner_references));
-                    assert(keys == Set::new(havoc_domain(s)));
+                    assert(keys == ISet::new(havoc_domain(s)));
                 }
                 always_entails_current(lift_state(Self::etcd_is_finite()));
                 entails_trans_n!(spec, always(lift_state(Self::etcd_is_finite())), lift_state(Self::etcd_is_finite()), lift_state(finite_req));

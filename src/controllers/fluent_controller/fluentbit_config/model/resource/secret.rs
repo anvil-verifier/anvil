@@ -82,7 +82,7 @@ pub open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView {
         .with_metadata(ObjectMetaView::default()
             .with_name(make_secret_name(fbc))
             .with_owner_references(make_owner_references(fbc))
-        ).with_data(Map::empty()
+        ).with_data(IMap::empty()
             .insert("fluent-bit.conf"@, fbc.spec.fluentbit_config)
             .insert("parsers.conf"@, fbc.spec.parsers_config)
         )
@@ -96,7 +96,7 @@ pub open spec fn update_secret(fbc: FluentBitConfigView, found_secret: SecretVie
             finalizers: None,
             ..found_secret.metadata
         },
-        data: Some(Map::empty()
+        data: Some(IMap::empty()
             .insert("fluent-bit.conf"@, fbc.spec.fluentbit_config)
             .insert("parsers.conf"@, fbc.spec.parsers_config)
         ),

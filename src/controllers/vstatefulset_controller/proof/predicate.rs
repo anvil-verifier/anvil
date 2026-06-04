@@ -77,7 +77,7 @@ pub open spec fn resp_msg_is(msg: Message, vsts_key: ObjectRef, controller_id: i
     |s: ClusterState| resp_msg_or_none(s, vsts_key, controller_id) == Some(msg)
 }
 
-pub open spec fn outdated_obj_keys_in_etcd(s: ClusterState, vsts: VStatefulSetView) -> Set<ObjectRef> {
+pub open spec fn outdated_obj_keys_in_etcd(s: ClusterState, vsts: VStatefulSetView) -> ISet<ObjectRef> {
     s.resources().dom().filter(outdated_obj_key_filter(s, vsts))
 }
 

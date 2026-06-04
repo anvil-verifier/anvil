@@ -13,7 +13,7 @@ pub struct APIServerState {
     pub resource_version_counter: ResourceVersion,
 }
 
-pub type InstalledTypes = Map<StringView, InstalledType>;
+pub type InstalledTypes = IMap<StringView, InstalledType>;
 
 pub struct InstalledType {
     pub unmarshallable_spec: spec_fn(Value) -> bool,

@@ -23,7 +23,7 @@ use crate::vreplicaset_controller::{
     proof::{helper_invariants::{predicate::*, proof::*}, helper_lemmas::*, liveness::*, predicate::*},
 };
 use crate::reconciler::spec::io::*;
-use vstd::{map::*, map_lib::*, math::*, prelude::*};
+use vstd::{imap::*, imap_lib::*, math::*, prelude::*};
 
 verus! {
 

@@ -48,7 +48,7 @@ implement_resource_view_trait!(ServiceView, Option<ServiceSpecView>, None, Optio
 pub struct ServiceSpecView {
     pub cluster_ip: Option<StringView>,
     pub ports: Option<Seq<ServicePortView>>,
-    pub selector: Option<Map<StringView, StringView>>,
+    pub selector: Option<IMap<StringView, StringView>>,
     pub publish_not_ready_addresses: Option<bool>,
 }
 
@@ -76,7 +76,7 @@ impl ServiceSpecView {
         }
     }
 
-    pub open spec fn with_selector(self, selector: Map<StringView, StringView>) -> ServiceSpecView {
+    pub open spec fn with_selector(self, selector: IMap<StringView, StringView>) -> ServiceSpecView {
         ServiceSpecView {
             selector: Some(selector),
             ..self

@@ -14,7 +14,7 @@ use crate::vstatefulset_controller::{
 };
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
-use vstd::{seq_lib::*, map_lib::*, set_lib::*};
+use vstd::{seq_lib::*, imap_lib::*, iset_lib::*};
 use vstd::prelude::*;
 
 verus! {

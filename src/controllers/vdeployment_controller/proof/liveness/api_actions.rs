@@ -14,7 +14,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
+use vstd::{seq_lib::*, prelude::*, imap_lib::*, iset::*};
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::int_to_string_view};
 
 verus! {
@@ -110,7 +110,7 @@ ensures
         // expand to 
         // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
-        assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
+        assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_iset() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
             let valid_obj_filter = |o: DynamicObjectView| {
                 &&& o.kind == VReplicaSetView::kind()
                 &&& VReplicaSetView::unmarshal(o) is Ok
@@ -136,7 +136,7 @@ ensures
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
             // s.to_seq().to_set() ==> s
-            assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_set()
+            assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_iset()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                 // s.r().v().finite()
                 injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
@@ -245,7 +245,7 @@ ensures
         // expand to 
         // assert(s.resources().values().filter(list_req_filter).to_seq().map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0).filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         //        == s.resources().dom().filter(valid_owned_obj_key(vd, s)))
-        assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
+        assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_iset() == filter_obj_keys_managed_by_vd(vd, s_prime)) by {
             let valid_obj_filter = |o: DynamicObjectView| {
                 &&& o.kind == VReplicaSetView::kind()
                 &&& VReplicaSetView::unmarshal(o) is Ok
@@ -271,7 +271,7 @@ ensures
                 lemma_homomorphism_of_map_values(resp_objs.filter(weakened_obj_filter), |o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0, |vrs: VReplicaSetView| vrs.object_ref(), |o: DynamicObjectView| o.object_ref());
             }
             // s.to_seq().to_set() ==> s
-            assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_set()
+            assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_iset()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
                 // s.r().v().finite()
                 injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());

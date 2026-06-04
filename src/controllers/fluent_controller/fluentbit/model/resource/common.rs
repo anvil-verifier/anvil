@@ -13,9 +13,9 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_base_labels(fb: FluentBitView) -> Map<StringView, StringView> { map!["app"@ => fb.metadata.name->0] }
+pub open spec fn make_base_labels(fb: FluentBitView) -> IMap<StringView, StringView> { imap!["app"@ => fb.metadata.name->0] }
 
-pub open spec fn make_labels(fb: FluentBitView) -> Map<StringView, StringView> { fb.spec.labels.union_prefer_right(make_base_labels(fb)) }
+pub open spec fn make_labels(fb: FluentBitView) -> IMap<StringView, StringView> { fb.spec.labels.union_prefer_right(make_base_labels(fb)) }
 
 pub open spec fn make_owner_references(fb: FluentBitView) -> Seq<OwnerReferenceView> { seq![fb.controller_owner_ref()] }
 

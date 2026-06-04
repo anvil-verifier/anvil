@@ -16,7 +16,7 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
-use vstd::{assert_seqs_equal, map::*, map_lib::*, math::*, multiset::*, prelude::*};
+use vstd::{assert_seqs_equal, imap::*, imap_lib::*, math::*, multiset::*, prelude::*};
 
 verus! {
 
@@ -431,7 +431,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                             let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
                             // The matching pods must be a subset of the response.
-                            &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                            &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset()
                             //&&& resp_objs.no_duplicates()
                             &&& objects_to_pods(resp_objs) is Some
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
@@ -636,7 +636,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
                         // The matching pods must be a subset of the response.
-                        &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                        &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset()
                         //&&& resp_objs.no_duplicates()
                         &&& objects_to_pods(resp_objs) is Some
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
@@ -920,7 +920,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
-                        &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                        &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_iset()
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));

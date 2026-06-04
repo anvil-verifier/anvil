@@ -22,7 +22,7 @@ enum ThreadState {
 
 struct ProgramState {
     lock: bool,
-    threads: Map<Tid, ThreadState>,
+    threads: IMap<Tid, ThreadState>,
 }
 
 spec fn init() -> StatePred<ProgramState> {

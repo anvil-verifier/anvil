@@ -12,7 +12,7 @@ use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::
 use crate::vdeployment_controller::proof::helper_invariants;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
-use vstd::{prelude::*, set_lib::*, map_lib::*, multiset::*};
+use vstd::{prelude::*, iset_lib::*, imap_lib::*, multiset::*};
 use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {
@@ -20,11 +20,11 @@ verus! {
 // *** Rolling update ESR composition helpers ***
 // TODO: fix after every_vrs_in_etcd_has_one_controller_owner is removed
 
-pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+pub open spec fn conjuncted_desired_state_is_vrs(vrs_set: ISet<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::desired_state_is(vrs)(s))
 }
 
-pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: Set<VReplicaSetView>) -> StatePred<ClusterState> {
+pub open spec fn conjuncted_current_state_matches_vrs(vrs_set: ISet<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> vrs_liveness::current_state_matches(vrs)(s))
 }
 
@@ -83,7 +83,7 @@ pub open spec fn is_old_vrs_of(vrs: VReplicaSetView, vd: VDeploymentView, new_vr
     valid_owned_vrs(vrs, vd) && vrs.object_ref() != new_vrs_key
 }
 
-pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
+pub open spec fn old_vrs_set_is_owned_by_vd(vrs_set: ISet<VReplicaSetView>, vd: VDeploymentView, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& vrs_set == s.resources().values()
             .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
@@ -375,7 +375,7 @@ ensures
 // Obligation 1: ESR for each ranking level
 // spec |= [] desired_vrs ~> [] matches_vrs
 pub proof fn esr_for_each_ranking(
-    spec: TempPred<ClusterState>, vrs_set: Set<VReplicaSetView>, vd: VDeploymentView, new_vrs_key: ObjectRef
+    spec: TempPred<ClusterState>, vrs_set: ISet<VReplicaSetView>, vd: VDeploymentView, new_vrs_key: ObjectRef
 )
     requires
         spec.entails(vrs_liveness::vrs_eventually_stable_reconciliation()),
@@ -764,7 +764,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
 // From inductive_current_state_matches, extract (vrs_set, n) witness
 pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, new_vrs_key: ObjectRef, s: ClusterState
-) -> (vrs_set: Set<VReplicaSetView>) // vrs_set, new_vrs, replicas_diff
+) -> (vrs_set: ISet<VReplicaSetView>) // vrs_set, new_vrs, replicas_diff
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -848,7 +848,7 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
 
 // q(0) with vrs_set identity implies composed_current_state_matches
 pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
-    vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: Set<VReplicaSetView>, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, s: ClusterState
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, vrs_set: ISet<VReplicaSetView>, new_vrs: VReplicaSetView, new_vrs_key: ObjectRef, s: ClusterState
 )
     requires
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -900,7 +900,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
                             // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
                             injective_finite_map_implies_dom_len_is_equal_to_values_len(s.resources());
                             finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| vrs_liveness::owned_selector_match_is(havoc_vrs_in_set, obj));
-                            lemma_set_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()));
+                            lemma_iset_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs_in_set, s.resources()));
                         }
                     }
                     assert(false);
@@ -923,7 +923,7 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
 // Stability of vrs_set identity (modulo rv/status/replicas) and conjuncted p(n)
 #[verifier(spinoff_prover)]
 pub proof fn composed_old_vrs_set_pre_preserves_from_s_to_s_prime(
-    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: ISet<VReplicaSetView>, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
     requires
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -1142,7 +1142,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         // old vrs track
         // spec |= [] inductive_current_state_matches |= \E vrs_set []
         let always_vd_post = always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
-        let all_vrs_post = |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)|
+        let all_vrs_post = |ov_set_nv: (ISet<VReplicaSetView>, VReplicaSetView)|
             always(lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)).and(lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))))
             .and(always(lift_state(desired_state_is_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0))
                 .and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, ov_set_nv.1, new_vrs_key, 0)))
@@ -1427,8 +1427,8 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         // \E vrs_set [] /\ \E new_vrs [] ~> \E (vrs_set and new_vrs) []
         assert(spec.entails(always_vd_post.leads_to(tla_exists(all_vrs_post)))) by {
             leads_to_exists_always_combine2(spec, always_vd_post, old_vrs_post, new_vrs_post);
-            assert forall |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| #[trigger] all_vrs_post(ov_set_nv)
-                == (|ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| always(old_vrs_post(ov_set_nv.0)).and(always(new_vrs_post(ov_set_nv.1))))(ov_set_nv) by {
+            assert forall |ov_set_nv: (ISet<VReplicaSetView>, VReplicaSetView)| #[trigger] all_vrs_post(ov_set_nv)
+                == (|ov_set_nv: (ISet<VReplicaSetView>, VReplicaSetView)| always(old_vrs_post(ov_set_nv.0)).and(always(new_vrs_post(ov_set_nv.1))))(ov_set_nv) by {
                 temp_pred_equality(
                     all_vrs_post(ov_set_nv),
                     always(old_vrs_post(ov_set_nv.0)).and(always(new_vrs_post(ov_set_nv.1)))
@@ -1436,11 +1436,11 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             }
             tla_exists_p_tla_exists_q_equality(
                 all_vrs_post,
-                |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| always(old_vrs_post(ov_set_nv.0)).and(always(new_vrs_post(ov_set_nv.1)))
+                |ov_set_nv: (ISet<VReplicaSetView>, VReplicaSetView)| always(old_vrs_post(ov_set_nv.0)).and(always(new_vrs_post(ov_set_nv.1)))
             );
         }
         // \A [] old_vrs_set and [] new_vrs ~> [] composed_current_state_matches
-        assert forall |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| #![trigger all_vrs_post(ov_set_nv)] spec.entails(all_vrs_post(ov_set_nv).leads_to(composed_vd_post)) by {
+        assert forall |ov_set_nv: (ISet<VReplicaSetView>, VReplicaSetView)| #![trigger all_vrs_post(ov_set_nv)] spec.entails(all_vrs_post(ov_set_nv).leads_to(composed_vd_post)) by {
             always_and_equality(
                 lift_state(conjuncted_current_state_matches_vrs(ov_set_nv.0)),
                 lift_state(old_vrs_set_is_owned_by_vd(ov_set_nv.0, vd, new_vrs_key))

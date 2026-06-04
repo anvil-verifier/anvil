@@ -28,7 +28,7 @@ use crate::vreplicaset_controller::{
     }
 };
 use crate::vstd_ext::{seq_lib::*, set_lib::*, string_view::int_to_string_view};
-use vstd::{map_lib::*, multiset::*, prelude::*};
+use vstd::{imap_lib::*, multiset::*, prelude::*};
 
 verus! {
 

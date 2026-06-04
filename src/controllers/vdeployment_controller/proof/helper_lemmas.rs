@@ -13,7 +13,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
-use vstd::{seq_lib::*, map_lib::*, set_lib::*};
+use vstd::{seq_lib::*, imap_lib::*, iset_lib::*};
 use vstd::prelude::*;
 
 verus! {
@@ -349,7 +349,7 @@ ensures
                 assert(false);
             } else {
                 if filtered_old_vrs_keys.len() != 0 {
-                    lemma_set_empty_equivalency_len(filtered_old_vrs_keys);
+                    lemma_iset_empty_equivalency_len(filtered_old_vrs_keys);
                 }
             }
         }
@@ -409,13 +409,13 @@ requires
         &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
         &&& etcd_vrs.spec == vrs.spec
     },
-    managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+    managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_iset()
         == filter_obj_keys_managed_by_vd(vd, s),
 ensures
     managed_vrs_list.filter(|vrs: VReplicaSetView| {
         &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
-    }).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+    }).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_iset()
         == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)),
 {
     let new_vrs_filter = |vrs: VReplicaSetView| {

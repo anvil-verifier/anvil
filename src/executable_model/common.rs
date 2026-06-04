@@ -88,7 +88,7 @@ impl ObjectMeta {
         ensures ret@ == self@.finalizers_as_set()
     {
         if self.finalizers().is_none() {
-            StringSet::empty()
+            StringISet::empty()
         } else {
             string_vec_to_string_set(self.finalizers().unwrap())
         }

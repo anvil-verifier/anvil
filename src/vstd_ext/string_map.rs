@@ -8,15 +8,15 @@ pub struct StringMap {
 }
 
 impl View for StringMap {
-    type V = Map<Seq<char>, Seq<char>>;
+    type V = IMap<Seq<char>, Seq<char>>;
 
-    uninterp spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
+    uninterp spec fn view(&self) -> IMap<Seq<char>, Seq<char>>;
 }
 
 impl DeepView for StringMap {
-    type V = Map<Seq<char>, Seq<char>>;
+    type V = IMap<Seq<char>, Seq<char>>;
 
-    open spec fn deep_view(&self) -> Map<Seq<char>, Seq<char>> {
+    open spec fn deep_view(&self) -> IMap<Seq<char>, Seq<char>> {
         self@
     }
 }
@@ -24,13 +24,13 @@ impl DeepView for StringMap {
 impl StringMap {
     #[verifier(external_body)]
     pub fn new() -> (m: Self)
-        ensures m@ == Map::<Seq<char>, Seq<char>>::empty(),
+        ensures m@ == IMap::<Seq<char>, Seq<char>>::empty(),
     {
         StringMap { inner: std::collections::BTreeMap::new() }
     }
 
     pub fn empty() -> (m: Self)
-        ensures m@ == Map::<Seq<char>, Seq<char>>::empty(),
+        ensures m@ == IMap::<Seq<char>, Seq<char>>::empty(),
     {
         StringMap::new()
     }

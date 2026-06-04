@@ -8,11 +8,11 @@ verus! {
 
 pub struct CoreCluster {
     pub cluster: Cluster,
-    pub registry: Map<int, ControllerSpec>,
+    pub registry: IMap<int, ControllerSpec>,
 }
 
 pub struct CoreSet {
-    pub members: Set<int>,
+    pub members: ISet<int>,
     pub liveness_dependency: TempPred<ClusterState>,
 }
 

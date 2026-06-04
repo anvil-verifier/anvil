@@ -40,7 +40,7 @@ pub open spec fn external(model: ExternalModel) -> ExternalStateMachine {
         init: |s: ExternalState| {
             s.state == (model.init)()
         },
-        actions: set![handle_external_request(model)],
+        actions: iset![handle_external_request(model)],
         step_to_action: |step: ExternalStep| {
             match step {
                 ExternalStep::HandleExternalRequest => handle_external_request(model),

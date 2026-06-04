@@ -6,8 +6,8 @@ use vstd::prelude::*;
 verus! {
 
 pub struct ResourceRequirementsView {
-    pub limits: Option<Map<StringView, StringView>>,
-    pub requests: Option<Map<StringView, StringView>>,
+    pub limits: Option<IMap<StringView, StringView>>,
+    pub requests: Option<IMap<StringView, StringView>>,
 }
 
 impl ResourceRequirementsView {
@@ -18,14 +18,14 @@ impl ResourceRequirementsView {
         }
     }
 
-    pub open spec fn with_limits(self, limits: Map<StringView, StringView>) -> ResourceRequirementsView {
+    pub open spec fn with_limits(self, limits: IMap<StringView, StringView>) -> ResourceRequirementsView {
         ResourceRequirementsView {
             limits: Some(limits),
             ..self
         }
     }
 
-    pub open spec fn with_requests(self, requests: Map<StringView, StringView>) -> ResourceRequirementsView {
+    pub open spec fn with_requests(self, requests: IMap<StringView, StringView>) -> ResourceRequirementsView {
         ResourceRequirementsView {
             requests: Some(requests),
             ..self

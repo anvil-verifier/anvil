@@ -29,7 +29,7 @@ impl ObjectMap {
     pub fn empty() -> (m: Self)
         ensures m@ == StoredState::empty(),
     {
-        ObjectMap::new()
+        ObjectIMap::new()
     }
 
     #[verifier(external_body)]
