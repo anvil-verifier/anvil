@@ -52,8 +52,7 @@ ensures
         let owner_ref_filter = |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref());
         let owned_objs = resp_objs.filter(owner_ref_filter);
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
-        lemma_values_finite(s.resources());
-        assert(resp_objs.no_duplicates()) by {
+                assert(resp_objs.no_duplicates()) by {
             finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
         }
         assert forall |o| #[trigger] resp_objs.contains(o) implies {

@@ -172,7 +172,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         };
         let selected_elements = s.resources().values().filter(selector);
         assert(selected_elements.contains(o));
-        lemma_values_finite(s.resources());
         finite_set_to_seq_contains_all_set_elements(selected_elements);
     }
 
@@ -186,7 +185,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == PodView::kind()
         };
         let selected_elements = s.resources().values().filter(selector);
-        lemma_values_finite(s.resources());
         finite_set_to_seq_contains_all_set_elements(selected_elements);
         assert(resp_objs == selected_elements.to_seq());
         assert(selected_elements.contains(o));
@@ -200,7 +198,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == PodView::kind()
         };
         let selected_elements = s.resources().values().filter(selector);
-        lemma_values_finite(s.resources());
         finite_set_to_seq_has_no_duplicates(selected_elements);
         let selected_elements_seq = selected_elements.to_seq();
         let pods_seq = objects_to_pods(selected_elements_seq).unwrap();
@@ -244,7 +241,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == msg.content.get_list_request().kind
         };
         let selected_elements = s.resources().values().filter(selector);
-        lemma_values_finite(s.resources());
         finite_set_to_seq_has_no_duplicates(selected_elements);
         let selected_elements_seq = selected_elements.to_seq();
         assert(selected_elements_seq.no_duplicates());
@@ -274,8 +270,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         };
         assert(resp_objs == s.resources().values().filter(selector).to_seq());
         // consistency of no_duplicates
-        lemma_values_finite(s.resources());
-        finite_set_to_finite_filtered_set(s.resources().values(), selector);
+                finite_set_to_finite_filtered_set(s.resources().values(), selector);
         finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
         assert(resp_objs.no_duplicates());
 
@@ -425,8 +420,7 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
         matching_pod_entries(vrs, s.resources()),
         s.resources()
     );
-    lemma_values_finite(matching_pod_entries(vrs, s.resources()));
-    
+        
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
     return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
@@ -479,8 +473,7 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         matching_pod_entries(vrs, s.resources()),
         s.resources()
     );
-    lemma_values_finite(matching_pod_entries(vrs, s.resources()));
-
+    
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
     return handle_get_then_delete_request_msg(msg, s.api_server).1;

@@ -2169,8 +2169,7 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     let leq = |a1: nat, a2: nat| a1 <= a2;
     let values = a_to_witness.values();
     assert(a_to_witness.dom() =~= domain);
-    lemma_values_finite(a_to_witness);
-    assert(values.len() > 0) by {
+        assert(values.len() > 0) by {
         let x = a_to_witness.dom().choose();
         assert(values.contains(a_to_witness[x]));
     };
@@ -2178,7 +2177,7 @@ proof fn eventually_always_tla_forall_apply<T, A>(ex: Execution<T>, a_to_p: spec
     values.find_unique_maximal_ensures(leq);
     values.lemma_maximal_equivalent_greatest(leq, max_witness);
     assert forall |a: A| always(#[trigger] a_to_p(a)).satisfied_by(ex.suffix(max_witness)) by {
-        assert(vstd::relations::is_greatest(leq, max_witness, values));
+        assert(values.has_greatest(leq, max_witness));
         let witness = a_to_witness[a];
         assert(leq(witness, max_witness));
         always_propagate_forwards::<T>(ex.suffix(witness), a_to_p(a), (max_witness - witness) as nat);
@@ -2221,8 +2220,7 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
             let leq = |a1: nat, a2: nat| a1 <= a2;
             let values = a_to_witness.values();
             assert(a_to_witness.dom() =~= d0);
-            lemma_values_finite(a_to_witness);
-            assert(values.len() > 0) by {
+                        assert(values.len() > 0) by {
                 let x = a_to_witness.dom().choose();
                 assert(d0.contains(x));
                 assert(values.contains(a_to_witness[x]));
@@ -2232,7 +2230,7 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
             values.lemma_maximal_equivalent_greatest(leq, max_witness);
             // From max_witness onwards, for all a in d0, always(lift_state(a_to_p(a))) holds
             assert forall |a: A| d0.contains(a) implies always(lift_state(#[trigger] a_to_p(a))).satisfied_by(ex.suffix(max_witness)) by {
-                assert(vstd::relations::is_greatest(leq, max_witness, values));
+                assert(values.has_greatest(leq, max_witness));
                 let witness = a_to_witness[a];
                 assert(leq(witness, max_witness));
                 always_propagate_forwards::<T>(ex.suffix(witness), lift_state(a_to_p(a)), (max_witness - witness) as nat);
@@ -2331,7 +2329,6 @@ pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_do
                 let leq = |a1: nat, a2: nat| a1 <= a2;
                 let values = a_to_witness.values();
                 assert(a_to_witness.dom() =~= domain);
-                lemma_values_finite(a_to_witness);
                 assert(values.len() > 0) by {
                     let x = a_to_witness.dom().choose();
                     assert(domain.contains(x));
@@ -2341,7 +2338,7 @@ pub proof fn spec_entails_always_tla_forall_leads_to_always_tla_forall_within_do
                 values.find_unique_maximal_ensures(leq);
                 values.lemma_maximal_equivalent_greatest(leq, max_witness);
                 assert(always(lift_state(scoped_a_to_q)).satisfied_by(ex.suffix(i).suffix(max_witness))) by {
-                    assert(vstd::relations::is_greatest(leq, max_witness, values));
+                    assert(values.has_greatest(leq, max_witness));
                     assert forall |a: A| #[trigger] domain.contains(a) implies always(lift_state(a_to_q(a))).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
                         let witness = a_to_witness[a];
                         assert(leq(witness, max_witness));

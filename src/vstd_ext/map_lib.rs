@@ -41,8 +41,7 @@ pub proof fn injective_finite_map_implies_dom_len_is_equal_to_values_len<K, V>(m
             assert(k != key);
         }
 
-        lemma_values_finite(submap);
-        assert(m.values() =~= submap.values().union(singleton_value));
+                assert(m.values() =~= submap.values().union(singleton_value));
         lemma_set_disjoint_lens(submap.values(), singleton_value);
         assert(m.values().len() == submap.values().len() + 1);
     }

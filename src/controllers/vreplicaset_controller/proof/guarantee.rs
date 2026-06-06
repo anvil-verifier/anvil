@@ -139,7 +139,6 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
-                                lemma_values_finite(s.resources());
                                 element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
                                 lemma_filter_set(s.resources().values(), selector);
                                 let obj = resp_objs[i];

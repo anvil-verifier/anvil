@@ -369,7 +369,6 @@ ensures
         .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
         .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
     assert(vrs_set.finite()) by {
-        lemma_values_finite(s.resources());
         finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
         s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
             .lemma_map_finite(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0);

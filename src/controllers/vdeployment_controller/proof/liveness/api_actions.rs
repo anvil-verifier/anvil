@@ -57,7 +57,6 @@ ensures
             &&& o.metadata.uid is Some
         } by {
             assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                lemma_values_finite(s.resources());
                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
             }
         }
@@ -65,7 +64,6 @@ ensures
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
-            lemma_values_finite(s.resources());
             finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
             // now we know resp_objs has no duplicates, prove keys are unique by contradiction
             assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
@@ -196,7 +194,6 @@ ensures
             &&& o.metadata.uid is Some
         } by {
             assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                lemma_values_finite(s.resources());
                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
             }
         }
@@ -204,7 +201,6 @@ ensures
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
-            lemma_values_finite(s.resources());
             finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
             // now we know resp_objs has no duplicates, prove keys are unique by contradiction
             assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {

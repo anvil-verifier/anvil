@@ -1086,7 +1086,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                             &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                         };
                         let selected_elements = s.resources().values().filter(selector);
-                        lemma_values_finite(s.resources());
                         finite_set_to_seq_contains_all_set_elements(selected_elements);
                         assert(resp_objs =~= selected_elements.to_seq());
                         assert(selected_elements.contains(o));
@@ -1107,7 +1106,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                             &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                         };
                         let selected_elements = s.resources().values().filter(selector);
-                        lemma_values_finite(s.resources());
                         element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
                         lemma_filter_set(s.resources().values(), selector);
                     }
