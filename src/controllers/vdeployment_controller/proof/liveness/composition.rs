@@ -215,7 +215,7 @@ ensures
     }
     // spec |= \E |vrs_set| [] vd_pre_and_vrs_set_pre ~> \E |vrs_set| [] vd_post_and_vrs_set_post
     assert(spec.entails(tla_exists(lifted_always_vrs_set_pre).leads_to(tla_exists(lifted_always_vrs_set_post)))) by {
-        let pre = |vrs_set: Set<VReplicaSetView>| vrs_set.finite() && vrs_set.len() > 0;
+        let pre = |vrs_set: Set<VReplicaSetView>| vrs_set.len() > 0;
         assert forall |vrs_set: Set<VReplicaSetView>| pre(vrs_set)
             implies #[trigger] spec.entails(lifted_always_vrs_set_pre(vrs_set).leads_to(tla_exists(lifted_always_vrs_set_post))) by {
             always_and_equality(

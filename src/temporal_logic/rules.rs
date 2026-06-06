@@ -2111,7 +2111,7 @@ pub use leads_to_always_combine_n_with_equality_internal;
 // pre:
 //     forall |a: A|, spec |= p ~> []a_to_p(a)
 //     forall |a: A|, a \in domain
-//     domain.is_finite() && domain.len() > 0
+//     domain.len() > 0
 // post:
 //     spec |= []tla_forall(a_to_p)
 // The domain set assist in showing type A contains finite elements.
@@ -2277,7 +2277,7 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
 // push the domain inside state predicates
 // pre:
 //     forall |a: A|, a in domain ==> spec |= []a_to_p(a) ~> []a_to_q(a)
-//     domain.len() > 0 and domain.is_finite()
+//     domain.len() > 0
 //     // to improve stability in predicate matching:
 //     scoped_a_to_p/q == (|t: T| forall |a: A|, a in domain ==> a_to_p/q(a)(t))
 // post:
