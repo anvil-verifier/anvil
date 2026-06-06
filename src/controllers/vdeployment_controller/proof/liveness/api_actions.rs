@@ -30,7 +30,6 @@ requires
     req_msg_is_list_vrs_req(vd, controller_id, req_msg, s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    Cluster::etcd_is_finite()(s_prime),
 ensures
     resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
     resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime),
@@ -57,14 +56,14 @@ ensures
             &&& o.metadata.uid is Some
         } by {
             assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+                lemma_set_to_seq_contains_all_elements(s.resources().values().filter(list_req_filter));
             }
         }
         assert(objects_to_vrs_list(resp_objs) is Some) by {
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
-            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
+            lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
             // now we know resp_objs has no duplicates, prove keys are unique by contradiction
             assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
                 if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
@@ -136,14 +135,13 @@ ensures
             // s.to_seq().to_set() ==> s
             assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_set()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
-                // s.r().v().finite()
-                injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
+                s_prime.resources().lemma_injective_values_len();
                 // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
                 // .m().to_set() == .to_set().m() to get rid of the map
                 resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
                 // .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
-                lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
+                s_prime.resources().values().filter(list_req_filter).lemma_to_seq_to_set_id();
                 // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
                 assert(s_prime.resources().values().filter(list_req_filter).filter(weakened_obj_filter) == s_prime.resources().values().filter(valid_obj_filter));
             }
@@ -165,7 +163,6 @@ requires
     req_msg_is_list_vrs_req(vd, controller_id, req_msg, s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    Cluster::etcd_is_finite()(s_prime),
     current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs.object_ref(), diff)(s),
     inductive_current_state_matches(vd, controller_id, new_vrs.object_ref())(s),
 ensures
@@ -194,14 +191,14 @@ ensures
             &&& o.metadata.uid is Some
         } by {
             assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+                lemma_set_to_seq_contains_all_elements(s.resources().values().filter(list_req_filter));
             }
         }
         assert(objects_to_vrs_list(resp_objs) is Some) by {
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
-            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
+            lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
             // now we know resp_objs has no duplicates, prove keys are unique by contradiction
             assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
                 if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
@@ -269,14 +266,13 @@ ensures
             // s.to_seq().to_set() ==> s
             assert(resp_objs.filter(weakened_obj_filter).map_values(|o: DynamicObjectView| o.object_ref()).to_set()
                 == s_prime.resources().values().filter(valid_obj_filter).map(|o: DynamicObjectView| o.object_ref())) by {
-                // s.r().v().finite()
-                injective_finite_map_implies_dom_len_is_equal_to_values_len(s_prime.resources());
+                s_prime.resources().lemma_injective_values_len();
                 // .to_seq is not mutable because order isn't guaranteed, so we have to move .to_set() forward to cancel it
                 // .m().to_set() == .to_set().m() to get rid of the map
                 resp_objs.filter(weakened_obj_filter).lemma_to_set_map_commutes(|o: DynamicObjectView| o.object_ref());
                 // .to_seq().f().to_set() == .to_seq().to_set().f() == .f()
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, weakened_obj_filter);
-                lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
+                s_prime.resources().values().filter(list_req_filter).lemma_to_seq_to_set_id();
                 // list_req_filter && weakened_obj_filter && (every object in etcd is well-formed) == valid_obj_filter
                 assert(s_prime.resources().values().filter(list_req_filter).filter(weakened_obj_filter) == s_prime.resources().values().filter(valid_obj_filter));
             }

@@ -2203,10 +2203,10 @@ pub proof fn spec_entails_eventually_always_within_dynamic_finite_domain<T, A>(
         entails_apply::<T>(ex, spec, lift_state(|s: T| Set::new(domain(s)).finite()));
         always_unfold::<T>(ex, lift_action(next));
         // For each a in the initial domain, domain(ex.head())(a) holds, so we get eventually always a_to_p(a)
-        let d0 = Set::new(|a: A| domain(ex.head())(a));
-        assert(d0.finite()) by {
-            assert(Set::new(domain(ex.head())).finite());
-            assert(d0 =~= Set::new(domain(ex.head())));
+        let domain_head = |a: A| domain(ex.head())(a);
+        let d0 = Set::new(domain_head)->0;
+        assert(Set::new(domain_head) is Some) by {
+            assert(ISet::new(domain(ex.head())).finite());
         };
         assert forall |a: A| #[trigger] d0.contains(a) implies eventually(always(lift_state(a_to_p(a)))).satisfied_by(ex) by {
             entails_apply::<T>(ex, spec, lift_state(|s: T| domain(s)(a)).implies(eventually(always(lift_state(#[trigger] a_to_p(a))))));

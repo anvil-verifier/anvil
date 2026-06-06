@@ -442,7 +442,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
                 true_pred(),
                 true_pred(),
                 true_pred(),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)),
+                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
             );
         }
     }

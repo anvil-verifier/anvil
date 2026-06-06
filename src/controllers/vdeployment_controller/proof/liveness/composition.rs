@@ -52,7 +52,7 @@ pub open spec fn current_state_match_vd_applied_to_vrs_set(vrs_set: Set<VReplica
                 &&& get_replicas(old_vrs.spec.replicas) > 0 // != Some(0)
             }
         }
-        &&& vrs_set.finite() && vrs_set.len() > 0
+        &&& vrs_set.len() > 0
     }
 }
 
@@ -361,23 +361,12 @@ requires
 ensures
     current_state_match_vd_applied_to_vrs_set(vrs_set, vd)(s),
     conjuncted_desired_state_is_vrs(vrs_set)(s),
-    vrs_set.finite(),
     vrs_set.len() > 0,
 {
     let vrs_set = s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
         .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)
         .filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
-    assert(vrs_set.finite()) by {
-        finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
-        s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-            .lemma_map_finite(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0);
-        finite_set_to_finite_filtered_set(
-            s.resources().values().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
-                .map(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj)->Ok_0),
-            |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)
-        );
-    }
     // |= conjuncted_desired_state_is_vrs(vrs_set)(s)
     VReplicaSetView::marshal_preserves_integrity();
     assert(forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs()(vrs)(s));
@@ -449,9 +438,7 @@ ensures
                     assert(get_replicas(havoc_vrs.spec.replicas) > 0) by {
                         assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).len() > 0) by {
                             assert(vrs_liveness::matching_pods(havoc_vrs, s.resources()).contains(obj));
-                            // Cluster::etcd_is_finite() |= s.resources().values().is_finite()
-                            injective_finite_map_implies_dom_len_is_equal_to_values_len(s.resources());
-                            finite_set_to_finite_filtered_set(s.resources().values(), |obj: DynamicObjectView| vrs_liveness::owned_selector_match_is(havoc_vrs, obj));
+                            s.resources().lemma_injective_values_len();
                             lemma_set_empty_equivalency_len(vrs_liveness::matching_pods(havoc_vrs, s.resources()));
                         }
                     }

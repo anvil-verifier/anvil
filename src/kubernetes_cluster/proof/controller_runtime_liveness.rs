@@ -850,7 +850,6 @@ pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
         // Every reconcile has lower id than allocator.
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         // There are finitely many ongoing reconciles.
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         // Controller termination.
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         // There is the controller state.
@@ -892,7 +891,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(always(lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements)))),
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
     ensures spec.entails(lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id))
@@ -901,7 +899,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
     // Use the stable part of spec, show the stability of stable_spec and also spec |= stable_spec
     let always_spec = always(lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements)))
                     .and(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
-                    .and(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id))))
                     .and(always(lift_state(Self::there_is_the_controller_state(controller_id))))
                     .and(always(lift_action(self.next())));
     let stable_spec = always_spec.and(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1))))
@@ -910,7 +907,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
     stable_and_always_n!(
         lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements)),
         lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Self::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Self::there_is_the_controller_state(controller_id)),
         lift_action(self.next())
     );
@@ -920,7 +916,7 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
     let term_closure = |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key));
     tla_forall_a_p_leads_to_q_a_is_stable(
         true_pred(),
-        |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)),
+        |key: ObjectRef| lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
     );
     assert(valid(stable(tla_forall(|key: ObjectRef| true_pred().leads_to(term_closure(key))))));
     assert_by(
@@ -957,7 +953,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
         spec,
         always(lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements))),
         always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
-        always(lift_state(Self::ongoing_reconciles_is_finite(controller_id))),
         always(lift_state(Self::there_is_the_controller_state(controller_id))),
         always(lift_action(self.next())),
         tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1))),
@@ -1069,7 +1064,6 @@ pub proof fn lemma_true_leads_to_always_no_reconcile_before_reconcile_id_is_ongo
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
@@ -1137,7 +1131,6 @@ pub proof fn lemma_eventually_no_reconcile_before_reconcile_id_is_ongoing(
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
@@ -1171,12 +1164,6 @@ pub proof fn lemma_eventually_no_reconcile_before_reconcile_id_is_ongoing(
                 let rec_num = reconciles_before_id.len();
 
                 // machinery to prove ongoing_reconciles at dom is finite
-                assert(spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))));
-                assert(forall |ex| #[trigger] spec.implies(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))).satisfied_by(ex));
-                assert(spec.implies(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))).satisfied_by(ex));
-                assert(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id))).satisfied_by(ex));
-                assert(forall |i| #[trigger] lift_state(Self::ongoing_reconciles_is_finite(controller_id)).satisfied_by(ex.suffix(i)));
-                assert(lift_state(Self::ongoing_reconciles_is_finite(controller_id)).satisfied_by(ex.suffix(i)));
                 assert(ongoing_reconciles.dom().finite());
 
                 assert(reconciles_before_id.dom().subset_of(ongoing_reconciles.dom()));
@@ -1214,7 +1201,6 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
@@ -1384,7 +1370,6 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
@@ -1416,7 +1401,6 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
     let stronger_next = |s, s_prime| {
         self.next()(s, s_prime)
         && Self::there_is_the_controller_state(controller_id)(s)
-        && Self::ongoing_reconciles_is_finite(controller_id)(s)
         && Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s)
         && Self::reconcile_id_counter_is_no_smaller_than(controller_id, reconcile_id)(s)
     };
@@ -1471,7 +1455,6 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
         lift_state(Self::there_is_the_controller_state(controller_id)),
-        lift_state(Self::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
         lift_state(Self::reconcile_id_counter_is_no_smaller_than(controller_id, reconcile_id))
     );

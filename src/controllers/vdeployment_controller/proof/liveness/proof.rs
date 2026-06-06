@@ -131,9 +131,7 @@ ensures
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))));
-    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id))));
-    entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::etcd_is_finite())));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::there_is_the_controller_state(controller_id))));
     entails_trans(spec, assumption_and_invariants_of_all_phases(vd, cluster, controller_id), always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))));
@@ -166,9 +164,7 @@ ensures
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),

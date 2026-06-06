@@ -684,7 +684,6 @@ requires
     Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s),
-    Cluster::etcd_is_finite()(s),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s),
@@ -726,7 +725,7 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
-                                                                element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
+                                lemma_set_to_seq_contains_all_elements(selected_elements);
                                 lemma_filter_set(s.resources().values(), selector);
                             }
                         } else {
@@ -909,7 +908,6 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(spec, controller_id);
-    cluster.lemma_always_etcd_is_finite(spec);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -926,7 +924,6 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
         &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
     };
 
     combine_spec_entails_always_n!(
@@ -943,8 +940,7 @@ ensures spec.entails(always(lift_state(local_pods_and_pvcs_are_bound_to_vsts(con
         lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)),
-        lift_state(Cluster::etcd_is_finite())
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {

@@ -48,7 +48,6 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))))),
         spec.entails(always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods()))),
@@ -102,7 +101,6 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s_prime)
-        &&& Cluster::etcd_is_finite()(s)
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s)
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s_prime)
         &&& no_pending_mutation_request_not_from_controller_on_pods()(s)
@@ -180,7 +178,6 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(desired_state_is(vrs)),
         lifted_vrs_rely_condition_action(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)),
         later(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs))),
         lift_state(no_pending_mutation_request_not_from_controller_on_pods()),

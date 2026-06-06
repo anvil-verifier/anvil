@@ -291,7 +291,6 @@ proof fn lemma_xor_preserves_during_controller_step(
         Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s),
         Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()(s),
         Self::there_is_the_controller_state(controller_id)(s),
-        Self::ongoing_reconciles_is_finite(controller_id)(s),
     ensures Self::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, key)(s_prime),
 {
     if s_prime.ongoing_reconciles(controller_id).contains_key(key) && Self::has_pending_req_msg(controller_id, s_prime, key) {
@@ -419,7 +418,6 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
         spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, key))))),
@@ -453,7 +451,6 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
         &&& Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)(s)
         &&& Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Self::ongoing_reconciles_is_finite(controller_id)(s)
         &&& Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()(s)
     };
 
@@ -492,7 +489,6 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
         lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)),
         lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Self::every_in_flight_msg_has_no_replicas_and_has_unique_id())
     );
 
@@ -799,33 +795,6 @@ pub proof fn lemma_always_cr_objects_in_reconcile_have_correct_kind<T: CustomRes
         lift_state(Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id))
     );
     init_invariant(spec, self.init(), stronger_next, inv);
-}
-
-pub open spec fn ongoing_reconciles_is_finite(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.ongoing_reconciles(controller_id).dom().finite()
-    }
-}
-
-pub proof fn lemma_always_ongoing_reconciles_is_finite(self, spec: TempPred<ClusterState>, controller_id: int)
-    requires
-        spec.entails(lift_state(self.init())),
-        spec.entails(always(lift_action(self.next()))),
-        self.controller_models.contains_key(controller_id),
-    ensures spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
-{
-    let invariant = Self::ongoing_reconciles_is_finite(controller_id);
-    let stronger_next = |s, s_prime| {
-        &&& self.next()(s, s_prime)
-        &&& Self::there_is_the_controller_state(controller_id)(s)
-    };
-    self.lemma_always_there_is_the_controller_state(spec, controller_id);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(self.next()),
-        lift_state(Self::there_is_the_controller_state(controller_id))
-    );
-    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
 pub open spec fn reconcile_id_counter_is(controller_id: int, reconcile_id: nat) -> StatePred<ClusterState> {

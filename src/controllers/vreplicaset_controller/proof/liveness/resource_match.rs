@@ -48,7 +48,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
@@ -86,7 +85,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id))))
 
-        &&& spec.entails(always(lift_state(Cluster::etcd_is_finite())))
         &&& spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))))
         &&& spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))))
     };
@@ -550,7 +548,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff < 0,
@@ -699,7 +696,6 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff < 0,
@@ -823,7 +819,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff > 0,
@@ -975,7 +970,6 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff > 0,
@@ -1214,7 +1208,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
         spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -1265,7 +1258,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -1289,7 +1281,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -1302,7 +1293,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
                 if msg == req_msg {
                     let resp_msg = lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
-                        s, s_prime, vrs, cluster, controller_id, msg,
+                        s, s_prime, vrs, cluster, controller_id, msg
                     );
                     // instantiate existential quantifier.
                     assert({
@@ -1323,7 +1314,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input->0;
         let resp_msg = lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
-            s, s_prime, vrs, cluster, controller_id, msg,
+            s, s_prime, vrs, cluster, controller_id, msg
         );
         // instantiate existential quantifier.
         assert({
@@ -1355,7 +1346,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
         spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -1409,7 +1399,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -1434,7 +1423,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -1495,7 +1483,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff < 0,
@@ -1542,7 +1529,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -1567,7 +1553,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -1624,7 +1609,6 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
 
@@ -1671,7 +1655,6 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -1695,7 +1678,6 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -1708,7 +1690,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                 // Case 1: We're processing the create request
                 if msg == req_msg {
                     let resp_msg = lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
-                        s, s_prime, vrs, cluster, controller_id, msg,
+                        s, s_prime, vrs, cluster, controller_id, msg
                     );
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -1728,7 +1710,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input->0;
         let resp_msg = lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
-            s, s_prime, vrs, cluster, controller_id, msg,
+            s, s_prime, vrs, cluster, controller_id, msg
         );
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
@@ -1766,7 +1748,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
 
@@ -1814,7 +1795,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -1838,7 +1818,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -1895,7 +1874,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
@@ -1941,7 +1919,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -1965,7 +1942,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2024,7 +2000,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff > 0,
@@ -2072,7 +2047,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -2096,7 +2070,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2190,7 +2163,6 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
 
@@ -2241,7 +2213,6 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -2265,7 +2236,6 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2283,7 +2253,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                 // Case 1: We're processing the get-then-delete request
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
-                        s, s_prime, vrs, cluster, controller_id, msg,
+                        s, s_prime, vrs, cluster, controller_id, msg
                     );
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -2337,7 +2307,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
 
         let msg = input->0;
         let resp_msg = lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
-            s, s_prime, vrs, cluster, controller_id, msg,
+            s, s_prime, vrs, cluster, controller_id, msg
         );
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
@@ -2391,7 +2361,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
 
@@ -2443,7 +2412,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -2467,7 +2435,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2558,7 +2525,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
@@ -2606,7 +2572,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -2630,7 +2595,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2686,7 +2650,6 @@ pub proof fn lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
@@ -2733,7 +2696,6 @@ pub proof fn lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -2758,7 +2720,6 @@ pub proof fn lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2810,7 +2771,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
@@ -2857,7 +2817,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
@@ -2883,7 +2842,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
@@ -2955,7 +2913,6 @@ pub proof fn lemma_current_state_matches_is_stable(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
@@ -2996,7 +2953,6 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
@@ -3036,7 +2992,6 @@ pub proof fn lemma_current_state_matches_is_stable(
         later(lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs))),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)),
         later(lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id))),
         lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)),
@@ -3083,7 +3038,6 @@ requires
     Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s),
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> #[trigger] vrs_rely(other_id)(s),
-    Cluster::etcd_is_finite()(s),
     helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s),
     helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s_prime),
     helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
@@ -3102,10 +3056,10 @@ ensures
             if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
                 if !Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg) {
                     lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
-                        s, s_prime, vrs, cluster, controller_id, msg,
+                        s, s_prime, vrs, cluster, controller_id, msg
                     );
                     lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
-                        s, s_prime, vrs, cluster, controller_id, msg,
+                        s, s_prime, vrs, cluster, controller_id, msg
                     );
 
                     // Maintain quantified invariant.
@@ -3138,23 +3092,23 @@ ensures
                                 assert(s.in_flight().contains(msg));
                             } else {
                                 lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
-                                    s, s_prime, vrs, cluster, controller_id, req_msg,
+                                    s, s_prime, vrs, cluster, controller_id, req_msg
                                 );
                             }
                         }
                     } else if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterUpdateVRSStatus)(s) {
                         let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
                         lemma_get_then_update_vrs_status_request_updates_vrs_status_and_returns_ok(
-                            s, s_prime, vrs, cluster, controller_id, msg,
+                            s, s_prime, vrs, cluster, controller_id, msg
                         );
                     }
                 }
             } else {
                 lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
-                    s, s_prime, vrs, cluster, controller_id, msg,
+                    s, s_prime, vrs, cluster, controller_id, msg
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_vrs_status(
-                    s, s_prime, vrs, cluster, controller_id, msg,
+                    s, s_prime, vrs, cluster, controller_id, msg
                 );
             }
         },

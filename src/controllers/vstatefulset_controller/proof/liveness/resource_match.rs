@@ -4465,7 +4465,7 @@ ensures
                             assert(s.in_flight().contains(msg));
                         } else {
                             lemma_list_pod_request_returns_ok_with_objs_matching_vsts(
-                                s, s_prime, vsts, cluster, controller_id, req_msg,
+                                s, s_prime, vsts, cluster, controller_id, req_msg
                             );
                             let objs = msg.content.get_list_response().res.unwrap();
                             let pods = objects_to_pods(objs)->0;
@@ -4475,8 +4475,7 @@ ensures
                                 &&& obj.object_ref().namespace == vsts.metadata.namespace->0
                                 &&& obj.object_ref().kind == Kind::PodKind
                             };
-                                                        finite_set_to_finite_filtered_set(s.resources().values(), list_req_filter);
-                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+                            lemma_set_to_seq_contains_all_elements(s.resources().values().filter(list_req_filter));
                             assert(objs == s.resources().values().filter(list_req_filter).to_seq());
                             if objects_to_pods(objs) is Some {
                                 assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {

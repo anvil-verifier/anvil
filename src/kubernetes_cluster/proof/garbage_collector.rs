@@ -409,7 +409,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
         // If any key satisfying cond violates the requirement, gc deletion is enabled for that key.
         spec.entails(always(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
-        spec.entails(always(lift_state(Self::etcd_is_finite()))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))))),
 {
     let post = Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref);
@@ -424,7 +423,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
         &&& Self::object_has_no_finalizers_for_all(cond)(s)
         &&& Self::req_drop_disabled()(s)
         &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
-        &&& Self::etcd_is_finite()(s)
     };
     always_to_always_later(spec, lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)));
     combine_spec_entails_always_n!(
@@ -437,8 +435,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
         later(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref))),
         lift_state(Self::object_has_no_finalizers_for_all(cond)),
         lift_state(Self::req_drop_disabled()),
-        lift_state(Self::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(Self::etcd_is_finite())
+        lift_state(Self::each_object_in_etcd_is_weakly_well_formed())
     );
     // when I was proving the monotinicity of domain, I realized the precondition of spec_entails_eventually_always_within_dynamic_finite_domain
     // does not perfectly fit here, beccause only the "havoc domain" shinks over time while good keys are still being added.
@@ -507,15 +504,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
                     );
                     false_implies_anything(spec, eventually(always(lift_state(k_to_p(k)))));
                 }
-            }
-            assert(spec.entails(lift_state(|s: ClusterState| Set::new(havoc_domain(s)).finite()))) by {
-                let finite_req = |s: ClusterState| Set::new(havoc_domain(s)).finite();
-                assert forall |s: ClusterState| #[trigger] Self::etcd_is_finite()(s) implies finite_req(s) by {
-                    let keys = s.resources().dom().filter(|k| cond(k) && !eventual_owner_ref(s.resources()[k].metadata.owner_references));
-                    assert(keys == Set::new(havoc_domain(s)));
-                }
-                always_entails_current(lift_state(Self::etcd_is_finite()));
-                entails_trans_n!(spec, always(lift_state(Self::etcd_is_finite())), lift_state(Self::etcd_is_finite()), lift_state(finite_req));
             }
             assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies (forall |k| #[trigger] havoc_domain(s_prime)(k) ==> havoc_domain(s)(k)) by {
                 if exists |k| #[trigger] havoc_domain(s_prime)(k) && !havoc_domain(s)(k) {

@@ -59,7 +59,6 @@ requires
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
-    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
     spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
@@ -113,7 +112,6 @@ ensures
                 ==> #[trigger] vd_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
-        &&& Cluster::etcd_is_finite()(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& garbage_collector_does_not_delete_vd_vrs_objects(vd)(s)
         &&& garbage_collector_does_not_delete_vd_vrs_objects(vd)(s_prime)
@@ -208,7 +206,6 @@ ensures
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
         lift_state(desired_state_is(vd)),
         lifted_vd_rely_condition_action(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)),
         later(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd))),
@@ -354,7 +351,7 @@ ensures
                             seq_filter_contains_implies_seq_contains(
                                 owners,
                                 |o: OwnerReferenceView| o.controller is Some && o.controller->0,
-                                triggering_cr.controller_owner_ref(),
+                                triggering_cr.controller_owner_ref()
                             );
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
                         }
@@ -410,7 +407,6 @@ requires
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
-    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
     spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
@@ -479,7 +475,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
                 ==> #[trigger] vd_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
-        &&& Cluster::etcd_is_finite()(s)
         &&& vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
@@ -613,7 +608,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         later(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
         lifted_vd_rely_condition_action(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
@@ -669,7 +663,6 @@ requires
     forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     
-    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
     spec.entails(always(lift_state(no_pending_interfering_update_request(vd, controller_id)))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
@@ -724,7 +717,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_do
                 ==> #[trigger] vd_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
-        &&& Cluster::etcd_is_finite()(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& no_pending_interfering_update_request(vd, controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
@@ -853,7 +845,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_do
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
         lifted_vd_rely_condition_action(cluster, controller_id),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(no_pending_interfering_update_request(vd, controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
@@ -897,7 +888,6 @@ ensures spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(spec, controller_id);
-    cluster.lemma_always_etcd_is_finite(spec);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -915,7 +905,6 @@ ensures spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_
         &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)(s)
-        &&& Cluster::etcd_is_finite()(s)
     };
 
     combine_spec_entails_always_n!(
@@ -933,8 +922,7 @@ ensures spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_
         lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id)),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)),
-        lift_state(Cluster::etcd_is_finite())
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id))
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
@@ -983,7 +971,6 @@ requires
     Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)(s),
-    Cluster::etcd_is_finite()(s),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
@@ -1038,7 +1025,6 @@ requires
     Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)(s),
-    Cluster::etcd_is_finite()(s),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
@@ -1086,7 +1072,7 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                             &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                         };
                         let selected_elements = s.resources().values().filter(selector);
-                        finite_set_to_seq_contains_all_set_elements(selected_elements);
+                        lemma_set_to_seq_contains_all_elements(selected_elements);
                         assert(resp_objs =~= selected_elements.to_seq());
                         assert(selected_elements.contains(o));
                     }
@@ -1106,7 +1092,7 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                             &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                         };
                         let selected_elements = s.resources().values().filter(selector);
-                        element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
+                        lemma_set_to_seq_contains_all_elements(selected_elements);
                         lemma_filter_set(s.resources().values(), selector);
                     }
                 } else {
@@ -1235,7 +1221,6 @@ requires
     Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
     Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)(s),
-    Cluster::etcd_is_finite()(s),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
@@ -1697,9 +1682,7 @@ ensures
     spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
     spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
     spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
-    spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
     spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)))),
-    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))),
     spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
     spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
@@ -1732,9 +1715,7 @@ ensures
     always_weaken(spec, p, lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)));
     always_weaken(spec, p, lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)));
     always_weaken(spec, p, lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)));
-    always_weaken(spec, p, lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)));
     always_weaken(spec, p, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)));
-    always_weaken(spec, p, lift_state(Cluster::etcd_is_finite()));
     always_weaken(spec, p, lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())));
     always_weaken(spec, p, lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_weaken(spec, p, lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
