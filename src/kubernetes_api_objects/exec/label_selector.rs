@@ -29,7 +29,6 @@ impl LabelSelector {
     pub fn match_labels(&self) -> (match_labels: Option<StringMap>)
         ensures
             self@.match_labels == match_labels.deep_view(),
-            match_labels is Some ==> match_labels->0@.dom().finite(),
     {
         match &self.inner.match_labels {
             Some(ml) => Some(StringMap::from_rust_map(ml.clone())),
