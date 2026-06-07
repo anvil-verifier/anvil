@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
-use vstd::{map::*, prelude::*, set_lib::*};
+use vstd::{map::*, prelude::*, set_lib::*, set::*};
 
 verus! {
 
@@ -1201,11 +1201,11 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
 
         assert_by(valid(lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, 0)).implies(lift_state(no_more_ongoing_reconciles))), {
             assert forall |s| #[trigger] Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, 0)(s) implies no_more_ongoing_reconciles(s) by {
-                assert forall |key| Self::reconcile_id_before(controller_id, reconcile_id, s)(key) implies !(#[trigger] s.ongoing_reconciles(controller_id).contains_key(key)) by {
-                    let ongoing_reconciles = s.ongoing_reconciles(controller_id);
-                    let reconciles_before_id = ongoing_reconciles.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s));
-                    assert(reconciles_before_id.contains(key));
-                    assert(reconciles_before_id.len() > 0);
+                if exists |key| #[trigger] s.ongoing_reconciles(controller_id).contains_key(key) && s.ongoing_reconciles(controller_id)[key].reconcile_id < reconcile_id {
+                    let havoc_key = choose |key| #[trigger] s.ongoing_reconciles(controller_id).contains_key(key) && s.ongoing_reconciles(controller_id)[key].reconcile_id < reconcile_id;
+                    let reconciles_before = s.ongoing_reconciles(controller_id).dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s));
+                    assert(reconciles_before.contains(havoc_key));
+                    assert(reconciles_before.len() > 0);
                 }
             }
         });
@@ -1368,6 +1368,7 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
     let invariant = |s: ClusterState| {
         &&& Self::ongoing_reconciles_num_is_at_most_n(controller_id, reconcile_id, rec_num)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(key)
+        &&& s.ongoing_reconciles(controller_id)[key].reconcile_id < reconcile_id
     };
 
     let stronger_next = |s, s_prime| {
@@ -1390,7 +1391,7 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
                     let ongoing_reconciles_prime = s_prime.ongoing_reconciles(controller_id);
 
                     let reconciles_before_id = ongoing_reconciles.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s));
-                    let reconciles_before_id_prime = ongoing_reconciles_prime.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s));
+                    let reconciles_before_id_prime = ongoing_reconciles_prime.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s_prime));
 
                     if ongoing_reconciles_prime.len() > ongoing_reconciles.len() {
                         assert(reconciles_before_id =~= reconciles_before_id_prime);
@@ -1404,9 +1405,8 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
             Step::RestartControllerStep(id) => {
                 if id == controller_id {
                     let ongoing_reconciles = s_prime.ongoing_reconciles(controller_id);
-                    let reconciles_before_id = ongoing_reconciles.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s));
+                    let reconciles_before_id = ongoing_reconciles.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s_prime));
                     assert(ongoing_reconciles.dom() =~= reconciles_before_id);
-                    assert(Self::ongoing_reconciles_num_is_at_most_n(controller_id, reconcile_id, (rec_num - 1) as nat)(s_prime));
                 }
             },
             _ => {}
