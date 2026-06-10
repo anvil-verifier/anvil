@@ -170,9 +170,7 @@ pub open spec fn derived_invariants_since_beginning(vsts: VStatefulSetView, clus
     .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))))
     .and(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))))
     .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
-    .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))))
-    .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))))
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
@@ -205,9 +203,7 @@ pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState
         spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
-        spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)))),
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
@@ -240,9 +236,7 @@ pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState
         always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))),
         always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))),
         always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
-        always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))),
         always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))),
-        always(lift_state(Cluster::etcd_is_finite())),
         always(tla_forall(a_to_p)),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
         always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
@@ -276,9 +270,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
     always_p_is_stable(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)));
     always_p_is_stable(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)));
     always_p_is_stable(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)));
-    always_p_is_stable(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)));
     always_p_is_stable(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)));
-    always_p_is_stable(lift_state(Cluster::etcd_is_finite()));
     always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
@@ -307,9 +299,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView
         always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))),
         always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))),
         always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
-        always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))),
         always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))),
-        always(lift_state(Cluster::etcd_is_finite())),
         always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
         always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),

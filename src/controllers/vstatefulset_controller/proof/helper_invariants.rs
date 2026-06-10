@@ -688,7 +688,6 @@ requires
     spec.entails(always(lift_state(Cluster::desired_state_is(vsts)))),
     spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
     spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-    spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
     spec.entails(always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))),
     spec.entails(always(lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
         is_vsts_pod_key(vsts), owner_reference_requirements(vsts)

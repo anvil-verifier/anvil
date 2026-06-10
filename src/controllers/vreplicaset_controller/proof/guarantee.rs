@@ -86,7 +86,6 @@ requires
     Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
     Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s),
     Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
-    Cluster::etcd_is_finite()(s),
     Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
@@ -139,11 +138,10 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
-                                lemma_values_finite(s.resources());
-                                element_in_seq_exists_in_original_finite_set(selected_elements, resp_objs[i]);
+                                assert(resp_objs.contains(resp_objs[i])); // trigger
+                                lemma_set_to_seq_contains_all_elements(selected_elements);
+                                assert(selected_elements.contains(resp_objs[i]));
                                 lemma_filter_set(s.resources().values(), selector);
-                                let obj = resp_objs[i];
-                                assert(s.resources().contains_key(obj.object_ref()));
                             }
                         } else {
                             assert(s.in_flight().contains(req_msg_opt->0)); // trigger
@@ -278,7 +276,6 @@ ensures
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
-    cluster.lemma_always_etcd_is_finite(spec);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -291,7 +288,6 @@ ensures
         &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
-        &&& Cluster::etcd_is_finite()(s)
         &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
     };
 
@@ -305,7 +301,6 @@ ensures
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())
     );
 
