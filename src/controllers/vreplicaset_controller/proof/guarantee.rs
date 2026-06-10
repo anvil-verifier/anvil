@@ -138,10 +138,10 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
+                                assert(resp_objs.contains(resp_objs[i])); // trigger
                                 lemma_set_to_seq_contains_all_elements(selected_elements);
+                                assert(selected_elements.contains(resp_objs[i]));
                                 lemma_filter_set(s.resources().values(), selector);
-                                let obj = resp_objs[i];
-                                assert(s.resources().contains_key(obj.object_ref()));
                             }
                         } else {
                             assert(s.in_flight().contains(req_msg_opt->0)); // trigger
