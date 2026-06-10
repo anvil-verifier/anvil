@@ -725,7 +725,9 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
+                                assert(resp_objs.contains(resp_objs[i])); // trigger
                                 lemma_set_to_seq_contains_all_elements(selected_elements);
+                                assert(s.resources().values().filter(selector).contains(resp_objs[i]));
                                 lemma_filter_set(s.resources().values(), selector);
                             }
                         } else {
