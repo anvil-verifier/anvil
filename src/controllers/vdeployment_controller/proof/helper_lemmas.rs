@@ -353,8 +353,10 @@ ensures
                 }
             }
         }
-        assert((|nv_uid_replicas: (Uid, int)| get_replicas(vd.spec.replicas) > 0 ==> nv_uid_replicas.1 > 0
-            && etcd_state_is(vd, controller_id, Some((nv_uid_replicas.0, new_vrs_key, nv_uid_replicas.1)), 0)(s))((nv_uid, get_replicas(new_vrs.spec.replicas))));
+        let witness = (nv_uid, get_replicas(new_vrs.spec.replicas));
+        assert(witness.0 == nv_uid && witness.1 == get_replicas(new_vrs.spec.replicas));
+        assert(get_replicas(vd.spec.replicas) > 0 ==> witness.1 > 0
+            && etcd_state_is(vd, controller_id, Some((witness.0, new_vrs_key, witness.1)), 0)(s));
         assert(instantiated_etcd_state_is_with_zero_old_vrs_and_nv_key(vd, controller_id, new_vrs_key)(s));
     }
     // <==
