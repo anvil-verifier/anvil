@@ -1,4 +1,4 @@
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 ARG APP
 WORKDIR /
@@ -7,7 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 RUN mkdir /anvil
 COPY . /anvil
-RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev jq
+RUN apt-get update && apt-get install -y gcc wget unzip curl pkg-config libssl-dev jq git
 
 # install the latest Verus release
 RUN VERUS_VER=$(curl -sSL https://api.github.com/repos/verus-lang/verus/releases/latest | jq -r .tag_name | sed 's|^release/||') \
@@ -36,7 +36,7 @@ RUN mv /anvil/src/${APP}_controller /anvil/src/controller
 
 # =============================================================================
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 COPY --from=builder /anvil/src/controller /usr/local/bin/controller
 
