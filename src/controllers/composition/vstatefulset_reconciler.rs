@@ -6,7 +6,7 @@ use crate::temporal_logic::rules::*;
 use crate::vstatefulset_controller::model::{install::*, reconciler::*};
 use crate::vstatefulset_controller::proof::{
     guarantee::*,
-    liveness::{proof::lemma_vsts_eventually_stable_reconciliation, spec as vsts_spec},
+    liveness::{proof::*, spec as vsts_spec},
 };
 use crate::vstatefulset_controller::trusted::{
     liveness_theorem as vsts_liveness, rely_guarantee::*, spec_types::*,

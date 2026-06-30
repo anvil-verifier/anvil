@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use super::predicate::*;
-use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
+use crate::rabbitmq_controller::model::install::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
     label_selector::LabelSelectorView, volume_resource_requirements::*,
@@ -10,13 +10,13 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     api_server::state_machine::*,
 };
-use crate::kubernetes_cluster::proof::api_server::generated_name_reflects_prefix;
+use crate::kubernetes_cluster::proof::api_server::*;
 use crate::rabbitmq_controller::{
     model::resource::*,
     proof::{predicate::*, resource::*, guarantee::*, helper_invariants::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
-use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, STATEFULSET_POD_NAME_LABEL, STATEFULSET_ORDINAL_LABEL};
+use crate::vstatefulset_controller::trusted::spec_types::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};

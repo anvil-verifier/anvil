@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::vstatefulset_controller::trusted::spec_types::{STATEFULSET_POD_NAME_LABEL, STATEFULSET_ORDINAL_LABEL};
+use crate::vstatefulset_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;

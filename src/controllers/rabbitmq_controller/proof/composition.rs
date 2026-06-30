@@ -10,7 +10,7 @@ use crate::rabbitmq_controller::model::{
     reconciler::*, install::*, resource::stateful_set::*
 };
 use crate::rabbitmq_controller::proof::{
-    guarantee::guarantee_condition_holds, predicate::*,
+    guarantee::*, predicate::*,
     helper_invariants, helper_lemmas::*, resource::*, liveness::{spec:: *,proof::*},
 };
 use crate::vstatefulset_controller::trusted::{
@@ -18,9 +18,9 @@ use crate::vstatefulset_controller::trusted::{
     liveness_theorem as vsts_liveness_theorem,
     rely_guarantee as vsts_rely_mod,
 };
-use crate::vstatefulset_controller::trusted::rely_guarantee::{vsts_rely, vsts_guarantee, vsts_guarantee_create_req, vsts_guarantee_get_then_update_req, vsts_guarantee_get_then_delete_req};
+use crate::vstatefulset_controller::trusted::rely_guarantee::*;
 use crate::vstatefulset_controller::model::{
-    reconciler::VStatefulSetReconciler, install::vsts_controller_model
+    reconciler::VStatefulSetReconciler, install::*
 };
 use crate::vstatefulset_controller::proof::liveness::spec as vsts_spec;
 use crate::temporal_logic::rules::*;

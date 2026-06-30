@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::spec::{
     volume::*, volume_resource_requirements::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::rabbitmq_controller::model::resource::config_map::make_server_config_map_key;
+use crate::rabbitmq_controller::model::resource::config_map::*;
 use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, VStatefulSetSpecView};

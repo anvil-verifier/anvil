@@ -759,7 +759,7 @@ pub open spec fn owner_references_contains_ignoring_uid(meta: ObjectMetaView, or
 }
 
 // hack
-use crate::vdeployment_controller::proof::liveness::rolling_update::predicate::ru_req_msg_is_scale_new_vrs_by_one_req;
+use crate::vdeployment_controller::proof::liveness::rolling_update::predicate::*;
 
 pub open spec fn inductive_current_state_matches(vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {

@@ -6,7 +6,7 @@ use crate::temporal_logic::rules::*;
 use crate::vreplicaset_controller::model::{install::*, reconciler::*};
 use crate::vreplicaset_controller::proof::{
     guarantee::*,
-    liveness::{proof::eventually_stable_reconciliation_holds, spec::*},
+    liveness::{proof::*, spec::*},
 };
 use crate::vreplicaset_controller::trusted::{
     liveness_theorem::*, rely_guarantee::*, spec_types::*,

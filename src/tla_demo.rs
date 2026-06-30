@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
-use verifiable_controllers::state_machine::action::*;
-use verifiable_controllers::temporal_logic::{defs::*, rules::*};
+use crate::state_machine::action::*;
+use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -163,7 +163,5 @@ proof fn both_threads_eventually_terminate(model: TempPred<ProgramState>)
 
     leads_to_apply(model, lift_state(init()), lift_state(both_threads_are_terminated()));
 }
-
-fn main() {}
 
 }

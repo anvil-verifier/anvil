@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     message::*,
 };
-use crate::kubernetes_cluster::proof::api_server::generated_name_reflects_prefix;
+use crate::kubernetes_cluster::proof::api_server::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
