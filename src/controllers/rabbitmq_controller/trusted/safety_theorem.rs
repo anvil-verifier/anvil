@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};
 use crate::temporal_logic::defs::*;
-use crate::vstd_ext::string_view::int_to_string_view;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {

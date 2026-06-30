@@ -166,7 +166,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus focus --bin tla_demo -- --time
+          cargo verus focus --bin tla_demo -- --time --verify-module tla_demo
 
   framework-verification:
     needs: setup-toolchain

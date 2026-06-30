@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::vdeployment_controller::{
     trusted::{step::*, spec_types::*,
-        rely_guarantee::vd_rely, liveness_theorem::*},
+        liveness_theorem::*},
     model::{install::*, reconciler::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::{VReplicaSetView, VReplicaSetSpecView};
