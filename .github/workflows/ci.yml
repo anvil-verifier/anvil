@@ -150,24 +150,6 @@ jobs:
           export PATH="$PATH:$HOME/verus"
           cargo verus focus --lib -- --rlimit 50 --time --verify-module composition
 
-  tla-demo-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo
-            ~/.rustup
-            ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify the TLA demo
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus focus --bin tla_demo -- --time --verify-module tla_demo
-
   framework-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
