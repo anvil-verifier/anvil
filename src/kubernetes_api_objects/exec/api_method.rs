@@ -340,7 +340,6 @@ impl DeepView for KubeAPIRequest {
 //
 // KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
 
-#[is_variant_no_deprecation_warning]
 pub enum KubeAPIResponse {
     GetResponse(KubeGetResponse),
     ListResponse(KubeListResponse),
@@ -561,7 +560,7 @@ declare_kube_api_response_helper_methods!(
     into_get_response,
     GetResponse,
     KubeGetResponse,
-    get_GetResponse_0
+    arrow_GetResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -570,7 +569,7 @@ declare_kube_api_response_helper_methods!(
     into_list_response,
     ListResponse,
     KubeListResponse,
-    get_ListResponse_0
+    arrow_ListResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -579,7 +578,7 @@ declare_kube_api_response_helper_methods!(
     into_create_response,
     CreateResponse,
     KubeCreateResponse,
-    get_CreateResponse_0
+    arrow_CreateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -588,7 +587,7 @@ declare_kube_api_response_helper_methods!(
     into_delete_response,
     DeleteResponse,
     KubeDeleteResponse,
-    get_DeleteResponse_0
+    arrow_DeleteResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -597,7 +596,7 @@ declare_kube_api_response_helper_methods!(
     into_update_response,
     UpdateResponse,
     KubeUpdateResponse,
-    get_UpdateResponse_0
+    arrow_UpdateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -606,7 +605,7 @@ declare_kube_api_response_helper_methods!(
     into_update_status_response,
     UpdateStatusResponse,
     KubeUpdateStatusResponse,
-    get_UpdateStatusResponse_0
+    arrow_UpdateStatusResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -615,7 +614,7 @@ declare_kube_api_response_helper_methods!(
     into_get_then_update_response,
     GetThenUpdateResponse,
     KubeGetThenUpdateResponse,
-    get_GetThenUpdateResponse_0
+    arrow_GetThenUpdateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -624,7 +623,7 @@ declare_kube_api_response_helper_methods!(
     into_get_then_delete_response,
     GetThenDeleteResponse,
     KubeGetThenDeleteResponse,
-    get_GetThenDeleteResponse_0
+    arrow_GetThenDeleteResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -633,5 +632,5 @@ declare_kube_api_response_helper_methods!(
     into_get_then_update_status_response,
     GetThenUpdateStatusResponse,
     KubeGetThenUpdateStatusResponse,
-    get_GetThenUpdateStatusResponse_0
+    arrow_GetThenUpdateStatusResponse_0
 );

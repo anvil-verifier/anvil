@@ -400,49 +400,49 @@ declare_message_content_resp_helper_methods!(
     is_get_response,
     get_get_response,
     GetResponse,
-    get_GetResponse_0
+    arrow_GetResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
     is_list_response,
     get_list_response,
     ListResponse,
-    get_ListResponse_0
+    arrow_ListResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
     is_create_response,
     get_create_response,
     CreateResponse,
-    get_CreateResponse_0
+    arrow_CreateResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
     is_delete_response,
     get_delete_response,
     DeleteResponse,
-    get_DeleteResponse_0
+    arrow_DeleteResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
     is_update_response,
     get_update_response,
     UpdateResponse,
-    get_UpdateResponse_0
+    arrow_UpdateResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
     is_update_status_response,
     get_update_status_response,
     UpdateStatusResponse,
-    get_UpdateStatusResponse_0
+    arrow_UpdateStatusResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
     is_get_then_delete_response,
     get_get_then_delete_response,
     GetThenDeleteResponse,
-    get_GetThenDeleteResponse_0
+    arrow_GetThenDeleteResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
@@ -456,7 +456,7 @@ declare_message_content_resp_helper_methods!(
     is_get_then_update_status_response,
     get_get_then_update_status_response,
     GetThenUpdateStatusResponse,
-    get_GetThenUpdateStatusResponse_0
+    arrow_GetThenUpdateStatusResponse_0
 );
 
 macro_rules! declare_form_resp_msg_functions {
