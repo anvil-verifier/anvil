@@ -301,99 +301,99 @@ declare_message_content_req_helper_methods!(
     is_get_request,
     get_get_request,
     GetRequest,
-    get_GetRequest_0
+    arrow_GetRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_list_request,
     get_list_request,
     ListRequest,
-    get_ListRequest_0
+    arrow_ListRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_create_request,
     get_create_request,
     CreateRequest,
-    get_CreateRequest_0
+    arrow_CreateRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_delete_request,
     get_delete_request,
     DeleteRequest,
-    get_DeleteRequest_0
+    arrow_DeleteRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_update_request,
     get_update_request,
     UpdateRequest,
-    get_UpdateRequest_0
+    arrow_UpdateRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_update_status_request,
     get_update_status_request,
     UpdateStatusRequest,
-    get_UpdateStatusRequest_0
+    arrow_UpdateStatusRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_get_then_delete_request,
     get_get_then_delete_request,
     GetThenDeleteRequest,
-    get_GetThenDeleteRequest_0
+    arrow_GetThenDeleteRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_get_then_update_request,
     get_get_then_update_request,
     GetThenUpdateRequest,
-    get_GetThenUpdateRequest_0
+    arrow_GetThenUpdateRequest_0
 );
 
 declare_message_content_req_helper_methods!(
     is_get_then_update_status_request,
     get_get_then_update_status_request,
     GetThenUpdateStatusRequest,
-    get_GetThenUpdateStatusRequest_0
+    arrow_GetThenUpdateStatusRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
     is_delete_request_with_key,
     DeleteRequest,
-    get_DeleteRequest_0
+    arrow_DeleteRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
     is_update_request_with_key,
     UpdateRequest,
-    get_UpdateRequest_0
+    arrow_UpdateRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
     is_update_status_request_with_key,
     UpdateStatusRequest,
-    get_UpdateStatusRequest_0
+    arrow_UpdateStatusRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
     is_get_then_delete_request_with_key,
     GetThenDeleteRequest,
-    get_GetThenDeleteRequest_0
+    arrow_GetThenDeleteRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
     is_get_then_update_request_with_key,
     GetThenUpdateRequest,
-    get_GetThenUpdateRequest_0
+    arrow_GetThenUpdateRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
     is_get_then_update_status_request_with_key,
     GetThenUpdateStatusRequest,
-    get_GetThenUpdateStatusRequest_0
+    arrow_GetThenUpdateStatusRequest_0
 );
 
 declare_message_content_resp_helper_methods!(
@@ -449,7 +449,7 @@ declare_message_content_resp_helper_methods!(
     is_get_then_update_response,
     get_get_then_update_response,
     GetThenUpdateResponse,
-    get_GetThenUpdateResponse_0
+    arrow_GetThenUpdateResponse_0
 );
 
 declare_message_content_resp_helper_methods!(
