@@ -166,7 +166,14 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time
+          cargo verus focus --lib -- --rlimit 50 --time \
+            --verify-module kubernetes_api_objects \
+            --verify-module kubernetes_cluster \
+            --verify-module reconciler \
+            --verify-module state_machine \
+            --verify-module temporal_logic \
+            --verify-module tla_demo \
+            --verify-module vstd_ext
 
   vreplicaset-admission-e2e-test:
     needs: setup-toolchain
