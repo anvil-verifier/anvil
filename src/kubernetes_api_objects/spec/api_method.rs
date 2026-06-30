@@ -19,7 +19,6 @@ verus! {
 // For now we do not consider Watch.
 
 // TODO: implement Update and Patch request.
-#[is_variant_no_deprecation_warning]
 pub enum APIRequest {
     GetRequest(GetRequest),
     ListRequest(ListRequest),
@@ -194,7 +193,6 @@ impl GetThenUpdateStatusRequest {
 
 // APIResponse represents API responses sent from the Kubernetes API for specifications.
 
-#[is_variant_no_deprecation_warning]
 pub enum APIResponse {
     GetResponse(GetResponse),
     ListResponse(ListResponse),
