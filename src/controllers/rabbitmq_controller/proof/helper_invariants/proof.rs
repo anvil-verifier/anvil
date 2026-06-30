@@ -1053,6 +1053,7 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s_prime)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
         &&& Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()(s_prime)
         &&& rmq_guarantee(controller_id)(s_prime)
@@ -1110,6 +1111,7 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
     always_to_always_later(spec, lift_state(rmq_guarantee(controller_id)));
     always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
+    always_to_always_later(spec, lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
     always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
     invariant_n!(spec,
         lift_action(stronger_next),
@@ -1122,6 +1124,7 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
         lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        later(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
         later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
         later(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
         later(lift_state(rmq_guarantee(controller_id))),

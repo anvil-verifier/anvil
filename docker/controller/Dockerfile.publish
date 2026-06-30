@@ -1,4 +1,4 @@
-FROM ghcr.io/anvil-verifier/anvil/verus:latest AS builder
+FROM ubuntu:24.04 AS builder
 
 WORKDIR /anvil
 
@@ -14,9 +14,7 @@ ARG APP
 RUN . "$HOME/.cargo/env" \
  && cargo verus build --release --bin ${APP}_controller -- --no-verify --time
 
-# =============================================================================
-
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ARG APP
 COPY --from=builder /anvil/target/release/${APP}_controller /usr/local/bin/controller

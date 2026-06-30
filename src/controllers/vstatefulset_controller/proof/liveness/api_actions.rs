@@ -52,9 +52,8 @@ ensures
         let owner_ref_filter = |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref());
         let owned_objs = resp_objs.filter(owner_ref_filter);
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
-        lemma_values_finite(s.resources());
-        assert(resp_objs.no_duplicates()) by {
-            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
+                assert(resp_objs.no_duplicates()) by {
+            lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
         }
         assert forall |o| #[trigger] resp_objs.contains(o) implies {
             &&& o.kind == Kind::PodKind
@@ -66,7 +65,7 @@ ensures
             &&& o.metadata.name is Some
         } by {
             assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+                lemma_set_to_seq_contains_all_elements(s.resources().values().filter(list_req_filter));
             }
         }
         assert(objects_to_pods(resp_objs) is Some) by {
@@ -89,7 +88,7 @@ ensures
             // move to_set ahead and cancel to_seq
             assert(owned_objs.to_set() == s_prime.resources().values().filter(list_req_filter).filter(owner_ref_filter)) by {
                 lemma_filter_to_set_eq_to_set_filter(resp_objs, owner_ref_filter);
-                lemma_to_seq_to_set_equal(s_prime.resources().values().filter(list_req_filter));
+                s_prime.resources().values().filter(list_req_filter).lemma_to_seq_to_set_id();
             }
             // s.res.v.f(list_req_filter).f(owner_ref_filter).map(key) == s.res.v.f(valid_owned_object_filter).map(key)
             assert(forall |obj| #[trigger] s_prime.resources().values().contains(obj) ==>
@@ -471,7 +470,7 @@ ensures
                 &&& pod_name_match(outdated_key.name, vsts.metadata.name->0)
             }) by {
                 seq_filter_contains_implies_seq_contains(
-                    state.needed, outdated_pod_filter(vsts), outdated_pod,
+                    state.needed, outdated_pod_filter(vsts), outdated_pod
                 );
             }
             if s.resources().contains_key(outdated_key) {

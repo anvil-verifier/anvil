@@ -142,7 +142,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         cluster.each_builtin_object_in_etcd_is_well_formed()(s),
         cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
-        Cluster::etcd_is_finite()(s),
     ensures
         resp_msg == handle_list_request_msg(msg, s.api_server).1,
         resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, resp_msg),
@@ -155,7 +154,6 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
-        &&& Cluster::etcd_is_finite()(s)
     };
 
     let resp_msg = handle_list_request_msg(msg, s.api_server).1;
@@ -172,8 +170,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         };
         let selected_elements = s.resources().values().filter(selector);
         assert(selected_elements.contains(o));
-        lemma_values_finite(s.resources());
-        finite_set_to_seq_contains_all_set_elements(selected_elements);
+        lemma_set_to_seq_contains_all_elements(selected_elements);
     }
 
     assert forall |o: DynamicObjectView| #![auto]
@@ -186,8 +183,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == PodView::kind()
         };
         let selected_elements = s.resources().values().filter(selector);
-        lemma_values_finite(s.resources());
-        finite_set_to_seq_contains_all_set_elements(selected_elements);
+        lemma_set_to_seq_contains_all_elements(selected_elements);
         assert(resp_objs == selected_elements.to_seq());
         assert(selected_elements.contains(o));
     }
@@ -200,8 +196,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == PodView::kind()
         };
         let selected_elements = s.resources().values().filter(selector);
-        lemma_values_finite(s.resources());
-        finite_set_to_seq_has_no_duplicates(selected_elements);
+        lemma_set_to_seq_has_no_duplicates(selected_elements);
         let selected_elements_seq = selected_elements.to_seq();
         let pods_seq = objects_to_pods(selected_elements_seq).unwrap();
         assert(selected_elements_seq.no_duplicates());
@@ -210,7 +205,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             x != y
             && selected_elements_seq.contains(x)
             && selected_elements_seq.contains(y) implies x.object_ref() != y.object_ref() by {
-            finite_set_to_seq_contains_all_set_elements(selected_elements);
+            lemma_set_to_seq_contains_all_elements(selected_elements);
             assert(selected_elements.contains(x));
             assert(selected_elements.contains(y));
         }
@@ -244,8 +239,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == msg.content.get_list_request().kind
         };
         let selected_elements = s.resources().values().filter(selector);
-        lemma_values_finite(s.resources());
-        finite_set_to_seq_has_no_duplicates(selected_elements);
+        lemma_set_to_seq_has_no_duplicates(selected_elements);
         let selected_elements_seq = selected_elements.to_seq();
         assert(selected_elements_seq.no_duplicates());
         assert forall |o1: DynamicObjectView, o2: DynamicObjectView| #![auto]
@@ -254,7 +248,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             && selected_elements_seq.contains(o2)
             && pre
             implies o1.object_ref() != o2.object_ref() by {
-            finite_set_to_seq_contains_all_set_elements(selected_elements);
+            lemma_set_to_seq_contains_all_elements(selected_elements);
             assert(selected_elements.contains(o1));
             assert(selected_elements.contains(o2));
             assert(s.resources().values().contains(o1));
@@ -273,10 +267,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             &&& o.object_ref().kind == PodView::kind()
         };
         assert(resp_objs == s.resources().values().filter(selector).to_seq());
-        // consistency of no_duplicates
-        lemma_values_finite(s.resources());
-        finite_set_to_finite_filtered_set(s.resources().values(), selector);
-        finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
+        lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
         assert(resp_objs.no_duplicates());
 
         // reveal matching_pods logic
@@ -302,8 +293,8 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
             assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
             seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
             seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
-            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+            lemma_set_to_seq_contains_all_elements(s.resources().values().filter(selector));
+            lemma_set_to_seq_contains_all_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
             // Fix to get rid of flaky proof.
             assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
                 resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
@@ -348,7 +339,6 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
         helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
-        Cluster::etcd_is_finite()(s),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     ensures
         resp_msg == handle_create_request_msg(cluster.installed_types, msg, s.api_server).1,
@@ -420,13 +410,7 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
             }
         }
     );
-
-    a_submap_of_a_finite_map_is_finite(
-        matching_pod_entries(vrs, s.resources()),
-        s.resources()
-    );
-    lemma_values_finite(matching_pod_entries(vrs, s.resources()));
-    
+        
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
     return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
@@ -445,7 +429,6 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
         helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
-        Cluster::etcd_is_finite()(s),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     ensures
         resp_msg == handle_get_then_delete_request_msg(msg, s.api_server).1,
@@ -474,13 +457,7 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         matching_pod_entries(vrs, s.resources()).remove(key).values()
         == matching_pod_entries(vrs, s.resources()).values().remove(obj)
     );
-
-    a_submap_of_a_finite_map_is_finite(
-        matching_pod_entries(vrs, s.resources()),
-        s.resources()
-    );
-    lemma_values_finite(matching_pod_entries(vrs, s.resources()));
-
+    
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
     return handle_get_then_delete_request_msg(msg, s.api_server).1;
@@ -498,7 +475,6 @@ pub proof fn lemma_get_then_update_vrs_status_request_updates_vrs_status_and_ret
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
         helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
-        Cluster::etcd_is_finite()(s),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         desired_state_is(vrs)(s),
         desired_state_is(vrs)(s_prime),

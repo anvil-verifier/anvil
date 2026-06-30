@@ -636,7 +636,7 @@ ensures
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input->0;
         let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
-            s, s_prime, vd, cluster, controller_id, msg,
+            s, s_prime, vd, cluster, controller_id, msg
         );
         // instantiate existential quantifier.
         assert({

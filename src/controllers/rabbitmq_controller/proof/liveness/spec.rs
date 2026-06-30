@@ -368,9 +368,7 @@ pub open spec fn derived_invariants_since_beginning(controller_id: int, cluster:
     .and(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())))
     .and(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id))))
     .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
-    .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))))
-    .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())))
     .and(always(lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq))))
@@ -433,9 +431,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
         lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),
@@ -597,9 +593,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_every_ongoing_reconcile_has_lower_id_than_allocator(spec, controller_id);
-    cluster.lemma_always_ongoing_reconciles_is_finite(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(spec, controller_id);
-    cluster.lemma_always_etcd_is_finite(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(spec);
     helper_invariants::lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(controller_id, cluster, spec, rabbitmq);
@@ -676,9 +670,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
         lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
         lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
         lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),

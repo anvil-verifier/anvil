@@ -323,21 +323,6 @@ pub proof fn lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(s
     );
 }
 
-pub open spec fn etcd_is_finite() -> StatePred<ClusterState> {
-    |s: ClusterState| s.resources().dom().finite()
-}
-
-pub proof fn lemma_always_etcd_is_finite(
-    self, spec: TempPred<ClusterState>,
-)
-    requires
-        spec.entails(lift_state(self.init())),
-        spec.entails(always(lift_action(self.next()))),
-    ensures spec.entails(always(lift_state(Self::etcd_is_finite()))),
-{
-    init_invariant(spec, self.init(), self.next(), Self::etcd_is_finite());
-}
-
 }
 
 }

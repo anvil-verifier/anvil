@@ -89,16 +89,7 @@ pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, contr
 
 // Predicates for reasoning about pods
 pub open spec fn matching_pod_entries(vrs: VReplicaSetView, resources: StoredState) -> Map<ObjectRef, DynamicObjectView> {
-    Map::new(
-        |key: ObjectRef| {
-            let obj = resources[key];
-            &&& resources.contains_key(key)
-            &&& owned_selector_match_is(vrs, obj)
-        },
-        |key: ObjectRef| {
-           resources[key]
-        },
-    )
+    Map::new(resources.dom().filter(|k: ObjectRef| owned_selector_match_is(vrs, resources[k])), |k: ObjectRef| resources[k])
 }
 
 pub open spec fn num_diff_pods_is(vrs: VReplicaSetView, diff: int) -> StatePred<ClusterState> {

@@ -214,7 +214,6 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
 )
     requires
         Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
-        Cluster::etcd_is_finite()(s),
         resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
         forall |obj: DynamicObjectView| #[trigger] matching_pods(vrs, s.resources()).contains(obj) ==> PodView::unmarshal(obj) is Ok,
     ensures
@@ -356,7 +355,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
                     && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                     && pod.metadata.deletion_timestamp is None
                     && pod.metadata.name is Some
-                    && has_vrs_prefix(pod.metadata.name->0),
+                    && has_vrs_prefix(pod.metadata.name->0)
             );
         } else {
             assert(resp_obj_keys[idxi] == resp_objs[idxi].object_ref());
