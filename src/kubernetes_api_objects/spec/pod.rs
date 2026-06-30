@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     volume::*,
 };
 use crate::vstd_ext::string_view::*;
-use deps_hack::k8s_openapi::api::core::v1::PodSpec;
+use k8s_openapi::api::core::v1::PodSpec;
 use vstd::prelude::*;
 
 verus! {

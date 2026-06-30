@@ -14,7 +14,7 @@ pub fn test_default() {
     let config_map_volume_source = ConfigMapVolumeSource::default();
     assert_eq!(
         config_map_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource::default()
+        k8s_openapi::api::core::v1::ConfigMapVolumeSource::default()
     );
 }
 
@@ -42,7 +42,7 @@ pub fn test_clone() {
 #[test]
 pub fn test_kube() {
     let kube_config_map_volume_source =
-        deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource {
+        k8s_openapi::api::core::v1::ConfigMapVolumeSource {
             default_mode: None,
             items: None,
             name: Some("name".to_string()),

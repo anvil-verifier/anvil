@@ -12,7 +12,7 @@ pub fn test_default() {
     let role = Role::default();
     assert_eq!(
         role.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::Role::default()
+        k8s_openapi::api::rbac::v1::Role::default()
     );
 }
 
@@ -143,14 +143,14 @@ pub fn test_api_resource() {
 
 #[test]
 pub fn test_kube() {
-    let kube_role = deps_hack::k8s_openapi::api::rbac::v1::Role {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_role = k8s_openapi::api::rbac::v1::Role {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             namespace: Some("namespace".to_string()),
             ..Default::default()
         },
         rules: Some(vec![
-            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+            k8s_openapi::api::rbac::v1::PolicyRule {
                 api_groups: Some(vec![
                     "api_groups_1_1".to_string(),
                     "api_groups_1_2".to_string(),
@@ -162,7 +162,7 @@ pub fn test_kube() {
                 verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
                 ..Default::default()
             },
-            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+            k8s_openapi::api::rbac::v1::PolicyRule {
                 api_groups: Some(vec![
                     "api_groups_2_1".to_string(),
                     "api_groups_2_2".to_string(),
@@ -185,14 +185,14 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_role = deps_hack::k8s_openapi::api::rbac::v1::Role {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_role = k8s_openapi::api::rbac::v1::Role {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             namespace: Some("namespace".to_string()),
             ..Default::default()
         },
         rules: Some(vec![
-            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+            k8s_openapi::api::rbac::v1::PolicyRule {
                 api_groups: Some(vec![
                     "api_groups_1_1".to_string(),
                     "api_groups_1_2".to_string(),
@@ -204,7 +204,7 @@ pub fn test_marshal() {
                 verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
                 ..Default::default()
             },
-            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+            k8s_openapi::api::rbac::v1::PolicyRule {
                 api_groups: Some(vec![
                     "api_groups_2_1".to_string(),
                     "api_groups_2_2".to_string(),

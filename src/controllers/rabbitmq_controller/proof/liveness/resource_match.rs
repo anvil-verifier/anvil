@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::vstatefulset_controller::trusted::spec_types::*;
-use crate::rabbitmq_controller::model::install::rabbitmq_controller_model;
+use crate::rabbitmq_controller::model::install::*;
 use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, label_selector::*, owner_reference::*, prelude::*, resource::*,
 };
@@ -16,7 +16,7 @@ use crate::reconciler::spec::resource_builder::*;
 use crate::rabbitmq_controller::{
     model::{reconciler::*, resource::*},
     proof::{
-        helper_invariants, liveness::spec::assumption_and_invariants_of_all_phases, predicate::*,
+        helper_invariants, liveness::spec::*, predicate::*,
         resource::*, helper_lemmas::*, guarantee::*,
     },
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},

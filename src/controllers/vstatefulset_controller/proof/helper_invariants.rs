@@ -25,7 +25,7 @@ use crate::vstatefulset_controller::{
     },
 };
 use crate::vstd_ext::{seq_lib::*, string_view::*};
-use deps_hack::kube_core::Object;
+use kube_core::Object;
 use vstd::prelude::*;
 
 verus! {

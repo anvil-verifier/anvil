@@ -6,14 +6,16 @@ use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use crate::vdeployment_controller::model::{install::*, reconciler::*};
 use crate::vdeployment_controller::proof::{
-    guarantee::guarantee_condition_holds as vd_guarantee_condition_holds,
-    liveness::{proof::lemma_vd_composed_eventually_stable_reconciliation, spec as vd_spec},
+    guarantee::*,
+    liveness::{proof::*, spec as vd_spec},
 };
+#[cfg(verus_keep_ghost)]
+use crate::vdeployment_controller::proof::guarantee::guarantee_condition_holds as vd_guarantee_condition_holds;
 use crate::vdeployment_controller::trusted::{
     liveness_theorem::*, rely_guarantee::*, spec_types::*,
 };
 use crate::vreplicaset_controller::trusted::{
-    liveness_theorem as vrs_liveness, rely_guarantee::{vrs_guarantee, vrs_rely},
+    liveness_theorem as vrs_liveness, rely_guarantee::*,
     spec_types::*,
 };
 use vstd::prelude::*;

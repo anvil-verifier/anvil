@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, volume::*};
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::*, liveness_theorem::{
-    pod_spec_matches, pod_name
+    *
 }};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -693,8 +693,8 @@ pub open spec fn update_identity(vsts: VStatefulSetView, pod: PodView, ordinal: 
         metadata: ObjectMetaView {
             labels: Some(vsts.spec.template.metadata->0.labels
                     .unwrap_or(Map::<StringView, StringView>::empty())
-                    .insert(StatefulSetPodNameLabel, pod.metadata.name->0)
-                    .insert(StatefulSetOrdinalLabel, int_to_string_view(ordinal as int))),
+                    .insert(STATEFULSET_POD_NAME_LABEL, pod.metadata.name->0)
+                    .insert(STATEFULSET_ORDINAL_LABEL, int_to_string_view(ordinal as int))),
             owner_references: Some(make_owner_references(vsts)),
             annotations: vsts.spec.template.metadata->0.annotations,
             finalizers: None,

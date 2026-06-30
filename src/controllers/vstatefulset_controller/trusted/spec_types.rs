@@ -6,8 +6,8 @@ use vstd::prelude::*;
 
 verus! {
 
-pub spec const StatefulSetPodNameLabel: StringView = exec_types::StatefulSetPodNameLabel@;
-pub spec const StatefulSetOrdinalLabel: StringView = exec_types::StatefulSetOrdinalLabel@;
+pub spec const STATEFULSET_POD_NAME_LABEL: StringView = exec_types::STATEFULSET_POD_NAME_LABEL@;
+pub spec const STATEFULSET_ORDINAL_LABEL: StringView = exec_types::STATEFULSET_ORDINAL_LABEL@;
 
 pub struct VStatefulSetView {
     pub metadata: ObjectMetaView,
@@ -61,8 +61,8 @@ impl VStatefulSetView {
         &&& self.spec.selector.matches(self.spec.template.metadata->0.labels.unwrap_or(Map::empty()))
         &&& self.spec.template.metadata->0.labels is Some ==> {
             let labels = self.spec.template.metadata->0.labels->0;
-            &&& !labels.contains_key(StatefulSetPodNameLabel)
-            &&& !labels.contains_key(StatefulSetOrdinalLabel)
+            &&& !labels.contains_key(STATEFULSET_POD_NAME_LABEL)
+            &&& !labels.contains_key(STATEFULSET_ORDINAL_LABEL)
         }
 
         // replicas is non‑negative

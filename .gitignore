@@ -1,20 +1,23 @@
 # Except this file
 !.gitignore
-*.d
-*.rlib
+
+# Editor / IDE
 .vscode/
-src/*_controller
-src/*.long-type-*.txt
-src/.verus-log/
-e2e/target/
-/target
-/Cargo.lock
 verifiable-controllers.code-workspace
-src/.verus-solver-log/
-src/*.d
-src/*.o
+
+# Cargo build artifacts
+/target
+e2e/target/
 **/*.rlib
-tools/*.json
+*.d
+
+# Verus logs / large diagnostic dumps
+src/.verus-log/
+src/.verus-solver-log/
+src/*.long-type-*.txt
 vreplicaset_controller.*.txt
 vstatefulset_controller.*.txt
+
+# Other
+tools/*.json
 certs

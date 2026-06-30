@@ -3,7 +3,7 @@
 use k8s_openapi::api::core::v1::{Pod, PersistentVolumeClaim, PersistentVolume};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use deps_hack::VStatefulSet;
+use verifiable_controllers::crds::VStatefulSet;
 
 use kube::{
     api::{Api, ListParams},

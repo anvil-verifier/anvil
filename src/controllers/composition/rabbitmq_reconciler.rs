@@ -4,17 +4,19 @@ use crate::kubernetes_cluster::proof::core::*;
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::rabbitmq_controller::model::install::*;
 use crate::rabbitmq_controller::proof::{
-    composition::composed_rmq_eventually_stable_reconciliation,
-    guarantee::guarantee_condition_holds as rmq_guarantee_condition_holds,
+    composition::*,
+    guarantee::*,
     liveness::spec as rmq_spec,
 };
+#[cfg(verus_keep_ghost)]
+use crate::rabbitmq_controller::proof::guarantee::guarantee_condition_holds as rmq_guarantee_condition_holds;
 use crate::rabbitmq_controller::trusted::{
     liveness_theorem::*, rely_guarantee::*, spec_types::*,
 };
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use crate::vstatefulset_controller::trusted::{
-    liveness_theorem as vsts_liveness, rely_guarantee::{vsts_guarantee, vsts_rely},
+    liveness_theorem as vsts_liveness, rely_guarantee::*,
     spec_types::*,
 };
 use vstd::prelude::*;

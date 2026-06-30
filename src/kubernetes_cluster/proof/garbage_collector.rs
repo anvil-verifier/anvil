@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::{types::*, state_machine::*}, builtin_controllers::garbage_collector::run_garbage_collector,
+    api_server::{types::*, state_machine::*}, builtin_controllers::garbage_collector::*,
     builtin_controllers::types::*, cluster::*, message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};

@@ -16,7 +16,7 @@ verus! {
 
 implement_field_wrapper_type!(
     Affinity,
-    deps_hack::k8s_openapi::api::core::v1::Affinity,
+    k8s_openapi::api::core::v1::Affinity,
     AffinityView
 );
 

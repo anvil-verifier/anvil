@@ -16,7 +16,7 @@ verus! {
 
 implement_field_wrapper_type!(
     OwnerReference,
-    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference,
+    k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference,
     OwnerReferenceView
 );
 

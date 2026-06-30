@@ -3,9 +3,6 @@ name = "e2e_test"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-
 [features]
 default = ["openssl-tls", "kubederive", "ws", "latest", "runtime"]
 kubederive = ["kube/derive"]
@@ -15,12 +12,13 @@ runtime = ["kube/runtime"]
 ws = ["kube/ws"]
 latest = ["k8s-openapi/v1_30"]
 
-
 [dependencies]
+verifiable-controllers = { path = ".." }
+
 tokio-util = "0.7.0"
 futures = "0.3.17"
 kube = { version = "0.91.0", default-features = false, features = ["admission"] }
-kube-derive = { version = "0.91.0", default-features = false } # only needed to opt out of schema
+kube-derive = { version = "0.91.0", default-features = false }
 kube-client = { version = "0.91.0", default-features = false }
 kube-core = { version = "0.91.0", default-features = false }
 k8s-openapi = { version = "0.22.0", default-features = false }
@@ -31,8 +29,6 @@ tokio = { version = "1.38.2", features = ["full"] }
 schemars = "0.8.6"
 thiserror = "1.0.29"
 tokio-stream = { version = "0.1.9", features = ["net"] }
-zookeeper = "0.8"
 tungstenite = "0.20.1"
 tracing = "0.1.36"
 tracing-subscriber = "0.3.20"
-deps_hack = { path = "../src/deps_hack" }

@@ -14,7 +14,7 @@ pub fn test_default() {
     let secret_volume_source = SecretVolumeSource::default();
     assert_eq!(
         secret_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource::default()
+        k8s_openapi::api::core::v1::SecretVolumeSource::default()
     );
 }
 
@@ -41,7 +41,7 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_secret_volume_source = deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource {
+    let kube_secret_volume_source = k8s_openapi::api::core::v1::SecretVolumeSource {
         secret_name: Some("secret_name".to_string()),
         ..Default::default()
     };

@@ -14,7 +14,7 @@ pub fn test_default() {
     let daemon_set = DaemonSetSpec::default();
     assert_eq!(
         daemon_set.into_kube(),
-        deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec::default()
+        k8s_openapi::api::apps::v1::DaemonSetSpec::default()
     );
 }
 
@@ -95,10 +95,10 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_daemon_set_spec = deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
+    let kube_daemon_set_spec = k8s_openapi::api::apps::v1::DaemonSetSpec {
         min_ready_seconds: Some(0),
         revision_history_limit: Some(0),
-        selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+        selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
             match_expressions: None,
             match_labels: Some(
                 vec![("key".to_string(), "value".to_string())]
@@ -106,9 +106,9 @@ pub fn test_kube() {
                     .collect(),
             ),
         },
-        template: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
+        template: k8s_openapi::api::core::v1::PodTemplateSpec {
             metadata: Some(
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                     name: Some("name".to_string()),
                     ..Default::default()
                 },

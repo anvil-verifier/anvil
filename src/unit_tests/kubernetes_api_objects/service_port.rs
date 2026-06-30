@@ -12,7 +12,7 @@ pub fn test_default() {
     let service_port = ServicePort::default();
     assert_eq!(
         service_port.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ServicePort::default()
+        k8s_openapi::api::core::v1::ServicePort::default()
     );
 }
 
@@ -55,7 +55,7 @@ pub fn test_set_protocaol() {
 
 #[test]
 pub fn test_kube() {
-    let kube_service_port = deps_hack::k8s_openapi::api::core::v1::ServicePort {
+    let kube_service_port = k8s_openapi::api::core::v1::ServicePort {
         name: Some("name".to_string()),
         port: 1,
         app_protocol: Some("protocol".to_string()),

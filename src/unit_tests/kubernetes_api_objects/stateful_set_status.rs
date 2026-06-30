@@ -10,7 +10,7 @@ use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_stateful_set_status = deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
+    let kube_stateful_set_status = k8s_openapi::api::apps::v1::StatefulSetStatus {
         replicas: 1,
         ready_replicas: Some(1),
         current_replicas: Some(1),
@@ -30,7 +30,7 @@ pub fn test_kube() {
 #[test]
 pub fn test_ready_replicas() {
     let stateful_set_status =
-        StatefulSetStatus::from_kube(deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
+        StatefulSetStatus::from_kube(k8s_openapi::api::apps::v1::StatefulSetStatus {
             replicas: 1,
             ready_replicas: Some(1),
             ..Default::default()

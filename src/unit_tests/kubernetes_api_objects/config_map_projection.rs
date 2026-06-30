@@ -14,7 +14,7 @@ pub fn test_default() {
     let config_map_projection = ConfigMapProjection::default();
     assert_eq!(
         config_map_projection.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default()
+        k8s_openapi::api::core::v1::ConfigMapProjection::default()
     );
 }
 
@@ -76,15 +76,15 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_config_map_projection = deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
+    let kube_config_map_projection = k8s_openapi::api::core::v1::ConfigMapProjection {
         name: Some("name".to_string()),
         items: Some(vec![
-            deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+            k8s_openapi::api::core::v1::KeyToPath {
                 key: "key1".to_string(),
                 path: "path1".to_string(),
                 mode: None,
             },
-            deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+            k8s_openapi::api::core::v1::KeyToPath {
                 key: "key2".to_string(),
                 path: "path2".to_string(),
                 mode: None,

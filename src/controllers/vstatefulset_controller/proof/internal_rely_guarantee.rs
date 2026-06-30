@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     api_server::{state_machine::*, types::InstalledTypes},
 };
-use crate::kubernetes_cluster::proof::api_server::generated_name_reflects_prefix;
+use crate::kubernetes_cluster::proof::api_server::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},

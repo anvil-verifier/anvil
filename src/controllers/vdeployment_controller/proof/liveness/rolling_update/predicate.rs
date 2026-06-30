@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::vdeployment_controller::{
     trusted::{rely_guarantee::*, step::*, spec_types::*,
-        rely_guarantee::vd_rely, liveness_theorem::*},
+        liveness_theorem::*},
     model::{install::*, reconciler::*},
     proof::predicate::*,
 };

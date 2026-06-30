@@ -14,7 +14,7 @@ pub fn test_default() {
     let volume = Volume::default();
     assert_eq!(
         volume.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Volume::default()
+        k8s_openapi::api::core::v1::Volume::default()
     );
 }
 
@@ -102,38 +102,38 @@ pub fn test_set_empty_dir() {
 
 #[test]
 pub fn test_kube() {
-    let kube_volume = deps_hack::k8s_openapi::api::core::v1::Volume {
+    let kube_volume = k8s_openapi::api::core::v1::Volume {
         name: "name".to_string(),
         host_path: Some(
-            deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource {
+            k8s_openapi::api::core::v1::HostPathVolumeSource {
                 path: "path".to_string(),
                 ..Default::default()
             },
         ),
         config_map: Some(
-            deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource {
+            k8s_openapi::api::core::v1::ConfigMapVolumeSource {
                 name: Some("name".to_string()),
                 ..Default::default()
             },
         ),
         projected: Some(
-            deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource {
+            k8s_openapi::api::core::v1::ProjectedVolumeSource {
                 sources: Some(vec![]),
                 ..Default::default()
             },
         ),
-        secret: Some(deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource {
+        secret: Some(k8s_openapi::api::core::v1::SecretVolumeSource {
             secret_name: Some("name".to_string()),
             ..Default::default()
         }),
         downward_api: Some(
-            deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource {
+            k8s_openapi::api::core::v1::DownwardAPIVolumeSource {
                 items: Some(vec![]),
                 ..Default::default()
             },
         ),
         empty_dir: Some(
-            deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource {
+            k8s_openapi::api::core::v1::EmptyDirVolumeSource {
                 ..Default::default()
             },
         ),

@@ -10,7 +10,7 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::{string_map::*, string_view::*};
-use deps_hack::kube::Resource;
+use kube::Resource;
 use vstd::prelude::*;
 
 verus! {
@@ -20,12 +20,12 @@ verus! {
 
 implement_object_wrapper_type!(
     VStatefulSet,
-    deps_hack::VStatefulSet,
+    crate::crds::VStatefulSet,
     spec_types::VStatefulSetView
 );
 
-pub const StatefulSetPodNameLabel: &'static str = "statefulset.kubernetes.io/pod-name";
-pub const StatefulSetOrdinalLabel: &'static str = "apps.kubernetes.io/pod-index";
+pub const STATEFULSET_POD_NAME_LABEL: &'static str = "statefulset.kubernetes.io/pod-name";
+pub const STATEFULSET_ORDINAL_LABEL: &'static str = "apps.kubernetes.io/pod-index";
 
 impl VStatefulSet {
     #[verifier(external_body)]
@@ -54,7 +54,7 @@ impl VStatefulSet {
 
 implement_field_wrapper_type!(
     VStatefulSetSpec,
-    deps_hack::VStatefulSetSpec,
+    crate::crds::VStatefulSetSpec,
     spec_types::VStatefulSetSpecView
 );
 

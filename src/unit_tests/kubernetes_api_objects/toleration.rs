@@ -4,14 +4,14 @@ use crate::kubernetes_api_objects::exec::object_meta::*;
 use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::exec::toleration::*;
 use crate::vstd_ext::string_map::*;
-use deps_hack::chrono::{DateTime, Utc};
-use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use chrono::{DateTime, Utc};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use vstd::prelude::*;
 use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_toleration = deps_hack::k8s_openapi::api::core::v1::Toleration {
+    let kube_toleration = k8s_openapi::api::core::v1::Toleration {
         key: Some("key".to_string()),
         operator: Some("operator".to_string()),
         value: Some("value".to_string()),
