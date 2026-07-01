@@ -984,7 +984,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
             assert forall |i: nat| #[trigger] stable_spec.satisfied_by(ex.suffix(i))
                 implies eventually(always_csm).satisfied_by(ex.suffix(i)) by {
                 // stable_spec.entails(eventually(always_csm)) gives us this directly
-                entails_apply(ex.suffix(i), stable_spec, eventually(always_csm));
+                assert(stable_spec.implies(eventually(always_csm)).satisfied_by(ex.suffix(i)));
             }
         }
     }

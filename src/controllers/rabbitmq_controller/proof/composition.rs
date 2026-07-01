@@ -144,7 +144,8 @@ ensures
     assert(always(stable_rmq_post).entails(tla_exists(lifted_always_vsts_pre))) by {
         assert forall |ex: Execution<ClusterState>| #[trigger] always(stable_rmq_post).satisfied_by(ex)
             implies tla_exists(|vsts: VStatefulSetView| lift_state(vsts_pre(rabbitmq)(vsts))).satisfied_by(ex) by {
-            always_to_current(ex, stable_rmq_post);
+            always_entails_current(stable_rmq_post);
+            assert(always(stable_rmq_post).implies(stable_rmq_post).satisfied_by(ex));
             VStatefulSetView::marshal_preserves_integrity();
             let s = ex.head();
             let sts_key = make_stateful_set_key(rabbitmq);

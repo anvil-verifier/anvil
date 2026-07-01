@@ -98,21 +98,24 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     let R12_fn = |pair: (int, int)| if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
     let R21_fn = |pair: (int, int)| if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).and(tla_forall(environment_rely_s)).implies(tla_forall(ESRs_fn))))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
-            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).and(tla_forall(environment_rely_s)).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
+    let goal = tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).and(tla_forall(environment_rely_s)).implies(tla_forall(ESRs_fn)));
+    let f1 = tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.liveness_dependency).and(tla_forall(environment_rely1)).implies(tla_forall(ESR1_fn)));
+    let f2 = tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.liveness_dependency).and(tla_forall(environment_rely2)).implies(tla_forall(ESR2_fn)));
+    let f3 = tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn)));
 
-            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.liveness_dependency).and(tla_forall(environment_rely1)).implies(tla_forall(ESR1_fn))));
-            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.liveness_dependency).and(tla_forall(environment_rely2)).implies(tla_forall(ESR2_fn))));
-            entails_apply(ex, spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn))));
+    // core(cluster, s1), core(cluster, s2) and compatible(cluster, s1, s2) give these entailments.
+    entails_and_n!(spec, f1, f2, f3);
 
+    assert(f1.and(f2).and(f3).entails(goal)) by {
+        assert forall |ex: Execution<ClusterState>| #[trigger] f1.and(f2).and(f3).satisfied_by(ex) implies
+            goal.satisfied_by(ex) by {
             assert(tla_forall(Gs_fn).satisfied_by(ex)) by {
                 assert forall |c: int| #[trigger] Gs_fn(c).satisfied_by(ex) by {
                     if s1.members.contains(c) {
-                        tla_forall_unfold(ex, G1_fn);
+                        tla_forall_apply(G1_fn, c);
                         assert(G1_fn(c).satisfied_by(ex));
                     } else if s2.members.contains(c) {
-                        tla_forall_unfold(ex, G2_fn);
+                        tla_forall_apply(G2_fn, c);
                         assert(G2_fn(c).satisfied_by(ex));
                     }
                 }
@@ -124,9 +127,9 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                         let (c, c_prime) = pair;
                         if s1.members.contains(c) && !s1.members.contains(c_prime) {
                             if s2.members.contains(c_prime) {
-                                tla_forall_unfold(ex, R12_fn); assert(R12_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(R12_fn, (c, c_prime)); assert(R12_fn((c, c_prime)).satisfied_by(ex));
                             } else {
-                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(Rs_fn, (c, c_prime)); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
                             }
                         }
                     }
@@ -136,9 +139,9 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                         let (c, c_prime) = pair;
                         if s2.members.contains(c) && !s2.members.contains(c_prime) {
                             if s1.members.contains(c_prime) {
-                                tla_forall_unfold(ex, R21_fn); assert(R21_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(R21_fn, (c, c_prime)); assert(R21_fn((c, c_prime)).satisfied_by(ex));
                             } else {
-                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(Rs_fn, (c, c_prime)); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
                             }
                         }
                     }
@@ -147,7 +150,7 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                 assert(tla_forall(environment_rely1).satisfied_by(ex)) by {
                     assert forall |c: int| #[trigger] environment_rely1(c).satisfied_by(ex) by {
                         if s.members.contains(c) {
-                            tla_forall_unfold(ex, environment_rely_s);
+                            tla_forall_apply(environment_rely_s, c);
                             assert(environment_rely_s(c).satisfied_by(ex));
                         } else {
 
@@ -158,7 +161,7 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                 assert(tla_forall(environment_rely2).satisfied_by(ex)) by {
                     assert forall |c: int| #[trigger] environment_rely2(c).satisfied_by(ex) by {
                         if s.members.contains(c) {
-                            tla_forall_unfold(ex, environment_rely_s);
+                            tla_forall_apply(environment_rely_s, c);
                             assert(environment_rely_s(c).satisfied_by(ex));
                         } else {
 
@@ -169,10 +172,10 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                 assert(tla_forall(ESRs_fn).satisfied_by(ex)) by {
                     assert forall |c: int| #[trigger] ESRs_fn(c).satisfied_by(ex) by {
                         if s1.members.contains(c) {
-                            tla_forall_unfold(ex, ESR1_fn);
+                            tla_forall_apply(ESR1_fn, c);
                             assert(ESR1_fn(c).satisfied_by(ex));
                         } else if s2.members.contains(c) {
-                            tla_forall_unfold(ex, ESR2_fn);
+                            tla_forall_apply(ESR2_fn, c);
                             assert(ESR2_fn(c).satisfied_by(ex));
                         }
                     }
@@ -180,6 +183,7 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             }
         }
     }
+    entails_trans(spec, f1.and(f2).and(f3), goal);
 }
 
 // s1 satisfies s2's liveness dependency
@@ -229,22 +233,26 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     let R12_fn = |pair: (int, int)| if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
     let R21_fn = |pair: (int, int)| if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-    assert(spec.entails(tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).and(tla_forall(environment_rely_s)).implies(tla_forall(ESRs_fn))))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] spec.satisfied_by(ex) implies
-            tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).and(tla_forall(environment_rely_s)).implies(tla_forall(ESRs_fn))).satisfied_by(ex) by {
+    let goal = tla_forall(Gs_fn).and(tla_forall(Rs_fn).and(s.liveness_dependency).and(tla_forall(environment_rely_s)).implies(tla_forall(ESRs_fn)));
+    let f1 = tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.liveness_dependency).and(tla_forall(environment_rely1)).implies(tla_forall(ESR1_fn)));
+    let f2 = tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.liveness_dependency).and(tla_forall(environment_rely2)).implies(tla_forall(ESR2_fn)));
+    let f3 = tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn)));
+    let f4 = tla_forall(ESR1_fn).implies(s2.liveness_dependency);
 
-            entails_apply(ex, spec, tla_forall(G1_fn).and(tla_forall(R1_fn).and(s1.liveness_dependency).and(tla_forall(environment_rely1)).implies(tla_forall(ESR1_fn))));
-            entails_apply(ex, spec, tla_forall(G2_fn).and(tla_forall(R2_fn).and(s2.liveness_dependency).and(tla_forall(environment_rely2)).implies(tla_forall(ESR2_fn))));
-            entails_apply(ex, spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn))));
-            entails_apply(ex, spec, tla_forall(ESR1_fn).implies(s2.liveness_dependency));
+    // core(cluster, s1), core(cluster, s2), compatible(cluster, s1, s2) and
+    // satisfies_dependency(cluster, s1, s2) give these entailments.
+    entails_and_n!(spec, f1, f2, f3, f4);
 
+    assert(f1.and(f2).and(f3).and(f4).entails(goal)) by {
+        assert forall |ex: Execution<ClusterState>| #[trigger] f1.and(f2).and(f3).and(f4).satisfied_by(ex) implies
+            goal.satisfied_by(ex) by {
             assert(tla_forall(Gs_fn).satisfied_by(ex)) by {
                 assert forall |c: int| #[trigger] Gs_fn(c).satisfied_by(ex) by {
                     if s1.members.contains(c) {
-                        tla_forall_unfold(ex, G1_fn);
+                        tla_forall_apply(G1_fn, c);
                         assert(G1_fn(c).satisfied_by(ex));
                     } else if s2.members.contains(c) {
-                        tla_forall_unfold(ex, G2_fn);
+                        tla_forall_apply(G2_fn, c);
                         assert(G2_fn(c).satisfied_by(ex));
                     }
                 }
@@ -256,9 +264,9 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                         let (c, c_prime) = pair;
                         if s1.members.contains(c) && !s1.members.contains(c_prime) {
                             if s2.members.contains(c_prime) {
-                                tla_forall_unfold(ex, R12_fn); assert(R12_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(R12_fn, (c, c_prime)); assert(R12_fn((c, c_prime)).satisfied_by(ex));
                             } else {
-                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(Rs_fn, (c, c_prime)); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
                             }
                         }
                     }
@@ -268,9 +276,9 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                         let (c, c_prime) = pair;
                         if s2.members.contains(c) && !s2.members.contains(c_prime) {
                             if s1.members.contains(c_prime) {
-                                tla_forall_unfold(ex, R21_fn); assert(R21_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(R21_fn, (c, c_prime)); assert(R21_fn((c, c_prime)).satisfied_by(ex));
                             } else {
-                                tla_forall_unfold(ex, Rs_fn); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
+                                tla_forall_apply(Rs_fn, (c, c_prime)); assert(Rs_fn((c, c_prime)).satisfied_by(ex));
                             }
                         }
                     }
@@ -279,7 +287,7 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                 assert(tla_forall(environment_rely1).satisfied_by(ex)) by {
                     assert forall |c: int| #[trigger] environment_rely1(c).satisfied_by(ex) by {
                         if s.members.contains(c) {
-                            tla_forall_unfold(ex, environment_rely_s);
+                            tla_forall_apply(environment_rely_s, c);
                             assert(environment_rely_s(c).satisfied_by(ex));
                         }
                     }
@@ -288,7 +296,7 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                 assert(tla_forall(environment_rely2).satisfied_by(ex)) by {
                     assert forall |c: int| #[trigger] environment_rely2(c).satisfied_by(ex) by {
                         if s.members.contains(c) {
-                            tla_forall_unfold(ex, environment_rely_s);
+                            tla_forall_apply(environment_rely_s, c);
                             assert(environment_rely_s(c).satisfied_by(ex));
                         }
                     }
@@ -297,10 +305,10 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
                 assert(tla_forall(ESRs_fn).satisfied_by(ex)) by {
                     assert forall |c: int| #[trigger] ESRs_fn(c).satisfied_by(ex) by {
                         if s1.members.contains(c) {
-                            tla_forall_unfold(ex, ESR1_fn);
+                            tla_forall_apply(ESR1_fn, c);
                             assert(ESR1_fn(c).satisfied_by(ex));
                         } else if s2.members.contains(c) {
-                            tla_forall_unfold(ex, ESR2_fn);
+                            tla_forall_apply(ESR2_fn, c);
                             assert(ESR2_fn(c).satisfied_by(ex));
                         }
                     }
@@ -308,6 +316,7 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             }
         }
     }
+    entails_trans(spec, f1.and(f2).and(f3).and(f4), goal);
 }
 
 }

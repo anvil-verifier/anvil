@@ -131,7 +131,8 @@ ensures
     let lifted_always_vrs_set_pre = |vrs_set| always(lift_state(vrs_set_pre(vrs_set)));
     assert(always(stable_vd_post).entails(tla_exists(lifted_always_vrs_set_pre))) by {
         assert forall |ex: Execution<ClusterState>| #[trigger] always(stable_vd_post).satisfied_by(ex) implies tla_exists(|vrs_set| lift_state(vrs_set_pre(vrs_set))).satisfied_by(ex) by {
-            always_to_current(ex, stable_vd_post);
+            always_entails_current(stable_vd_post);
+            assert(always(stable_vd_post).implies(stable_vd_post).satisfied_by(ex));
             assert(cluster_invariants_since_reconciliation(cluster, vd, controller_id)(ex.head()));
             let vrs_set = current_state_match_vd_implies_exists_vrs_set_with_desired_state_is(vd, cluster, controller_id, ex.head());
             assert((|vrs_set| lift_state(vrs_set_pre(vrs_set)))(vrs_set).satisfied_by(ex));
