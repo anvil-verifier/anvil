@@ -1,3 +1,4 @@
+#![cfg_attr(verus_keep_ghost, verifier::allow(unknown_automatic_derive))]
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("ShimLayerError: {0}")]
