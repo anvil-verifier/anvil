@@ -14,8 +14,7 @@ third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
 ├── deploy/             # CRDs, RBAC, kind config, sample workloads
 ├── deploy.sh           # apply deploy/<controller>/* to a kind cluster
 ├── docker/
-│   ├── controller/     # Dockerfile.local / Dockerfile.publish
-│   └── verus/          # builder image used by Dockerfile.publish
+│   └── controller/     # Dockerfile — bakes a host-built binary into an image
 ├── e2e/                # end-to-end test crate
 ├── local-test.sh       # build controller image + run e2e against kind
 └── src/
@@ -89,12 +88,9 @@ The binary lands in `target/debug/<controller_name>` (or
 
 ### Test pipeline
 
-1. Build the controller binary with `cargo verus build`.
-2. Build the controller Docker image:
-   * `docker/controller/Dockerfile.local` — uses your locally-built binary.
-   * `docker/controller/Dockerfile.publish` — builds inside the Verus
-     builder image (see `docker/verus/Dockerfile`); useful when the
-     host's glibc differs from the target image.
+1. Build the controller binary with `cargo verus build` on the host.
+2. Bake the binary into a controller Docker image with
+   `docker/controller/Dockerfile`.
 3. Set up a kind cluster and load the image.
 4. Apply the e2e tests from `e2e/src/` and the workload from `deploy/`
    via `deploy.sh`.
@@ -102,10 +98,9 @@ The binary lands in `target/debug/<controller_name>` (or
 Steps 1–3 are automated:
 
 ```
-./local-test.sh <controller_name> [--build|--build-remote]
-  --build         build via `cargo verus build` on the host, then make the image
-  --build-remote  build the image using the Verus builder (Dockerfile.publish)
-  (no flag)       reuse an existing local image named local/<app>-controller:v0.1.0
+./local-test.sh <controller_name> [--build]
+  --build     build via `cargo verus build` on the host, then make the image
+  (no flag)   reuse an existing local image named local/<app>-controller:v0.1.0
 ```
 
 Step 4:

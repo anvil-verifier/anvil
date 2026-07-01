@@ -5,9 +5,9 @@
 
 Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs, and [kube](https://github.com/kube-rs/kube), a Kubernetes client in Rust.
 
-So far, we have built and verified three Kubernetes controllers (for managing ZooKeeper, RabbitMQ and FluentBit) using Anvil. We used the [Pravega ZooKeeper operator](https://github.com/pravega/zookeeper-operator), [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) and [official Fluent operator](https://github.com/fluent/fluent-operator) as references when building our controllers. We are now using Anvil to build (and verify) more controllers, including Kubernetes built-in controllers.
+So far, we have built and verified Kubernetes controllers (including ones for managing RabbitMQ and Kubernetes built-in workloads such as ReplicaSet, Deployment and StatefulSet) using Anvil. We used the [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) and the upstream Kubernetes controllers as references when building our controllers. We are now using Anvil to build (and verify) more controllers.
 
-For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controllers/). To use Anvil, you will need to install [Verus](https://github.com/verus-lang/verus) (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)). Currently Anvil uses Verus version `release/rolling/0.2025.11.30.840fa61` with pre-built [binary](https://github.com/verus-lang/verus/releases/tag/release%2F0.2025.11.30.840fa61) available.
+For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controllers/). Anvil builds and verifies through [`cargo verus`](https://github.com/verus-lang/verus): all third-party dependencies live in the top-level `Cargo.toml` and the Verus standard library (`vstd`) is pulled from [crates.io](https://crates.io/crates/vstd). See [`build.md`](build.md) for how to build, verify and run controllers. You will need a [Verus](https://github.com/verus-lang/verus) binary whose version is consistent with the pinned `vstd` (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)).
 
 If you want to reproduce the results in the OSDI'24 paper "Anvil: Verifying Liveness of Cluster Management Controllers", please refer to the [osdi24](https://github.com/anvil-verifier/anvil/tree/osdi24) branch.
 
@@ -31,7 +31,7 @@ pub trait Reconciler{
 ```
 Every time when `reconcile()` is invoked, it starts with the initial state, transitions to the next state until it arrives at an ending state. Each state transition returns a new state and one request that the controller wants to send to the API server (e.g., Get, List, Create, Update or Delete). The request could also be application specific (e.g., calling ZooKeeper's reconfiguration API). Anvil has a shim layer that issues these requests and feed the corresponding response to the next state transition.
 
-For more details, you can refer to the controller [examples](src/controller_examples/) we have built (see their `exec/` folders).
+For more details, you can refer to the controller [examples](src/controllers/) we have built (see their `exec/` folders).
 
 ## Verifying controllers with Anvil
 
@@ -39,7 +39,7 @@ Verifying a Kubernetes controller requires the developers to specify some correc
 
 Anvil allows developers to verify diverse types of correctness properties. A key property we find useful is **Eventually Stable Reconciliation (ESR)**, a liveness property stating that a controller should eventually manage the system to its desired state, and stays in that desired state, despite failures and network issues.
 
-Verifying controllers still requires some expertise on SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controller_examples/) we have verified (see their `proof/` folders).
+Verifying controllers still requires some expertise on SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controllers/) we have verified (see their `proof/` folders).
 
 
 ## Source organization
@@ -52,8 +52,11 @@ Verifying controllers still requires some expertise on SMT-based theorem proving
 - `kubernetes_api_objects/` A library that defines commonly used Kubernetes API objects (e.g., Pod, ConfigMap, StatefulSet, Service, etc.). Most definitions are imported from [k8s-openapi](https://github.com/Arnavion/k8s-openapi) (which is also used by [kube](https://github.com/kube-rs/kube)) with a wrapper that allows formal reasoning on these objects.
 - `state_machine/` A library for defining TLA-style state machines, used by `kubernetes_cluster/`.
 - `temporal_logic/` A library for performing temporal logic reasoning on top of Verus. It is mainly used for enabling TLA-style liveness verification.
-- `deps_hack/` A temporary hack to import unverified external Rust modules.
-- `controller_examples/` Example controllers we built and verified using Anvil.
+- `controllers/` Example controllers we built and verified using Anvil (e.g., `rabbitmq_controller/`, `vreplicaset_controller/`, `vdeployment_controller/`, `vstatefulset_controller/`), plus their `composition/` proofs.
+- `crds.rs` Custom resource type definitions (`kube`-derived), shared by the controllers and the e2e tests.
+- `bin/` Binary entry points, one per controller, admission webhook, and verification target (e.g., `esr_composition.rs`, `tla_demo.rs`).
+
+Everything lives in a single cargo package (`verifiable-controllers`); see [`build.md`](build.md) for the full layout and the `cargo verus` build/verify commands.
 
 ## Publications
 

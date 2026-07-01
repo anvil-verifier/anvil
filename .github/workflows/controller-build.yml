@@ -4,134 +4,247 @@ on:
 env:
   IMAGE_NAME: ${{ github.repository }}
 jobs:
+  setup-toolchain:
+    runs-on: ubuntu-24.04
+    outputs:
+      verus-tag: ${{ steps.verus-tag.outputs.tag }}
+    steps:
+      - name: Discover the latest Verus release
+        id: verus-tag
+        run: |
+          TAG=$(curl -fsSL https://api.github.com/repos/verus-lang/verus/releases/latest \
+                | jq -r .tag_name | sed 's|^release/||')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Latest Verus release: $TAG"
+      - uses: actions/checkout@v7
+      - name: Cache toolchains
+        id: cache-toolchain
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ steps.verus-tag.outputs.tag }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Install Rust if cache is missing
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" \
+            | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
+      - name: Download Verus if cache is missing
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          TAG="${{ steps.verus-tag.outputs.tag }}"
+          curl -fsSL -o /tmp/verus.zip \
+            "https://github.com/verus-lang/verus/releases/download/release%2F${TAG}/verus-${TAG}-x86-linux.zip"
+          unzip -q /tmp/verus.zip -d "$HOME"
+          mv "$HOME/verus-x86-linux" "$HOME/verus"
+          rm /tmp/verus.zip
+      - name: Seed cargo registry
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          . "$HOME/.cargo/env"
+          cargo fetch
+
   build-vreplicaset-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vreplicaset controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg APP=vreplicaset .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin vreplicaset_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg APP=vreplicaset .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
       - name: Push vreplicaset controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
+
   build-vstatefulset-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vstatefulset controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest --build-arg APP=vstatefulset .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin vstatefulset_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest --build-arg APP=vstatefulset .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:${{ github.sha }}
       - name: Push vstatefulset controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-controller:${{ github.sha }}
+
   build-rabbitmq-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build rabbitmq controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg APP=rabbitmq .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin rabbitmq_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg APP=rabbitmq .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
       - name: Push rabbitmq controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
+
   build-vdeployment-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vdeployment controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest --build-arg APP=vdeployment .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin vdeployment_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest --build-arg APP=vdeployment .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:${{ github.sha }}
       - name: Push vdeployment controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-controller:${{ github.sha }}
+
   build-vreplicaset-admission-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vreplicaset admission controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest --build-arg APP=vreplicaset_admission .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin vreplicaset_admission_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest --build-arg APP=vreplicaset_admission .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
       - name: Push vreplicaset admission controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
+
   build-vstatefulset-admission-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vstatefulset admission controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg APP=vstatefulset_admission .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin vstatefulset_admission_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg APP=vstatefulset_admission .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
       - name: Push vstatefulset admission controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
+
   build-vdeployment-admission-controller:
+    needs: setup-toolchain
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            ~/verus
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vdeployment admission controller image
         run: |
-          cp docker/controller/Dockerfile.publish Dockerfile
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest --build-arg APP=vdeployment_admission .
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus build --release --bin vdeployment_admission_controller -- --no-verify --time
+          docker build -f docker/controller/Dockerfile -t ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest --build-arg APP=vdeployment_admission .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vdeployment-admission-controller:${{ github.sha }}
       - name: Push vdeployment admission controller image
         run: |

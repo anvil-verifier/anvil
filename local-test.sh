@@ -4,19 +4,18 @@
 ##
 ## Requires kind to be installed and the prerequisites of deploy.sh.
 ## Usage:
-##   ./local-test.sh <controller_name> [--build | --build-remote] [extra cargo-verus args]
+##   ./local-test.sh <controller_name> [--build] [extra cargo-verus args]
 
 set -xeu
 
 app=$(echo "$1" | tr '_' '-')
 app_filename=$(echo "$app" | tr '-' '_')
-dockerfile_path="docker/controller/Dockerfile.local"
+dockerfile_path="docker/controller/Dockerfile"
 build_controller="no"
 
 if [ $# -gt 1 ]; then
     case "$2" in
-        --build)        build_controller="local" ;;
-        --build-remote) build_controller="remote" ;;
+        --build) build_controller="local" ;;
     esac
 fi
 
@@ -30,13 +29,7 @@ build_controller_image() {
             echo "Building $target_app controller binary"
             cargo verus build --release --bin "${target_filename}_controller" -- --no-verify "${@:2}"
             echo "Building $target_app controller image"
-            docker build -f docker/controller/Dockerfile.local \
-                -t "local/${target_app}-controller:v0.1.0" \
-                --build-arg APP="${target_filename}" .
-            ;;
-        remote)
-            echo "Building $target_app controller image using builder"
-            docker build -f docker/controller/Dockerfile.publish \
+            docker build -f docker/controller/Dockerfile \
                 -t "local/${target_app}-controller:v0.1.0" \
                 --build-arg APP="${target_filename}" .
             ;;
