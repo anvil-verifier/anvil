@@ -2122,7 +2122,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2232,51 +2232,26 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                 let filtered_pods = s_prime_state.filtered_pods->0;
                 let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
                 let diff = s_prime_state.reconcile_step->AfterDeletePod_0;
-
                 let msg = input->0;
-                // Case 1: We're processing the get-then-delete request
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
                         s, s_prime, vrs, cluster, controller_id, msg
                     );
-                    assert({
-                        &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, msg)
-                        &&& resp_msg.content.get_get_then_delete_response().res is Ok
-                    });
-
-                    // maintain quantified 'invariant', which doesn't
-                    // care about the pod we delete (at diff) anyway.
-                    assert forall |i| {
-                        &&& pre(s)
-                        &&& stronger_next(s, s_prime)
-                        &&& 0 <= i < diff 
-                    } implies {
-                        &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
-                        &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
-                    } by {
-                        assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
-                        if s.resources().contains_key(filtered_pod_keys[i]) {}
-                    }
+                    assert(s_prime.in_flight().contains(resp_msg));
+                    assert(resp_msg_matches_req_msg(resp_msg, msg));
+                    assert(resp_msg.content.get_get_then_delete_response().res is Ok);
                 } else {
                     lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
                         s, s_prime, vrs, cluster, controller_id, msg
                     );
-
-                    // maintain quantified 'invariant'.
-                    assert forall |i| {
-                        &&& pre(s)
-                        &&& stronger_next(s, s_prime)
-                        &&& 0 <= i < diff 
-                    } implies {
-                        &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
-                        &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
-                    } by {
-                        assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
-                        if s.resources().contains_key(filtered_pod_keys[i]) {}
-                    }
+                }
+                assert forall |i| 0 <= i < diff implies {
+                    &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
+                    &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                    &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
+                } by {
+                    assert(matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]]));
+                    if s.resources().contains_key(filtered_pod_keys[i]) {}
                 }
             },
             _ => {}
