@@ -1,5 +1,5 @@
 use crate::kubernetes_cluster::spec::{api_server::types::*, cluster::*, message::*};
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -197,7 +197,7 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
                         Self::rpc_id_counter_is(rpc_id)(s)
                         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
                     };
-                    entails_and_temp(spec_with_rpc_id, lift_state(Self::rpc_id_counter_is(rpc_id)), lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
+                    entails_and(spec_with_rpc_id, lift_state(Self::rpc_id_counter_is(rpc_id)), lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
                     temp_pred_equality(
                         lift_state(init), lift_state(Self::rpc_id_counter_is(rpc_id)).and(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))
                     );

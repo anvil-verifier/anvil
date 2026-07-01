@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, proof::*, api_actions::*, rolling_update::resource_match::*}, predicate::*},
@@ -391,7 +391,7 @@ pub proof fn esr_for_each_ranking(
             |vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs),
             |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs))))
         );
-        use_tla_forall(spec, |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
+        spec_entails_tla_forall_apply(spec, |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))), vrs);
     }
     // Compose individual VRS ESRs into the conjuncted form
     let desired_state_is_vrs = |vrs| vrs_liveness::desired_state_is(vrs);
@@ -405,8 +405,8 @@ pub proof fn esr_for_each_ranking(
         conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
     );
     // Combine with self-leads-to for owned
-    leads_to_self_temp(always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))));
-    always_leads_to_always_combine(spec,
+    leads_to_self(always(lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key))));
+    always_leads_to_always_and(spec,
         lift_state(conjuncted_desired_state_is_vrs(vrs_set)),
         lift_state(old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)),
         lift_state(conjuncted_current_state_matches_vrs(vrs_set)),
@@ -642,7 +642,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
     };
     assert(composed_spec.entails(true_pred().leads_to(lift_state(reconcile_idle)))) by {
         terminate::reconcile_eventually_terminates(composed_spec, cluster, controller_id);
-        use_tla_forall(composed_spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
+        spec_entails_tla_forall_apply(composed_spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
     }
     // reconcile_idle ~> reconcile_scheduled
     let reconcile_scheduled = |s: ClusterState| {
@@ -675,7 +675,7 @@ pub proof fn ranking_decreases_after_vrs_esr(
         );
         leads_to_by_borrowing_inv(composed_spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
         entails_implies_leads_to(composed_spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
-        or_leads_to_combine(composed_spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        or_leads_to(composed_spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
     }
     let init = and!(
@@ -1202,7 +1202,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                     lift_state(conjuncted_desired_state_is_vrs(old_vrs_set)).and(lift_state(old_vrs_set_is_owned_by_vd(old_vrs_set, vd, new_vrs_key)))
                 );
             }
-            leads_to_exists_intro2(spec,
+            leads_to_exists_pointwise(spec,
                 |old_vrs_set| always(lift_state(old_vrs_pre(old_vrs_set))),
                 |old_vrs_set| always(old_vrs_post(old_vrs_set))
             );
@@ -1306,7 +1306,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                                 get_replicas(vd.spec.replicas) + n
                             }
                         ));
-                        use_tla_forall(spec,
+                        spec_entails_tla_forall_apply(spec,
                             |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs))).leads_to(always(lift_state(vrs_liveness::current_state_matches(vrs)))),
                             vrs_with_replicas
                         );
@@ -1320,8 +1320,8 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                             always(new_vrs_pre_with_diff(n)),
                             always(lift_state(vrs_liveness::current_state_matches(vrs_with_replicas)))
                         );
-                        leads_to_self_temp(always(new_vrs_pre_with_diff(n)));
-                        leads_to_always_combine(spec,
+                        leads_to_self(always(new_vrs_pre_with_diff(n)));
+                        leads_to_always_and(spec,
                             always(new_vrs_pre_with_diff(n)),
                             lift_state(vrs_liveness::current_state_matches(vrs_with_replicas)),
                             new_vrs_pre_with_diff(n)
@@ -1381,7 +1381,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
                     new_vrs_post(new_vrs)
                 );
             }
-            leads_to_exists_intro2(spec,
+            leads_to_exists_pointwise(spec,
                 |new_vrs: VReplicaSetView| lift_state(desired_state_is_vrs_with_key(vd, new_vrs, new_vrs_key)).and(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))),
                 |new_vrs| always(new_vrs_post(new_vrs))
             );
@@ -1393,7 +1393,7 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         }
         // \E vrs_set [] /\ \E new_vrs [] ~> \E (vrs_set and new_vrs) []
         assert(spec.entails(always_vd_post.leads_to(tla_exists(all_vrs_post)))) by {
-            leads_to_exists_always_combine2(spec, always_vd_post, old_vrs_post, new_vrs_post);
+            leads_to_exists_always_and_exists(spec, always_vd_post, old_vrs_post, new_vrs_post);
             assert forall |ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| #[trigger] all_vrs_post(ov_set_nv)
                 == (|ov_set_nv: (Set<VReplicaSetView>, VReplicaSetView)| always(old_vrs_post(ov_set_nv.0)).and(always(new_vrs_post(ov_set_nv.1))))(ov_set_nv) by {
                 temp_pred_equality(
@@ -1582,8 +1582,8 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
             always(lift_state(desired_state_is(vd)))
                 .and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)),
         ))) by {
-            leads_to_self_temp(always(lift_state(desired_state_is(vd))));
-            leads_to_always_combine(provided_spec,
+            leads_to_self(always(lift_state(desired_state_is(vd))));
+            leads_to_always_and(provided_spec,
                 always(lift_state(desired_state_is(vd))),
                 lift_state(desired_state_is(vd)),
                 assumption_and_invariants_of_all_phases(vd, cluster, controller_id)

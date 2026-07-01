@@ -15,7 +15,7 @@ use crate::rabbitmq_controller::trusted::{
     spec_types::*, step::*, liveness_theorem::*, rely_guarantee::*
 };
 use crate::vstatefulset_controller::trusted::spec_types::{VStatefulSetView, VStatefulSetSpecView};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 

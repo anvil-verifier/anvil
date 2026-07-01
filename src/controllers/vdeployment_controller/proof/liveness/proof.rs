@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{spec::*, terminate, resource_match::*, api_actions::*, rolling_update::composition::*}, predicate::*},
@@ -210,7 +210,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     assert(spec.entails(true_pred().leads_to(lift_state(reconcile_idle)))) by {
         always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        use_tla_forall(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
+        spec_entails_tla_forall_apply(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
     }
     // reconcile_idle ~> reconcile_scheduled
     let reconcile_scheduled = |s: ClusterState| {
@@ -249,7 +249,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         );
         leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
         entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
-        or_leads_to_combine(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        or_leads_to(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
     }
     let init = and!(
@@ -331,7 +331,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         }
         leads_to_stable(spec, lift_action(stronger_next), lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
     }
-    leads_to_exists_intro2(spec, lifted_done, |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
+    leads_to_exists_pointwise(spec, lifted_done, |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
     leads_to_trans_n!(spec,
         true_pred(),
         lift_state(reconcile_idle),

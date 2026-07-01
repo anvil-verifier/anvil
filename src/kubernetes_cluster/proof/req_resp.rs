@@ -4,7 +4,7 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     message::*,
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {

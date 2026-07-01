@@ -1,8 +1,8 @@
 use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::proof::core::*;
 use crate::kubernetes_cluster::spec::cluster::*;
-use crate::temporal_logic::defs::*;
-use crate::temporal_logic::rules::*;
+use verus_temporal_logic::defs::*;
+use verus_temporal_logic::rules::*;
 use crate::vreplicaset_controller::model::{install::*, reconciler::*};
 use crate::vreplicaset_controller::proof::{
     guarantee::*,
@@ -93,7 +93,7 @@ pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
 
     assert(spec.entails(tla_forall(G_fn).and(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn))))) by {
         temp_pred_equality(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)), tla_forall(R_fn));
-        entails_and_temp(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
+        entails_and(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
     }
 }
 

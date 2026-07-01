@@ -2628,6 +2628,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tungstenite 0.20.1",
+ "verus_temporal_logic",
  "vstd",
  "warp",
 ]
@@ -2689,6 +2690,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "verus_temporal_logic"
+version = "0.1.0"
+dependencies = [
+ "vstd",
 ]
 
 [[package]]

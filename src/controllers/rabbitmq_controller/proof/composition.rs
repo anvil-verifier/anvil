@@ -2,7 +2,7 @@ use crate::kubernetes_cluster::proof::composition::*;
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::rabbitmq_controller::trusted::{
     spec_types::*, rely_guarantee::*, liveness_theorem::*, step::*
 };
@@ -23,7 +23,7 @@ use crate::vstatefulset_controller::model::{
     reconciler::VStatefulSetReconciler, install::*
 };
 use crate::vstatefulset_controller::proof::liveness::spec as vsts_spec;
-use crate::temporal_logic::rules::*;
+use verus_temporal_logic::rules::*;
 
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -110,7 +110,7 @@ ensures
         // Step 4: Combine: spec |= □desired ~> □(inductive_current_state_matches(VSTS) ∧ cluster_invariants).
         // The first conjunct comes from the inductive(VSTS) ensures of
         // eventually_stable_reconciliation_holds_per_cr called above.
-        leads_to_always_combine(
+        leads_to_always_and(
             spec,
             always(lift_state(Cluster::desired_state_is(rabbitmq))),
             lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)),
@@ -206,7 +206,7 @@ ensures
     assert(spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(
         tla_exists(lifted_always_vsts_pre).and(always(stable_rmq_post))
     ))) by {
-        entails_and_temp(
+        entails_and(
             always(stable_rmq_post),
             tla_exists(lifted_always_vsts_pre),
             always(stable_rmq_post)
@@ -260,7 +260,7 @@ ensures
                 false_leads_to_anything(spec, lifted_always_vsts_post(vsts));
             }
         }
-        leads_to_exists_intro2(spec, lifted_always_vsts_pre, lifted_always_vsts_post);
+        leads_to_exists_pointwise(spec, lifted_always_vsts_pre, lifted_always_vsts_post);
     }
 
     assert forall |vsts: VStatefulSetView|
@@ -287,7 +287,7 @@ ensures
         always(stable_rmq_post).and(tla_exists(lifted_always_vsts_post)),
         tla_exists(lifted_always_vsts_post).and(always(stable_rmq_post))
     );
-    entails_and_different_temp(
+    entails_and_across_specs(
         true_pred(),
         spec,
         always(stable_rmq_post).and(tla_exists(lifted_always_vsts_post)).leads_to(lifted_always_composed_post),

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::cluster::*;
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {

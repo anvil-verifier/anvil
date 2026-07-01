@@ -1,5 +1,5 @@
 use crate::kubernetes_cluster::spec::{api_server::types::InstalledTypes, cluster::*};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {

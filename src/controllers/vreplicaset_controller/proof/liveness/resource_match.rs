@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, helper_lemmas, liveness::api_actions::*, predicate::*},

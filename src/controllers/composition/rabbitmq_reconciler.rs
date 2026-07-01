@@ -13,8 +13,8 @@ use crate::rabbitmq_controller::proof::guarantee::guarantee_condition_holds as r
 use crate::rabbitmq_controller::trusted::{
     liveness_theorem::*, rely_guarantee::*, spec_types::*,
 };
-use crate::temporal_logic::defs::*;
-use crate::temporal_logic::rules::*;
+use verus_temporal_logic::defs::*;
+use verus_temporal_logic::rules::*;
 use crate::vstatefulset_controller::trusted::{
     liveness_theorem as vsts_liveness, rely_guarantee::*,
     spec_types::*,
@@ -108,7 +108,7 @@ pub proof fn rmq_singleton_core_holds(cluster: CoreCluster, id: int)
     // Collapse the env factor (trivial for RMQ) so R.and(D).and(env) matches assumption_rd.
     assert(spec.entails(tla_forall(G_fn).and(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn))))) by {
         temp_pred_equality(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)), assumption_rd);
-        entails_and_temp(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
+        entails_and(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
     }
 }
 

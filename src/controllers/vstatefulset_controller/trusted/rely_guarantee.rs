@@ -6,7 +6,7 @@ use crate::vstatefulset_controller::{
     model::reconciler::*,
     proof::predicate::*
 };
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 

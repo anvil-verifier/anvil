@@ -13,6 +13,7 @@ ws = ["kube/ws"]
 
 [dependencies]
 vstd = "=0.0.0-2026-06-14-0213"
+verus_temporal_logic = { path = "../verus-tla" }
 
 kube = { version = "0.91.0", default-features = false, features = ["admission"] }
 kube-client = { version = "0.91.0", default-features = false }

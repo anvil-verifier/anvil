@@ -1,6 +1,6 @@
 use crate::kubernetes_cluster::spec::cluster::*;
-use crate::temporal_logic::defs::*;
-use crate::temporal_logic::rules::*;
+use verus_temporal_logic::defs::*;
+use verus_temporal_logic::rules::*;
 use crate::kubernetes_cluster::proof::composition::*;
 use vstd::prelude::*;
 

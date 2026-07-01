@@ -15,7 +15,7 @@ use crate::rabbitmq_controller::{
     trusted::{spec_types::*, step::*},
 };
 use crate::reconciler::spec::reconciler::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {

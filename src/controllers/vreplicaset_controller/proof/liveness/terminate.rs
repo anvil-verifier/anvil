@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::spec::{
     controller::types::*,
     message::*
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
@@ -252,7 +252,7 @@ pub proof fn reconcile_eventually_terminates(
             }
 
             entails_implies_leads_to(spec, always(true_pred()), true_pred());
-            wf1_variant_temp(
+            wf1_variant(
                 spec,
                 true_pred(),
                 true_pred(),
@@ -404,7 +404,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     lemma_from_after_list_pods_to_reconcile_idle(spec, vrs, cluster, controller_id);
     assert(spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
         .leads_to(lift_state(reconcile_idle))));
-    or_leads_to_combine_n!(
+    or_leads_to_n!(
         spec,
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done));

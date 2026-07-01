@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::{
     proof::{controller_runtime_liveness::*, network::*},
 };
 
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*, step::VDeploymentReconcileStepView::*},
@@ -343,7 +343,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 assert(always(spec_before_phase_n(7, vd, cluster, controller_id)) == spec_before_phase_n(7, vd, cluster, controller_id)) by {
                     assert(valid(stable(spec_before_phase_n(7, vd, cluster, controller_id)))) by {
                         invariants_since_phase_vi_is_stable(vd, cluster, controller_id);
-                        stable_and_temp(
+                        stable_and(
                             spec_before_phase_n(6, vd, cluster, controller_id),
                             invariants_since_phase_n(6, vd, cluster, controller_id)
                         );
@@ -366,7 +366,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 stable_spec.and(spec_before_phase_n(1, vd, cluster, controller_id))
             );
         }
-        stable_and_temp(
+        stable_and(
             stable_spec,
             invariants(vd, cluster, controller_id)
         );
@@ -410,7 +410,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
     ensures
         spec.and(spec_before_phase_n(i, vd, cluster, controller_id)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
 {
-    stable_and_temp(spec, spec_before_phase_n(i, vd, cluster, controller_id));
+    stable_and(spec, spec_before_phase_n(i, vd, cluster, controller_id));
     reveal_with_fuel(spec_before_phase_n, 7);
     temp_pred_equality(
         spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)),
@@ -455,7 +455,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         implies spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
             assert(provided_spec.entails(always(lift_state(vd_rely(other_id)))));
-            entails_and_different_temp(
+            entails_and_across_specs(
                 provided_spec,
                 spec_before_phase_n(i, vd, cluster, controller_id),
                 always(lift_state(vd_rely(other_id))),
@@ -474,7 +474,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
-        leads_to_always_combine_n!(
+        leads_to_always_and_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
@@ -483,7 +483,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        use_tla_forall(
+        spec_entails_tla_forall_apply(
             spec,
             |key: ObjectRef|
                 true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
@@ -491,7 +491,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
 
         if i == 2 {
-            use_tla_forall(
+            spec_entails_tla_forall_apply(
                 spec, 
                 |input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input)),
                 vd.object_ref()
@@ -501,7 +501,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lemma_eventually_always_vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(spec, vd, cluster, controller_id);
             lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vd.object_ref());
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
@@ -532,7 +532,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lemma_eventually_always_vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             lemma_eventually_always_vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vd.object_ref());
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec,
                 true_pred(),
                 lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
@@ -591,7 +591,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
         always(lifted_vd_rely_condition(cluster, controller_id))
     );
     
-    entails_and_different_temp(
+    entails_and_across_specs(
         spec,
         derived_invariants_since_beginning(vd, cluster, controller_id),
         stable_spec(cluster, controller_id),
@@ -603,7 +603,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     );
 
     // Proof of invariants
-    entails_and_different_temp(
+    entails_and_across_specs(
         spec,
         derived_invariants_since_beginning(vd, cluster, controller_id),
         next_with_wf(cluster, controller_id),

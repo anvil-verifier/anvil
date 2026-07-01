@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::cluster::*;
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vstatefulset_controller::{
     model::reconciler::*,
     trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*},

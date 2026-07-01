@@ -1,5 +1,5 @@
 use crate::kubernetes_cluster::spec::{cluster::*, retentive_cluster::*};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {

@@ -16,7 +16,7 @@ use crate::rabbitmq_controller::{
     proof::{helper_invariants::*, predicate::*, resource::*},
     trusted::{safety_theorem::*, spec_types::*, step::*},
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {

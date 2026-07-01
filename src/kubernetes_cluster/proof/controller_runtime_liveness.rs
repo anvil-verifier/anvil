@@ -6,7 +6,7 @@ use crate::kubernetes_cluster::spec::{
     external::{state_machine::*, types::*},
     message::*,
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::{map::*, prelude::*, set_lib::*, set::*};
 
 verus! {
@@ -344,7 +344,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
     self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
     self.lemma_from_pending_req_in_flight_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
 
-    or_leads_to_combine(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)));
+    or_leads_to(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)));
     temp_pred_equality(lift_state(req_in_flight).or(lift_state(resp_in_flight)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
     leads_to_trans_n!(
         spec,
@@ -985,7 +985,7 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
                         Self::reconcile_id_counter_is(controller_id, reconcile_id)(s)
                         && Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s)
                     };
-                    entails_and_temp(
+                    entails_and(
                         spec_with_reconcile_id, 
                         lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id)), 
                         lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))
@@ -1364,7 +1364,7 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
             .and(reconcile_ongoing(key));
 
 
-    // Set up wf1_variant_temp argument.
+    // Set up wf1_variant argument.
     let invariant = |s: ClusterState| {
         &&& Self::ongoing_reconciles_num_is_at_most_n(controller_id, reconcile_id, rec_num)(s)
         &&& s.ongoing_reconciles(controller_id).contains_key(key)
@@ -1423,7 +1423,7 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
     );
 
     // show spec |= []p ~> forward.
-    use_tla_forall(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), key);
+    spec_entails_tla_forall_apply(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), key);
     entails_implies_leads_to(
         spec,
         always(lift_state(invariant)),
@@ -1437,7 +1437,7 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
     );
 
     // apply wf1 argument.
-    wf1_variant_temp(
+    wf1_variant(
         spec, lift_action(stronger_next), 
         lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)), 
         lift_state(invariant), 

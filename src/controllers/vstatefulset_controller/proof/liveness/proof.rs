@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::{
     proof::{controller_runtime_liveness::*, network::*},
 };
 
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     trusted::{
@@ -83,7 +83,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 assert(always(spec_before_phase_n(6, vsts, cluster, controller_id)) == spec_before_phase_n(6, vsts, cluster, controller_id)) by {
                     assert(valid(stable(spec_before_phase_n(6, vsts, cluster, controller_id)))) by {
                         invariants_since_phase_v_is_stable(vsts, cluster, controller_id);
-                        stable_and_temp(
+                        stable_and(
                             spec_before_phase_n(5, vsts, cluster, controller_id),
                             invariants_since_phase_n(5, vsts, cluster, controller_id)
                         );
@@ -108,7 +108,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 stable_spec.and(spec_before_phase_n(1, vsts, cluster, controller_id))
             );
         }
-        stable_and_temp(
+        stable_and(
             stable_spec,
             invariants(vsts, cluster, controller_id)
         );
@@ -152,7 +152,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
     ensures
         spec.and(spec_before_phase_n(i, vsts, cluster, controller_id)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(vsts, cluster, controller_id))),
 {
-    stable_and_temp(spec, spec_before_phase_n(i, vsts, cluster, controller_id));
+    stable_and(spec, spec_before_phase_n(i, vsts, cluster, controller_id));
     reveal_with_fuel(spec_before_phase_n, 6);
     temp_pred_equality(
         spec.and(spec_before_phase_n(i + 1, vsts, cluster, controller_id)),
@@ -198,7 +198,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, vsts);
         helper_invariants::lemma_eventually_always_vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
         helper_invariants::lemma_eventually_always_vsts_in_schedule_has_no_deletion_timestamp(spec, vsts, cluster, controller_id);
-        leads_to_always_combine_n!(
+        leads_to_always_and_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
@@ -210,7 +210,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        use_tla_forall(
+        spec_entails_tla_forall_apply(
             spec,
             |key: ObjectRef|
                 true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
@@ -224,7 +224,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vsts.object_ref());
             helper_invariants::lemma_eventually_always_vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(spec, vsts, cluster, controller_id);
             helper_invariants::lemma_eventually_always_vsts_in_ongoing_reconciles_has_no_deletion_timestamp(spec, vsts, cluster, controller_id);
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
@@ -259,7 +259,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vsts.object_ref());
             helper_invariants::lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(spec, cluster, controller_id, vsts);
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
@@ -280,7 +280,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             helper_invariants::lemma_eventually_always_every_valid_update_msg_sets_owner_references_as_for_all(spec, cluster, controller_id, vsts);
             helper_invariants::lemma_eventually_always_every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(spec, cluster, controller_id, vsts);
             helper_invariants::lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(spec, cluster, controller_id, vsts);
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
@@ -322,7 +322,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
         always(lift_state(vsts_rely_conditions_pod_monkey()))
     );
 
-    entails_and_different_temp(
+    entails_and_across_specs(
         spec,
         derived_invariants_since_beginning(vsts, cluster, controller_id),
         stable_spec(cluster, controller_id),
@@ -334,7 +334,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     );
 
     // Proof of invariants
-    entails_and_different_temp(
+    entails_and_across_specs(
         spec,
         derived_invariants_since_beginning(vsts, cluster, controller_id),
         next_with_wf(cluster, controller_id),
@@ -942,7 +942,7 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
     // ============================================================
 
     // B1: true ~> reconcile_idle (instantiate from reconcile_eventually_terminates)
-    use_tla_forall(
+    spec_entails_tla_forall_apply(
         stable_spec,
         |key: ObjectRef|
             true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
@@ -1004,10 +1004,10 @@ pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<Cluste
 
     // spec |= always(rely), so spec |= p ~> always(rely)
     always_entails_leads_to_always(spec, p, lift_state(vsts_rely_conditions(cluster, controller_id)));
-    // always(always(rely)) == always(rely), needed for leads_to_always_combine's second argument
+    // always(always(rely)) == always(rely), needed for leads_to_always_and's second argument
     always_double_equality(lift_state(vsts_rely_conditions(cluster, controller_id)));
     // Combine: spec |= p ~> always(A ∧ always(rely))
-    leads_to_always_combine(spec, p,
+    leads_to_always_and(spec, p,
         assumption_and_invariants_of_all_phases(vsts, cluster, controller_id),
         always(lift_state(vsts_rely_conditions(cluster, controller_id)))
     );

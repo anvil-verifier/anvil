@@ -19,7 +19,7 @@ use crate::rabbitmq_controller::{
 };
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -126,7 +126,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 {
     let spec = provided_spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq));
     // Assert that the combined spec also entails the rely condition.
-    entails_and_different_temp(
+    entails_and_across_specs(
         provided_spec,
         spec_before_phase_n(controller_id, i, cluster, rabbitmq),
         always(lift_state(rmq_rely_conditions(cluster, controller_id))),
@@ -143,7 +143,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, rabbitmq);
-        leads_to_always_combine_n!(
+        leads_to_always_and_n!(
             spec,
             true_pred(),
             lift_state(Cluster::crash_disabled(controller_id)),
@@ -172,7 +172,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             // Extract single-key pending_req_of_key_is_unique for the xor lemma
             always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, rabbitmq.object_ref());
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec, true_pred(),
                 lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
                 lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
@@ -192,7 +192,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 controller_id, key, cluster.reconcile_model(controller_id).error)), rabbitmq.object_ref());
             always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, rabbitmq.object_ref());
-            leads_to_always_combine_n!(
+            leads_to_always_and_n!(
                 spec, true_pred(),
                 tla_forall(a_to_p_1), tla_forall(a_to_p_2), tla_forall(a_to_p_3),
                 lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))
@@ -239,7 +239,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
         always(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
 
-    entails_and_different_temp(
+    entails_and_across_specs(
         spec,
         derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
         stable_spec(cluster, controller_id),
@@ -251,7 +251,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     );
 
     // Proof of invariants
-    entails_and_different_temp(
+    entails_and_across_specs(
         spec,
         derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
         next_with_wf(cluster, controller_id),
@@ -815,7 +815,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 assert(always(spec_before_phase_n(controller_id, 6, cluster, rabbitmq)) == spec_before_phase_n(controller_id, 6, cluster, rabbitmq)) by {
                     assert(valid(stable(spec_before_phase_n(controller_id, 6, cluster, rabbitmq)))) by {
                         invariants_since_phase_v_is_stable(rabbitmq);
-                        stable_and_temp(
+                        stable_and(
                             spec_before_phase_n(controller_id, 5, cluster, rabbitmq),
                             invariants_since_phase_n(controller_id, 5, cluster, rabbitmq)
                         );
@@ -840,7 +840,7 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 stable_spec.and(spec_before_phase_n(controller_id, 1, cluster, rabbitmq))
             );
         }
-        stable_and_temp(
+        stable_and(
             stable_spec,
             invariants(controller_id, cluster, rabbitmq)
         );
@@ -884,7 +884,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
     ensures
         spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
 {
-    stable_and_temp(spec, spec_before_phase_n(controller_id, i, cluster, rabbitmq));
+    stable_and(spec, spec_before_phase_n(controller_id, i, cluster, rabbitmq));
     reveal_with_fuel(spec_before_phase_n, 9);
     temp_pred_equality(
         spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)),

@@ -17,7 +17,7 @@ use crate::rabbitmq_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::vstatefulset_controller::trusted::spec_types::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
 

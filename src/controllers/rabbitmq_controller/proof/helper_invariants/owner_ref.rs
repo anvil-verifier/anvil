@@ -22,7 +22,7 @@ use crate::rabbitmq_controller::{
 };
 use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::rabbitmq_controller::model::install::*;
 use vstd::prelude::*;
 

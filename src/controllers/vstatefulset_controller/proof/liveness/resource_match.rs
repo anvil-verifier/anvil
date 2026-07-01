@@ -1,4 +1,4 @@
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_api_objects::{spec::prelude::*, error::APIError::*};
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
@@ -211,7 +211,7 @@ ensures
     temp_pred_equality(lift_state(stronger_pre), lift_state(not_scheduled_state).and(lift_state(Cluster::desired_state_is(vsts))));
     leads_to_by_borrowing_inv(spec, lift_state(not_scheduled_state), lift_state(scheduled_state), lift_state(Cluster::desired_state_is(vsts)));
     entails_implies_leads_to(spec, lift_state(scheduled_state), lift_state(scheduled_state));
-    or_leads_to_combine(spec, lift_state(not_scheduled_state), lift_state(scheduled_state), lift_state(scheduled_state));
+    or_leads_to(spec, lift_state(not_scheduled_state), lift_state(scheduled_state), lift_state(scheduled_state));
     temp_pred_equality(lift_state(idle_state), lift_state(not_scheduled_state).or(lift_state(scheduled_state)));
 }
 
@@ -998,7 +998,7 @@ ensures
     lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
         vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len
     );
-    or_leads_to_combine(spec,
+    or_leads_to(spec,
         lift_state(skip_pvc_state),
         lift_state(create_pvc_state),
         lift_state(next_state)
@@ -1730,7 +1730,7 @@ ensures
                 no_pending_req_in_cluster(vsts, controller_id),
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), needed_index + nat1!(), nat0!(), condemned_len, outdated_len)
             );
-            or_leads_to_combine(spec,
+            or_leads_to(spec,
                 lift_state(create_needed_state_with_needed_index(needed_index)),
                 lift_state(update_needed_state_with_needed_index(needed_index)),
                 lift_state(get_pvc_state)
@@ -1744,7 +1744,7 @@ ensures
                 lift_state(create_or_update_needed_state_with_needed_index(needed_index + 1))
             );
         } else {
-            or_leads_to_combine(spec,
+            or_leads_to(spec,
                 lift_state(create_needed_state_with_needed_index(needed_index)),
                 lift_state(update_needed_state_with_needed_index(needed_index)),
                 lift_state(create_or_update_needed_state_with_needed_index(needed_index + 1))
@@ -1767,7 +1767,7 @@ ensures
         lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
             vsts, spec, cluster, controller_id, max_minus_one, condemned_len, outdated_len
         );
-        or_leads_to_combine(spec,
+        or_leads_to(spec,
             lift_state(create_needed_state_with_needed_index(max_minus_one)),
             lift_state(update_needed_state_with_needed_index(max_minus_one)),
             lift_state(delete_condemned_or_outdated_state)

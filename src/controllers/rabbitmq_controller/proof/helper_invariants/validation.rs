@@ -25,7 +25,7 @@ use crate::rabbitmq_controller::{
     trusted::{spec_types::*, step::*, rely_guarantee::*},
 };
 use crate::reconciler::spec::{reconciler::*, resource_builder::*};
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
 use crate::reconciler::spec::io::{VoidEReqView, VoidERespView};

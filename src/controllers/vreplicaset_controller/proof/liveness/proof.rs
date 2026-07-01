@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message::*};
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_lemmas::*, liveness::{resource_match::*, spec::*, terminate}, predicate::*, helper_invariants},
@@ -147,7 +147,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         implies spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
             assert(provided_spec.entails(always(lift_state(vrs_rely(other_id)))));
-            entails_and_different_temp(
+            entails_and_across_specs(
                 provided_spec,
                 assumption_and_invariants_of_all_phases(vrs, cluster, controller_id),
                 always(lift_state(vrs_rely(other_id))),
@@ -180,7 +180,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 
     // The use of termination property ensures spec |= true ~> reconcile_idle.
     terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-    use_tla_forall(
+    spec_entails_tla_forall_apply(
         spec,
         |key: ObjectRef| 
             true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
@@ -293,7 +293,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, vr
     temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(vrs))), lift_state(stronger_pre));
     leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(vrs)));
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
+    or_leads_to(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())}));
 }
 
