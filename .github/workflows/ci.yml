@@ -37,6 +37,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ steps.verus-tag.outputs.tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Install Rust if cache is missing
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
@@ -59,6 +60,12 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           cargo fetch
+      - name: Compile and cache dependencies
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          . "$HOME/.cargo/env"
+          export PATH="$PATH:$HOME/verus"
+          cargo verus verify -- --no-verify
 
   vreplicaset-verification:
     needs: setup-toolchain
@@ -71,6 +78,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vreplicaset controller
         run: |
@@ -89,6 +97,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vdeployment controller
         run: |
@@ -107,6 +116,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vstatefulset controller
         run: |
@@ -125,6 +135,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify rabbitmq controller
         run: |
@@ -143,6 +154,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the ESR composition
         run: |
@@ -161,6 +173,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify the Anvil framework
         run: |
@@ -186,6 +199,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -212,6 +226,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -238,6 +253,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -264,6 +280,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -290,6 +307,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -316,6 +334,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
