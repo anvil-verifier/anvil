@@ -1,3 +1,5 @@
+#![verifier::allow(unknown_automatic_derive)]
+use vstd::prelude::*;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("ShimLayerError: {0}")]
