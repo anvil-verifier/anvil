@@ -51,7 +51,6 @@ Verifying controllers still requires some expertise on SMT-based theorem proving
 - `kubernetes_cluster/` A model of the core components in a Kubernetes cluster that controllers often interact with, including API servers, etcd, and some built-in controllers. It is written as a TLA-style state machine.
 - `kubernetes_api_objects/` A library that defines commonly used Kubernetes API objects (e.g., Pod, ConfigMap, StatefulSet, Service, etc.). Most definitions are imported from [k8s-openapi](https://github.com/Arnavion/k8s-openapi) (which is also used by [kube](https://github.com/kube-rs/kube)) with a wrapper that allows formal reasoning on these objects.
 - `state_machine/` A library for defining TLA-style state machines, used by `kubernetes_cluster/`.
-- `temporal_logic/` A library for performing temporal logic reasoning on top of Verus. It is mainly used for enabling TLA-style liveness verification.
 - `controllers/` Example controllers we built and verified using Anvil (e.g., `rabbitmq_controller/`, `vreplicaset_controller/`, `vdeployment_controller/`, `vstatefulset_controller/`), plus their `composition/` proofs.
 - `crds.rs` Custom resource type definitions (`kube`-derived), shared by the controllers and the e2e tests.
 - `bin/` Binary entry points, one per controller, admission webhook, and verification target (e.g., `esr_composition.rs`, `tla_demo.rs`).
