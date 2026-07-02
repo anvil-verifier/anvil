@@ -58,18 +58,16 @@ verification targets are library modules (under `src/controllers/`,
 
 ```sh
 # Verify the entire Anvil framework + every controller and proof:
-cargo verus focus --lib -- --rlimit 50 --time
+cargo verus verify --lib
 
 # Verify a single controller, scoped to its module:
-cargo verus focus --lib -- \
-    --rlimit 50 --time --verify-module vreplicaset_controller
+cargo verus verify --lib -- --verify-only-module vreplicaset_controller
 
 # Verify the composition proofs:
-cargo verus focus --lib -- \
-    --rlimit 50 --time --verify-module composition
+cargo verus verify --lib -- --verify-only-module composition
 
 # Verify the TLA demo (proof code lives in src/bin/tla_demo.rs):
-cargo verus focus --bin tla_demo -- --time
+cargo verus verify --lib -- --verify-only-module tla_demo
 ```
 
 Pass extra Verus flags after `--`. Replace `--lib` with `--bin <name>`
