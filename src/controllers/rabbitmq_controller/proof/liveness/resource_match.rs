@@ -21,7 +21,7 @@ use crate::rabbitmq_controller::{
     },
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{prelude::*, string::*, multiset::*};
 
@@ -271,7 +271,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     );
 
     // Combine case 1 and case 2: pre = pre_with_key \/ pre_without_key
-    or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(resource_state_matches(sub_resource, rabbitmq)));
+    or_leads_to(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(resource_state_matches(sub_resource, rabbitmq)));
     temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
 
     // Second/Third ensures: chain through create/update ok responses to either
@@ -412,7 +412,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         );
 
         // Combine the two cases at inductive_csm_and_next_get.
-        or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm_and_next_get));
+        or_leads_to(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm_and_next_get));
         temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
 
         // Weaken inductive_csm_and_next_get to next_get for the second ensures.
@@ -459,7 +459,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         );
 
         // Combine the two cases at inductive_csm.
-        or_leads_to_combine(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm));
+        or_leads_to(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm));
         temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
     }
 }

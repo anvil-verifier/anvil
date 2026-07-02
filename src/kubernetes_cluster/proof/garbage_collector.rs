@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{
     api_server::{types::*, state_machine::*}, builtin_controllers::garbage_collector::*,
     builtin_controllers::types::*, cluster::*, message::*,
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
@@ -238,7 +238,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec, input, stronger_next, BuiltinControllersStep::RunGarbageCollector, pre, delete_msg_in_flight
     );
 
-    leads_to_self_temp(lift_state(post));
+    leads_to_self(lift_state(post));
 
     assert_by(
         spec.entails(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).leads_to(lift_state(post))),
@@ -558,7 +558,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
                     }
                 }
             }
-            eventually_always_combine(spec,
+            eventually_always_and(spec,
                 lift_state(|s: ClusterState| (forall |k| #[trigger] havoc_domain(s).contains(k) ==> k_to_p(k)(s))),
                 lift_state(|s: ClusterState| (forall |k| #[trigger] benign_domain(s).contains(k) ==> k_to_p(k)(s))),
                 lift_state(|s: ClusterState| (forall |k| #[trigger] domain(s).contains(k) ==> k_to_p(k)(s)))

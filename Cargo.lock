@@ -2628,6 +2628,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tungstenite 0.20.1",
+ "verus_temporal_logic",
  "vstd",
  "warp",
 ]
@@ -2689,6 +2690,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "verus_temporal_logic"
+version = "0.1.0"
+source = "git+https://github.com/anvil-verifier/verus-tla?rev=91dcde63d45c4980e9d4555b7e9f6861cfb95705#91dcde63d45c4980e9d4555b7e9f6861cfb95705"
+dependencies = [
+ "vstd",
 ]
 
 [[package]]

@@ -11,7 +11,7 @@ use crate::vstatefulset_controller::model::{
 use crate::vstatefulset_controller::proof::{
     helper_invariants, guarantee, internal_rely_guarantee
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 

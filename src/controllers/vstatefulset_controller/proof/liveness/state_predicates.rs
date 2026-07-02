@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{cluster::*, controller::types::*, message:
 use crate::vstatefulset_controller::trusted::{spec_types::*, step::VStatefulSetReconcileStepView::*, liveness_theorem::*};
 use crate::vstatefulset_controller::model::{reconciler::*, install::*};
 use crate::vstatefulset_controller::proof::predicate::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 

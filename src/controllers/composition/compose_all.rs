@@ -1,5 +1,5 @@
 
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::proof::core::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
@@ -228,7 +228,7 @@ pub proof fn vrs_vd_core_holds(cluster: CoreCluster)
         spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
         entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
 
-        entails_and_temp(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
+        entails_and(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose_dep(cluster, s1, s2);
@@ -289,7 +289,7 @@ pub proof fn vsts_rmq_core_holds(cluster: CoreCluster)
         spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
         entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
 
-        entails_and_temp(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
+        entails_and(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose_dep(cluster, s1, s2);
@@ -388,7 +388,7 @@ proof fn all_core_holds(cluster: CoreCluster)
         }
         spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
         entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
-        entails_and_temp(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
+        entails_and(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose(cluster, s1, s2);

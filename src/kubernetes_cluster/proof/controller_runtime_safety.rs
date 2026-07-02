@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{
     external::state_machine::*, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {

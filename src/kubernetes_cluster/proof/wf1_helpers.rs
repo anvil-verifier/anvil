@@ -3,7 +3,7 @@ use crate::kubernetes_cluster::spec::{
     api_server::types::*, builtin_controllers::types::*, cluster::*, controller::types::*,
     external::types::*, message::*,
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -22,7 +22,7 @@ pub proof fn lemma_pre_leads_to_post_by_api_server(
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
     ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<ClusterState, Option<Message>>(spec, |i| self.api_server_next().weak_fairness(i), input);
+    spec_entails_tla_forall_apply::<ClusterState, Option<Message>>(spec, |i| self.api_server_next().weak_fairness(i), input);
     self.api_server_action_pre_implies_next_pre(step, input);
     entails_trans::<ClusterState>(
         lift_state(pre),
@@ -44,7 +44,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
         spec.entails(tla_forall(|i| self.builtin_controllers_next().weak_fairness(i))),
     ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<ClusterState, (BuiltinControllerChoice, ObjectRef)>(spec, |i| self.builtin_controllers_next().weak_fairness(i), input);
+    spec_entails_tla_forall_apply::<ClusterState, (BuiltinControllerChoice, ObjectRef)>(spec, |i| self.builtin_controllers_next().weak_fairness(i), input);
     self.builtin_controllers_action_pre_implies_next_pre(step, input);
     entails_trans::<ClusterState>(
         lift_state(pre),
@@ -66,7 +66,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller(
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<ClusterState, (Option<Message>, Option<ObjectRef>)>(spec, |i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)), input);
+    spec_entails_tla_forall_apply::<ClusterState, (Option<Message>, Option<ObjectRef>)>(spec, |i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)), input);
     self.controller_action_pre_implies_next_pre(step, (controller_id, input.0, input.1));
     entails_trans(
         lift_state(pre),
@@ -88,7 +88,7 @@ pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile(
         spec.entails(tla_forall(|i| self.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
     ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<ClusterState, ObjectRef>(spec, |i| self.schedule_controller_reconcile().weak_fairness((controller_id, i)), input);
+    spec_entails_tla_forall_apply::<ClusterState, ObjectRef>(spec, |i| self.schedule_controller_reconcile().weak_fairness((controller_id, i)), input);
     self.schedule_controller_reconcile().wf1((controller_id, input), spec, next, pre, post);
 }
 
@@ -104,7 +104,7 @@ pub proof fn lemma_pre_leads_to_post_by_external(
         spec.entails(tla_forall(|i| self.external_next().weak_fairness((controller_id, i)))),
     ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<ClusterState, Option<Message>>(spec, |i| self.external_next().weak_fairness((controller_id, i)), input);
+    spec_entails_tla_forall_apply::<ClusterState, Option<Message>>(spec, |i| self.external_next().weak_fairness((controller_id, i)), input);
     self.external_action_pre_implies_next_pre(step, (controller_id, input));
     entails_trans::<ClusterState>(
         lift_state(pre),

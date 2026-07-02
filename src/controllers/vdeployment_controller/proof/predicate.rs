@@ -1,4 +1,4 @@
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vdeployment_controller::{
     trusted::{rely_guarantee::*, step::*, spec_types::*},

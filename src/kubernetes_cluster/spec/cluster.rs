@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::spec::{
     pod_monkey::state_machine::*, pod_monkey::types::*,
 };
 use crate::state_machine::action::*;
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {

@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::helper_invariants,

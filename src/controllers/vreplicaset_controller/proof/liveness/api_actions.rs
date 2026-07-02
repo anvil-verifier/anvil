@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::kubernetes_cluster::proof::api_server::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, helper_lemmas, predicate::*},

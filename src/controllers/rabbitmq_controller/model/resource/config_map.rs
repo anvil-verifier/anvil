@@ -12,7 +12,7 @@ use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::prelude::*;
 use vstd::string::*;

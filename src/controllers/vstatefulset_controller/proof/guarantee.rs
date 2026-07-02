@@ -8,7 +8,7 @@ use crate::vstatefulset_controller::{
     proof::{predicate::*, helper_lemmas::*, internal_rely_guarantee::*},
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::{prelude::*, map_lib::*};
 use crate::vstd_ext::{string_view::*, seq_lib::*, set_lib::*, map_lib::*};
 

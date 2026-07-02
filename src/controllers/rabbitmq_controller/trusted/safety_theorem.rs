@@ -6,7 +6,7 @@ use crate::vstatefulset_controller::trusted::spec_types::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 

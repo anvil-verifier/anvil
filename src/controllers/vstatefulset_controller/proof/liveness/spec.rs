@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::{
 };
 
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{
         install::*, reconciler::*

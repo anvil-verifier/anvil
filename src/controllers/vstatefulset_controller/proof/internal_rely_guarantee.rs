@@ -6,7 +6,7 @@ use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::InstalledTypes},
 };
 use crate::kubernetes_cluster::proof::api_server::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstatefulset_controller::{
     model::{install::*, reconciler::*},
     proof::{predicate::*, guarantee, helper_invariants, helper_lemmas::*},

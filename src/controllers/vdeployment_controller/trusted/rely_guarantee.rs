@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vdeployment_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;

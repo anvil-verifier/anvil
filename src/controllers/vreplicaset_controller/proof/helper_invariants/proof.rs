@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::*,
 };
 use crate::reconciler::spec::io::*;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     proof::{

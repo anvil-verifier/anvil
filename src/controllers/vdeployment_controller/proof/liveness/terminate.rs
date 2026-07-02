@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{
     controller::types::*,
     message::*
 };
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::reconciler::spec::io::*;
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
@@ -246,7 +246,7 @@ pub proof fn reconcile_eventually_terminates(
             }
 
             entails_implies_leads_to(spec, always(true_pred()), true_pred());
-                wf1_variant_temp(
+                wf1_variant(
                 spec,
                 true_pred(),
                 true_pred(),

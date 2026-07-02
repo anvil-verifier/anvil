@@ -22,7 +22,7 @@ third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
     ├── crds.rs         # k8s CRD type definitions
     ├── kubernetes_api_objects/ kubernetes_cluster/ reconciler/
     ├── shim_layer/ external_shim_layer/ state_machine/
-    ├── temporal_logic/ vstd_ext/ unit_tests/
+    ├── vstd_ext/ unit_tests/
     ├── controllers/    # verified controller implementations
     │   ├── vdeployment_controller/  vreplicaset_controller/
     │   ├── vstatefulset_controller/ rabbitmq_controller/

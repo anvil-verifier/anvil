@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::{prelude::*, pod_template_spec::*};
 use crate::kubernetes_cluster::spec::{cluster::*, message::*, controller::types::ReconcileLocalState};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::{spec_types::*, liveness_theorem as vrs_liveness};
 use crate::vdeployment_controller::{
     model::reconciler::VDeploymentReconcileState,

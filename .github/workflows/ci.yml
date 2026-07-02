@@ -184,7 +184,6 @@ jobs:
             --verify-module kubernetes_cluster \
             --verify-module reconciler \
             --verify-module state_machine \
-            --verify-module temporal_logic \
             --verify-module tla_demo \
             --verify-module vstd_ext
 

@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::rabbitmq_controller::model::{reconciler::*, install::*, resource::*};
 use crate::rabbitmq_controller::trusted::{spec_types::*, step::*};
-use crate::temporal_logic::defs::*;
+use verus_temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::vstatefulset_controller::trusted::liveness_theorem as vsts_liveness_theorem;

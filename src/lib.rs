@@ -8,7 +8,6 @@ pub mod kubernetes_cluster;
 pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
-pub mod temporal_logic;
 pub mod tla_demo;
 pub mod unit_tests;
 pub mod vstd_ext;

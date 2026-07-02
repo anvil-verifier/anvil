@@ -26,7 +26,7 @@ use crate::rabbitmq_controller::{
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
-use crate::temporal_logic::{defs::*, rules::*};
+use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{prelude::*, string::*};
 
@@ -135,7 +135,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq));
     // Assert rely condition on combined spec.
-    entails_and_different_temp(
+    entails_and_across_specs(
         provided_spec,
         assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
         always(lift_state(rmq_rely_conditions(cluster, controller_id))),
@@ -147,7 +147,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     );
 
     // spec = provided_spec /\ assumption_and_invariants_of_all_phases => assumption_and_invariants_of_all_phases
-    entails_and_different_temp(
+    entails_and_across_specs(
         provided_spec,
         assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
         true_pred(),
@@ -403,7 +403,8 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
             // sub_mat /\ always(cm_mat) entails lift_state(combined) (at the current state)
             assert(sub_mat.and(always(cm_mat)).entails(lift_state(combined))) by {
                 assert forall |ex| #[trigger] sub_mat.and(always(cm_mat)).satisfied_by(ex) implies lift_state(combined).satisfied_by(ex) by {
-                    always_to_current(ex, cm_mat);
+                    always_entails_current(cm_mat);
+                    assert(always(cm_mat).implies(cm_mat).satisfied_by(ex));
                 }
             }
             entails_implies_leads_to(spec, sub_mat.and(always(cm_mat)), lift_state(combined));
@@ -500,7 +501,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
     temp_pred_equality(lift_state(pre).and(lift_state(Cluster::desired_state_is(rabbitmq))), lift_state(stronger_pre));
     leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(Cluster::desired_state_is(rabbitmq)));
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
+    or_leads_to(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())}));
 }
 

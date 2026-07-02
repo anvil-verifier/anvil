@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::temporal_logic::defs::*;
-use crate::temporal_logic::rules::*;
+use verus_temporal_logic::defs::*;
+use verus_temporal_logic::rules::*;
 use vstd::prelude::*;
 
 verus! {
@@ -48,7 +48,7 @@ impl<State, Input, Output> Action<State, Input, Output> {
     {
         always_implies_preserved_by_always::<State>(spec, lift_state(pre), lift_state(self.pre(input)));
         leads_to_weaken::<State>(spec, always(lift_state(self.pre(input))), lift_action(self.forward(input)), always(lift_state(pre)), lift_action(self.forward(input)));
-        wf1_variant_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(pre), lift_state(post));
+        wf1_variant::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(pre), lift_state(post));
     }
 }
 
