@@ -28,7 +28,7 @@ third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
     │   ├── vstatefulset_controller/ rabbitmq_controller/
     │   └── composition/
     └── bin/            # binary entry points (one per controller / verification target)
-        ├── anvil.rs   esr_composition.rs   tla_demo.rs
+        ├── esr_composition.rs   tla_demo.rs
         ├── vdeployment_controller.rs   vdeployment_admission_controller.rs
         ├── vreplicaset_controller.rs   vreplicaset_admission_controller.rs
         ├── vstatefulset_controller.rs  vstatefulset_admission_controller.rs
