@@ -3,7 +3,7 @@
 
 # Anvil: Building Formally Verified Kubernetes Controllers
 
-Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs, and [kube](https://github.com/kube-rs/kube), a Kubernetes client in Rust.
+Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs, [verus-tla](https://github.com/anvil-verifier/verus-tla), our Verus embedding library of TLA temporal logic that Anvil's liveness and safety proofs build on, and [kube](https://github.com/kube-rs/kube), a Kubernetes client in Rust.
 
 So far, we have built and verified Kubernetes controllers (including ones for managing RabbitMQ and Kubernetes built-in workloads such as ReplicaSet, Deployment and StatefulSet) using Anvil. We used the [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) and the upstream Kubernetes controllers as references when building our controllers. We are now using Anvil to build (and verify) more controllers.
 
