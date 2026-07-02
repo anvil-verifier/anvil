@@ -58,7 +58,7 @@ verification targets are library modules (under `src/controllers/`,
 
 ```sh
 # Verify the entire Anvil framework + every controller and proof:
-cargo verus verify --lib
+cargo verus verify --lib -- --rlimit 50
 
 # Verify a single controller, scoped to its module:
 cargo verus verify --lib -- --verify-only-module vreplicaset_controller
