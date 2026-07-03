@@ -3,11 +3,11 @@
 
 # Anvil: Building Formally Verified Kubernetes Controllers
 
-Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs, [verus-tla](https://github.com/anvil-verifier/verus-tla), our Verus embedding library of TLA temporal logic that Anvil's liveness and safety proofs build on, and [kube](https://github.com/kube-rs/kube), a Kubernetes client in Rust.
+Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs. Anvil's specifications and proofs are written in [verus-tla](https://github.com/anvil-verifier/verus-tla), the TLA embedding in Verus. The verified controllers use the [kube](https://github.com/kube-rs/kube) client to communicate with the Kubernetes API server and can be deployed in real-world Kubernetes clusters.
 
-So far, we have built and verified Kubernetes controllers (including ones for managing RabbitMQ and Kubernetes built-in workloads such as ReplicaSet, Deployment and StatefulSet) using Anvil. We used the [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) and the upstream Kubernetes controllers as references when building our controllers. We are now using Anvil to build (and verify) more controllers.
+So far, we have built and verified both core and custom Kubernetes controllers using Anvil: three controllers for managing core Kubernetes workloads, including ReplicaSet, Deployment, and StatefulSet, and one custom controller for managing RabbitMQ deployed on Kubernetes. We used the [upstream Kubernetes controllers](https://github.com/kubernetes/kubernetes/tree/master/pkg/controller) and the [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) as references when building our controllers. We are now using Anvil to build (and verify) more controllers.
 
-For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controllers/). Anvil builds and verifies through [`cargo verus`](https://github.com/verus-lang/verus): all third-party dependencies live in the top-level `Cargo.toml` and the Verus standard library (`vstd`) is pulled from [crates.io](https://crates.io/crates/vstd). See [`build.md`](build.md) for how to build, verify and run controllers. You will need a [Verus](https://github.com/verus-lang/verus) binary whose version is consistent with the pinned `vstd` (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)).
+For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controllers/). Anvil builds and verifies through [`cargo verus`](https://github.com/verus-lang/verus): all third-party dependencies live in the top-level `Cargo.toml` and the Verus standard library (`vstd`) is pulled from [crates.io](https://crates.io/crates/vstd). See [`build.md`](build.md) for how to build, verify, and run controllers. You will need a [Verus](https://github.com/verus-lang/verus) binary whose version is consistent with the pinned `vstd` (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)).
 
 If you want to reproduce the results in the OSDI'24 paper "Anvil: Verifying Liveness of Cluster Management Controllers", please refer to the [osdi24](https://github.com/anvil-verifier/anvil/tree/osdi24) branch.
 
@@ -29,7 +29,7 @@ pub trait Reconciler{
     fn reconcile_error(state: &Self::T) -> bool;
 }
 ```
-Every time when `reconcile()` is invoked, it starts with the initial state, transitions to the next state until it arrives at an ending state. Each state transition returns a new state and one request that the controller wants to send to the API server (e.g., Get, List, Create, Update or Delete). The request could also be application specific (e.g., calling ZooKeeper's reconfiguration API). Anvil has a shim layer that issues these requests and feed the corresponding response to the next state transition.
+Every time `reconcile()` is invoked, it starts with the initial state, transitions to the next state until it arrives at an ending state. Each state transition returns a new state and one request that the controller wants to send to the API server (e.g., Get, List, Create, Update, or Delete). The request could also be application-specific (e.g., calling ZooKeeper's reconfiguration API). Anvil has a shim layer that issues these requests and feeds the corresponding response to the next state transition.
 
 For more details, you can refer to the controller [examples](src/controllers/) we have built (see their `exec/` folders).
 
@@ -37,9 +37,9 @@ For more details, you can refer to the controller [examples](src/controllers/) w
 
 Verifying a Kubernetes controller requires the developers to specify some correctness properties and write machine-checkable proofs to show the controller implementation satisfies the properties.
 
-Anvil allows developers to verify diverse types of correctness properties. A key property we find useful is **Eventually Stable Reconciliation (ESR)**, a liveness property stating that a controller should eventually manage the system to its desired state, and stays in that desired state, despite failures and network issues.
+Anvil allows developers to verify diverse types of correctness properties. A key property we find useful is **Eventually Stable Reconciliation (ESR)**, a liveness property stating that a controller should *eventually* make the cluster state match its desired state, and stay in that desired state *stably*, despite failures and network issues.
 
-Verifying controllers still requires some expertise on SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controllers/) we have verified (see their `proof/` folders).
+Verifying controllers still requires some expertise in SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controllers/) we have verified (see their `proof/` folders).
 
 
 ## Source organization
