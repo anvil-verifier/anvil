@@ -1099,10 +1099,8 @@ requires
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
     next_resource_step_after(sub_resource) == after_get_k_request_step(next_resource) || next_resource_step_after(sub_resource) == RabbitmqReconcileStep::Done,
-    // pre(s)
     resource_state_matches(sub_resource, rabbitmq)(s),
     resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, resp_msg)(s),
-    // stronger_next(s, s_prime)
     cluster.next()(s, s_prime),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
