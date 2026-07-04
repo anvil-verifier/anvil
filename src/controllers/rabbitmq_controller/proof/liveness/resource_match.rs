@@ -1544,12 +1544,12 @@ ensures
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
-pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
+proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
-    s: ClusterState, s_prime: ClusterState
+    s: ClusterState, s_prime: ClusterState, input: Option<Message>
 )
 requires
-    cluster.next()(s, s_prime),
+    cluster.next_step(s, s_prime, Step::APIServerStep(input)),
     cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
     cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
     cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
@@ -1559,7 +1559,6 @@ requires
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s),
     cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime),
-    // prove CM RV does not change
     inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s),
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
@@ -1582,12 +1581,8 @@ ensures
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let cr_key = rabbitmq.object_ref();
-
-    let step = choose |step| cluster.next_step(s, s_prime, step);
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-    match step {
-        Step::APIServerStep(input) => {
             let msg = input->0;
             assert(s.ongoing_reconciles(controller_id) == s_prime.ongoing_reconciles(controller_id));
             if msg.src != HostId::Controller(controller_id, cr_key) {
@@ -1726,6 +1721,57 @@ ensures
                     _ => {},
                 }
             }
+}
+
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
+pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
+    controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
+    s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next()(s, s_prime),
+    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
+    rmq_rely_conditions(cluster, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)(s_prime),
+    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s),
+    cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime),
+    // prove CM RV does not change
+    inductive_current_state_matches(rabbitmq, SubResource::ServerConfigMap, controller_id)(s),
+ensures
+    inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
+{
+    RabbitmqReconcileState::marshal_preserves_integrity();
+    RabbitmqClusterView::marshal_preserves_integrity();
+    match sub_resource {
+        SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+        SubResource::Service => ServiceView::marshal_preserves_integrity(),
+        SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+        SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+        SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+        SubResource::Role => RoleView::marshal_preserves_integrity(),
+        SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+        SubResource::VStatefulSetView => VStatefulSetView::marshal_preserves_integrity(),
+    }
+
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+    let cr_key = rabbitmq.object_ref();
+
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+    let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+    match step {
+        Step::APIServerStep(input) => {
+            lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step(
+                controller_id, cluster, sub_resource, rabbitmq, s, s_prime, input
+            );
         },
         Step::ControllerStep(input) => {
             lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step(
