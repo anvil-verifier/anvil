@@ -280,6 +280,32 @@ pub open spec fn all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref
 
 #[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
+proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref_inductive_step(
+    cluster: Cluster, controller_id: int, vsts: VStatefulSetView, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    cluster.next()(s, s_prime),
+    Cluster::desired_state_is(vsts)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)(s),
+    vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)(s),
+ensures
+    Cluster::every_new_req_msg_if_in_flight_then_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))(s, s_prime),
+{
+    let requirements = all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id);
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+            implies requirements(msg, s_prime) by {
+            if !s.in_flight().contains(msg) && msg.src == HostId::Controller(controller_id, vsts.object_ref()) {
+                let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
+                assert(triggering_cr.controller_owner_ref() == vsts.controller_owner_ref());
+            }
+        }
+}
+
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
@@ -306,13 +332,7 @@ ensures
         &&& vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)(s)
     };
     assert forall |s, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
-            implies requirements(msg, s_prime) by {
-            if !s.in_flight().contains(msg) && msg.src == HostId::Controller(controller_id, vsts.object_ref()) {
-                let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr)->Ok_0;
-                assert(triggering_cr.controller_owner_ref() == vsts.controller_owner_ref());
-            }
-        }
+        lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref_inductive_step(cluster, controller_id, vsts, s, s_prime);
     };
     invariant_n!(
         spec, lift_action(stronger_next),
