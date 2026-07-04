@@ -18,6 +18,9 @@ src/*.long-type-*.txt
 vreplicaset_controller.*.txt
 vstatefulset_controller.*.txt
 
+# LOC accounting artifacts
+anvil_loc_table
+
 # Other
 tools/*.json
 certs

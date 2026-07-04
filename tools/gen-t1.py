@@ -119,28 +119,21 @@ def make_display_row(label, loc_data):
     return row
 
 
+LOC_TABLE = os.environ.get("LOC_TABLE", "anvil_loc_table")
+
+
 def gen_for_controller(controller):
     table = []
-    verus_lc_dir = os.path.join(os.environ["VERUS_DIR"], "source/tools/line_count")
-    os.system(
-        "python3 count-loc.py {}/{}_loc_table {}".format(
-            verus_lc_dir, controller, controller
-        )
-    )
+    os.system("python3 count-loc.py {} {}".format(LOC_TABLE, controller))
     loc_data = json.load(open("{}-loc.json".format(controller)))
     table.append(make_display_row(cap_controllers[controller], loc_data))
     return loc_data, table
 
 
 def gen_for_composition(base_controller):
-    """Generate composition proof stats using any controller's loc table that includes composition files."""
+    """Generate composition proof stats from the combined loc table."""
     table = []
-    verus_lc_dir = os.path.join(os.environ["VERUS_DIR"], "source/tools/line_count")
-    os.system(
-        "python3 count-loc.py {}/{}_loc_table composition".format(
-            verus_lc_dir, base_controller
-        )
-    )
+    os.system("python3 count-loc.py {} composition".format(LOC_TABLE))
     loc_data = json.load(open("composition-loc.json"))
     row = make_display_row("Composition proofs", loc_data)
     row[4] = "--"  # conformance_proof not applicable for composition
