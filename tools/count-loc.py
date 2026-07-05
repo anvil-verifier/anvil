@@ -109,6 +109,8 @@ def parse_table_and_collect_lines(file_path, controller_name):
             if controller_name == "composition":
                 if "controllers/composition/" not in fname:
                     continue
+                if fname.endswith("/mod.rs"):
+                    continue
                 row["trusted_spec"] += int(stripped_cols[SPEC_COL])
                 row["core_esr"] += int(stripped_cols[PROOF_COL])
                 continue

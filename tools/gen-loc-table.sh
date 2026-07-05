@@ -4,79 +4,43 @@
 #
 # Prerequisites:
 #   - VERUS_DIR is set (e.g., ~/Project/verus)
-#   - deps_hack is built: cd src/deps_hack && cargo build
-#   - line_count tool is built: cd $VERUS_DIR/source/tools/line_count && cargo build --release
+#   - `cargo verus` is on PATH (or in $VERUS_DIR/source/target-verus/release)
+#   - line_count tool is built:
+#       cd $VERUS_DIR/source/tools/line_count && cargo build --release
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-VERUS_BIN="$(which verus 2>/dev/null || echo "${VERUS_DIR}/source/target-verus/release/verus")"
 LINE_COUNT_DIR="$VERUS_DIR/source/tools/line_count"
 
-VERUS_COMMON_ARGS=(
-    -L "dependency=src/deps_hack/target/debug/deps"
-    --extern=deps_hack="src/deps_hack/target/debug/libdeps_hack.rlib"
-    --crate-type=lib
-    --emit=dep-info
-    --no-verify
-)
-
-# Controllers to process: (short_name, crate_entry_file)
-CONTROLLERS=(
-    "vreplicaset:src/vreplicaset_controller.rs"
-    "vdeployment:src/vdeployment_controller.rs"
-    "vstatefulset:src/vstatefulset_controller.rs"
-    "rabbitmq:src/rabbitmq_controller.rs"
-)
-COMPOSITION_ENTRY="src/esr_composition.rs"
-
 cd "$PROJECT_DIR"
 
-echo "=== Step 1: Generate .d files ==="
-for entry in "${CONTROLLERS[@]}"; do
-    name="${entry%%:*}"
-    crate_file="${entry##*:}"
-    echo "  Generating ${name} .d file from ${crate_file}..."
-    $VERUS_BIN "${VERUS_COMMON_ARGS[@]}" "$crate_file"
-done
-echo "  Generating esr_composition .d file from ${COMPOSITION_ENTRY}..."
-$VERUS_BIN "${VERUS_COMMON_ARGS[@]}" "$COMPOSITION_ENTRY"
+echo "=== Step 1: Generate dep-info (.d) for the whole library ==="
+cargo verus verify --lib -- --no-verify --emit=dep-info
+D_FILE_SRC="$(find "$PROJECT_DIR/target" -name 'verifiable_controllers-*.d' \
+    -printf '%T@ %p\n' | sort -rn | head -n1 | cut -d' ' -f2-)"
+D_FILE="$PROJECT_DIR/anvil.d"
+cp "$D_FILE_SRC" "$D_FILE"
+echo "  dep-info: $D_FILE (from $D_FILE_SRC)"
 
 echo ""
-echo "=== Step 2: Run line_count tool to generate tables ==="
-for entry in "${CONTROLLERS[@]}"; do
-    name="${entry%%:*}"
-    d_file="${PROJECT_DIR}/$(basename "${entry##*:}" .rs).d"
-    echo "  Processing ${name} (${d_file})..."
-    cd "$LINE_COUNT_DIR"
-    cargo run --release -- "$d_file" > "${name}_loc_table"
-    cargo run --release -- "$d_file" --json > "${name}.json"
-    cd "$PROJECT_DIR"
-done
-
-# esr_composition includes composition proofs
-COMP_D_FILE="${PROJECT_DIR}/esr_composition.d"
-echo "  Processing esr_composition (${COMP_D_FILE})..."
-cd "$LINE_COUNT_DIR"
-cargo run --release -- "$COMP_D_FILE" > "esr_composition_loc_table"
-cargo run --release -- "$COMP_D_FILE" --json > "esr_composition.json"
-cd "$PROJECT_DIR"
+echo "=== Step 2: Run line_count to generate the combined table ==="
+LOC_TABLE="$PROJECT_DIR/anvil_loc_table"
+( cd "$LINE_COUNT_DIR" && cargo run --release -- "$D_FILE" ) > "$LOC_TABLE"
+echo "  table: $LOC_TABLE"
 
 echo ""
-echo "=== Step 3: Run count-loc.py for each controller ==="
+echo "=== Step 3: Categorize LOC per controller ==="
 cd "$SCRIPT_DIR"
-for entry in "${CONTROLLERS[@]}"; do
-    name="${entry%%:*}"
+for name in vreplicaset vdeployment vstatefulset rabbitmq composition; do
     echo "  Counting ${name}..."
-    python3 count-loc.py "$LINE_COUNT_DIR/${name}_loc_table" "$name"
+    python3 count-loc.py "$LOC_TABLE" "$name"
 done
-echo "  Counting composition..."
-python3 count-loc.py "$LINE_COUNT_DIR/esr_composition_loc_table" composition
 
 echo ""
 echo "=== Step 4: Generate final table ==="
-python3 gen-t1.py
+LOC_TABLE="$LOC_TABLE" python3 gen-t1.py
 
 echo ""
 echo "=== Done ==="
