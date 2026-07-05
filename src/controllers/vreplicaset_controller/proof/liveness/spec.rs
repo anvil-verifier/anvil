@@ -603,7 +603,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     }
     spec_entails_always_tla_forall_equality(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())));
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VReplicaSetReconcileState::marshal_preserves_integrity();
     assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))) by {

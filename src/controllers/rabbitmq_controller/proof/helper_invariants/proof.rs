@@ -724,67 +724,6 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ClusterState>
     );
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
-proof fn lemma_always_there_is_no_request_msg_to_external_from_controller_inductive_step(
-    controller_id: int, cluster: Cluster, s: ClusterState, s_prime: ClusterState
-)
-requires
-    cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-    cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    cluster.next()(s, s_prime),
-    Cluster::there_is_the_controller_state(controller_id)(s),
-    Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)(s),
-ensures
-    Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)(s_prime),
-{
-    RabbitmqReconcileState::marshal_preserves_integrity();
-    RabbitmqClusterView::marshal_preserves_integrity();
-    let inv = Cluster::there_is_no_request_msg_to_external_from_controller(controller_id);
-        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-        assert forall |msg: Message|
-            inv(s)
-            && #[trigger] s_prime.in_flight().contains(msg)
-            && msg.src.is_controller_id(controller_id)
-            implies msg.dst != HostId::External(controller_id) by {
-            if s.in_flight().contains(msg) {}
-            if new_msgs.contains(msg) {}
-        }
-}
-
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
-pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
-    controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>,
-)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
-        cluster.controller_models.contains_pair(controller_id, rabbitmq_controller_model()),
-    ensures
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
-{
-    let inv = Cluster::there_is_no_request_msg_to_external_from_controller(controller_id);
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
-    };
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    RabbitmqReconcileState::marshal_preserves_integrity();
-    RabbitmqClusterView::marshal_preserves_integrity();
-    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
-        implies inv(s_prime) by {
-        lemma_always_there_is_no_request_msg_to_external_from_controller_inductive_step(controller_id, cluster, s, s_prime);
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(Cluster::there_is_the_controller_state(controller_id))
-    );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-}
-
 proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )

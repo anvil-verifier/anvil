@@ -581,7 +581,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec_entails_always_tla_forall_equality(spec, a_to_p_5);
     });
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(controller_id, cluster, spec);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);

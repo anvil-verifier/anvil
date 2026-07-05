@@ -1106,5 +1106,70 @@ pub proof fn lemma_always_every_in_flight_msg_from_controller_has_kind_as<T: Cus
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
+pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message|
+            #[trigger] s.in_flight().contains(msg) // not the ideal trigger choice, but no matches for the second conjunct anymore.
+            && msg.src.is_controller_id(controller_id)
+            ==> msg.dst != HostId::External(controller_id)
+    }
+}
+
+pub open spec fn reconcile_model_sends_no_external_request(model: ReconcileModel) -> bool {
+    forall |cr: DynamicObjectView, resp_o: Option<ResponseContent>, local: ReconcileLocalState|
+        #[trigger] (model.transition)(cr, resp_o, local).1 is Some
+        ==> (model.transition)(cr, resp_o, local).1->0 is KubernetesRequest
+}
+
+pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(self, spec: TempPred<ClusterState>, controller_id: int)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+        Self::reconcile_model_sends_no_external_request(self.reconcile_model(controller_id)),
+    ensures spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+{
+    let inv = Self::there_is_no_request_msg_to_external_from_controller(controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
+        implies inv(s_prime) by {
+        let step = choose |step| self.next_step(s, s_prime, step);
+        assert forall |msg: Message|
+            #[trigger] s_prime.in_flight().contains(msg)
+            && msg.src.is_controller_id(controller_id)
+            implies msg.dst != HostId::External(controller_id) by {
+            if !s.in_flight().contains(msg) {
+                match step {
+                    Step::ControllerStep(input) => {
+                        let id = input.0;
+                        let controller_result = self.controller(id).next_result(
+                            ControllerActionInput { recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator },
+                            s.controller_and_externals[id].controller
+                        );
+                        let outgoing = controller_result->Enabled_1.send;
+                        if outgoing.len() == 1 {
+                            let elt = outgoing.choose();
+                            if msg == elt {
+                                assert(elt.dst != HostId::External(controller_id));
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+    };
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, inv);
+}
+
 }
 }
