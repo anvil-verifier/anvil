@@ -1849,7 +1849,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
@@ -1976,7 +1975,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_
 // Delete lemmas
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int
@@ -2122,7 +2120,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2295,7 +2292,6 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
 }
 
 // TODO: investigate flaky proof
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,

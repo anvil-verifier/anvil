@@ -147,7 +147,6 @@ pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred
 //
 // This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     self, spec: TempPred<ClusterState>, key: ObjectRef, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 )
@@ -393,7 +392,6 @@ pub open spec fn objects_owner_references_satisfies_for_all(
 // The proof mirrors the single-key proof structure but at the for_all level:
 //   pre_for_all ~> delete_msg_in_flight_for_all ~> post_for_all
 // where all predicates use forall with cond(key) outside.
-#[verifier(rlimit(100))]
 pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
     self, spec: TempPred<ClusterState>, cond: spec_fn(ObjectRef) -> bool, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 )

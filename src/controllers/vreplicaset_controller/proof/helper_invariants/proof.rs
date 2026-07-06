@@ -197,7 +197,6 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
 // Havoc function for VReplicaSetView.
 uninterp spec fn make_vrs() -> VReplicaSetView;
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
@@ -872,7 +871,6 @@ pub proof fn lemma_true_leads_to_always_vrs_in_schedule_has_spec_and_uid_as(clus
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_true_leads_to_always_vrs_in_reconcile_has_spec_and_uid_as(cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, vrs: VReplicaSetView)
     requires

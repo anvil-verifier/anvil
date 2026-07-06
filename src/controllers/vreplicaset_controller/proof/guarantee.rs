@@ -72,7 +72,6 @@ pub open spec fn local_pods_are_bound_to_vrs_with_key(controller_id: int, cr_key
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn lemma_local_pods_are_bound_to_vrs_with_key_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )
@@ -320,7 +319,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(50))]
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     resp_o: Option<ResponseView<VoidERespView>>,

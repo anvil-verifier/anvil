@@ -1002,7 +1002,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
 }
 
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime_during_api_server_step(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState, key: ObjectRef, current_req_msg: Message
@@ -1200,7 +1199,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
     }
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime_during_controller_step(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState, key: ObjectRef, input: (int, Option<Message>, Option<ObjectRef>)

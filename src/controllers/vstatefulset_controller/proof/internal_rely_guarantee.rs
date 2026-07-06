@@ -831,7 +831,6 @@ ensures
 
 // similar to lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )

@@ -358,7 +358,6 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -379,7 +378,6 @@ pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part2_done(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -437,7 +435,6 @@ pub proof fn spec_entails_pending_request_invariants_part3(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part3_get_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -458,7 +455,6 @@ pub proof fn spec_entails_pending_request_invariants_part3_get_pvc(spec: TempPre
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part3_create_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -479,7 +475,6 @@ pub proof fn spec_entails_pending_request_invariants_part3_create_pvc(spec: Temp
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part3_skip_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -514,7 +509,6 @@ pub proof fn spec_entails_pending_request_invariants_part4(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part4_create_needed(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -535,7 +529,6 @@ pub proof fn spec_entails_pending_request_invariants_part4_create_needed(spec: T
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part4_update_needed(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -556,7 +549,6 @@ pub proof fn spec_entails_pending_request_invariants_part4_update_needed(spec: T
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part5(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -582,7 +574,6 @@ pub proof fn spec_entails_pending_request_invariants_part5(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part6(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -616,7 +607,6 @@ pub proof fn spec_entails_pending_request_invariants_part6(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part7(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -644,7 +634,6 @@ pub proof fn spec_entails_pending_request_invariants_part7(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part8(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -770,7 +759,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     spec_entails_derived_invariants_combine(spec, vsts, cluster, controller_id);
 }
 
-#[verifier(rlimit(500))]
 #[verifier(spinoff_prover)]
 pub proof fn assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(
     controller_id: int, cluster: Cluster, vsts: VStatefulSetView

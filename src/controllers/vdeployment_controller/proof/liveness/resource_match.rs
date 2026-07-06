@@ -580,7 +580,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -652,7 +651,6 @@ ensures
 
 // this lemma specifies how VD controller construct the internal cache from list response
 // TODO: talk about VRS status
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_sm: Option<(Uid, ObjectRef, int, bool)>, n: nat
 )
@@ -894,7 +892,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -994,7 +991,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
@@ -1094,7 +1090,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1180,7 +1175,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_sm: (Uid, ObjectRef, int, bool), n: nat
 )
@@ -1286,7 +1280,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
@@ -1485,7 +1478,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
@@ -1663,7 +1655,6 @@ ensures
     }
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
@@ -1738,7 +1729,6 @@ ensures
 
 // TODO: make this proof more stable and faster
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1954,7 +1944,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int)
@@ -2046,7 +2035,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]

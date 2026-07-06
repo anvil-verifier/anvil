@@ -149,7 +149,6 @@ proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -357,7 +356,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 proof fn lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, sub_resource: SubResource, cr_key: ObjectRef
 )
@@ -473,7 +471,6 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_f
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
 proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_flight(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -820,7 +817,6 @@ proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_
 
 // similar to resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(50))]
 pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )

@@ -615,7 +615,6 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
     always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)), sub_resource);
 }
 
-#[verifier(rlimit(500))]
 #[verifier(spinoff_prover)]
 pub proof fn assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView

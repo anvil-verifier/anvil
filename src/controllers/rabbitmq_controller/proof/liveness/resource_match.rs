@@ -867,7 +867,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     );
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_get_resource_step_to_after_update_resource_step_by_controller(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message,
@@ -920,7 +919,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: Message
 )
@@ -1000,7 +998,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 proof fn lemma_resource_state_matches_at_after_update_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
@@ -1088,7 +1085,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_update_resource_step_to_after_get_next_resource_step_inductive_step(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, next_resource: SubResource,
@@ -1153,7 +1149,6 @@ ensures
         }
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_update_resource_step_to_after_get_next_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView,
@@ -1243,7 +1238,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 proof fn lemma_from_after_create_resource_step_to_after_get_next_resource_step_inductive_step(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView,
@@ -1397,7 +1391,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step_this_cr(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState, input: (int, Option<Message>, Option<ObjectRef>)
@@ -1559,7 +1552,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 // don't touch as long as it works
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
@@ -1656,7 +1648,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState, input: Option<Message>
@@ -1837,7 +1828,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
     s: ClusterState, s_prime: ClusterState

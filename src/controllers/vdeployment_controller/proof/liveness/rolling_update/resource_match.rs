@@ -228,7 +228,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(50))]
 pub proof fn lemma_from_after_receive_list_resp_to_after_scale_new_vrs_with_nv(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, new_vrs: VReplicaSetView, diff: nat
 )
