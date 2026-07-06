@@ -319,8 +319,69 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(50))]
+pub proof fn lemma_guarantee_from_reconcile_state(
+    msg: Message,
+    resp_o: Option<ResponseView<VoidERespView>>,
+    state: VReplicaSetReconcileState,
+    vrs: VReplicaSetView,
+    cr_key: ObjectRef,
+    s: ClusterState,
+)
+    requires
+        msg.content is APIRequest,
+        reconcile_core(vrs, resp_o, state).1 is Some,
+        reconcile_core(vrs, resp_o, state).1->0 is KRequest,
+        msg.content->APIRequest_0 == reconcile_core(vrs, resp_o, state).1->0->KRequest_0,
+        local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key, state),
+        local_pods_are_bound_to_vrs_with_key_in_local_state(cr_key, reconcile_core(vrs, resp_o, state).0),
+    ensures
+        match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) => true,
+            APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s),
+            APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s),
+            APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
+            _ => false,
+        }
+{
+    VReplicaSetView::marshal_preserves_integrity();
+    VReplicaSetReconcileState::marshal_preserves_integrity();
+    PodView::marshal_preserves_integrity();
+    let next_state = reconcile_core(vrs, resp_o, state).0;
+
+    if msg.content.is_create_request() {
+        let req = msg.content.get_create_request();
+        assert(has_vrs_prefix(req.obj.metadata.generate_name->0)) by {
+            assert(req.obj.metadata.generate_name->0 == pod_generate_name(vrs));
+            let suffix = vrs.metadata.name.unwrap() + "-"@;
+            assert(req.obj.metadata.generate_name->0 == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
+        }
+        assert(req.obj == make_pod(vrs).marshal());
+    } else if msg.content.is_get_then_delete_request() {
+        let req = msg.content.get_get_then_delete_request();
+        assert(next_state.reconcile_step is AfterDeletePod);
+        let diff = next_state.reconcile_step->AfterDeletePod_0 as int;
+        if state.reconcile_step is AfterListPods {
+            if next_state.filtered_pods is None || next_state.filtered_pods->0.len() <= diff || next_state.filtered_pods->0[diff].metadata.name is None {
+                assert(false);
+            }
+            assert(has_vrs_prefix(req.key.name)) by {
+                assert(next_state.filtered_pods->0.len() > vrs.spec.replicas.unwrap_or(1));
+            }
+        } else {
+            if state.filtered_pods.is_none() {
+                assert(false);
+            }
+            assert(has_vrs_prefix(req.key.name));
+        }
+        assert(req.owner_ref == vrs.controller_owner_ref());
+    } else if msg.content.is_get_then_update_status_request() {
+        let req = msg.content.get_get_then_update_status_request();
+        assert(req.obj.kind == VReplicaSetView::kind());
+    }
+}
+
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -358,102 +419,45 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         VReplicaSetReconcileState::marshal_preserves_integrity();
         PodView::marshal_preserves_integrity();
 
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(req_msg_opt) => {
-                let req_msg = req_msg_opt.unwrap();
-
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::ListRequest(_) => true,
-                    APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
-                    APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
-                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
-                    _ => false, 
-                } by {
+        assert forall |msg| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& msg.content is APIRequest
+            &&& msg.src.is_controller_id(controller_id)
+        } implies match msg.content->APIRequest_0 {
+            APIRequest::ListRequest(_) => true,
+            APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
+            APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
+            APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
+            _ => false,
+        } by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            match step {
+                Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+                    let cr_key = cr_key_opt->0;
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-                }
-            }
-            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
-                let cr_key = cr_key_opt->0;
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::ListRequest(_) => true,
-                    APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
-                    APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
-                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
-                    _ => false, 
-                } by {
-                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
-
-                    if id == controller_id {
-                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        if new_msgs.contains(msg) {
-                            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                            let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
-
-                            if msg.content.is_create_request() {
-                                let req = msg.content.get_create_request();
-                                assert(has_vrs_prefix(req.obj.metadata.generate_name->0)) by {
-                                    assert(req.obj.metadata.generate_name->0 == pod_generate_name(triggering_cr));
-                                    let suffix = triggering_cr.metadata.name.unwrap() + "-"@;
-                                    assert(req.obj.metadata.generate_name->0 == VReplicaSetView::kind()->CustomResourceKind_0 + "-"@ + suffix);
-                                }
-                                assert(req.obj == make_pod(triggering_cr).marshal());
-                            } else if msg.content.is_get_then_delete_request() {
-                                let req = msg.content.get_get_then_delete_request();
-                                let next_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
-                                assert(next_state.reconcile_step is AfterDeletePod);
-                                let diff = next_state.reconcile_step->AfterDeletePod_0 as int;
-                                if state.reconcile_step is AfterListPods {
-                                    if next_state.filtered_pods is None || next_state.filtered_pods->0.len() <= diff || next_state.filtered_pods->0[diff].metadata.name is None {
-                                        assert(false);
-                                    }
-                                    assert(has_vrs_prefix(req.key.name)) by {
-                                        assert(next_state.filtered_pods->0.len() > triggering_cr.spec.replicas.unwrap_or(1));
-                                        assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
-                                    }
-                                } else {
-                                    if state.filtered_pods.is_none() {
-                                        assert(false);
-                                    }
-                                    assert(has_vrs_prefix(req.key.name)) by {
-                                        assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
-                                    }
-                                }
-                                assert(req.owner_ref == triggering_cr.controller_owner_ref());
-                            } else if msg.content.is_get_then_update_status_request() {
-                                let req = msg.content.get_get_then_update_status_request();
-                                assert(req.obj.kind == VReplicaSetView::kind());
-                            }
-                        }
+                    if id == controller_id && new_msgs.contains(msg) {
+                        let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                        let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                        let resp_o = if resp_msg_opt is Some {
+                            Some(ResponseView::KResponse(resp_msg_opt->0.content->APIResponse_0))
+                        } else {
+                            None
+                        };
+                        assert(msg.content->APIRequest_0 == reconcile_core(triggering_cr, resp_o, state).1->0->KRequest_0);
+                        assert(reconcile_core(triggering_cr, resp_o, state).0
+                            == VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0);
+                        // discharge the local-pods-bound preconditions from local_pods_have_vrs_prefix at cr_key.
+                        assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+                        assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
+                        assert(local_pods_are_bound_to_vrs_with_key(controller_id, cr_key, s));
+                        assert(local_pods_are_bound_to_vrs_with_key(controller_id, cr_key, s_prime));
+                        lemma_guarantee_from_reconcile_state(msg, resp_o, state, triggering_cr, cr_key, s_prime);
                     }
-                }
-            }
-            _ => {
-                assert forall |msg| {
-                    &&& invariant(s)
-                    &&& stronger_next(s, s_prime)
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.content is APIRequest
-                    &&& msg.src.is_controller_id(controller_id)
-                } implies match msg.content->APIRequest_0 {
-                    APIRequest::ListRequest(_) => true,
-                    APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
-                    APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
-                    APIRequest::GetThenUpdateStatusRequest(req) => vrs_guarantee_get_then_update_status_req(req),
-                    _ => false, 
-                } by {
+                },
+                _ => {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
                 }
             }
