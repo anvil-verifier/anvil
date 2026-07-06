@@ -2296,6 +2296,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
 
 // TODO: investigate flaky proof
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int
