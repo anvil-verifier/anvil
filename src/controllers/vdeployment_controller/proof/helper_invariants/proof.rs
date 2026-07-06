@@ -62,7 +62,7 @@ requires
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
     spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
-    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)))),
     spec.entails(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))),
 ensures
     spec.entails(true_pred().leads_to(always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id))))),
@@ -117,8 +117,8 @@ ensures
         &&& garbage_collector_does_not_delete_vd_vrs_objects(vd)(s_prime)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
-        &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s)
-        &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s_prime)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
     };
@@ -177,7 +177,7 @@ ensures
 
     always_to_always_later(spec, lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
     always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -211,8 +211,8 @@ ensures
         later(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd))),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
-        lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
-        later(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)),
+        later(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)
     );
 
@@ -411,7 +411,7 @@ requires
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
     spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
-    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)))),
     spec.entails(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))),
 ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interfering_update_request(vd, controller_id))))),
 {
@@ -435,7 +435,7 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
     // To make our job easier, we carry a few stronger conditions on what
     // in the cluster can send updates.
     let stronger_requirements = |msg: Message, s: ClusterState| {
-        msg.content is APIRequest ==> {
+        msg.content is APIRequest && msg.dst is APIServer ==> {
             &&& msg.src != HostId::Controller(controller_id, vd.object_ref()) ==>
                 match msg.content->APIRequest_0 {
                     APIRequest::UpdateRequest(req) =>
@@ -481,8 +481,8 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
-        &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s)
-        &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s_prime)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
     };
@@ -553,9 +553,7 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
                     }
                 }
             } else {
-                if s.in_flight().contains(msg)
-                    && msg.content is APIRequest
-                    && msg.src is Controller {
+                if s.in_flight().contains(msg) && msg.content is APIRequest && msg.src is Controller && msg.dst is APIServer {
                     let id = msg.src->Controller_0;
                     let cr_key = msg.src->Controller_1;
                     if id != controller_id {
@@ -582,7 +580,7 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
     always_to_always_later(spec, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
     always_to_always_later(spec, lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
     always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -614,8 +612,8 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
         later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
-        lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
-        later(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)),
+        later(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)
     );
 
@@ -666,7 +664,7 @@ requires
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
     spec.entails(always(lift_state(no_pending_interfering_update_request(vd, controller_id)))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
-    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)))),
     spec.entails(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))),
 ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd))))),
 {
@@ -721,8 +719,8 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_do
         &&& no_pending_interfering_update_request(vd, controller_id)(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s)
         &&& Cluster::no_pending_request_to_api_server_from_non_controllers()(s_prime)
-        &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s)
-        &&& every_msg_from_vd_controller_carries_vd_key(controller_id)(s_prime)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& forall |vd: VDeploymentView| #[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
     };
@@ -818,7 +816,7 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_do
     }
 
     always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -849,8 +847,8 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_do
         lift_state(no_pending_interfering_update_request(vd, controller_id)),
         lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
         later(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers())),
-        lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)),
-        later(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)),
+        later(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id))),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)
     );
 
@@ -1359,54 +1357,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
     }
 }
 
-pub proof fn lemma_always_every_msg_from_vd_controller_carries_vd_key(
-    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
-)
-requires
-    spec.entails(lift_state(cluster.init())),
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-ensures
-    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
-{
-    let inv = every_msg_from_vd_controller_carries_vd_key(controller_id);
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
-    };
-    cluster.lemma_always_there_is_the_controller_state(
-        spec, controller_id
-    );
-
-    VDeploymentReconcileState::marshal_preserves_integrity();
-    VDeploymentView::marshal_preserves_integrity();
-
-    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
-        implies inv(s_prime) by {
-        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-
-        assert forall |msg: Message|
-            inv(s)
-            && #[trigger] s_prime.in_flight().contains(msg)
-            && msg.src is Controller
-            && msg.src->Controller_0 == controller_id
-            implies msg.src->Controller_1.kind == VDeploymentView::kind() by {
-            if new_msgs.contains(msg) {
-            } else {
-                if s.in_flight().contains(msg) {
-                    // Empty if statement required to trigger quantifiers.
-                }
-            }
-        }
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(Cluster::there_is_the_controller_state(controller_id))
-    );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-}
 
 pub proof fn lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
@@ -1645,7 +1595,7 @@ ensures
     spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())))),
     spec.entails(always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)))),
     spec.entails(always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))),
-    spec.entails(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))),
+    spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)))),
     spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
     spec.entails(always(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()))),
     spec.entails(always(lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)))),
@@ -1678,7 +1628,7 @@ ensures
     always_weaken(spec, p, lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())));
     always_weaken(spec, p, lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)));
     always_weaken(spec, p, lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
-    always_weaken(spec, p, lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_weaken(spec, p, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     always_weaken(spec, p, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
     always_weaken(spec, p, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
     always_weaken(spec, p, lift_state(vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));

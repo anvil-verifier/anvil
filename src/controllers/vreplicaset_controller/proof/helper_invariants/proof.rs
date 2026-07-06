@@ -51,7 +51,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))))),
         spec.entails(always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))))),
 {
@@ -105,8 +105,8 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s_prime)
         &&& no_pending_mutation_request_not_from_controller_on_pods()(s)
         &&& no_pending_mutation_request_not_from_controller_on_pods()(s_prime)
-        &&& every_msg_from_vrs_controller_carries_vrs_key(controller_id)(s)
-        &&& every_msg_from_vrs_controller_carries_vrs_key(controller_id)(s_prime)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)(s)
+        &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)(s_prime)
         &&& forall |vrs: VReplicaSetView| #[trigger] vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(s)
         &&& forall |vrs: VReplicaSetView| #[trigger] vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(s_prime)
     };
@@ -149,7 +149,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
 
     always_to_always_later(spec, lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)));
     always_to_always_later(spec, lift_state(no_pending_mutation_request_not_from_controller_on_pods()));
-    always_to_always_later(spec, lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)));
+    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -182,8 +182,8 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         later(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs))),
         lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
         later(lift_state(no_pending_mutation_request_not_from_controller_on_pods())),
-        lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)),
-        later(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id))),
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)),
+        later(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id))),
         lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id)
     );
 
@@ -740,54 +740,6 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
     );
 }
 
-pub proof fn lemma_always_every_msg_from_vrs_controller_carries_vrs_key(
-    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
-)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
-    ensures
-        spec.entails(always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)))),
-{
-    let inv = every_msg_from_vrs_controller_carries_vrs_key(controller_id);
-    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
-    };
-    cluster.lemma_always_there_is_the_controller_state(
-        spec, controller_id
-    );
-
-    VReplicaSetReconcileState::marshal_preserves_integrity();
-    VReplicaSetView::marshal_preserves_integrity();
-
-    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime)
-        implies inv(s_prime) by {
-        let new_msgs = s_prime.in_flight().sub(s.in_flight());
-
-        assert forall |msg: Message|
-            inv(s)
-            && #[trigger] s_prime.in_flight().contains(msg)
-            && msg.src is Controller
-            && msg.src->Controller_0 == controller_id
-            implies msg.src->Controller_1.kind == VReplicaSetView::kind() by {
-            if new_msgs.contains(msg) {
-            } else {
-                if s.in_flight().contains(msg) {
-                    // Empty if statement required to trigger quantifiers.
-                }
-            }
-        }
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(Cluster::there_is_the_controller_state(controller_id))
-    );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-}
 
 pub proof fn lemma_eventually_always_vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int

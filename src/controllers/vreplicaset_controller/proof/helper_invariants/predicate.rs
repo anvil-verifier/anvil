@@ -420,20 +420,6 @@ pub open spec fn filtered_pods_invariant_matrix(controller_id: int, key: ObjectR
 // would be better to split them.
 //
 
-pub open spec fn every_msg_from_vrs_controller_carries_vrs_key(
-    controller_id: int,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
-            let content = msg.content;
-            &&& s.in_flight().contains(msg)
-            &&& msg.src is Controller
-            &&& msg.src->Controller_0 == controller_id
-        } ==> {
-            msg.src->Controller_1.kind == VReplicaSetView::kind()
-        }
-    }
-}
 
 // vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp
 pub open spec fn vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(
