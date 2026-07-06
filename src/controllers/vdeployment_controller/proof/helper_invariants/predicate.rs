@@ -386,13 +386,6 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
     }
 }
 
-//
-// TODO: See if we can split up this invariant into smaller ones.
-// Both parts are necessary outside of this proof, but maybe for presentation purposes it 
-// would be better to split them.
-//
-
-
 pub open spec fn vd_in_etcd_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {

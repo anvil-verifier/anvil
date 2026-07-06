@@ -414,12 +414,6 @@ pub open spec fn filtered_pods_invariant_matrix(controller_id: int, key: ObjectR
         }
     }
 }
-//
-// TODO: See if we can split up this invariant into smaller ones.
-// Both parts are necessary outside of this proof, but maybe for presentation purposes it 
-// would be better to split them.
-//
-
 
 // vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp
 pub open spec fn vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(
