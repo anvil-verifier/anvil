@@ -378,20 +378,6 @@ pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])));
 }
 
-pub proof fn spec_entails_pending_request_invariants_part2(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
-    requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
-        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
-        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
-    ensures
-        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))))),
-        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))),
-{
-    spec_entails_pending_request_invariants_part2_done(spec, cluster, controller_id);
-    spec_entails_pending_request_invariants_part2_error(spec, cluster, controller_id);
-}
-
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part2_done(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
@@ -714,7 +700,8 @@ pub proof fn spec_entails_pending_request_invariants(spec: TempPred<ClusterState
 {
     // due to the complexity of transitions
     spec_entails_pending_request_invariants_part1(spec, cluster, controller_id);
-    spec_entails_pending_request_invariants_part2(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part2_done(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part2_error(spec, cluster, controller_id);
     spec_entails_pending_request_invariants_part3(spec, cluster, controller_id);
     spec_entails_pending_request_invariants_part4(spec, cluster, controller_id);
     spec_entails_pending_request_invariants_part5(spec, cluster, controller_id);
