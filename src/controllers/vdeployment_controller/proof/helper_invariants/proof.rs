@@ -226,6 +226,7 @@ ensures
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
@@ -634,6 +635,7 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_objects(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int,
 )
@@ -948,6 +950,7 @@ ensures spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_
 // lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime_during_api_server_step
 // lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime_during_controller_step
 // is separated from this proof to resolve the isolation problem
+#[verifier(spinoff_prover)]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState, key: ObjectRef
 )

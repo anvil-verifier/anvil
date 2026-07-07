@@ -141,6 +141,7 @@ ensures
     }
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState, input: Option<Message>
 )

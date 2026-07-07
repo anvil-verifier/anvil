@@ -151,6 +151,7 @@ ensures
 }
 
 // same as lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp with stronger post
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp_with_nv(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
 )

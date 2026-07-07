@@ -397,6 +397,7 @@ pub proof fn spec_entails_pending_request_invariants_part2_done(spec: TempPred<C
 }
 
 #[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part2_error(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),

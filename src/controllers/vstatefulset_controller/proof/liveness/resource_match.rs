@@ -1488,6 +1488,7 @@ ensures
 }
 
 #[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -1651,6 +1652,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2200,6 +2202,7 @@ ensures
 }
 
 #[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2542,6 +2545,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_delete_condemned_leads_to_after_delete_condemned_request(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2807,6 +2811,7 @@ ensures
 }
 
 #[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_delete_condemned_leads_to_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2952,6 +2957,7 @@ ensures
 }
 
 #[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_delete_outdated_leads_to_done(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
@@ -3117,6 +3123,7 @@ ensures
     }
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_delete_outdated_leads_to_after_delete_outdated_or_done(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
 )
@@ -3757,6 +3764,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_get_pvc_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, resp_msg: Message, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3857,6 +3865,7 @@ ensures
 
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
 // handle_after_create_or_skip_pvc_helper slows down the reasoning
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_create_pvc_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )

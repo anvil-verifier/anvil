@@ -580,6 +580,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -1090,6 +1091,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1478,6 +1480,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1942,6 +1945,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int)
 )

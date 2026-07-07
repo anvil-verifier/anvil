@@ -152,6 +152,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd_with_nv_status_matching_replicas(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
 ) -> (resp_msg: Message)
