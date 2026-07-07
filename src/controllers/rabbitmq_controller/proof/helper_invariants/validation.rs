@@ -64,8 +64,6 @@ pub open spec fn stateful_set_update_request_msg_does_not_change_owner_reference
     }
 }
 
-#[verifier(rlimit(30))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),

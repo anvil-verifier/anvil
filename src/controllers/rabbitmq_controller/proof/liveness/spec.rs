@@ -114,7 +114,6 @@ pub open spec fn spec_before_phase_n(controller_id: int, n: nat, cluster: Cluste
     }
 }
 
-#[verifier(rlimit(100))]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, i: nat, rabbitmq: RabbitmqClusterView)
     requires
         1 <= i <= 5,
@@ -537,6 +536,7 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -581,7 +581,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         spec_entails_always_tla_forall_equality(spec, a_to_p_5);
     });
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(controller_id, cluster, spec);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_all_requests_from_builtin_controllers_are_api_delete_requests(spec);
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
@@ -738,7 +738,6 @@ ensures
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn sm_spec_entails_no_pending_msg_at_error(
     cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef
 )

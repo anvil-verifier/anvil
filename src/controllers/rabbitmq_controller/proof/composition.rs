@@ -49,7 +49,6 @@ pub open spec fn vsts_pre(rabbitmq: RabbitmqClusterView) -> spec_fn(VStatefulSet
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn composed_rmq_eventually_stable_reconciliation_per_cr(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
 requires
     spec.entails(lift_state(cluster.init())),

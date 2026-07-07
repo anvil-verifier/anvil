@@ -358,7 +358,6 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -369,7 +368,7 @@ pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))))),
 {
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![Init])))) by {
@@ -378,9 +377,7 @@ pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])));
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
-pub proof fn spec_entails_pending_request_invariants_part2(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+pub proof fn spec_entails_pending_request_invariants_part2_done(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
@@ -388,24 +385,38 @@ pub proof fn spec_entails_pending_request_invariants_part2(spec: TempPred<Cluste
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
     ensures
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))))),
-        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))),
 {
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), cluster.reconcile_model(controller_id).done)))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)));
+}
+
+#[verifier(rlimit(200))]
+#[verifier(spinoff_prover)]
+pub proof fn spec_entails_pending_request_invariants_part2_error(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))),
+{
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
+    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), cluster.reconcile_model(controller_id).error)))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part3(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -417,26 +428,71 @@ pub proof fn spec_entails_pending_request_invariants_part3(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))),
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))),
 {
+    spec_entails_pending_request_invariants_part3_get_pvc(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part3_create_pvc(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part3_skip_pvc(spec, cluster, controller_id);
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn spec_entails_pending_request_invariants_part3_get_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))))),
+{
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![GetPVC])))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), at_step_or![GetPVC]);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])));
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn spec_entails_pending_request_invariants_part3_create_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))))),
+{
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
+    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![CreatePVC])))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), at_step_or![CreatePVC]);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC])));
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn spec_entails_pending_request_invariants_part3_skip_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))))),
+{
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
+    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![SkipPVC])))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), at_step_or![SkipPVC]);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC])));
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part4(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -447,14 +503,44 @@ pub proof fn spec_entails_pending_request_invariants_part4(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))),
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))),
 {
+    spec_entails_pending_request_invariants_part4_create_needed(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part4_update_needed(spec, cluster, controller_id);
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn spec_entails_pending_request_invariants_part4_create_needed(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))))),
+{
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![CreateNeeded])))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), at_step_or![CreateNeeded]);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded])));
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn spec_entails_pending_request_invariants_part4_update_needed(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    ensures
+        spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))))),
+{
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
+    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![UpdateNeeded])))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]);
     }
@@ -462,7 +548,6 @@ pub proof fn spec_entails_pending_request_invariants_part4(spec: TempPred<Cluste
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part5(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -474,7 +559,7 @@ pub proof fn spec_entails_pending_request_invariants_part5(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))))),
 {
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![DeleteCondemned])))) by {
@@ -487,8 +572,6 @@ pub proof fn spec_entails_pending_request_invariants_part5(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated])));
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part6(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -501,7 +584,7 @@ pub proof fn spec_entails_pending_request_invariants_part6(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))))),
 {
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![AfterListPod])))) by {
@@ -521,8 +604,6 @@ pub proof fn spec_entails_pending_request_invariants_part6(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC])));
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part7(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -534,7 +615,7 @@ pub proof fn spec_entails_pending_request_invariants_part7(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))))),
 {
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![AfterCreateNeeded])))) by {
@@ -549,8 +630,6 @@ pub proof fn spec_entails_pending_request_invariants_part7(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])));
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
 pub proof fn spec_entails_pending_request_invariants_part8(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -562,7 +641,7 @@ pub proof fn spec_entails_pending_request_invariants_part8(spec: TempPred<Cluste
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))))),
 {
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), at_step_or![AfterDeleteCondemned])))) by {
@@ -606,7 +685,8 @@ pub proof fn spec_entails_pending_request_invariants(spec: TempPred<ClusterState
 {
     // due to the complexity of transitions
     spec_entails_pending_request_invariants_part1(spec, cluster, controller_id);
-    spec_entails_pending_request_invariants_part2(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part2_done(spec, cluster, controller_id);
+    spec_entails_pending_request_invariants_part2_error(spec, cluster, controller_id);
     spec_entails_pending_request_invariants_part3(spec, cluster, controller_id);
     spec_entails_pending_request_invariants_part4(spec, cluster, controller_id);
     spec_entails_pending_request_invariants_part5(spec, cluster, controller_id);
@@ -648,7 +728,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())));
 
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    helper_invariants::lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
 
@@ -675,8 +755,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     spec_entails_derived_invariants_combine(spec, vsts, cluster, controller_id);
 }
 
-#[verifier(rlimit(500))]
-#[verifier(spinoff_prover)]
 pub proof fn assumptions_and_invariants_of_all_phases_entails_cluster_invariants_since_reconciliation(
     controller_id: int, cluster: Cluster, vsts: VStatefulSetView
 )

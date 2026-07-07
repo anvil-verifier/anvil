@@ -580,7 +580,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
 )
@@ -652,7 +652,6 @@ ensures
 
 // this lemma specifies how VD controller construct the internal cache from list response
 // TODO: talk about VRS status
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_sm: Option<(Uid, ObjectRef, int, bool)>, n: nat
 )
@@ -894,7 +893,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -994,7 +992,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
@@ -1094,7 +1091,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1180,7 +1177,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas_sm: (Uid, ObjectRef, int, bool), n: nat
 )
@@ -1286,7 +1282,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
@@ -1402,6 +1397,7 @@ ensures
 
 // same as lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1484,7 +1480,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1587,6 +1583,80 @@ ensures
 
 #[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
+pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight_inductive_step(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat,
+    s: ClusterState, s_prime: ClusterState,
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    n > 0,
+    and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
+        resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), n),
+        local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
+    )(s),
+    cluster.next()(s, s_prime),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+ensures
+    and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
+        resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), n),
+        local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
+    )(s_prime)
+    || and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
+        pending_scale_old_vrs_req_in_flight(vd, controller_id, nv_uid_key_replicas.0),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), n - nat1!()),
+        local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
+    )(s_prime),
+{
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    match step {
+        Step::APIServerStep(input) => {
+            let msg = input->0;
+            lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
+            lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
+            );
+            lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                s, s_prime, vd, cluster, controller_id, msg
+            );
+        },
+        Step::ControllerStep(input) => {
+            if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                VReplicaSetView::marshal_preserves_integrity();
+                assert(pending_scale_old_vrs_req_in_flight(vd, controller_id, nv_uid_key_replicas.0)(s_prime)) by {
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                    let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
+                    let key = req.key();
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assert forall |i: int| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
+                        implies vds_prime.old_vrs_list[i].object_ref() != key by {
+                        assert(key == vds_prime.old_vrs_list[vds_prime.old_vrs_index as int].object_ref());
+                        if vds_prime.old_vrs_list[i].object_ref() == key {
+                            let key_list = vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref());
+                            assert(key_list[i] == key_list[vds_prime.old_vrs_index as int]);
+                            assert(!key_list.no_duplicates());
+                            assert(false);
+                        }
+                    }
+                }
+            }
+        },
+        _ => {}
+    }
+}
+
 pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1645,42 +1715,9 @@ ensures
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let msg = input->0;
-                lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
-                lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
-                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
-                );
-                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, msg
-                );
-            },
-            Step::ControllerStep(input) => {
-                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
-                    VDeploymentReconcileState::marshal_preserves_integrity();
-                    VReplicaSetView::marshal_preserves_integrity();
-                    assert(pending_scale_old_vrs_req_in_flight(vd, controller_id, nv_uid_key_replicas.0)(s_prime)) by {
-                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                        let req = req_msg.content->APIRequest_0->GetThenUpdateRequest_0;
-                        let key = req.key();
-                        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        assert forall |i: int| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
-                            implies vds_prime.old_vrs_list[i].object_ref() != key by {
-                            assert(key == vds_prime.old_vrs_list[vds_prime.old_vrs_index as int].object_ref());
-                            if vds_prime.old_vrs_list[i].object_ref() == key {
-                                let key_list = vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref());
-                                assert(key_list[i] == key_list[vds_prime.old_vrs_index as int]);
-                                assert(!key_list.no_duplicates());
-                                assert(false);
-                            }
-                        }
-                    }
-                }
-            },
-            _ => {}
-        }
+        lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight_inductive_step(
+            vd, cluster, controller_id, resp_msg, nv_uid_key_replicas, n, s, s_prime
+        );
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
@@ -1693,7 +1730,6 @@ ensures
 
 // TODO: make this proof more stable and faster
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1909,7 +1945,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key_replicas: (Uid, ObjectRef, int)
@@ -2001,8 +2036,67 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
+pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches_inductive_step(
+    vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int),
+    s: ClusterState, s_prime: ClusterState,
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
+        resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+        local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
+    )(s),
+    cluster.next()(s, s_prime),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+ensures
+    and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
+        resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas.0),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+        local_state_is(vd, controller_id, Some(nv_uid_key_replicas), nat0!()),
+        local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
+    )(s_prime)
+    || and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+        no_pending_req_in_cluster(vd, controller_id),
+        current_state_matches_with_new_vrs_key(vd, nv_uid_key_replicas.1)
+    )(s_prime),
+{
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    match step {
+        Step::APIServerStep(input) => {
+            let msg = input->0;
+            lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
+            lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), nat0!()
+            );
+            lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                s, s_prime, vd, cluster, controller_id, msg
+            );
+        },
+        Step::ControllerStep(input) => {
+            if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                // trigger
+                assert(etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s_prime));
+                lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(vd, cluster, controller_id, nv_uid_key_replicas, s_prime);
+            }
+        },
+        _ => {}
+    }
+}
+
 pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int)
 )
@@ -2059,28 +2153,9 @@ ensures
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let msg = input->0;
-                lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
-                lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
-                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), nat0!()
-                );
-                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, msg
-                );
-            },
-            Step::ControllerStep(input) => {
-                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
-                    VDeploymentReconcileState::marshal_preserves_integrity();
-                    // trigger
-                    assert(etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), 0)(s_prime));
-                    lemma_no_old_vrs_in_etcd_state_implies_weakened_csm(vd, cluster, controller_id, nv_uid_key_replicas, s_prime);
-                }
-            },
-            _ => {}
-        }
+        lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches_inductive_step(
+            vd, cluster, controller_id, resp_msg, nv_uid_key_replicas, s, s_prime
+        );
     }
     // without this the proof will be 1s slower
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {

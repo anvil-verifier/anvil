@@ -19,7 +19,6 @@ use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
 
-#[verifier(rlimit(10))]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message,
@@ -153,7 +152,7 @@ ensures
     return resp_msg;
 }
 
-#[verifier(rlimit(10))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd_with_nv_status_matching_replicas(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
 ) -> (resp_msg: Message)
@@ -504,7 +503,6 @@ ensures
     return resp_msg;
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -812,7 +810,7 @@ requires
     Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())(s),
     Cluster::no_pending_request_to_api_server_from_non_controllers()(s),
     helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)(s), // still relies on desired_state_is indirectly
-    helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id)(s),
+    Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)(s),
     helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)(s),
@@ -889,7 +887,7 @@ ensures
                     if id == controller_id {
                         assert(cr_key != vd.object_ref());
                         // same controller, other vd
-                        // every_msg_from_vd_controller_carries_vd_key
+                        // every_in_flight_msg_from_controller_has_kind_as
                         let cr_key = msg.src->Controller_1;
                         let other_vd = VDeploymentView {
                             metadata: ObjectMetaView {

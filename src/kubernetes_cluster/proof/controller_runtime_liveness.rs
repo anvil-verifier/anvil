@@ -534,15 +534,6 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     );
 }
 
-pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message|
-            #[trigger] s.in_flight().contains(msg) // not the ideal trigger choice, but no matches for the second conjunct anymore.
-            && msg.src.is_controller_id(controller_id)
-            ==> msg.dst != HostId::External(controller_id)
-    }
-}
-
 // this has dependency over the "no request message to external not owned by the controller",
 // which will be completed in another PR on controller state machine
 #[verifier(rlimit(100))]

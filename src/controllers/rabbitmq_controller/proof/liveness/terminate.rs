@@ -41,8 +41,6 @@ pub open spec fn state_pred_regarding_sub_resource(rabbitmq: RabbitmqClusterView
     )
 }
 
-#[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView, sub_resource: SubResource, next_step: RabbitmqReconcileStep
 )

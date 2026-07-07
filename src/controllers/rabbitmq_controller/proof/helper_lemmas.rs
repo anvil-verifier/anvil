@@ -432,7 +432,6 @@ ensures
 }
 
 // shield_lemma
-#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
     s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )
@@ -856,7 +855,6 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(100))]
 pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -912,10 +910,6 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
     assert(msg.content.get_get_then_update_request().obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
-    // 1. lemma_sub_resource_neq_implies_resource_key_neq_given_cr_key: eliminates the "wrong sub-resource"
-    //    case for sub-resources sharing the same Kind (e.g., PluginsConfigMap vs ServerConfigMap).
-    // 2. lemma_cr_name_neq_implies_resource_key_name_neq (contrapositive): if the resource key names
-    //    are equal, then cr_key.name == key.name.
     let local_step_sub_resource = local_step->AfterKRequestStep_1;
     // Eliminate the case where the controller creates a different sub-resource type.
     if local_step_sub_resource != sub_resource {
@@ -939,7 +933,6 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(300))]
 pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),

@@ -484,7 +484,7 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
         cluster.reconcile_model(controller_id).error
     ))))
     .and(always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)))))
-    .and(always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id))))
+    .and(always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
@@ -529,7 +529,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         cluster.reconcile_model(controller_id).error
     )));
     always_p_is_stable(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))));
-    always_p_is_stable(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)));
+    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)));
 
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
@@ -571,7 +571,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
             cluster.reconcile_model(controller_id).error
         ))),
         always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)))),
-        always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)))
+        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)))
     );
 }
 
@@ -603,7 +603,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     }
     spec_entails_always_tla_forall_equality(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())));
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VReplicaSetReconcileState::marshal_preserves_integrity();
     assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))) by {
@@ -644,7 +644,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     spec_entails_always_tla_forall_equality(
         spec, |vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))
     );
-    lemma_always_every_msg_from_vrs_controller_carries_vrs_key(spec, cluster, controller_id);
+    cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(spec, controller_id);
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -686,7 +686,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
             cluster.reconcile_model(controller_id).error
         )),
         tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))),
-        lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id))
+        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id))
     );
 }
 }

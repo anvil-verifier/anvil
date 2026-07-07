@@ -707,7 +707,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
         // we use lifted version for vd_reconcile_request_only_interferes_with_itself with quantifiers
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd),
-        helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id),
+        Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id),
         helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id),
         helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)
     )

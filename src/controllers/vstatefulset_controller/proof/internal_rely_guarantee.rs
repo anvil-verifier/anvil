@@ -663,14 +663,14 @@ pub open spec fn local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id: i
     }
 }
 
-// similar to lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(200))]
-pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
-    cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
+proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime_during_controller_step(
+    cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState,
+    id: int, resp_msg_opt: Option<Message>, cr_key_opt: Option<ObjectRef>
 )
 requires
-    cluster.next()(s, s_prime),
+    cluster.next_step(s, s_prime, Step::ControllerStep((id, resp_msg_opt, cr_key_opt))),
     Cluster::there_is_the_controller_state(controller_id)(s),
     Cluster::every_in_flight_msg_has_unique_id()(s),
     Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
@@ -693,54 +693,10 @@ requires
 ensures
     local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime),
 {
-    let step = choose |step| cluster.next_step(s, s_prime, step);
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
     let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr)->Ok_0;
     let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
-    match step {
-        Step::APIServerStep(req_msg_opt) => {
-            let new_msgs = s_prime.in_flight().sub(s.in_flight());
-            assert(next_local_state == local_state);
-            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, next_local_state));
-            if local_state.reconcile_step == AfterListPod {
-                assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg == Some(req_msg));
-                assert forall |msg| {
-                    &&& #[trigger] s_prime.in_flight().contains(msg)
-                    &&& msg.src is APIServer
-                    &&& resp_msg_matches_req_msg(msg, req_msg)
-                    &&& is_ok_resp(msg.content->APIResponse_0)
-                } implies {
-                    let resp_objs = msg.content.get_list_response().res.unwrap();
-                    &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
-                        ==> resp_objs[i].metadata.namespace == Some(cr_key.namespace)
-                } by {
-                    if new_msgs.contains(msg) {
-                        if req_msg_opt == Some(req_msg) {
-                            let resp_objs = msg.content.get_list_response().res.unwrap();
-                            assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
-                                implies resp_objs[i].metadata.namespace == Some(cr_key.namespace) by {
-                                let selector = |o: DynamicObjectView| {
-                                    &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
-                                    &&& o.object_ref().kind == req_msg.content.get_list_request().kind
-                                };
-                                let selected_elements = s.resources().values().filter(selector);
-                                assert(resp_objs.contains(resp_objs[i])); // trigger
-                                lemma_set_to_seq_contains_all_elements(selected_elements);
-                                assert(s.resources().values().filter(selector).contains(resp_objs[i]));
-                                lemma_filter_set(s.resources().values(), selector);
-                            }
-                        } else {
-                            assert(s.in_flight().contains(req_msg_opt->0)); // trigger
-                        }
-                    } else {
-                        assert(s.in_flight().contains(msg)); // trigger
-                    }
-                }
-            }
-            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime));
-        },
-        Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
             let resp_msg = resp_msg_opt->0;
             if cr_key_opt == Some(cr_key) && id == controller_id {
                 VStatefulSetReconcileState::marshal_preserves_integrity();
@@ -871,6 +827,85 @@ ensures
                     } ==> s.in_flight().contains(msg));
                 }
             }
+}
+
+// similar to lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime
+pub proof fn lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime(
+    cluster: Cluster, controller_id: int, cr_key: ObjectRef, s: ClusterState, s_prime: ClusterState
+)
+requires
+    cluster.next()(s, s_prime),
+    Cluster::there_is_the_controller_state(controller_id)(s),
+    Cluster::every_in_flight_msg_has_unique_id()(s),
+    Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+    Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+    cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+    cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s),
+    cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+    Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
+    Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)(s),
+    Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s),
+    Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s),
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s),
+    s.ongoing_reconciles(controller_id).contains_key(cr_key),
+    s_prime.ongoing_reconciles(controller_id).contains_key(cr_key),
+    cr_key.kind == VStatefulSetView::kind(),
+ensures
+    local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime),
+{
+    let step = choose |step| cluster.next_step(s, s_prime, step);
+    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let vsts = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr)->Ok_0;
+    let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
+    match step {
+        Step::APIServerStep(req_msg_opt) => {
+            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+            assert(next_local_state == local_state);
+            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state(cr_key, next_local_state));
+            if local_state.reconcile_step == AfterListPod {
+                assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg == Some(req_msg));
+                assert forall |msg| {
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.src is APIServer
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                    &&& is_ok_resp(msg.content->APIResponse_0)
+                } implies {
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
+                        ==> resp_objs[i].metadata.namespace == Some(cr_key.namespace)
+                } by {
+                    if new_msgs.contains(msg) {
+                        if req_msg_opt == Some(req_msg) {
+                            let resp_objs = msg.content.get_list_response().res.unwrap();
+                            assert forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len()
+                                implies resp_objs[i].metadata.namespace == Some(cr_key.namespace) by {
+                                let selector = |o: DynamicObjectView| {
+                                    &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                    &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                };
+                                let selected_elements = s.resources().values().filter(selector);
+                                assert(resp_objs.contains(resp_objs[i])); // trigger
+                                lemma_set_to_seq_contains_all_elements(selected_elements);
+                                assert(s.resources().values().filter(selector).contains(resp_objs[i]));
+                                lemma_filter_set(s.resources().values(), selector);
+                            }
+                        } else {
+                            assert(s.in_flight().contains(req_msg_opt->0)); // trigger
+                        }
+                    } else {
+                        assert(s.in_flight().contains(msg)); // trigger
+                    }
+                }
+            }
+            assert(local_pods_and_pvcs_are_bound_to_vsts_with_key(controller_id, cr_key, s_prime));
+        },
+        Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+            lemma_local_pods_and_pvcs_are_bound_to_vsts_with_key_preserves_from_s_to_s_prime_during_controller_step(cluster, controller_id, cr_key, s, s_prime, id, resp_msg_opt, cr_key_opt);
         },
         _ => {
             if local_state.reconcile_step == AfterListPod {

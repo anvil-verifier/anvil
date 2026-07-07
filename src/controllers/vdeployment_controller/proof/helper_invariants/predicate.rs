@@ -386,27 +386,6 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
     }
 }
 
-//
-// TODO: See if we can split up this invariant into smaller ones.
-// Both parts are necessary outside of this proof, but maybe for presentation purposes it 
-// would be better to split them.
-//
-
-pub open spec fn every_msg_from_vd_controller_carries_vd_key(
-    controller_id: int,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
-            let content = msg.content;
-            &&& s.in_flight().contains(msg)
-            &&& msg.src is Controller
-            &&& msg.src->Controller_0 == controller_id
-        } ==> {
-            msg.src->Controller_1.kind == VDeploymentView::kind()
-        }
-    }
-}
-
 pub open spec fn vd_in_etcd_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
@@ -434,6 +413,8 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     }
 }
 
+// TODO: deprecate (covered by the_object_in_schedule_has_spec_and_uid_as +
+// each_scheduled_object_has_consistent_key_and_valid_metadata + cr_objects_in_schedule_satisfy_state_validation + desired_state_is)
 pub open spec fn vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
@@ -457,6 +438,8 @@ pub open spec fn vd_in_schedule_has_the_same_spec_uid_name_namespace_and_labels_
     }
 }
 
+// TODO: deprecate (covered by the_object_in_reconcile_has_spec_and_uid_as +
+// each_object_in_reconcile_has_consistent_key_and_valid_metadata + cr_objects_in_reconcile_satisfy_state_validation + desired_state_is)
 pub open spec fn vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {

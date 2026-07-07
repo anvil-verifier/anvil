@@ -530,7 +530,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_init_leads_to_after_list_pod_with_resp(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
@@ -682,8 +681,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_after_list_pod_state_preserves_from_s_to_s_prime_at_api_server_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat, api_input: Message
 )
@@ -771,7 +768,6 @@ ensures
     lemma_api_request_other_than_pending_req_msg_maintains_outdated_pods_in_etcd(s, s_prime, vsts, cluster, controller_id, api_input);
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_list_pod_leads_to_get_pvc_or_create_or_update_needed_or_delete_condemned_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, msg: Message, condemned_len: nat, outdated_len: nat
@@ -1015,8 +1011,322 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
+pub proof fn lemma_spec_entails_get_pvc_leads_to_after_get_pvc_req(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    )))),
+{
+    let get_pvc_state = and!(
+        at_vsts_step(vsts, controller_id, at_step![GetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    let after_get_pvc_state_with_req = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
+    );
+    assert forall |s, s_prime| get_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies get_pvc_state(s_prime) || after_get_pvc_state_with_req(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                    lemma_from_get_pvc_to_after_get_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
+                }
+            },
+            Step::BuiltinControllersStep(_) => {}, // hardener
+            _ => {
+                assert(s_prime.resources() == s.resources());
+            }
+        }
+    }
+    let input = (None, Some(vsts.object_ref()));
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, get_pvc_state, after_get_pvc_state_with_req
+    );
+}
+
+pub proof fn lemma_spec_entails_after_get_pvc_req_leads_to_resp(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_resp_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    )))),
+{
+    let after_get_pvc_state_with_req = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
+    );
+    let req_msg_is_pending_msg_at_after_get_pvc_state = |msg| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len),
+        req_msg_is(msg, vsts.object_ref(), controller_id)
+    );
+    let after_get_pvc_state_with_resp = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_resp_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(after_get_pvc_state_with_req).satisfied_by(ex) implies
+        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg))).satisfied_by(ex) by {
+        let s = ex.head();
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
+        assert(req_msg_is_pending_msg_at_after_get_pvc_state(req_msg)(s));
+        assert((|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)))(req_msg).satisfied_by(ex));
+    }
+    entails_implies_leads_to(spec,
+        lift_state(after_get_pvc_state_with_req),
+        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)))
+    );
+    assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_get_pvc_state(msg)).leads_to(lift_state(after_get_pvc_state_with_resp))) by {
+        assert forall |s, s_prime| req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+            req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime) || after_get_pvc_state_with_resp(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {},
+                Step::APIServerStep(input) => {
+                    if input == Some(msg) {
+                        lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
+                    } else {
+                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                    }
+                },
+                Step::BuiltinControllersStep(_) => {}, // hardener
+                _ => {
+                    // also hardener, I have to guess which hardener works here
+                    assert(s_prime.in_flight().contains(msg));
+                    assert(s_prime.resources() == s.resources());
+                }
+            }
+        }
+        let input = Some(msg);
+        assert forall |s, s_prime| req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
+            implies after_get_pvc_state_with_resp(s_prime) by {
+            lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
+        }
+        cluster.lemma_pre_leads_to_post_by_api_server(
+            spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_get_pvc_state(msg), after_get_pvc_state_with_resp
+        );
+    }
+    leads_to_exists_intro(spec,
+        |msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)),
+        lift_state(after_get_pvc_state_with_resp)
+    );
+    leads_to_trans(spec,
+        lift_state(after_get_pvc_state_with_req),
+        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg))),
+        lift_state(after_get_pvc_state_with_resp)
+    );
+}
+
+#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
+pub proof fn lemma_spec_entails_after_get_pvc_resp_leads_to_skip_or_create(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_resp_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    )))),
+{
+    let after_get_pvc_state_with_resp = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_pvc_resp_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
+    );
+    let resp_msg_is_pending_msg_at_after_get_pvc_state = |msg| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        resp_msg_is_pending_get_pvc_resp_in_flight(vsts, controller_id, msg),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    let skip_or_create_pvc_state = and!(
+        at_vsts_step(vsts, controller_id, at_step_or![SkipPVC, CreatePVC]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
+    );
+    assert forall |ex| #[trigger] lift_state(after_get_pvc_state_with_resp).satisfied_by(ex) implies
+        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg))).satisfied_by(ex) by {
+        let s = ex.head();
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+        let resp_msg = choose |resp_msg: Message| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.is_get_response()
+            &&& resp_msg.content.get_get_response().res is Err
+                ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
+            &&& resp_msg.content.get_get_response().res is Ok
+                ==> s.resources().contains_key(req_msg.content.get_get_request().key())
+        };
+        assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)))(resp_msg).satisfied_by(ex));
+    }
+    entails_implies_leads_to(spec,
+        lift_state(after_get_pvc_state_with_resp),
+        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)))
+    );
+    assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_get_pvc_state(msg)).leads_to(lift_state(skip_or_create_pvc_state))) by {
+        assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+            resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime) || skip_or_create_pvc_state(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::APIServerStep(input) => {
+                    VStatefulSetReconcileState::marshal_preserves_integrity();
+                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                    assert(resp_msg_is_pending_get_pvc_resp_in_flight(vsts, controller_id, msg)(s_prime)) by {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
+                        assert(s_prime.in_flight().contains(msg) && resp_msg_matches_req_msg(msg, req_msg)); // hardener
+                        if msg.content.get_get_response().res is Ok {
+                            let key = req_msg.content.get_get_request().key();
+                            assert(s_prime.resources().contains_key(key)) by {
+                                let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
+                                let i = (local_state.pvc_index, local_state.needed_index);
+                                // trigger
+                                assert(key.name == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1));
+                                pvc_name_with_vsts_implies_pvc_name_match_vsts(key.name, vsts);
+                                assert(s.resources().contains_key(key)); // trigger
+                                assert(({
+                                    &&& key.kind == Kind::PersistentVolumeClaimKind
+                                    &&& key.namespace == vsts.metadata.namespace->0
+                                    &&& pvc_name_match(key.name, vsts.metadata.name->0)
+                                })); // pre of lemma_no_interference
+                                internal_rely_guarantee::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
+                            }
+                        }
+                    }
+                },
+                Step::ControllerStep(input) => {
+                    if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                        lemma_from_get_pvc_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, msg, needed_index, condemned_len, outdated_len);
+                        assert(skip_or_create_pvc_state(s_prime));
+                    }
+                },
+                Step::BuiltinControllersStep(_) => {}, // hardener
+                _ => {
+                    // also hardener, I have to guess which hardener works here
+                    assert(s_prime.in_flight().contains(msg));
+                    assert(s_prime.resources() == s.resources());
+                }
+            }
+        }
+        let input = (Some(msg), Some(vsts.object_ref()));
+        cluster.lemma_pre_leads_to_post_by_controller(
+            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_get_pvc_state(msg), skip_or_create_pvc_state
+        );
+    }
+    leads_to_exists_intro(spec,
+        |msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)),
+        lift_state(skip_or_create_pvc_state)
+    );
+    leads_to_trans(spec,
+        lift_state(after_get_pvc_state_with_resp),
+        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg))),
+        lift_state(skip_or_create_pvc_state)
+    );
+}
+
 pub proof fn lemma_spec_entails_get_pvc_leads_to_skip_or_create_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -1055,110 +1365,10 @@ ensures
         pending_get_pvc_req_in_flight(vsts, controller_id),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
     );
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
-    };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
-        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
-    );
-    assert(spec.entails(lift_state(get_pvc_state).leads_to(lift_state(after_get_pvc_state_with_req)))) by {
-        assert forall |s, s_prime| get_pvc_state(s) && #[trigger] stronger_next(s, s_prime) implies get_pvc_state(s_prime) || after_get_pvc_state_with_req(s_prime) by {
-            let step = choose |step| cluster.next_step(s, s_prime, step);
-            match step {
-                Step::APIServerStep(input) => {
-                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                },
-                Step::ControllerStep(input) => {
-                    if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                        lemma_from_get_pvc_to_after_get_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
-                    }
-                },
-                Step::BuiltinControllersStep(_) => {}, // hardener
-                _ => {
-                    assert(s_prime.resources() == s.resources());
-                }
-            }
-        }
-        let input = (None, Some(vsts.object_ref()));
-        cluster.lemma_pre_leads_to_post_by_controller(
-            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, get_pvc_state, after_get_pvc_state_with_req
-        );
-    }
-    let req_msg_is_pending_msg_at_after_get_pvc_state = |msg| and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        pending_get_pvc_req_in_flight(vsts, controller_id),
-        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len),
-        req_msg_is(msg, vsts.object_ref(), controller_id)
-    );
     let after_get_pvc_state_with_resp = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_get_pvc_resp_in_flight(vsts, controller_id),
-        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
-    );
-    assert(spec.entails(lift_state(after_get_pvc_state_with_req).leads_to(lift_state(after_get_pvc_state_with_resp)))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(after_get_pvc_state_with_req).satisfied_by(ex) implies
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg))).satisfied_by(ex) by {
-            let s = ex.head();
-            let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
-            assert(req_msg_is_pending_msg_at_after_get_pvc_state(req_msg)(s));
-            assert((|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)))(req_msg).satisfied_by(ex));
-        }
-        entails_implies_leads_to(spec,
-            lift_state(after_get_pvc_state_with_req),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)))
-        );
-        assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_get_pvc_state(msg)).leads_to(lift_state(after_get_pvc_state_with_resp))) by {
-            assert forall |s, s_prime| req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
-                req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime) || after_get_pvc_state_with_resp(s_prime) by {
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(input) => {},
-                    Step::APIServerStep(input) => {
-                        if input == Some(msg) {
-                            lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
-                        } else {
-                            lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                        }
-                    },
-                    Step::BuiltinControllersStep(_) => {}, // hardener
-                    _ => {
-                        // also hardener, I have to guess which hardener works here
-                        assert(s_prime.in_flight().contains(msg));
-                        assert(s_prime.resources() == s.resources());
-                    }
-                }
-            }
-            let input = Some(msg);
-            assert forall |s, s_prime| req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
-                implies after_get_pvc_state_with_resp(s_prime) by {
-                lemma_get_pvc_request_returns_ok_or_err_response(s, s_prime, vsts, cluster, controller_id, msg);
-            }
-            cluster.lemma_pre_leads_to_post_by_api_server(
-                spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_get_pvc_state(msg), after_get_pvc_state_with_resp
-            );
-        }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)),
-            lift_state(after_get_pvc_state_with_resp)
-        );
-        leads_to_trans(spec,
-            lift_state(after_get_pvc_state_with_req),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg))),
-            lift_state(after_get_pvc_state_with_resp)
-        );
-    }
-    let resp_msg_is_pending_msg_at_after_get_pvc_state = |msg| and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        resp_msg_is_pending_get_pvc_resp_in_flight(vsts, controller_id, msg),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
     );
     let skip_or_create_pvc_state = and!(
@@ -1167,85 +1377,9 @@ ensures
         no_pending_req_in_cluster(vsts, controller_id),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
     );
-    assert(spec.entails(lift_state(after_get_pvc_state_with_resp).leads_to(lift_state(skip_or_create_pvc_state)))) by {
-        assert forall |ex| #[trigger] lift_state(after_get_pvc_state_with_resp).satisfied_by(ex) implies
-            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg))).satisfied_by(ex) by {
-            let s = ex.head();
-            let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-            let resp_msg = choose |resp_msg: Message| {
-                &&& #[trigger] s.in_flight().contains(resp_msg)
-                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& resp_msg.content.is_get_response()
-                &&& resp_msg.content.get_get_response().res is Err
-                    ==> resp_msg.content.get_get_response().res->Err_0 == ObjectNotFound
-                &&& resp_msg.content.get_get_response().res is Ok
-                    ==> s.resources().contains_key(req_msg.content.get_get_request().key())
-            };
-            assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)))(resp_msg).satisfied_by(ex));
-        }
-        entails_implies_leads_to(spec,
-            lift_state(after_get_pvc_state_with_resp),
-            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)))
-        );
-        assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_get_pvc_state(msg)).leads_to(lift_state(skip_or_create_pvc_state))) by {
-            assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
-                resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime) || skip_or_create_pvc_state(s_prime) by {
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::APIServerStep(input) => {
-                        VStatefulSetReconcileState::marshal_preserves_integrity();
-                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                        assert(resp_msg_is_pending_get_pvc_resp_in_flight(vsts, controller_id, msg)(s_prime)) by {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
-                            assert(s_prime.in_flight().contains(msg) && resp_msg_matches_req_msg(msg, req_msg)); // hardener
-                            if msg.content.get_get_response().res is Ok {
-                                let key = req_msg.content.get_get_request().key();
-                                assert(s_prime.resources().contains_key(key)) by {
-                                    let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
-                                    let i = (local_state.pvc_index, local_state.needed_index);
-                                    // trigger
-                                    assert(key.name == pvc_name(vsts.spec.volume_claim_templates->0[i.0 as int].metadata.name->0, vsts.metadata.name->0, i.1));
-                                    pvc_name_with_vsts_implies_pvc_name_match_vsts(key.name, vsts);
-                                    assert(s.resources().contains_key(key)); // trigger
-                                    assert(({
-                                        &&& key.kind == Kind::PersistentVolumeClaimKind
-                                        &&& key.namespace == vsts.metadata.namespace->0
-                                        &&& pvc_name_match(key.name, vsts.metadata.name->0)
-                                    })); // pre of lemma_no_interference
-                                    internal_rely_guarantee::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
-                                }
-                            }
-                        }
-                    },
-                    Step::ControllerStep(input) => {
-                        if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                            lemma_from_get_pvc_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, msg, needed_index, condemned_len, outdated_len);
-                            assert(skip_or_create_pvc_state(s_prime));
-                        }
-                    },
-                    Step::BuiltinControllersStep(_) => {}, // hardener
-                    _ => {
-                        // also hardener, I have to guess which hardener works here
-                        assert(s_prime.in_flight().contains(msg));
-                        assert(s_prime.resources() == s.resources());
-                    }
-                }
-            }
-            let input = (Some(msg), Some(vsts.object_ref()));
-            cluster.lemma_pre_leads_to_post_by_controller(
-                spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_get_pvc_state(msg), skip_or_create_pvc_state
-            );
-        }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)),
-            lift_state(skip_or_create_pvc_state)
-        );
-        leads_to_trans(spec,
-            lift_state(after_get_pvc_state_with_resp),
-            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg))),
-            lift_state(skip_or_create_pvc_state)
-        );
-    }
+    lemma_spec_entails_get_pvc_leads_to_after_get_pvc_req(vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
+    lemma_spec_entails_after_get_pvc_req_leads_to_resp(vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
+    lemma_spec_entails_after_get_pvc_resp_leads_to_skip_or_create(vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
     leads_to_trans_n!(spec,
         lift_state(get_pvc_state),
         lift_state(after_get_pvc_state_with_req),
@@ -1254,7 +1388,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_spec_entails_skip_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -1519,7 +1652,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
@@ -1946,7 +2078,7 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_create_needed_leads_to_next_state(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2225,6 +2357,7 @@ ensures
 }
 
 #[verifier(rlimit(50))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_update_needed_leads_to_next_state(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2412,8 +2545,186 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
+pub proof fn lemma_spec_entails_delete_condemned_leads_to_after_delete_condemned_request(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
+    condemned_index < condemned_len,
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len, outdated_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
+    )))),
+{
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
+    );
+    let delete_condemned_state = and!(
+        at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        no_pending_req_in_cluster(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len, outdated_len)
+    );
+    let after_delete_condemned_state_with_request = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
+    );
+    assert forall |s, s_prime| delete_condemned_state(s) && #[trigger] stronger_next(s, s_prime) implies
+        delete_condemned_state(s_prime) || after_delete_condemned_state_with_request(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
+                    lemma_from_delete_condemned_to_after_delete_condemned(s, s_prime, vsts, cluster, controller_id, condemned_index, condemned_len, outdated_len);
+                }
+            },
+            _ => {}
+        }
+    }
+    let input = (None, Some(vsts.object_ref()));
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, delete_condemned_state, after_delete_condemned_state_with_request
+    );
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn lemma_spec_entails_after_delete_condemned_request_leads_to_response(
+    vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat, outdated_len: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)))),
+    spec.entails(always(lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)))),
+    condemned_index < condemned_len,
+ensures
+    spec.entails(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
+    )).leads_to(lift_state(and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
+    )))),
+{
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
+    );
+    let req_msg_is_pending_msg_at_after_delete_condemned_state = |msg| and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len),
+        req_msg_is(msg, vsts.object_ref(), controller_id)
+    );
+    let after_delete_condemned_state_with_request = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
+    );
+    let after_delete_condemned_state_with_response = and!(
+        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
+        local_state_is_valid_and_coherent(vsts, controller_id),
+        pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id),
+        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
+    );
+    assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(after_delete_condemned_state_with_request).satisfied_by(ex) implies
+        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg))).satisfied_by(ex) by {
+        let s = ex.head();
+        let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
+        assert((|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)))(req_msg).satisfied_by(ex));
+    }
+    entails_implies_leads_to(spec,
+        lift_state(after_delete_condemned_state_with_request),
+        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)))
+    );
+    assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_delete_condemned_state(msg)).leads_to(lift_state(after_delete_condemned_state_with_response))) by {
+        assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
+            req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s_prime) || after_delete_condemned_state_with_response(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::APIServerStep(input) => {
+                    if input == Some(msg) {
+                        lemma_from_after_send_get_then_delete_condemned_pod_req_to_receive_get_then_delete_condemned_pod_resp(s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len, outdated_len);
+                        assert(after_delete_condemned_state_with_response(s_prime));
+                    } else {
+                        lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                    }
+                },
+                Step::BuiltinControllersStep(_) => {},
+                _ => {
+                    assert(s_prime.in_flight().contains(msg));
+                    assert(s_prime.resources() == s.resources());
+                }
+            }
+        }
+        let input = Some(msg);
+        assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
+            implies after_delete_condemned_state_with_response(s_prime) by {
+            lemma_from_after_send_get_then_delete_condemned_pod_req_to_receive_get_then_delete_condemned_pod_resp(s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len, outdated_len);
+        }
+        cluster.lemma_pre_leads_to_post_by_api_server(
+            spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_delete_condemned_state(msg), after_delete_condemned_state_with_response
+        );
+    }
+    leads_to_exists_intro(spec,
+        |msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)),
+        lift_state(after_delete_condemned_state_with_response)
+    );
+    leads_to_trans(spec,
+        lift_state(after_delete_condemned_state_with_request),
+        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg))),
+        lift_state(after_delete_condemned_state_with_response)
+    );
+}
+
 pub proof fn lemma_spec_entails_deleted_condemned_of_i_leads_to_delete_condemned_of_i_plus_one_or_delete_outdated(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -2451,18 +2762,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len
     ))))),
 {
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
-        &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
-    };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)),
-        later(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)))
-    );
     let delete_condemned_state = and!(
         at_vsts_step(vsts, controller_id, at_step![DeleteCondemned]),
         local_state_is_valid_and_coherent(vsts, controller_id),
@@ -2475,90 +2774,14 @@ ensures
         pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
     );
-    assert(spec.entails(lift_state(delete_condemned_state).leads_to(lift_state(after_delete_condemned_state_with_request)))) by {
-        assert forall |s, s_prime| delete_condemned_state(s) && #[trigger] stronger_next(s, s_prime) implies
-            delete_condemned_state(s_prime) || after_delete_condemned_state_with_request(s_prime) by {
-            let step = choose |step| cluster.next_step(s, s_prime, step);
-            match step {
-                Step::APIServerStep(input) => {
-                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                },
-                Step::ControllerStep(input) => {
-                    if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
-                        lemma_from_delete_condemned_to_after_delete_condemned(s, s_prime, vsts, cluster, controller_id, condemned_index, condemned_len, outdated_len);
-                    }
-                },
-                _ => {}
-            }
-        }
-        let input = (None, Some(vsts.object_ref()));
-        cluster.lemma_pre_leads_to_post_by_controller(
-            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, delete_condemned_state, after_delete_condemned_state_with_request
-        );
-    }
-    let req_msg_is_pending_msg_at_after_delete_condemned_state = |msg| and!(
-        at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
-        local_state_is_valid_and_coherent(vsts, controller_id),
-        pending_get_then_delete_condemned_pod_req_in_flight(vsts, controller_id),
-        pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len),
-        req_msg_is(msg, vsts.object_ref(), controller_id)
-    );
     let after_delete_condemned_state_with_response = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterDeleteCondemned]),
         local_state_is_valid_and_coherent(vsts, controller_id),
         pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id),
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
     );
-    assert(spec.entails(lift_state(after_delete_condemned_state_with_request).leads_to(lift_state(after_delete_condemned_state_with_response)))) by {
-        assert forall |ex: Execution<ClusterState>| #[trigger] lift_state(after_delete_condemned_state_with_request).satisfied_by(ex) implies
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg))).satisfied_by(ex) by {
-            let s = ex.head();
-            let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
-            assert((|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)))(req_msg).satisfied_by(ex));
-        }
-        entails_implies_leads_to(spec,
-            lift_state(after_delete_condemned_state_with_request),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)))
-        );
-        assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_delete_condemned_state(msg)).leads_to(lift_state(after_delete_condemned_state_with_response))) by {
-            assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
-                req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s_prime) || after_delete_condemned_state_with_response(s_prime) by {
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::APIServerStep(input) => {
-                        if input == Some(msg) {
-                            lemma_from_after_send_get_then_delete_condemned_pod_req_to_receive_get_then_delete_condemned_pod_resp(s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len, outdated_len);
-                            assert(after_delete_condemned_state_with_response(s_prime));
-                        } else {
-                            lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
-                        }
-                    },
-                    Step::BuiltinControllersStep(_) => {},
-                    _ => {
-                        assert(s_prime.in_flight().contains(msg));
-                        assert(s_prime.resources() == s.resources());
-                    }
-                }
-            }
-            let input = Some(msg);
-            assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime)
-                implies after_delete_condemned_state_with_response(s_prime) by {
-                lemma_from_after_send_get_then_delete_condemned_pod_req_to_receive_get_then_delete_condemned_pod_resp(s, s_prime, vsts, cluster, controller_id, msg, condemned_index + nat1!(), condemned_len, outdated_len);
-            }
-            cluster.lemma_pre_leads_to_post_by_api_server(
-                spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_delete_condemned_state(msg), after_delete_condemned_state_with_response
-            );
-        }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)),
-            lift_state(after_delete_condemned_state_with_response)
-        );
-        leads_to_trans(spec,
-            lift_state(after_delete_condemned_state_with_request),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg))),
-            lift_state(after_delete_condemned_state_with_response)
-        );
-    }
+    lemma_spec_entails_delete_condemned_leads_to_after_delete_condemned_request(vsts, spec, cluster, controller_id, condemned_index, condemned_len, outdated_len);
+    lemma_spec_entails_after_delete_condemned_request_leads_to_response(vsts, spec, cluster, controller_id, condemned_index, condemned_len, outdated_len);
     let delete_condemned_or_outdated_state = if condemned_index + nat1!() == condemned_len {
         and!(
             at_vsts_step(vsts, controller_id, at_step![DeleteOutdated]),
@@ -2900,7 +3123,6 @@ ensures
     }
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_delete_outdated_leads_to_after_delete_outdated_or_done(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, condemned_len: nat, outdated_len: nat
@@ -3129,8 +3351,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(200))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_done_leads_to_reconcile_idle(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
 )
@@ -3544,6 +3764,7 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_get_pvc_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, resp_msg: Message, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -3644,6 +3865,7 @@ ensures
 
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
 // handle_after_create_or_skip_pvc_helper slows down the reasoning
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_create_pvc_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
@@ -4350,7 +4572,6 @@ ensures
     }
 }
 
-#[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_p_leads_to_always_current_state_matches(spec: TempPred<ClusterState>, p: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
 requires
@@ -4408,8 +4629,6 @@ ensures
     leads_to_trans(spec, p, always(lift_state(inductive)), always(lift_state(current_state_matches(vsts))));
 }
 
-#[verifier(rlimit(200))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_at_api_server_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, msg: Message
 )
@@ -4570,8 +4789,6 @@ ensures
     assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
 }
 
-#[verifier(rlimit(200))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_at_controller_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, input: (int, Option<Message>, Option<ObjectRef>)
 )

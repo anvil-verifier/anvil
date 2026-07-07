@@ -19,6 +19,7 @@ use vstd::{map::*, map_lib::*, prelude::*};
 
 verus! {
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     msg: Message,
