@@ -21,7 +21,7 @@ run_verify() {
   echo "--- Verifying: $LABEL ---" | tee -a "$SUMMARY"
   START=$(date +%s)
   set +e
-  $VERUS --rlimit 50 --time --allow=unused "$@" >> "$SUMMARY" 2>&1
+  $VERUS --time --allow=unused "$@" >> "$SUMMARY" 2>&1
   EXIT=$?
   set -e
   END=$(date +%s)
