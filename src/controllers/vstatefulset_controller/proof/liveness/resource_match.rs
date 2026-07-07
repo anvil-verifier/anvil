@@ -3868,6 +3868,7 @@ ensures
 
 /* .. -> SkipPVC/AfterCreatePVC -> .. */
 // handle_after_create_or_skip_pvc_helper slows down the reasoning
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_create_pvc_to_next_state(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat
 )
