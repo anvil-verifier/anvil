@@ -141,7 +141,6 @@ ensures
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState, input: Option<Message>
 )
@@ -886,7 +885,6 @@ pub proof fn conjuncted_current_state_matches_old_vrs_0_implies_composed(
 }
 
 // Stability of vrs_set identity (modulo rv/status/replicas) and conjuncted p(n)
-#[verifier(spinoff_prover)]
 pub proof fn composed_old_vrs_set_pre_preserves_from_s_to_s_prime(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, vrs_set: Set<VReplicaSetView>, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState
 )

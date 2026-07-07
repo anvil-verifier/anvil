@@ -226,7 +226,6 @@ ensures
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
     spec: TempPred<ClusterState>, 
     cluster: Cluster, 
@@ -380,7 +379,6 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     spec: TempPred<ClusterState>,
     vd: VDeploymentView,
@@ -1002,7 +1000,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
 }
 
 
-#[verifier(spinoff_prover)]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime_during_api_server_step(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState, key: ObjectRef, current_req_msg: Message
 )
@@ -1199,7 +1196,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_key_preserves_from_s_to_s_prime_during_controller_step(
     cluster: Cluster, controller_id: int, s: ClusterState, s_prime: ClusterState, key: ObjectRef, input: (int, Option<Message>, Option<ObjectRef>)
 )
@@ -1409,7 +1405,6 @@ ensures
 }
 
 // TODO: investigate flaky proof.
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )

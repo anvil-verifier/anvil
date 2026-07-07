@@ -432,7 +432,6 @@ ensures
 }
 
 // shield_lemma
-#[verifier(spinoff_prover)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
     s: ClusterState, s_prime: ClusterState, rabbitmq: RabbitmqClusterView, cluster: Cluster, controller_id: int, sub_resource: SubResource, msg: Message
 )

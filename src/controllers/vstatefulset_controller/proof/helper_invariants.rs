@@ -303,7 +303,6 @@ ensures
         }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
@@ -835,7 +834,6 @@ pub open spec fn buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts: VSta
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_buildin_controllers_do_not_delete_pods_owned_by_vsts(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, vsts: VStatefulSetView
 )
@@ -1077,7 +1075,6 @@ pub open spec fn all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_ti
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )

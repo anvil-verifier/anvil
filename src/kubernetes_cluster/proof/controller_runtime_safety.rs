@@ -94,7 +94,6 @@ pub open spec fn state_comes_with_a_pending_request(self, controller_id: int, st
 
 // TODO: Investigate flaky proof.
 #[verifier(rlimit(100))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -406,7 +405,6 @@ proof fn lemma_xor_preserves_during_external_step(
 // currently every branch in match is proved, but the combination of them fails
 // we need to fix this after that feature to isolate reasoning about different branches is added,
 // or separate this proof into multiple sub proofs as the last resort
-#[verifier(spinoff_prover)]
 pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
     requires
         spec.entails(always(lift_action(self.next()))),

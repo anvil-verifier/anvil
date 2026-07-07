@@ -58,7 +58,6 @@ pub proof fn lemma_eventually_always_every_valid_resource_update_request_sets_ow
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq)));
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -148,7 +147,6 @@ proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -355,7 +353,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, sub_resource: SubResource, cr_key: ObjectRef
 )
@@ -470,7 +467,6 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_f
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq)));
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_flight(controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -580,7 +576,6 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -963,7 +958,6 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
 }
 
 // Per sub_resource: produces both posts in one shot.
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_resource(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -1250,7 +1244,6 @@ proof fn lemma_self_rely_guarantee_from_reconcile_state(
 // `guarantee_condition_holds` but uses `lemma_self_rely_guarantee_from_reconcile_state`
 // for the inductive step, which yields the disjointness of the just-emitted request key
 // from any sub-resource key of `cr_key`.
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_rmq_self_rely_guarantee(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, cr_key: ObjectRef,
 )

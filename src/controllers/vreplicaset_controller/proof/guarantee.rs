@@ -318,7 +318,6 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     resp_o: Option<ResponseView<VoidERespView>>,

@@ -738,7 +738,6 @@ ensures
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn sm_spec_entails_no_pending_msg_at_error(
     cluster: Cluster, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef
 )
