@@ -67,7 +67,7 @@ jobs:
           export PATH="$PATH:$HOME/verus"
           cargo verus verify -- --no-verify
 
-  vreplicaset-verification:
+  full-verification:
     needs: setup-toolchain
     runs-on: ubuntu-24.04
     steps:
@@ -84,108 +84,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time --verify-module vreplicaset_controller
-
-  vdeployment-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo
-            ~/.rustup
-            ~/verus
-            target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify vdeployment controller
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time --verify-module vdeployment_controller
-
-  vstatefulset-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo
-            ~/.rustup
-            ~/verus
-            target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify vstatefulset controller
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time --verify-module vstatefulset_controller
-
-  rabbitmq-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo
-            ~/.rustup
-            ~/verus
-            target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify rabbitmq controller
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time --verify-module rabbitmq_controller
-
-  esr-composition-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo
-            ~/.rustup
-            ~/verus
-            target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify the ESR composition
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time --verify-module composition
-
-  framework-verification:
-    needs: setup-toolchain
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo
-            ~/.rustup
-            ~/verus
-            target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify the Anvil framework
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus focus --lib -- --rlimit 50 --time \
-            --verify-module kubernetes_api_objects \
-            --verify-module kubernetes_cluster \
-            --verify-module reconciler \
-            --verify-module state_machine \
-            --verify-module tla_demo \
-            --verify-module vstd_ext
+          cargo verus verify --lib
 
   vreplicaset-admission-e2e-test:
     needs: setup-toolchain
