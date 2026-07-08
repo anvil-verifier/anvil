@@ -103,6 +103,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
+          cache: false
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset admission controller
@@ -130,6 +131,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
+          cache: false
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vdeployment admission controller
@@ -157,6 +159,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
+          cache: false
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset controller
@@ -184,6 +187,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
+          cache: false
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vdeployment controller
@@ -211,6 +215,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
+          cache: false
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vstatefulset controller
@@ -238,6 +243,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
+          cache: false
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy rabbitmq controller
