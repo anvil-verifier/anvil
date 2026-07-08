@@ -48,17 +48,6 @@ jobs:
           unzip -q /tmp/verus.zip -d "$HOME"
           mv "$HOME/verus-x86-linux" "$HOME/verus"
           rm /tmp/verus.zip
-      - name: Seed cargo registry
-        if: steps.cache-toolchain.outputs.cache-hit != 'true'
-        run: |
-          . "$HOME/.cargo/env"
-          cargo fetch
-      - name: Compile and cache dependencies
-        if: steps.cache-toolchain.outputs.cache-hit != 'true'
-        run: |
-          . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          cargo verus verify -- --no-verify
 
   full-verification:
     needs: setup-toolchain
