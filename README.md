@@ -4,12 +4,12 @@ This document is for SOSP'2026 artifact evaluation
 
 ## Artifact goal
 
-The paper claims that Welder enables compositional verification of Kubernetes controllers, and that the verified controllers pass extensive testing and achieve competitive performance compared to unverified references. The key results to reproduce are:
+The paper claims that Welder enables compositional verification of Kubernetes controllers, and the verified controllers achieve competitive performance compared to unverified references. The key results to reproduce are:
 
-1. **Verification results (§ 7.1 + Table 1).** Welder's framework, four controllers (VReplicaSet, VDeployment, VStatefulSet, VRabbitMQ) and their composition proof are fully verified by Verus (0 errors), with the code size table.
-2. **Performance results (§ 7.2 Table 2).** The verified controllers' `reconcile` and end-to-end reconciliation times are comparable to the unverified reference controllers (end-to-end differences within one standard deviation), and they do not add significant load on etcd or the API server.
+1. **Verification results (Table 1).** Welder's framework, four controllers (VReplicaSet, VDeployment, VStatefulSet, VRabbitMQ), and their composition proof are fully verified by Verus (0 errors), with the code size table.
+2. **Performance results (Table 2).** The verified controllers' `reconcile` and end-to-end reconciliation times are comparable to the unverified reference controllers (end-to-end differences within one standard deviation).
 
-We require a Linux X86-64 machine to reproduce the result. You are welcomed to use Cloudlab machine for reproduction.
+We require a Linux X86-64 machine to reproduce the result. You are welcome to use Cloudlab machine for reproduction.
 
 ## Kick-the-tires instructions (~1.5 compute-hours + ~6 human-minutes)
 
@@ -17,9 +17,9 @@ We require a Linux X86-64 machine to reproduce the result. You are welcomed to u
 
 The paper's experiments were run on CloudLab Clemson c6420 machines (dual Xeon Gold 6142, 384 GB DRAM, Ubuntu 22.04 LTS). We highly suggest you use the CloudLab machines with the profiles we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, you can read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab](https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the SOSP AEC chairs to add you to the SOSP AEC project.
 
-To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: Clemson c6420, Wisconsin c220g5 and Wisconsin c220g2. Please note these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
+To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: Clemson c6420, Wisconsin c220g5, and Wisconsin c220g2. Please note that these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
 
-**Please let us know if you have trouble accessing CloudLab, we can help set up the experiment and give you access.**
+**Please let us know if you have trouble accessing CloudLab. We can help set up the experiment and give you access.**
 
 Click **one** of the following three links: [profile `welder-ae-c6420`](https://www.cloudlab.us/p/Sieve-Acto/welder-ae-cloudlab?refspec=refs/heads/c220g2), [profile `welder-ae-c220g5`](https://www.cloudlab.us/p/Sieve-Acto/welder-ae-cloudlab?refspec=refs/heads/c220g2), or [profile `welder-ae-c220g2`](https://www.cloudlab.us/p/Sieve-Acto/welder-ae-cloudlab?refspec=refs/heads/c220g2), and keep hitting `next` to create the experiment. You should see that CloudLab starts to provision the machine, which typically takes ~5 minutes. Please patiently wait for "Status" to become `Ready`. After the machine is ready, log into the machine using `ssh` (with the key provided to CloudLab) or using the `shell` provided by the CloudLab Web UI, and then run
 
@@ -27,9 +27,9 @@ Click **one** of the following three links: [profile `welder-ae-c6420`](https://
 bash /local/repository/scripts/cloudlab_startup_run_by_creator.sh
 ```
 
-This command will take ~5 minutes to finish and it will set up the environment for you, installing Acto at `~/workdir/acto` and Welder (anvil) at `~/anvil`.
+This command will take ~5 minutes to finish, and it will set up the environment for you, installing Acto at `~/workdir/acto` and Welder (anvil) at `~/anvil`.
 
-Please note that by default you **only have access to the machine for 16 hours**. Although it is definitely enough to finish the kick-the-tires instructions, we suggest you extend your access (just click the green `Extend` button) to ensure you can finish the full evaluation with the same machine smoothly.
+Please note that by default, you **only have access to the machine for 16 hours**. Although it is definitely enough to finish the kick-the-tires instructions, we suggest you extend your access (just click the green `Extend` button) to ensure you can finish the full evaluation with the same machine smoothly.
 
 <details><summary>No available machine?</summary>
 
@@ -97,7 +97,7 @@ The **expected output** looks like:
 
 ### Running workloads of one controller (~1.5 compute-hours + ~2 human-minutes)
 
-To quickly check that the environment works end to end, run a 5% sample of the performance workloads for the VDeployment controller and its unverified reference. We suggest you use `tmux` when running on remote machines as the command can take a while.
+To quickly check that the environment works end-to-end, run a 5% sample of the performance workloads for the VDeployment controller and its unverified reference. We suggest you use `tmux` when running on remote machines as the command can take a while.
 
 ```bash
 cd ~/workdir/acto
@@ -109,12 +109,12 @@ cat welder-table-2.txt
 If you set up your own machine, replace `~/workdir/acto` with the path to the cloned acto repo on your machine instead.
 
 ---
-## Reproducing full testing results (~22 compute-hours + ~2 human-minutes)
+## Full Evaluation Instructions (~22 compute-hours + ~2 human-minutes)
 
-You will reproduce the performance results in Table 2. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will highlight the key pattern you should be able to observe. You will reuse the environments from kick-the-tire instructions.
+You will reproduce the performance results in Table 2. These are the key results that support the claim in the paper. The absolute number of time-related results heavily depends on the platform, but we will highlight the key pattern you should be able to observe. You will reuse the environments from kick-the-tire instructions.
 The entire testing process can take about 22 machine-hours and ~20 human-minutes.
 
-We suggest you use `tmux` when running on remote machines as the command can take hours. In the `acto` checkout, run:
+We suggest you use `tmux` when running on remote machines, as the command can take hours. In the `acto` checkout, run:
 
 ```bash
 bash welder-ae-sampled.sh 0.05
