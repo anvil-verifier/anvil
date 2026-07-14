@@ -15,7 +15,7 @@ Two repositories are involved:
 | Repository | Branch | Used for |
 |---|---|---|
 | [`anvil`](https://github.com/anvil-verifier/anvil) | `main` | Result 1 (verification) — the verification scripts are the CI jobs in `.github/workflows/ci.yml` |
-| [`acto`](https://github.com/xlab-uiuc/acto) | `v-dev` (this branch) | Results 2 and 3 (functional/crash testing via Acto + Chactos, performance measurement) |
+| [`acto`](https://github.com/xlab-uiuc/acto) | `v-dev` | Results 2 and 3 (functional/crash testing via Acto + Chactos, performance measurement), driven by the scripts in `tools/` of this branch |
 
 The controller container images used by the tests are prebuilt and pinned in this repository (`ghcr.io/anvil-verifier/anvil/{vreplicaset,vdeployment,vstatefulset,rabbitmq}-controller:<commit-sha>` inside `data/*/deploy_remote.yaml`), so you do **not** need to build the controllers yourself to run the tests. To rebuild them from source, see `build.md` and `docker/controller/` in the `anvil` repository.
 
@@ -97,7 +97,7 @@ The script (1) compiles the library once with `--emit=dep-info` to enumerate all
 
 ## 2. Environment setup for testing and performance (acto repository)
 
-All remaining experiments run from the `acto` repository on branch `v-dev`. We suggest running the long campaigns inside `tmux`.
+All remaining experiments run against the `acto` repository on branch `v-dev`, driven by the scripts in this repository's `tools/` directory. The scripts locate the acto checkout via the `ACTO_DIR` environment variable (default: `~/workdir/acto`). We suggest running the long campaigns inside `tmux`.
 
 ### 2.1 Option A: CloudLab (recommended)
 
@@ -107,37 +107,38 @@ The paper's experiments were run on CloudLab Clemson c6420 machines (dual Xeon G
 
 Note that by default you **only have access to the machine for 16 hours**; click the green `Extend` button to keep the machine long enough for the full campaigns.
 
-**Step 2: switch to the evaluation branch and set up the environment.** Log into the machine (via `ssh` or the CloudLab web shell) and run:
+**Step 2: switch to the evaluation branch and set up the environment.** Log into the machine (via `ssh` or the CloudLab web shell), clone this repository for the scripts, and run:
 
 ```bash
-cd ~/workdir/acto
-git fetch origin v-dev && git checkout v-dev
-./setup-welder-env.sh
+git clone --branch sosp26 https://github.com/anvil-verifier/anvil.git ~/anvil && cd ~/anvil
+git -C ~/workdir/acto fetch origin v-dev && git -C ~/workdir/acto checkout v-dev
+./tools/setup-welder-env.sh
 ```
 
 ### 2.2 Option B: your own machine
 
-You need a Linux system with [Docker](https://docs.docker.com/engine/install/) and [Go](https://go.dev/doc/install) installed (any well-provisioned machine works, but absolute performance numbers depend on the platform). Then clone the repository and run the setup script:
+You need a Linux system with [Docker](https://docs.docker.com/engine/install/) and [Go](https://go.dev/doc/install) installed (any well-provisioned machine works, but absolute performance numbers depend on the platform). Clone both repositories and run the setup script:
 
 ```bash
-git clone --branch v-dev https://github.com/xlab-uiuc/acto.git && cd acto
-./setup-welder-env.sh
+git clone --branch v-dev https://github.com/xlab-uiuc/acto.git
+git clone --branch sosp26 https://github.com/anvil-verifier/anvil.git && cd anvil
+ACTO_DIR=$PWD/../acto ./tools/setup-welder-env.sh
 ```
 
-The script installs everything else without sudo: a Python 3.12 virtualenv at `./venv-welder` with all Python dependencies (provisioned via [uv](https://docs.astral.sh/uv/), so your system Python version does not matter), plus `kind` and `kubectl` under `~/.local/bin` if missing. The push-button script below picks up `./venv-welder` automatically.
+The script installs everything else without sudo: a Python 3.12 virtualenv at `$ACTO_DIR/venv-welder` with all Python dependencies (provisioned via [uv](https://docs.astral.sh/uv/), so your system Python version does not matter), plus `kind` and `kubectl` under `~/.local/bin` if missing. The push-button script below picks up the virtualenv automatically.
 
 ### 2.3 Push-button script
 
-All the commands in §3 and §4 are wrapped by `./reproduce-welder-testing.sh` in the `acto` repository root:
+All the commands in §3 and §4 are wrapped by `tools/reproduce-welder-testing.sh` in this repository (as in §2.2, set `ACTO_DIR` if your acto checkout is not at `~/workdir/acto`):
 
 ```bash
-NUM_WORKERS=<N> ./reproduce-welder-testing.sh functional          # §3.1
-NUM_WORKERS=<N> ./reproduce-welder-testing.sh crash               # §3.2 (requires functional results)
-NUM_WORKERS=<N> ./reproduce-welder-testing.sh performance         # §4 (requires functional results)
-NUM_WORKERS=<N> ./reproduce-welder-testing.sh all                 # everything, in order
+NUM_WORKERS=<N> ./tools/reproduce-welder-testing.sh functional     # §3.1
+NUM_WORKERS=<N> ./tools/reproduce-welder-testing.sh crash          # §3.2 (requires functional results)
+NUM_WORKERS=<N> ./tools/reproduce-welder-testing.sh performance    # §4 (requires functional results)
+NUM_WORKERS=<N> ./tools/reproduce-welder-testing.sh all            # everything, in order
 ```
 
-The sections below explain what each phase does and the expected results; if you prefer running the individual commands manually, activate the virtualenv first (`source venv-welder/bin/activate`).
+The sections below explain what each phase does and the expected results. The manual commands in §3 and §4 are run from the `acto` repository root; if you run them manually instead of via the script, activate the virtualenv first (`source venv-welder/bin/activate`).
 
 ---
 
