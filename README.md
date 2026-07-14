@@ -102,7 +102,7 @@ The **expected output** looks like:
 
 **Minor differences are expected** because the controllers' proofs have been optimized and updated to follow updates from upstream.
 
-### Running workloads of one controller (~1.5 compute-hours + ~2 human-minutes)
+### Running workloads of one controller (~70 compute-minutes + ~2 human-minutes)
 
 To quickly check that the environment works end-to-end, run a 5% sample of the performance workloads for the VDeployment controller and its unverified reference. We suggest you use `tmux` when running on remote machines as the command can take a while.
 
@@ -110,20 +110,15 @@ To quickly check that the environment works end-to-end, run a 5% sample of the p
 cd ~/workdir/acto
 source venv-welder/bin/activate # only on your own machine
 bash welder-ae-one-controller.sh 0.05
-cat welder-table-2.txt
+cat welder-table-2-one-controller.txt
 ```
 
 If you set up your own machine, replace `~/workdir/acto` with the path to the cloned acto repo on your machine instead. You should see a table like this:
 
 ```
 | Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
-|--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
-| ReplicaSet   |                 7.77 |             0.11 | 7.67±5.93        |                 18.81 |              6.38 | 12.43±11.79       |
-| Deployment   |                 6.85 |             0.05 | 6.80±11.53       |                 18.81 |              6.38 | 12.43±11.79       |
-| Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
-|--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
-| ReplicaSet   |                 7.77 |             0.11 | 7.67±5.93        |                 18.81 |              6.38 | 12.43±11.79       |
-| Deployment   |                 6.85 |             0.05 | 6.80±11.53       |                 18.81 |              6.38 | 12.43±11.79       |
+| ReplicaSet   |                 0.68 |             0.09 | 0.59±0.08        |                  5.69 |              7.51 | -1.81±1.38        |                                                       
+| Deployment   |                 0.09 |             0.06 | 0.02±0.02        |                  5.69 |              7.51 | -1.81±1.38        |
 ```
 
 **Expected result:** The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible (within one standard deviation).
