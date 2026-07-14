@@ -133,7 +133,7 @@ This runs 5% of the workloads for both campaigns (VDeployment + VReplicaSet vs. 
 | RabbitMQ     |                 0.52 |             1.81 | -1.29±1.44       |                118.56 |            119.26 | -0.70±6.48        |
 ```
 
-**Expected result:** your numbers should be in the ballpark of this table. The absolute numbers depend on the platform, but you should observe the paper's key pattern — the verified controllers' `reconcile` times are modestly higher than the references (VRabbitMQ is even faster than its reference), and the end-to-end differences are negligible (within one standard deviation, the `±` term in the `Diff` columns).
+**Expected result:** your numbers should be in the ballpark of this table. The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible (within one standard deviation).
 
 <details><summary>I want to run all the workloads?</summary>
 
