@@ -70,9 +70,16 @@ export PATH="$PATH:$HOME/verus"
 cargo verus verify --lib
 ```
 
-This verifies the Anvil/Welder framework (including [TLA embedding library](https://github.com/anvil-verifier/verus-tla) as a dependency), all four controllers, and the composition proofs.
+This verifies the Anvil/Welder framework (including [TLA embedding library](https://github.com/anvil-verifier/verus-tla) as a dependency), all four controllers, and the composition proofs. You are expected to see
 
-**The expected result is 0 verification errors.**
+```bash
+verification results:: 1858 verified, 0 errors
+    Checking verus_temporal_logic v0.1.0 (https://github.com/anvil-verifier/verus-tla?rev=91dcde63d45c4980e9d4555b7e9f6861cfb95705#91dcde63)
+verification results:: 139 verified, 0 errors
+    Checking verifiable-controllers v0.1.0 (/users/cat/anvil)
+verification results:: 911 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8m 03s
+```
 
 ### Collecting the lines-of-code statistics (~1 compute-minute + ~1 human-minute)
 
