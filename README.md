@@ -42,9 +42,10 @@ We use Verus' line counting tool to collect the data. It's not shipped with Veru
 ```bash
 # Clone the Verus source and build line_count tool
 git clone --branch release/0.2026.06.14.4ea7d0f https://github.com/verus-lang/verus.git "$HOME/verus-source"
-cd "$HOME/verus-source/source/tools/line_count" && cargo build --release
+(cd "$HOME/verus-source/source/tools/line_count" && cargo build --release)
 
 # run Table 1 generation script
+pip3 install -r tools/requirements.txt
 export VERUS_DIR="$HOME/verus-source"
 ./tools/gen-loc-table.sh
 ```
@@ -65,19 +66,39 @@ The **expected output** looks like:
 
 ---
 
-## 2. Environment setup for testing and performance (acto repository)
+## 2. Reproducing the testing results
 
-These experiments run against the `acto` repository on branch `v-dev`, driven by the scripts `anvil/tools/` directory. The scripts locate the acto checkout via the `ACTO_DIR` environment variable (default: `~/workdir/acto`). We suggest running the long campaigns inside `tmux`.
+The entire testing process can take about 22 machine-hours and ~20 human-minutes.
 
 ### 2.1 Option A: CloudLab (recommended)
 
-The paper's experiments were run on CloudLab Clemson c6420 machines (dual Xeon Gold 6142, 384 GB DRAM, Ubuntu 22.04 LTS). We prepared a CloudLab profile that sets up the environment automatically. If you are new to CloudLab, see the [CloudLab documentation](https://docs.cloudlab.us/basic-concepts.html) and `docs/cloudlab.md` in the `acto` repository for account setup; if you do not already have a CloudLab account, apply for one at the [signup page](https://www.cloudlab.us/signup.php).
+The paper's experiments were run on CloudLab Clemson c6420 machines (dual Xeon Gold 6142, 384 GB DRAM, Ubuntu 22.04 LTS). We highly suggest you use the CloudLab machines with the profiles we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, you can read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab](https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the SOSP AEC chairs to add you to the SOSP AEC project.
 
-**Step 1: instantiate the profile.** Open the [`acto-cloudlab` profile](https://www.cloudlab.us/p/Sieve-Acto/acto-cloudlab?refspec=refs/heads/main) and keep hitting `Next` to create the experiment (pick physical node type `c6420` to match the paper's platform). CloudLab provisions the machine in ~5 minutes; wait until "Status" is `Ready` **and** "Startup" is `Finished` (the startup scripts install Docker, Go, kind, kubectl, and Python dependencies, and clone Acto under `~/workdir/acto`). If no machine is available, [submit a resource reservation](https://docs.cloudlab.us/reservations.html).
+To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: Clemson c6420, Wisconsin c220g5 and Wisconsin c220g2. Please note these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
 
-Note that by default you **only have access to the machine for 16 hours**; click the green `Extend` button to keep the machine long enough for the full campaigns.
+**Please let us know if you have trouble accessing CloudLab, we can help set up the experiment and give you access.**
 
-**Step 2: switch to the evaluation branch and set up the environment.** Log into the machine (via `ssh` or the CloudLab web shell), clone this repository for the scripts, and run:
+**Step 1: set up the machine.** Click **one** of the following three links: [profile `anvil-ae-c6420`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c6420&refspec=refs/heads/main), [profile `anvil-ae-c220g5`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c220g5&refspec=refs/heads/main), or [profile `anvil-ae-c220g2`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c220g2&refspec=refs/heads/main), and keep hitting `next` to create the experiment. You should see that CloudLab starts to provision the machine, which typically takes ~5 minutes. Please patiently wait for "Status" to become `Ready`. After the machine is ready, log into the machine using `ssh` (with the key provided to CloudLab) or using the `shell` provided by the CloudLab Web UI, and then run
+
+```bash
+bash /local/repository/scripts/cloudlab_startup_run_by_creator.sh
+```
+
+This command will take ~5 minutes to finish and it will set up the environment for you and install Acto at the `workdir/acto` directory under your `$HOME` directory.
+
+Please note that by default you **only have access to the machine for 16 hours**. Although it is definitely enough to finish the kick-the-tires instructions, we suggest you extend your access (just click the green `Extend` button) to ensure you can finish the full evaluation with the same machine smoothly.
+
+<details><summary>No available machine?</summary>
+
+You can try to reserve one machine of Clemson c6420, Wisconsin c220g5 or Wisconsin c220g2. If you still cannot get a machine, please contact us on HotCRP.
+</details>
+
+<details><summary>The script fails in the middle?</summary>
+
+Sometimes the script might fail due to transient network issues. The script is supposed to be idempotent and you can just rerun it. If it persistently fails, please contact us on HotCRP.
+</details>
+
+**Step 2: switch to the evaluation branch and set up the environment.** Still on the machine, clone this repository for the scripts, switch Acto to the evaluation branch, and run the setup script:
 
 ```bash
 git clone --branch sosp26 https://github.com/anvil-verifier/anvil.git ~/anvil && cd ~/anvil
@@ -90,24 +111,32 @@ git -C ~/workdir/acto fetch origin v-dev && git -C ~/workdir/acto checkout v-dev
 You need a Linux system with [Docker](https://docs.docker.com/engine/install/) and [Go](https://go.dev/doc/install) installed (any well-provisioned machine works, but absolute performance numbers depend on the platform). Clone both repositories and run the setup script:
 
 ```bash
-git clone --branch v-dev https://github.com/xlab-uiuc/acto.git
+git clone --recursive --branch v-dev https://github.com/xlab-uiuc/acto.git
 git clone --branch sosp26 https://github.com/anvil-verifier/anvil.git && cd anvil
 ACTO_DIR=$PWD/../acto ./tools/setup-welder-env.sh
 ```
 
-The script installs everything else without sudo: a Python 3.12 virtualenv at `$ACTO_DIR/venv-welder` with all Python dependencies (provisioned via [uv](https://docs.astral.sh/uv/), so your system Python version does not matter), plus `kind` and `kubectl` under `~/.local/bin` if missing. The push-button script below picks up the virtualenv automatically.
+The script installs everything else without sudo: a Python 3.12 virtualenv at `$ACTO_DIR/venv-welder` with all Python dependencies (provisioned via [uv](https://docs.astral.sh/uv/), so your system Python version does not matter), plus `kind` and `kubectl` under `~/.local/bin` if missing. It also fetches the `welder-ae-data` submodule with the recorded functional testruns that the performance scripts replay.
 
-### 2.3 Push-button script
-
-All the commands in §3 and §4 are wrapped by `tools/reproduce-welder-testing.sh`:
+**Activate the virtualenv before running any commands from §2.3, §3, or §4** (all of them are run from the `acto` checkout; on CloudLab that is `~/workdir/acto`):
 
 ```bash
-export NUM_WORKERS=<N>
-./tools/reproduce-welder-testing.sh functional     # §3.1
-./tools/reproduce-welder-testing.sh crash          # §3.2 (requires functional results)
-./tools/reproduce-welder-testing.sh performance    # §4 (requires functional results)
-./tools/reproduce-welder-testing.sh all            # everything, in order
+cd ~/workdir/acto/
+source venv-welder/bin/activate
 ```
+
+### 2.3 Kick-the-tires: run one controller's workloads
+
+To quickly check that the environment works end to end, run a 5% sample of the performance workloads for the VDeployment controller and its unverified reference. We suggest you use `tmux` when running on remote machines as the command can take a while.
+
+```bash
+cd ~/workdir/acto/
+source venv-welder/bin/activate
+bash welder-ae-one-controller.sh 0.05
+cat welder-table-2.txt
+```
+
+You should see a table with the `ReplicaSet` and `Deployment` rows of the performance table shown in §4 (the `StatefulSet` and `RabbitMQ` rows only appear after the full evaluation, and the script prints `testrun-rabbitmq-performance does not exist`, which is expected here). The absolute numbers depend on the platform; if the command fails or the table is missing, please let us know.
 
 ## 3. Reproducing the correctness results
 
@@ -116,7 +145,8 @@ export NUM_WORKERS=<N>
 Two test campaigns cover the four controllers. Both configs deploy **all four verified controllers together** (matching the paper's composition setting); the campaign determines which controller's custom resource is mutated:
 
 ```bash
-cd ../acto
+cd ~/workdir/acto/
+source venv-welder/bin/activate
 # Deployment + ReplicaSet campaign (~465 tests)
 python3 -m acto --config data/vdeployment-controller/v0/config.json \
     --num-workers <N> --workdir testrun-vdeployment
@@ -139,7 +169,7 @@ This collects all test results into a CSV file under the testrun directory. Each
 
 **Expected result:** no true alarms — every generated desired state is successfully reconciled (alarms, if any, should be inspected and are expected to be false alarms/misoperations, consistent with "No bug was found").
 
-Keep the two testrun directories: they are the inputs for the crash tests (§3.2) and the performance measurement (§4).
+Keep the two testrun directories: they are the inputs for the crash tests (§3.2). (The performance measurement in §4 uses the recorded testruns from the `welder-ae-data` submodule instead.)
 
 ### 3.2 Controller-crash and Pod-crash tests 
 
@@ -177,52 +207,39 @@ Each Chactos workdir contains per-trial directories mirroring Acto's layout; the
 
 ## 4. Reproducing the performance results
 
-The performance harness lives in `plugins/performance_measurement/`. It replays each functional test input against (a) the verified controllers ("anvil" phase) and (b) the unverified references ("reference" phase: `data/deployment-controller/v0/config.json` deploys the native Kubernetes Deployment/ReplicaSet controllers; `data/rabbitmq-operator/v2-19-2/config.json` deploys the official RabbitMQ cluster operator v2.19.2), while recording per-`reconcile` execution time, end-to-end reconciliation time (the "conditions" in `measure_runner.py`, including first-write latency), and control-plane resource usage (etcd/API server CPU, memory, and disk I/O via cAdvisor and the metrics API; a metrics-server is deployed from `data/metrics-server.yaml`).
+The performance harness lives in `plugins/performance_measurement/`. It replays desired-state inputs against (a) the verified controllers ("anvil" phase) and (b) the unverified references ("reference" phase: `data/deployment-controller/v0/config.json` deploys the native Kubernetes Deployment/ReplicaSet controllers; `data/rabbitmq-operator/v2.5.0/config.json` deploys the official RabbitMQ cluster operator), while recording per-`reconcile` execution time, end-to-end reconciliation time (including first-write latency), and control-plane resource usage (etcd/API server CPU, memory, and disk I/O via cAdvisor and the metrics API). The inputs are derived from the recorded functional testruns shipped in the `welder-ae-data` submodule, so this section does not depend on the testruns from §3.
 
-**Step 1: generate the input workloads** from the functional testruns (§3.1):
-
-```bash
-cd ../acto
-python3 plugins/performance_measurement/measure_performance.py --gen \
-    --input-dir testrun-vdeployment \
-    -c data/vdeployment-controller/v0/config.json -j vdeployment-controller
-
-python3 plugins/performance_measurement/measure_performance.py --gen \
-    --input-dir testrun-rabbitmq \
-    -c data/anvil-rabbitmq-controller/config.json -j rabbitmq-operator
-```
-
-This writes `inputs/anvil_inputs/` and `inputs/reference/` under each testrun directory (the reference inputs are the same desired states converted to the reference controllers' CR format).
-
-**Step 2: run the measurements.** The workdir names below are required — the result-processing script looks for exactly these directories:
+We suggest you use `tmux` when running on remote machines as the command can take hours. In the `acto` checkout, run:
 
 ```bash
-python3 plugins/performance_measurement/measure_performance.py \
-    --workdir testrun-vdeployment-performance-first-write \
-    --input-dir testrun-vdeployment \
-    -c data/vdeployment-controller/v0/config.json \
-    -r data/deployment-controller/v0/config.json \
-    -j vdeployment-controller
-
-python3 plugins/performance_measurement/measure_performance.py \
-    --workdir testrun-rabbitmq-performance-first-write \
-    --input-dir testrun-rabbitmq \
-    -c data/anvil-rabbitmq-controller/config.json \
-    -r data/rabbitmq-operator/v2-19-2/config.json \
-    -j rabbitmq-operator
+cd ~/workdir/acto/
+source venv-welder/bin/activate
+bash welder-ae-sampled.sh 0.05
+cat welder-table-2.txt
 ```
 
-Each run executes two modes per phase (`normal`: replay the input sequence; `single-operation`: apply each input from a fresh baseline). Use `--phase anvil` / `--phase reference` to run one side at a time.
+This runs 5% of the workloads for both campaigns (VDeployment + VReplicaSet vs. the native Deployment/ReplicaSet controllers, and VRabbitMQ + VStatefulSet vs. the official RabbitMQ operator) and processes the results into `welder-table-2.txt`. You should see a table like this (times in seconds):
 
-**Step 3: process the results.** From the repository root (the parent of the two `testrun-*-performance-first-write` directories):
+```
+| Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
+|--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
+| ReplicaSet   |                 0.8  |             0.11 | 0.69±0.34        |                  9.47 |              8.81 | 0.66±0.59         |
+| Deployment   |                 0.13 |             0.05 | 0.07±0.07        |                  9.47 |              8.81 | 0.66±0.59         |
+| StatefulSet  |                 0.47 |             0.42 | 0.06±0.35        |                118.56 |            119.26 | -0.70±6.48        |
+| RabbitMQ     |                 0.52 |             1.81 | -1.29±1.44       |                118.56 |            119.26 | -0.70±6.48        |
+```
 
+**Expected result:** your numbers should be in the ballpark of this table. The absolute numbers depend on the platform, but you should observe the paper's key pattern — the verified controllers' `reconcile` times are modestly higher than the references (VRabbitMQ is even faster than its reference), and the end-to-end differences are negligible (within one standard deviation, the `±` term in the `Diff` columns).
+
+<details><summary>I want to run all the workloads?</summary>
+
+Note that this will take much longer to finish. If you really want to do that, run
 ```bash
-python3 plugins/performance_measurement/process_ts.py
+bash welder-ae-sampled.sh 1
 ```
+</details>
 
-This prints the latency comparison and control-plane resource statistics, and writes the summary table to `anvil-table-3.txt` (mean/max reconciliation latencies of the verified controllers vs. their unverified references). The raw measurements are kept under the two performance workdirs: `measurement_result_*.json` (per-input latency conditions, including the first-write latency) and `control_plane_stats/` (etcd and API-server CPU, memory, and disk I/O time series from cAdvisor and the metrics API).
-
-**Expected result:** the absolute numbers depend on the platform, but you should observe the paper's key pattern — the verified controllers' `reconcile` times are modestly higher than the references (VRabbitMQ is faster than its reference), the end-to-end differences are negligible (within one standard deviation), and etcd/API-server CPU, memory, and disk I/O differences are within one standard deviation.
+The raw measurements are kept under the two performance workdirs `testrun-vdeployment-performance/` and `testrun-rabbitmq-performance/`: `measurement_result_*.json` (per-input latency conditions, including the first-write latency) and `control_plane_stats/` (etcd and API-server CPU, memory, and disk I/O time series from cAdvisor and the metrics API). `process_ts.py` (invoked by the script) also writes detailed latency breakdowns to `latency_table.txt` under each workdir.
 
 ---
 

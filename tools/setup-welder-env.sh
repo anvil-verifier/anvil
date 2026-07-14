@@ -30,6 +30,9 @@ export PATH="$BIN_DIR:$PATH"
 echo "=== Checking Docker ==="
 docker info >/dev/null 2>&1 || { echo "error: Docker is not running; install/start it first" >&2; exit 1; }
 
+echo "=== Fetching the recorded functional testruns (welder-ae-data submodule) ==="
+git submodule update --init
+
 echo "=== Setting up Python 3.12 environment at $ACTO_DIR/venv-welder ==="
 command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv --clear --python 3.12 venv-welder
@@ -51,5 +54,5 @@ fi
 echo ""
 echo "=== Environment ready ==="
 echo "Make sure $BIN_DIR is on your PATH."
-echo "The push-button script picks up $ACTO_DIR/venv-welder automatically:"
-echo "  ACTO_DIR=$ACTO_DIR ./tools/reproduce-welder-testing.sh functional"
+echo "Before running the evaluation scripts, activate the virtualenv:"
+echo "  cd $ACTO_DIR && source venv-welder/bin/activate"
