@@ -106,7 +106,20 @@ bash welder-ae-one-controller.sh 0.05
 cat welder-table-2.txt
 ```
 
-If you set up your own machine, replace `~/workdir/acto` with the path to the cloned acto repo on your machine instead.
+If you set up your own machine, replace `~/workdir/acto` with the path to the cloned acto repo on your machine instead. You should see a table like this:
+
+```
+| Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
+|--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
+| ReplicaSet   |                 7.77 |             0.11 | 7.67±5.93        |                 18.81 |              6.38 | 12.43±11.79       |
+| Deployment   |                 6.85 |             0.05 | 6.80±11.53       |                 18.81 |              6.38 | 12.43±11.79       |
+| Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
+|--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
+| ReplicaSet   |                 7.77 |             0.11 | 7.67±5.93        |                 18.81 |              6.38 | 12.43±11.79       |
+| Deployment   |                 6.85 |             0.05 | 6.80±11.53       |                 18.81 |              6.38 | 12.43±11.79       |
+```
+
+**Expected result:** The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible (within one standard deviation).
 
 ---
 ## Full Evaluation Instructions (~22 compute-hours + ~2 human-minutes)
