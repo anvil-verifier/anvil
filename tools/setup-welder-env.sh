@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-VERUS_VERSION="${VERUS_VERSION:-0.2026.06.14.4ea7d0f}"
+VERUS_VERSION="${VERUS_VERSION:-0.2026.06.28.1847ab3}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
