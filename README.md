@@ -59,14 +59,15 @@ export PATH="$PATH:$HOME/verus"
 cd acto
 uv venv --clear --python 3.12 venv-welder
 uv pip install -p venv-welder/bin/python -r requirements-dev.txt
-uv pip install -p venv-welder/bin/python tabulate
 cd ~
 ```
 
-### Reproducing the verification results (~10 compute-minutes + ~1 human-minutes)
+### Reproducing full verification results (~10 compute-minutes + ~1 human-minutes)
 
 ```bash
 cd ~/anvil
+. "$HOME/.cargo/env"
+export PATH="$PATH:$HOME/verus"
 cargo verus verify --lib
 ```
 
@@ -75,8 +76,6 @@ This verifies the Anvil/Welder framework (including [TLA embedding library](http
 **The expected result is 0 verification errors.**
 
 ### Collecting the lines-of-code statistics (~1 compute-minute + ~1 human-minute)
-
-We use Verus' line counting tool to collect the data. It's not shipped with Verus and you will need to build from source
 
 ```bash
 VERUS_DIR=~/verus-source ./tools/gen-loc-table.sh
@@ -103,7 +102,7 @@ To quickly check that the environment works end to end, run a 5% sample of the p
 
 ```bash
 cd ~/workdir/acto
-source venv-welder/bin/activate # only if you set up your own machine; CloudLab installs the Python dependencies globally
+source venv-welder/bin/activate # only on your own machine
 bash welder-ae-one-controller.sh 0.05
 cat welder-table-2.txt
 ```
@@ -111,20 +110,14 @@ cat welder-table-2.txt
 If you set up your own machine, replace `~/workdir/acto` with the path to the cloned acto repo on your machine instead.
 
 ---
+## Reproducing full testing results (~22 compute-hours + ~2 human-minutes)
 
-## Full Evaluation Instructions (~22 compute-hours + ~6 human-minutes)
-
-Following full evaluation instructions, you will reproduce the verification results in Table 1 and the performance results in Table 2. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will highlight the key pattern you should be able to observe. You will reuse the environments from kick-the-tire instructions.
-
-### Reproducing the testing results (~22 compute-hours + ~2 human-minutes)
-
+You will reproduce the performance results in Table 2. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will highlight the key pattern you should be able to observe. You will reuse the environments from kick-the-tire instructions.
 The entire testing process can take about 22 machine-hours and ~20 human-minutes.
 
 We suggest you use `tmux` when running on remote machines as the command can take hours. In the `acto` checkout, run:
 
 ```bash
-cd ~/workdir/acto
-source venv-welder/bin/activate # only if you set up your own machine; CloudLab installs the Python dependencies globally
 bash welder-ae-sampled.sh 0.05
 cat welder-table-2.txt
 ```
