@@ -1,58 +1,56 @@
 #!/usr/bin/env bash
-# One-shot environment setup for the Welder testing and performance experiments.
-# See the README of this branch for the full instructions.
+# One-shot setup for the Welder verification experiments (anvil repo only).
+# Testing/performance dependencies (Docker, Python env for acto) are
+# provisioned separately; see the README of this branch.
 #
-# Usage:
-#   ACTO_DIR=<path to the acto checkout (v-dev branch)> ./tools/setup-welder-env.sh
-#   (ACTO_DIR defaults to ~/workdir/acto, where the CloudLab profile places it)
+# Usage (from the anvil repo root, or anywhere):
+#   ./tools/setup-welder-env.sh
 #
 # Installs, without sudo:
-#   - a Python 3.12 virtualenv at $ACTO_DIR/venv-welder with all Python
-#     dependencies (provisioned via uv, so the system Python version does
-#     not matter)
-#   - kind and kubectl into ~/.local/bin, if missing
+#   - the Rust toolchain pinned by rust-toolchain.toml (via rustup)
+#   - the Verus release binary at $HOME/verus
+#   - the Verus source at $HOME/verus-source, with the line_count tool built
+#     (needed by tools/gen-loc-table.sh; not shipped in the release binary)
+#   - the `tabulate` Python package used to render the LOC table
 #
-# Prerequisites: Docker (running), and Go if kind is not already installed.
+# Idempotent: safe to rerun after a transient failure.
 
 set -euo pipefail
 
-ACTO_DIR="${ACTO_DIR:-$HOME/workdir/acto}"
-[ -d "$ACTO_DIR" ] || { echo "error: acto checkout not found at $ACTO_DIR; set ACTO_DIR" >&2; exit 1; }
-cd "$ACTO_DIR"
+VERUS_VERSION="${VERUS_VERSION:-0.2026.06.14.4ea7d0f}"
 
-KIND_VERSION="v0.23.0"
-KUBECTL_VERSION="v1.30.0"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_DIR"
 
-BIN_DIR="$HOME/.local/bin"
-mkdir -p "$BIN_DIR"
-export PATH="$BIN_DIR:$PATH"
+echo "=== Installing Rust toolchain ==="
+if ! command -v rustup >/dev/null 2>&1 && [ ! -x "$HOME/.cargo/bin/rustup" ]; then
+    curl --proto '=https' --tlsv1.2 -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+fi
+. "$HOME/.cargo/env"
+rustup toolchain install
 
-echo "=== Checking Docker ==="
-docker info >/dev/null 2>&1 || { echo "error: Docker is not running; install/start it first" >&2; exit 1; }
-
-echo "=== Fetching the recorded functional testruns (welder-ae-data submodule) ==="
-git submodule update --init
-
-echo "=== Setting up Python 3.12 environment at $ACTO_DIR/venv-welder ==="
-command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv --clear --python 3.12 venv-welder
-uv pip install -p venv-welder/bin/python -r requirements-dev.txt \
-    matplotlib pandas tabulate prometheus_client
-
-echo "=== Checking kind ==="
-if ! command -v kind >/dev/null 2>&1; then
-    command -v go >/dev/null 2>&1 || { echo "error: kind is missing and Go is not installed (https://go.dev/doc/install)" >&2; exit 1; }
-    GOBIN="$BIN_DIR" go install "sigs.k8s.io/kind@$KIND_VERSION"
+echo "=== Installing Verus release binary at \$HOME/verus ==="
+if [ ! -x "$HOME/verus/cargo-verus" ]; then
+    curl -fsSL -o /tmp/verus.zip "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+    unzip -q /tmp/verus.zip -d "$HOME"
+    rm -rf "$HOME/verus"
+    mv "$HOME/verus-x86-linux" "$HOME/verus"
+    rm /tmp/verus.zip
 fi
 
-echo "=== Checking kubectl ==="
-if ! command -v kubectl >/dev/null 2>&1; then
-    curl -fsSLo "$BIN_DIR/kubectl" "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl"
-    chmod +x "$BIN_DIR/kubectl"
+echo "=== Building the Verus line_count tool at \$HOME/verus-source ==="
+if [ ! -d "$HOME/verus-source" ]; then
+    git clone --branch "release/${VERUS_VERSION}" https://github.com/verus-lang/verus.git "$HOME/verus-source"
 fi
+(cd "$HOME/verus-source/source/tools/line_count" && cargo build --release)
+
+echo "=== Installing the Python dependency of the LOC table script ==="
+pip3 install tabulate
 
 echo ""
-echo "=== Environment ready ==="
-echo "Make sure $BIN_DIR is on your PATH."
-echo "Before running the evaluation scripts, activate the virtualenv:"
-echo "  cd $ACTO_DIR && source venv-welder/bin/activate"
+echo "=== Anvil environment ready ==="
+echo "Add Verus to your PATH before running the verification commands:"
+echo "  export PATH=\"\$PATH:\$HOME/verus\""
+echo "The LOC table script expects:"
+echo "  export VERUS_DIR=\"\$HOME/verus-source\""
