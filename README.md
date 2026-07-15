@@ -70,7 +70,7 @@ export PATH="$PATH:$HOME/verus"
 cargo verus verify --lib
 ```
 
-This verifies the Anvil/Welder framework (including [TLA embedding library](https://github.com/anvil-verifier/verus-tla) as a dependency), all four controllers, and the composition proofs. You are expected to see
+This verifies the Anvil/Welder framework, all four controllers, and the composition proofs. You are expected to see
 
 ```bash
 verification results:: 1858 verified, 0 errors
