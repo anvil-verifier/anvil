@@ -11,7 +11,7 @@ The paper claims that Welder enables compositional verification of Kubernetes co
 
 We require a Linux X86-64 machine to reproduce the result. You are welcome to use Cloudlab machine for reproduction.
 
-## Kick-the-tires instructions (~1.5 compute-hours + ~6 human-minutes)
+## Kick-the-tires instructions (~1 compute-hour + ~6 human-minutes)
 
 ### Use CloudLab machine (recommended)
 
@@ -110,24 +110,25 @@ To quickly check that the environment works end-to-end, run a 5% sample of the p
 cd ~/workdir/acto
 source venv-welder/bin/activate # only on your own machine
 bash welder-ae-one-controller.sh 0.05
-cat welder-table-2-one-controller.txt
+cat welder-table-2.txt
 ```
 
 If you set up your own machine, replace `~/workdir/acto` with the path to the cloned acto repo on your machine instead. You should see a table like this:
 
 ```
 | Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
-| ReplicaSet   |                 0.68 |             0.09 | 0.59±0.08        |                  5.69 |              7.51 | -1.81±1.38        |                                                       
+|--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
+| ReplicaSet   |                 0.68 |             0.09 | 0.59±0.08        |                  5.69 |              7.51 | -1.81±1.38        |
 | Deployment   |                 0.09 |             0.06 | 0.02±0.02        |                  5.69 |              7.51 | -1.81±1.38        |
 ```
 
 **Expected result:** The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible (within one standard deviation).
 
 ---
-## Full Evaluation Instructions (~22 compute-hours + ~2 human-minutes)
+## Full Evaluation Instructions (~2 compute-hours + ~2 human-minutes)
 
 You will reproduce the performance results in Table 2. These are the key results that support the claim in the paper. The absolute number of time-related results heavily depends on the platform, but we will highlight the key pattern you should be able to observe. You will reuse the environments from kick-the-tire instructions.
-The entire testing process can take about 22 machine-hours and ~20 human-minutes.
+The entire testing process takes about 2 machine-hours with the default 5% sample.
 
 We suggest you use `tmux` when running on remote machines, as the command can take hours. In the `acto` checkout, run:
 
@@ -141,17 +142,17 @@ This runs 5% of the workloads for both campaigns (VDeployment + VReplicaSet vs. 
 ```
 | Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
 |--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
-| ReplicaSet   |                 0.8  |             0.11 | 0.69±0.34        |                  9.47 |              8.81 | 0.66±0.59         |
-| Deployment   |                 0.13 |             0.05 | 0.07±0.07        |                  9.47 |              8.81 | 0.66±0.59         |
-| StatefulSet  |                 0.47 |             0.42 | 0.06±0.35        |                118.56 |            119.26 | -0.70±6.48        |
-| RabbitMQ     |                 0.52 |             1.81 | -1.29±1.44       |                118.56 |            119.26 | -0.70±6.48        |
+| ReplicaSet   |                 0.75 |             0.08 | 0.67±0.15        |                  5.86 |               7.4 | -1.54±2.20        |
+| Deployment   |                 0.1  |             0.06 | 0.04±0.01        |                  5.86 |               7.4 | -1.54±2.20        |
+| StatefulSet  |                 0.53 |             0.31 | 0.22±0.05        |                106.15 |             100.3 | 5.84±6.28         |
+| RabbitMQ     |                 0.54 |             0.78 | -0.24±0.08       |                106.15 |             100.3 | 5.84±6.28         |
 ```
 
-**Expected result:** your numbers should be in the ballpark of this table. The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible (within one standard deviation).
+**Expected result:** The absolute numbers depend on the platform, but you should observe that the end-to-end differences are negligible (within one standard deviation).
 
 <details><summary>I want to run all the workloads?</summary>
 
-Note that this will take much longer to finish. If you really want to do that, run
+Note that running all the workloads takes about 22 machine-hours. If you really want to do that, run
 ```bash
 bash welder-ae-sampled.sh 1
 ```
