@@ -118,11 +118,11 @@ If you set up your own machine, replace `~/workdir/acto` with the path to the cl
 ```
 | Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
 |--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
-| ReplicaSet   |                 0.68 |             0.09 | 0.59±0.08        |                  5.69 |              7.51 | -1.81±1.38        |
-| Deployment   |                 0.09 |             0.06 | 0.02±0.02        |                  5.69 |              7.51 | -1.81±1.38        |
+| ReplicaSet   |                 0.66 |             0.07 | 0.59±0.04        |                  5.82 |              5.53 | 0.29±0.13         |
+| Deployment   |                 0.1  |             0.06 | 0.03±0.01        |                  5.82 |              5.53 | 0.29±0.13         |
 ```
 
-**Expected result:** The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible (within one standard deviation).
+**Expected result:** The absolute numbers depend on the platform, but you should observe that end-to-end differences are negligible.
 
 ---
 ## Full Evaluation Instructions (~2 compute-hours + ~2 human-minutes)
@@ -142,13 +142,13 @@ This runs 5% of the workloads for both campaigns (VDeployment + VReplicaSet vs. 
 ```
 | Controller   |   reconcile Verified |   reconcile Ref. | reconcile Diff   |   End-to-end Verified |   End-to-end Ref. | End-to-end Diff   |
 |--------------|----------------------|------------------|------------------|-----------------------|-------------------|-------------------|
-| ReplicaSet   |                 0.75 |             0.08 | 0.67±0.15        |                  5.86 |               7.4 | -1.54±2.20        |
-| Deployment   |                 0.1  |             0.06 | 0.04±0.01        |                  5.86 |               7.4 | -1.54±2.20        |
-| StatefulSet  |                 0.53 |             0.31 | 0.22±0.05        |                106.15 |             100.3 | 5.84±6.28         |
-| RabbitMQ     |                 0.54 |             0.78 | -0.24±0.08       |                106.15 |             100.3 | 5.84±6.28         |
+| ReplicaSet   |                 0.73 |             0.1  | 0.63±0.11        |                  5.59 |              5.61 | -0.02±0.13        |
+| Deployment   |                 0.11 |             0.06 | 0.05±0.00        |                  5.59 |              5.61 | -0.02±0.13        |
+| StatefulSet  |                 0.45 |             0.28 | 0.17±0.08        |                103.6  |            101.54 | 2.06±4.72         |
+| RabbitMQ     |                 0.47 |             0.73 | -0.26±0.10       |                103.6  |            101.54 | 2.06±4.72         |
 ```
 
-**Expected result:** The absolute numbers depend on the platform, but you should observe that the end-to-end differences are negligible (within one standard deviation).
+**Expected result:** The absolute numbers depend on the platform, but you should observe that the end-to-end differences are negligible.
 
 <details><summary>I want to run all the workloads?</summary>
 
