@@ -12,8 +12,8 @@ runtime = ["kube/runtime"]
 ws = ["kube/ws"]
 
 [dependencies]
-vstd = "=0.0.0-2026-06-14-0213"
-verus_temporal_logic = { git = "https://github.com/anvil-verifier/verus-tla", rev = "91dcde63d45c4980e9d4555b7e9f6861cfb95705" }
+vstd = "=0.0.0-2026-07-12-0122"
+verus_temporal_logic = { git = "https://github.com/anvil-verifier/verus-tla", rev = "8bb157b50b6200296d4b04d1302644d269e29443" }
 
 kube = { version = "0.91.0", default-features = false, features = ["admission"] }
 kube-client = { version = "0.91.0", default-features = false }
