@@ -2725,7 +2725,7 @@ dependencies = [
 [[package]]
 name = "verus_temporal_logic"
 version = "0.1.0"
-source = "git+https://github.com/anvil-verifier/verus-tla?rev=d0d0b4acfd849f90a3f58bab016c8e8f90de5d9d#d0d0b4acfd849f90a3f58bab016c8e8f90de5d9d"
+source = "git+https://github.com/anvil-verifier/verus-tla?rev=8bb157b50b6200296d4b04d1302644d269e29443#8bb157b50b6200296d4b04d1302644d269e29443"
 dependencies = [
  "vstd",
 ]
