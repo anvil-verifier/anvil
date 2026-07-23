@@ -43,10 +43,11 @@ go_version:   "^1.20"
 ```
 
 `Cargo.toml` pins `vstd = "=…"` to a specific crates.io snapshot. CI
-fetches the latest Verus release from
-[verus-lang/verus](https://github.com/verus-lang/verus/releases/latest)
-at runtime. When you bump `vstd`, also rebuild your local Verus binary
-to a compatible release (typically the closest dated GitHub release).
+downloads the matching Verus release (the `VERUS_TAG` env in
+`.github/workflows/ci.yml`) from
+[verus-lang/verus](https://github.com/verus-lang/verus/releases).
+When you bump `vstd`, also bump `VERUS_TAG` and update your local Verus
+binary to the compatible release (the closest dated GitHub release).
 
 ## Build and verify
 

@@ -3,19 +3,21 @@ on:
   workflow_dispatch:
 env:
   IMAGE_NAME: ${{ github.repository }}
+  # should match the vstd version in Cargo.toml
+  # https://github.com/verus-lang/verus/releases
+  VERUS_TAG: "0.2026.07.12.0b42f4c"
 jobs:
   setup-toolchain:
     runs-on: ubuntu-24.04
     outputs:
       verus-tag: ${{ steps.verus-tag.outputs.tag }}
     steps:
-      - name: Discover the latest Verus release
+      - name: Pin the Verus release matching vstd in Cargo.toml
         id: verus-tag
         run: |
-          TAG=$(curl -fsSL https://api.github.com/repos/verus-lang/verus/releases/latest \
-                | jq -r .tag_name | sed 's|^release/||')
+          TAG="$VERUS_TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Latest Verus release: $TAG"
+          echo "Pinned Verus release: $TAG"
       - uses: actions/checkout@v7
       - name: Cache toolchains
         id: cache-toolchain
