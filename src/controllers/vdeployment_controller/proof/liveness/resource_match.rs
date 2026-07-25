@@ -1092,6 +1092,7 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(200))]
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
