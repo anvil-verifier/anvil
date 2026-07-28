@@ -1,9 +1,6 @@
 # How to build, verify and run controllers
 
-This project uses [`cargo verus`](https://github.com/verus-lang/verus). All
-third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
-`Cargo.toml`; the Verus standard library (`vstd`) is pulled from
-[crates.io](https://crates.io/crates/vstd).
+This project uses [`cargo verus`](https://github.com/verus-lang/verus). All third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level `Cargo.toml`; the Verus standard library (`vstd`) is tracking the `main` branch of [verus-lang/verus](https://github.com/verus-lang/verus).
 
 ## Code structure
 
@@ -12,11 +9,13 @@ third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
 ├── Cargo.toml          # single root package: verifiable-controllers
 ├── build.md
 ├── deploy/             # CRDs, RBAC, kind config, sample workloads
-├── deploy.sh           # apply deploy/<controller>/* to a kind cluster
 ├── docker/
 │   └── controller/     # Dockerfile — bakes a host-built binary into an image
 ├── e2e/                # end-to-end test crate
-├── local-test.sh       # build controller image + run e2e against kind
+├── tools/
+│   ├── setup-verus.sh  # fetch, build and wire up Verus
+│   ├── deploy.sh       # apply deploy/<controller>/* to a kind cluster
+│   └── local-test.sh   # build controller image + run e2e against kind
 └── src/
     ├── lib.rs          # framework library
     ├── crds.rs         # k8s CRD type definitions
@@ -42,20 +41,11 @@ kind_version: 0.23.0
 go_version:   "^1.20"
 ```
 
-`Cargo.toml` pins `vstd = "=…"` to a specific crates.io snapshot. CI
-downloads the matching Verus release (the `VERUS_TAG` env in
-`.github/workflows/ci.yml`) from
-[verus-lang/verus](https://github.com/verus-lang/verus/releases).
-When you bump `vstd`, also bump `VERUS_TAG` and update your local Verus
-binary to the compatible release (the closest dated GitHub release).
+Run `./tools/setup-verus.sh` to fetch, build, and wire up a local Verus binary.
 
 ## Build and verify
 
-Use `cargo verus focus` for verification. Unlike `cargo verus verify`,
-`focus` actually runs the SMT solver on the current crate. Most
-verification targets are library modules (under `src/controllers/`,
-`src/kubernetes_cluster/`, etc.), so combine `--lib` with
-`--verify-module <mod>` to narrow scope:
+Use `cargo verus focus` for verification. Unlike `cargo verus verify`, `focus` actually runs the SMT solver on the current crate. Most verification targets are library modules (under `src/controllers/`, `src/kubernetes_cluster/`, etc.), so combine `--lib` with `--verify-module <mod>` to narrow scope:
 
 ```sh
 # Verify the entire Anvil framework + every controller and proof:
@@ -71,8 +61,7 @@ cargo verus verify --lib -- --verify-only-module composition
 cargo verus verify --lib -- --verify-only-module tla_demo
 ```
 
-Pass extra Verus flags after `--`. Replace `--lib` with `--bin <name>`
-to verify a specific binary's own source.
+Pass extra Verus flags after `--`. Replace `--lib` with `--bin <name>` to verify a specific binary's own source.
 
 ## Build and test
 
@@ -92,12 +81,12 @@ The binary lands in `target/debug/<controller_name>` (or
    `docker/controller/Dockerfile`.
 3. Set up a kind cluster and load the image.
 4. Apply the e2e tests from `e2e/src/` and the workload from `deploy/`
-   via `deploy.sh`.
+   via `tools/deploy.sh`.
 
 Steps 1–3 are automated:
 
 ```
-./local-test.sh <controller_name> [--build]
+./tools/local-test.sh <controller_name> [--build]
   --build     build via `cargo verus build` on the host, then make the image
   (no flag)   reuse an existing local image named local/<app>-controller:v0.1.0
 ```

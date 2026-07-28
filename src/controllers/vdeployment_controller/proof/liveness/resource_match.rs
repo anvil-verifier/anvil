@@ -1284,6 +1284,7 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(200))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1347,15 +1348,9 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 if msg == req_msg {
-                    // TODO: investigate why this branch is super slow
                     let resp_msg = lemma_scale_new_vrs_req_returns_ok(
                         s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
                     );
-                    VReplicaSetView::marshal_preserves_integrity();
-                    assert({
-                        &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                    });
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
@@ -1381,15 +1376,9 @@ ensures
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input->0;
         let resp_msg = lemma_scale_new_vrs_req_returns_ok(
-            s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
+            s, s_prime, vd, cluster, controller_id, input->0, nv_uid_key_replicas, n
         );
-        // instantiate existential quantifier.
-        assert({
-            &&& s_prime.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, msg)
-        });
     }
     cluster.lemma_pre_leads_to_post_by_api_server(
         spec, input, stronger_next, APIServerStep::HandleRequest, pre, post

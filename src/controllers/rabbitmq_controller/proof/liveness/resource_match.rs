@@ -526,7 +526,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
                     let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(
                         s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg
                     );
-                    assert(s_prime.in_flight().contains(resp_msg));
                 } else {
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                         s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
@@ -547,7 +546,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(
             s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg
         );
-        assert(s_prime.in_flight().contains(resp_msg));
     }
 
     cluster.lemma_pre_leads_to_post_by_api_server(
@@ -779,6 +777,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     );
 }
 
+#[verifier(rlimit(200))]
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
@@ -839,7 +838,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
                     let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(
                         s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg
                     );
-                    assert(s_prime.in_flight().contains(resp_msg));
                 } else {
                     lemma_api_request_other_than_pending_req_msg_maintains_resource_object(
                         s, s_prime, rabbitmq, cluster, controller_id, sub_resource, input->0
@@ -858,7 +856,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
         let resp_msg = lemma_get_sub_resource_request_returns_ok_or_not_found(
             s, s_prime, rabbitmq, cluster, controller_id, sub_resource, req_msg
         );
-        assert(s_prime.in_flight().contains(resp_msg));
     }
 
     cluster.lemma_pre_leads_to_post_by_api_server(

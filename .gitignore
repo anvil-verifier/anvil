@@ -18,9 +18,9 @@ src/*.long-type-*.txt
 vreplicaset_controller.*.txt
 vstatefulset_controller.*.txt
 
-# LOC accounting artifacts
-anvil_loc_table
+# Local Verus checkout cloned by tools/setup-verus.sh
+/.verus/
 
 # Other
-tools/*.json
 certs
+

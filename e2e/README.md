@@ -7,7 +7,7 @@ Before you run the test, please make sure:
 1. The corresponding controller has been deployed.
 2. The corresponding CRD has been created.
 
-Recommend using `deploy.sh` to do prerequisites above.
+Recommend using `tools/deploy.sh` to do prerequisites above.
 
 ---
 
