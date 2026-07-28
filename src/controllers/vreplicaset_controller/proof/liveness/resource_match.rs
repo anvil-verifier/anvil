@@ -2233,7 +2233,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                 let msg = input->0;
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
-                        s, s_prime, vrs, cluster, controller_id, msg
+                        s, s_prime, vrs, cluster, controller_id, msg, diff
                     );
                 } else {
                     lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
@@ -2260,7 +2260,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         let diff = s_prime_state.reconcile_step->AfterDeletePod_0;
 
         let resp_msg = lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
-            s, s_prime, vrs, cluster, controller_id, input->0
+            s, s_prime, vrs, cluster, controller_id, input->0, diff
         );
 
         assert forall |i| 0 <= i < diff implies {
@@ -2278,8 +2278,8 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     );
 }
 
-// TODO: investigate flaky proof
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(200))]
 pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int

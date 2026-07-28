@@ -418,8 +418,8 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
 }
 
 pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
-    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
-    msg: Message,
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
+    msg: Message, diff: nat,
 ) -> (resp_msg: Message)
     requires
         cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
@@ -431,17 +431,20 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
         helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s),
+        num_diff_pods_is(vrs, diff as int + 1)(s),
     ensures
         resp_msg == handle_get_then_delete_request_msg(msg, s.api_server).1,
         resp_msg.content.get_get_then_delete_response().res is Ok,
         s_prime.in_flight().contains(resp_msg),
         resp_msg_matches_req_msg(resp_msg, msg),
+        num_diff_pods_is(vrs, diff as int)(s_prime),
+        exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, diff)(s_prime),
         // identifies specific pod deleted.
         ({
             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
             let filtered_pods = state.filtered_pods.unwrap();
             let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-            let diff = state.reconcile_step->AfterDeletePod_0;
             matching_pods(vrs, s_prime.resources()) == matching_pods(vrs, s.resources()).remove(
                 s.resources()[filtered_pod_keys[diff as int]]
             )
@@ -460,7 +463,7 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         matching_pod_entries(vrs, s.resources()).remove(key).values()
         == matching_pod_entries(vrs, s.resources()).values().remove(obj)
     );
-    
+
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
 
@@ -469,6 +472,9 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         &&& s_prime.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
     });
+    assert(exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, diff)(s_prime)) by {
+        assert(s_prime.ongoing_reconciles(controller_id) == s.ongoing_reconciles(controller_id));
+    }
 
     return resp_msg;
 }

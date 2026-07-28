@@ -1284,6 +1284,7 @@ ensures
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(200))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
