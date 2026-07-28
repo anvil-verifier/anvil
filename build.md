@@ -1,9 +1,6 @@
 # How to build, verify and run controllers
 
-This project uses [`cargo verus`](https://github.com/verus-lang/verus). All
-third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level
-`Cargo.toml`; the Verus standard library (`vstd`) is pulled from
-[crates.io](https://crates.io/crates/vstd).
+This project uses [`cargo verus`](https://github.com/verus-lang/verus). All third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level `Cargo.toml`; the Verus standard library (`vstd`) is tracking the `main` branch of [verus-lang/verus](https://github.com/verus-lang/verus).
 
 ## Code structure
 
@@ -42,20 +39,11 @@ kind_version: 0.23.0
 go_version:   "^1.20"
 ```
 
-`Cargo.toml` pins `vstd = "=…"` to a specific crates.io snapshot. CI
-downloads the matching Verus release (the `VERUS_TAG` env in
-`.github/workflows/ci.yml`) from
-[verus-lang/verus](https://github.com/verus-lang/verus/releases).
-When you bump `vstd`, also bump `VERUS_TAG` and update your local Verus
-binary to the compatible release (the closest dated GitHub release).
+Build your local Verus binary off the `main` branch of Verus following instructions in [`BUILD.md`](https://github.com/verus-lang/verus/blob/main/BUILD.md).
 
 ## Build and verify
 
-Use `cargo verus focus` for verification. Unlike `cargo verus verify`,
-`focus` actually runs the SMT solver on the current crate. Most
-verification targets are library modules (under `src/controllers/`,
-`src/kubernetes_cluster/`, etc.), so combine `--lib` with
-`--verify-module <mod>` to narrow scope:
+Use `cargo verus focus` for verification. Unlike `cargo verus verify`, `focus` actually runs the SMT solver on the current crate. Most verification targets are library modules (under `src/controllers/`, `src/kubernetes_cluster/`, etc.), so combine `--lib` with `--verify-module <mod>` to narrow scope:
 
 ```sh
 # Verify the entire Anvil framework + every controller and proof:
@@ -71,8 +59,7 @@ cargo verus verify --lib -- --verify-only-module composition
 cargo verus verify --lib -- --verify-only-module tla_demo
 ```
 
-Pass extra Verus flags after `--`. Replace `--lib` with `--bin <name>`
-to verify a specific binary's own source.
+Pass extra Verus flags after `--`. Replace `--lib` with `--bin <name>` to verify a specific binary's own source.
 
 ## Build and test
 

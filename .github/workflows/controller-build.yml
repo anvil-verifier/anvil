@@ -3,22 +3,24 @@ on:
   workflow_dispatch:
 env:
   IMAGE_NAME: ${{ github.repository }}
-  # should match the vstd version in Cargo.toml
-  # https://github.com/verus-lang/verus/releases
-  VERUS_TAG: "0.2026.07.12.0b42f4c"
 jobs:
   setup-toolchain:
     runs-on: ubuntu-24.04
     outputs:
-      verus-tag: ${{ steps.verus-tag.outputs.tag }}
+      verus-sha: ${{ steps.verus-sha.outputs.sha }}
     steps:
-      - name: Pin the Verus release matching vstd in Cargo.toml
-        id: verus-tag
-        run: |
-          TAG="$VERUS_TAG"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Pinned Verus release: $TAG"
       - uses: actions/checkout@v7
+      - name: Checkout Verus (latest main)
+        uses: actions/checkout@v7
+        with:
+          repository: verus-lang/verus
+          path: verus-src
+      - name: Get Verus commit SHA
+        id: verus-sha
+        run: |
+          SHA="$(git -C verus-src rev-parse HEAD)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Building Verus main@$SHA"
       - name: Cache toolchains
         id: cache-toolchain
         uses: actions/cache@v6
@@ -27,7 +29,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ steps.verus-tag.outputs.tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ steps.verus-sha.outputs.sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Install Rust if cache is missing
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
@@ -35,15 +37,15 @@ jobs:
             | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
           rustup toolchain install
-      - name: Download Verus if cache is missing
+      - name: Build Verus if cache is missing
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
-          TAG="${{ steps.verus-tag.outputs.tag }}"
-          curl -fsSL -o /tmp/verus.zip \
-            "https://github.com/verus-lang/verus/releases/download/release%2F${TAG}/verus-${TAG}-x86-linux.zip"
-          unzip -q /tmp/verus.zip -d "$HOME"
-          mv "$HOME/verus-x86-linux" "$HOME/verus"
-          rm /tmp/verus.zip
+          . "$HOME/.cargo/env"
+          cd verus-src/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+          mv target-verus/release "$HOME/verus"
       - name: Seed cargo registry
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
@@ -64,7 +66,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vreplicaset controller image
@@ -93,7 +95,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vstatefulset controller image
@@ -122,7 +124,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build rabbitmq controller image
@@ -151,7 +153,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vdeployment controller image
@@ -180,7 +182,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vreplicaset admission controller image
@@ -209,7 +211,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vstatefulset admission controller image
@@ -238,7 +240,7 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-tag }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build vdeployment admission controller image
