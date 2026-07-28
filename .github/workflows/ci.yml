@@ -17,18 +17,13 @@ jobs:
       verus-sha: ${{ steps.verus-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v7
-      - name: Checkout Verus (latest main)
-        uses: actions/checkout@v7
-        with:
-          repository: verus-lang/verus
-          path: verus-src
-      - name: Get Verus commit SHA
+      - name: Get latest Verus main commit SHA
         id: verus-sha
         run: |
-          SHA="$(git -C verus-src rev-parse HEAD)"
+          SHA="$(git ls-remote https://github.com/verus-lang/verus main | cut -f1)"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Building Verus main@$SHA"
-      - name: Cache toolchains
+      - name: Cache toolchain + Verus build
         id: cache-toolchain
         uses: actions/cache@v6
         with:
@@ -36,24 +31,16 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ steps.verus-sha.outputs.sha }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Install Rust if cache is missing
+          key: toolchain-${{ runner.os }}-${{ steps.verus-sha.outputs.sha }}
+      - name: Install Rust + build Verus if cache is missing
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" \
             | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Build Verus if cache is missing
-        if: steps.cache-toolchain.outputs.cache-hit != 'true'
-        run: |
-          . "$HOME/.cargo/env"
-          cd verus-src/source
-          ./tools/get-z3.sh
-          source ../tools/activate
-          vargo build --release
-          mv target-verus/release "$HOME/verus"
+          VERUS_DIR="$HOME/verus" ./tools/setup-verus.sh
 
   full-verification:
     needs: setup-toolchain
@@ -66,12 +53,13 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
           cargo verus verify --lib
 
   vreplicaset-admission-e2e-test:
@@ -85,8 +73,9 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -97,8 +86,8 @@ jobs:
       - name: Deploy vreplicaset admission controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vreplicaset-admission --build
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
+          ./tools/local-test.sh vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset-admission
 
@@ -113,8 +102,9 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -125,8 +115,8 @@ jobs:
       - name: Deploy vdeployment admission controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vdeployment-admission --build
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
+          ./tools/local-test.sh vdeployment-admission --build
       - name: Run vdeployment e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment-admission
 
@@ -141,8 +131,9 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -153,8 +144,8 @@ jobs:
       - name: Deploy vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vreplicaset --build
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
+          ./tools/local-test.sh vreplicaset --build
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset
 
@@ -169,8 +160,9 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -181,8 +173,8 @@ jobs:
       - name: Deploy vdeployment controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vdeployment --build
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
+          ./tools/local-test.sh vdeployment --build
       - name: Run vdeployment e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment
 
@@ -197,8 +189,9 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -209,8 +202,8 @@ jobs:
       - name: Deploy vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh vstatefulset --build
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
+          ./tools/local-test.sh vstatefulset --build
       - name: Run vstatefulset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset
 
@@ -225,8 +218,9 @@ jobs:
             ~/.cargo
             ~/.rustup
             ~/verus
+            rust-toolchain.toml
             target
-          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -237,7 +231,7 @@ jobs:
       - name: Deploy rabbitmq controller
         run: |
           . "$HOME/.cargo/env"
-          export PATH="$PATH:$HOME/verus"
-          ./local-test.sh rabbitmq --build
+          export PATH="$PATH:$HOME/verus/source/target-verus/release"
+          ./tools/local-test.sh rabbitmq --build
       - name: Run rabbitmq e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- rabbitmq

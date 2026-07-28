@@ -4,7 +4,7 @@
 ##
 ## Requires kind to be installed and the prerequisites of deploy.sh.
 ## Usage:
-##   ./local-test.sh <controller_name> [--build] [extra cargo-verus args]
+##   ./tools/local-test.sh <controller_name> [--build] [extra cargo-verus args]
 
 set -xeu
 
@@ -57,4 +57,4 @@ if [ "$app" == "rabbitmq" ]; then
 fi
 
 # Set up cluster and deploy the controller as a pod.
-./deploy.sh "$app" local
+"$(dirname "$0")/deploy.sh" "$app" local

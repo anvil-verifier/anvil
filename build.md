@@ -9,11 +9,13 @@ This project uses [`cargo verus`](https://github.com/verus-lang/verus). All thir
 ├── Cargo.toml          # single root package: verifiable-controllers
 ├── build.md
 ├── deploy/             # CRDs, RBAC, kind config, sample workloads
-├── deploy.sh           # apply deploy/<controller>/* to a kind cluster
 ├── docker/
 │   └── controller/     # Dockerfile — bakes a host-built binary into an image
 ├── e2e/                # end-to-end test crate
-├── local-test.sh       # build controller image + run e2e against kind
+├── tools/
+│   ├── setup-verus.sh  # fetch, build and wire up Verus
+│   ├── deploy.sh       # apply deploy/<controller>/* to a kind cluster
+│   └── local-test.sh   # build controller image + run e2e against kind
 └── src/
     ├── lib.rs          # framework library
     ├── crds.rs         # k8s CRD type definitions
@@ -39,7 +41,7 @@ kind_version: 0.23.0
 go_version:   "^1.20"
 ```
 
-Build your local Verus binary off the `main` branch of Verus following instructions in [`BUILD.md`](https://github.com/verus-lang/verus/blob/main/BUILD.md).
+Run `./tools/setup-verus.sh` to fetch, build, and wire up a local Verus binary.
 
 ## Build and verify
 
@@ -79,12 +81,12 @@ The binary lands in `target/debug/<controller_name>` (or
    `docker/controller/Dockerfile`.
 3. Set up a kind cluster and load the image.
 4. Apply the e2e tests from `e2e/src/` and the workload from `deploy/`
-   via `deploy.sh`.
+   via `tools/deploy.sh`.
 
 Steps 1–3 are automated:
 
 ```
-./local-test.sh <controller_name> [--build]
+./tools/local-test.sh <controller_name> [--build]
   --build     build via `cargo verus build` on the host, then make the image
   (no flag)   reuse an existing local image named local/<app>-controller:v0.1.0
 ```
