@@ -434,6 +434,8 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
     ensures
         resp_msg == handle_get_then_delete_request_msg(msg, s.api_server).1,
         resp_msg.content.get_get_then_delete_response().res is Ok,
+        s_prime.in_flight().contains(resp_msg),
+        resp_msg_matches_req_msg(resp_msg, msg),
         // identifies specific pod deleted.
         ({
             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
@@ -461,7 +463,14 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
     
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s.resources());
     helper_lemmas::matching_pods_equal_to_matching_pod_entries_values(vrs, s_prime.resources());
-    return handle_get_then_delete_request_msg(msg, s.api_server).1;
+
+    let resp_msg = handle_get_then_delete_request_msg(msg, s.api_server).1;
+    assert({
+        &&& s_prime.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, msg)
+    });
+
+    return resp_msg;
 }
 
 pub proof fn lemma_get_then_update_vrs_status_request_updates_vrs_status_and_returns_ok(
