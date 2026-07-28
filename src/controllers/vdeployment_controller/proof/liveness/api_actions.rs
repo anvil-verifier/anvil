@@ -431,6 +431,7 @@ requires
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas)))(s_prime),
+    exists_resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, (nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas)))(s_prime),
     etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas))), n)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
     filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime))
@@ -455,6 +456,10 @@ ensures
         filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))) by {
         assert(!filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)(req.key()));
     }
+    assert({
+        &&& s_prime.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+    });
 
     return resp_msg;
 }
