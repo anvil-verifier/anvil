@@ -436,6 +436,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
     );
 }
 
+#[verifier(rlimit(50))]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int, i: nat)
     requires 
         1 <= i <= 6,
