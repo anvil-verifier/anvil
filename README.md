@@ -21,7 +21,7 @@ To make the evaluation process smooth, we have prepared CloudLab profiles for se
 
 **Please let us know if you have trouble accessing CloudLab. We can help set up the experiment and give you access.**
 
-Click [profile `welder-ae-c220g5`](https://www.cloudlab.us/p/Sieve-Acto/welder-ae-cloudlab?refspec=refs/heads/c220g5) and keep hitting `next` to create the experiment. You should see that CloudLab starts to provision the machine, which typically takes ~5 minutes. Please patiently wait for "Status" to become `Ready`. After the machine is ready, log into the machine using `ssh` (with the key provided to CloudLab) or using the `shell` provided by the CloudLab Web UI, and then run
+Click [profile `welder-ae-c220g5`](https://www.cloudlab.us/p/1c9eeede1bc49b13293f03256f5c07d8cc49a9e8?refspec=refs/heads/c220g5) and keep hitting `next` to create the experiment. You should see that CloudLab starts to provision the machine, which typically takes ~5 minutes. Please patiently wait for "Status" to become `Ready`. After the machine is ready, log into the machine using `ssh` (with the key provided to CloudLab) or using the `shell` provided by the CloudLab Web UI, and then run
 
 ```bash
 bash /local/repository/scripts/cloudlab_startup_run_by_creator.sh
