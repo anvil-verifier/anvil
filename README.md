@@ -1,13 +1,19 @@
 # Artifact Evaluation Instructions for "Compositional Verification of Cluster Control Planes"
 
-This document is for SOSP'2026 artifact evaluation
+This document is for SOSP'2026 artifact evaluation.
+
+This artifact accompanies the following paper:
+
+> Zhizhen Cathy Cai, Nikhil Date, Jiawei Tyler Gu, Cody Rivera, Tej Chajed, Oded Padon, Tianyin Xu, and Xudong Sun. **Welder: Compositional Liveness Verification of Cluster Control Planes**. In *Proceedings of the ACM SIGOPS 32nd Symposium on Operating Systems Principles (SOSP '26)*
 
 ## Artifact goal
 
 The paper claims that Welder enables compositional verification of Kubernetes controllers, and the verified controllers achieve competitive performance compared to unverified references. The key results to reproduce are:
 
-1. **Verification results (Table 1).** Welder's framework, four controllers (VReplicaSet, VDeployment, VStatefulSet, VRabbitMQ), and their composition proof are fully verified by Verus (0 errors), with the code size table.
-2. **Performance results (Table 2).** The verified controllers' `reconcile` and end-to-end reconciliation times are comparable to the unverified reference controllers (end-to-end differences within one standard deviation).
+- **Table 1: full verification.** Welder's framework, four controllers (VReplicaSet, VDeployment, VStatefulSet, VRabbitMQ), and their composition proof are fully verified by Verus (0 errors), with the code size table.
+- **Table 2: competitive performance.** The verified controllers' `reconcile` and end-to-end reconciliation times are comparable to the unverified reference controllers (end-to-end differences within one standard deviation).
+
+Each experiment below is labeled with the claim it evaluates, and each "expected output" is followed by a note on how to read that output as evidence for the claim.
 
 We require a Linux X86-64 machine to reproduce the result. You are welcome to use Cloudlab machine for reproduction.
 
@@ -63,6 +69,8 @@ cd ~
 
 ### Reproducing full verification results (~10 compute-minutes + ~1 human-minutes)
 
+**Evaluates: Table 1, the "0 errors" part.** This experiment runs the Verus verifier over the entire codebase to check that every proof obligation discharges.
+
 ```bash
 cd ~/anvil
 . "$HOME/.cargo/env"
@@ -82,6 +90,8 @@ verification results:: 911 verified, 0 errors
 ```
 
 ### Collecting the lines-of-code statistics (~1 compute-minute + ~1 human-minute)
+
+**Evaluates: Table 1, the code-size part.** This experiment counts lines of trusted spec, unverified, executable, and proof code per controller, reproducing the columns of Table 1.
 
 ```bash
 VERUS_DIR=~/verus-source ./tools/gen-loc-table.sh
@@ -103,6 +113,8 @@ The **expected output** looks like:
 **Minor differences are expected** because the controllers' proofs have been optimized and updated to follow updates from upstream.
 
 ### Running workloads of one controller (~70 compute-minutes + ~2 human-minutes)
+
+**Evaluates: Table 2, one controller.** This is a one-controller preview of the performance experiment, comparing VDeployment against the unverified reference Deployment controller.
 
 To quickly check that the environment works end-to-end, run a 5% sample of the performance workloads for the VDeployment controller and its unverified reference. We suggest you use `tmux` when running on remote machines as the command can take a while.
 
@@ -126,6 +138,8 @@ If you set up your own machine, replace `~/workdir/acto` with the path to the cl
 
 ---
 ## Full Evaluation Instructions (~2 compute-hours + ~2 human-minutes)
+
+**Evaluates: Table 2, al controllers** This reproduces both performance campaigns reported in the paper: VDeployment + VReplicaSet vs. the native Kubernetes controllers, and VRabbitMQ + VStatefulSet vs. the official RabbitMQ operator.
 
 You will reproduce the performance results in Table 2. These are the key results that support the claim in the paper. The absolute number of time-related results heavily depends on the platform, but we will highlight the key pattern you should be able to observe. You will reuse the environments from kick-the-tire instructions.
 The entire testing process takes about 2 machine-hours with the default 5% sample.
