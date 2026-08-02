@@ -62,7 +62,7 @@ Everything lives in a single cargo package (`verifiable-controllers`); see [`bui
 ## Publications
 
 - Welder: Compositional Liveness Verification of Cluster Control Planes <br>
-Zhizhen Cai, Nikhil Date, Jiawei Tyler Gu, Cody Rivera, Tej Chajed, Oded Padon, Tianyin Xu, and Xudong Sun. In Proceedings of the 32nd ACM Symposium on Operating Systems Principles (SOSP'26), 2026.
+Zhizhen Cathy Cai, Nikhil Date, Jiawei Tyler Gu, Cody Rivera, Tej Chajed, Oded Padon, Tianyin Xu, and Xudong Sun. In Proceedings of the 32nd ACM Symposium on Operating Systems Principles (SOSP'26), Prague, Czechia, Sep. 2026.
 
 - [Anvil: Verifying Liveness of Cluster Management Controllers](https://www.usenix.org/conference/osdi24/presentation/sun-xudong) <br>
 Xudong Sun, Wenjie Ma, Jiawei Tyler Gu, Zicheng Ma, Tej Chajed, Jon Howell, Andrea Lattuada, Oded Padon, Lalith Suresh, Adriana Szekeres, and Tianyin Xu. In Proceedings of the 18th USENIX Symposium on Operating Systems Design and Implementation (OSDI'24), Santa Clara, CA, USA, Jul. 2024.
