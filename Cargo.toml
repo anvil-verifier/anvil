@@ -39,5 +39,9 @@ proptest = "1.4.0"
 warp = { version = "0.3", features = ["tls"] }
 tungstenite = "0.20.1"
 
+# kube_quantity depends on k8s-openapi with an unconstrained "0" requirement
+[patch.crates-io]
+k8s-openapi = { git = "https://github.com/Arnavion/k8s-openapi", tag = "v0.22.0" }
+
 [package.metadata.verus]
 verify = true
