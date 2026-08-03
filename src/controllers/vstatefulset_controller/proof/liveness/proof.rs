@@ -414,48 +414,19 @@ pub proof fn spec_entails_pending_request_invariants_part2_done(spec: TempPred<C
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)));
 }
 
-#[verifier(rlimit(200))]
-#[verifier(spinoff_prover)]
-proof fn spec_entails_no_pending_req_msg_at_error_for_key(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
+proof fn no_pending_req_msg_at_error_for_cr(cluster: Cluster, controller_id: int, cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState)
     requires
-        spec.entails(lift_state(cluster.init())),
-        spec.entails(always(lift_action(cluster.next()))),
         cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
         cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+        (cluster.reconcile_model(controller_id).error)
+            ((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0),
     ensures
-        spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, cluster.reconcile_model(controller_id).error)))),
+        (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None,
 {
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
-    cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VStatefulSetReconcileState::marshal_preserves_integrity();
-    assert forall |cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState|
-        (cluster.reconcile_model(controller_id).error)((#[trigger] (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state)).0)
-        implies (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None by {
-        let s_um = VStatefulSetReconcileState::unmarshal(pre_state)->Ok_0;
-        match s_um.reconcile_step {
-            Init => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterListPod => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            GetPVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterGetPVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            CreatePVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterCreatePVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            SkipPVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            CreateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterCreateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            UpdateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterUpdateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            DeleteCondemned => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterDeleteCondemned => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            DeleteOutdated => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterDeleteOutdated => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            _ => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-        }
-    }
-    cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).error);
 }
 
-#[verifier(rlimit(50))]
+#[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part2_error(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -467,7 +438,15 @@ pub proof fn spec_entails_pending_request_invariants_part2_error(spec: TempPred<
         spec.entails(always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))))),
 {
     assert forall |vsts: VStatefulSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vsts.object_ref(), cluster.reconcile_model(controller_id).error)))) by {
-        spec_entails_no_pending_req_msg_at_error_for_key(spec, cluster, controller_id, vsts.object_ref());
+        cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+        cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
+        cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+        assert forall |cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState|
+            (cluster.reconcile_model(controller_id).error)((#[trigger] (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state)).0)
+            implies (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None by {
+            no_pending_req_msg_at_error_for_cr(cluster, controller_id, cr, resp_o, pre_state);
+        }
+        cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error);
     }
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
 }
