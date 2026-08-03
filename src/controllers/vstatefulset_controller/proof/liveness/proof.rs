@@ -632,6 +632,17 @@ proof fn spec_entails_no_pending_req_msg_at_delete_condemned_for_key(spec: TempP
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_or![DeleteCondemned]);
 }
 
+proof fn no_pending_req_msg_at_delete_outdatedfor_cr(cluster: Cluster, controller_id: int, cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState)
+    requires
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+        (at_step_or![DeleteOutdated])((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0),
+    ensures
+        (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None,
+{
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
 #[verifier(rlimit(200))]
 #[verifier(spinoff_prover)]
 proof fn spec_entails_no_pending_req_msg_at_delete_outdated_for_key(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
@@ -646,29 +657,10 @@ proof fn spec_entails_no_pending_req_msg_at_delete_outdated_for_key(spec: TempPr
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
-    VStatefulSetReconcileState::marshal_preserves_integrity();
     assert forall |cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState|
         (at_step_or![DeleteOutdated])((#[trigger] (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state)).0)
         implies (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None by {
-        let s_um = VStatefulSetReconcileState::unmarshal(pre_state)->Ok_0;
-        match s_um.reconcile_step {
-            Init => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterListPod => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            GetPVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterGetPVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            CreatePVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterCreatePVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            SkipPVC => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            CreateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterCreateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            UpdateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterUpdateNeeded => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            DeleteCondemned => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterDeleteCondemned => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            DeleteOutdated => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            AfterDeleteOutdated => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-            _ => assert((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None),
-        }
+            no_pending_req_msg_at_delete_outdatedfor_cr(cluster, controller_id, cr, resp_o, pre_state);
     }
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_or![DeleteOutdated]);
 }
