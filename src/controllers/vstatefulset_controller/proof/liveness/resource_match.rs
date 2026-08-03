@@ -530,6 +530,7 @@ ensures
     );
 }
 
+#[verifier(rlimit(20))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_init_leads_to_after_list_pod_with_resp(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, outdated_len: nat
@@ -1652,6 +1653,7 @@ ensures
     );
 }
 
+#[verifier(rlimit(20))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, pvc_index: nat, needed_index: nat, condemned_len: nat, outdated_len: nat

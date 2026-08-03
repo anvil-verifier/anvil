@@ -1190,11 +1190,20 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                         assert(req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_owner_singleton);
                     }
                     assert(resp_obj.metadata == new_vrs.metadata);
+                    assert(controller_owners == resp_obj.metadata.owner_references->0.filter(controller_owner_filter()));
+                    assert(controller_owners == controller_owner_singleton);
                 } else {
                     assert(s.in_flight().contains(current_req_msg));
                     assert(current_req_msg.rpc_id != req_msg.rpc_id);
+                    assert(msg.rpc_id == current_req_msg.rpc_id);
+                    assert(msg.rpc_id == req_msg.rpc_id);
+                    assert(false);
                 }
+            } else {
+                assert(s.in_flight().contains(msg));
+                assert(controller_owners == controller_owner_singleton);
             }
+            assert(controller_owners == controller_owner_singleton);
         }
     }
 }
