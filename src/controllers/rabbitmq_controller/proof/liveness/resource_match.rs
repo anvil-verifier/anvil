@@ -1383,6 +1383,7 @@ ensures
     );
 }
 
+#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_controller_step_this_cr(
     controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView,
