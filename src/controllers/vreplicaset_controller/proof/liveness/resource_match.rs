@@ -3096,6 +3096,25 @@ ensures
                 } else {
                     assert(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()] == s.ongoing_reconciles(controller_id)[vrs.object_ref()]);
                     assert(s_prime.resources() == s.resources());
+
+                    // Maintain quantified invariant.
+                    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                    if at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
+
+                        assert forall |msg| {
+                            &&& inductive_current_state_matches(vrs, controller_id)(s)
+                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                            &&& msg.src is APIServer
+                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                        } implies resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, msg) by {
+                            assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src is APIServer));
+                            if !new_msgs.contains(msg) {
+                                assert(s.in_flight().contains(msg));
+                            }
+                        }
+                    }
+                    assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
                 }
             } else if s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
                 assert(inductive_current_state_matches(vrs, controller_id)(s_prime));
