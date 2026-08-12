@@ -12,7 +12,7 @@ The paper claims that Welder enables compositional verification of Kubernetes co
 
 - **Table 1: full verification.** Welder's framework, four controllers (VReplicaSet, VDeployment, VStatefulSet, VRabbitMQ), and their composition proof are fully verified by Verus (0 errors), with the code size table.
 - **Table 2: competitive performance.** The verified controllers' `reconcile` and end-to-end reconciliation times are comparable to the unverified reference controllers (end-to-end differences within one standard deviation).
-- **Controller Correctness (Section 5.2).** The verified controllers pass extensive functional and fault-injection testing (functional tests, controller-crash tests including correlated crashes of two interacting controllers, and Pod-crash tests) with 0 oracle violations.
+- **Controller Correctness (Section 5.2).** The verified controllers pass functional and fault-injection testing with 0 oracle violations.
 
 Each experiment below is labeled with the claim it evaluates, and each "expected output" is followed by a note on how to read that output as evidence for the claim.
 
@@ -139,7 +139,7 @@ If you set up your own machine, replace `~/workdir/acto` with the path to the cl
 
 ### Sanity-checking controller correctness (~1 compute-hour + ~2 human-minutes)
 
-**Evaluates: Controller Correctness (Section 5.2), sanity check.** This runs a small random sample of functional and fault-injection tests to confirm the correctness-testing pipeline works end-to-end and finds 0 oracle violations, without committing to the full multi-day campaign below.
+**Evaluates: Controller Correctness (Section 5.2), sanity check.** Samples 5 of 102 vdeployment trials and 3 of 17 rabbitmq trials instead of the full campaign below.
 
 ```bash
 cd ~/workdir/acto
@@ -147,12 +147,7 @@ source venv-welder/bin/activate # only on your own machine
 bash welder-ae-correctness-kick-the-tires.sh
 ```
 
-Expected output ends with:
-
-```
-Scanned N fault-injection test results across 8 workdirs
-No oracle violations found (matches paper's claim: 0 bugs found)
-```
+Expected output ends with `No oracle violations found (matches paper's claim: 0 bugs found)`.
 
 ---
 ## Full Evaluation Instructions (~2 compute-hours + ~2 human-minutes)
@@ -192,27 +187,17 @@ bash welder-ae-sampled.sh 1
 
 ### Full Controller Correctness campaign (~1-4 compute-days + ~2 human-minutes)
 
-**Evaluates: Controller Correctness (Section 5.2), full campaign.** Reproduces the paper's fault-injection campaign (functional tests, controller-crash tests, Pod-crash tests) against the checked-in trial corpus, checking for oracle violations with `chactos`. `chactos` has no sampling flag -- each run processes every trial in its input corpus -- so this takes much longer than the sampled Table 2 workflow above, and the round counts are the closest integer approximation of the paper's reported test counts rather than an exact reproduction. In the `acto` checkout, run:
+**Evaluates: Controller Correctness (Section 5.2), full campaign.** The 629 functional tests are deterministic and match almost exactly (628); the crash-test counts (1302/434/677) involve randomized fault injection, so expect them to vary run to run. In the `acto` checkout, run:
 
 ```bash
-export CHACTOS_WORKERS=6 # tune per your hardware, see below
+export CHACTOS_WORKERS=6 # lower if you hit errors, see below
 bash welder-ae-correctness.sh
 cat welder-table-correctness.txt
 ```
 
-Expected output:
+Expected output ends with `No oracle violations found (matches paper's claim: 0 bugs found)`.
 
-```
-Scanned N fault-injection test results across M workdirs
-No oracle violations found (matches paper's claim: 0 bugs found)
-```
+<details><summary>Timing / tuning</summary>
 
-<details><summary>How long does this take, and how do I tune it?</summary>
-
-`chactos` fully tears down and recreates a Kubernetes cluster for every trial, so throughput is disk-bound rather than CPU-bound. `CHACTOS_WORKERS` (default 6) controls how many trials run concurrently:
-
-- On SSD-backed machines, 6 concurrent workers complete cleanly; the full campaign takes roughly 1-4 compute-days.
-- On spinning-disk machines, higher worker counts saturate the disk and the underlying Docker daemon fails to tear down containers in time (`could not kill container: ... did not receive an exit event`). If you see this, set `CHACTOS_WORKERS=1` -- this reliably completes but is much slower (on the order of 10+ compute-days for the full campaign).
-
-If you just want to confirm the pipeline works without committing to the full runtime, use the kick-the-tires sanity check above instead.
+`chactos` tears down and recreates a Kubernetes cluster per trial, so throughput is disk-bound. `CHACTOS_WORKERS=6` (default) takes ~1-4 compute-days on fast storage. If Docker fails to tear down containers in time (`could not kill container: ... did not receive an exit event`), set `CHACTOS_WORKERS=1` (much slower, 10+ compute-days).
 </details>
