@@ -11,7 +11,6 @@ use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStep;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
 use crate::vstd_ext::string_view::StringView;
-use vstd::utf8::is_ascii_chars;
 use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
@@ -19,7 +18,7 @@ use crate::{
     vstatefulset_controller::trusted::liveness_theorem as liveness_theorem,
     vstatefulset_controller::trusted::step::*, vstd_ext::string_view::usize_to_string,
 };
-use vstd::{prelude::*, seq_lib::*};
+use vstd::{prelude::*, seq_lib::*, utf8::*};
 
 verus! {
 

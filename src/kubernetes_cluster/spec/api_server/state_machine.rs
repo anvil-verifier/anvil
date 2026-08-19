@@ -4,8 +4,7 @@ use crate::kubernetes_cluster::spec::{api_server::types::*, message::*, cluster:
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::vstd_ext::string_view::*;
-use vstd::{multiset::*, prelude::*};
-use vstd::utf8::is_ascii_chars;
+use vstd::{multiset::*, prelude::*, utf8::*};
 
 verus! {
 

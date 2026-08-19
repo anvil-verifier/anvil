@@ -8,8 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, STATEFULSET_ORDINAL_LABEL, STATEFULSET_POD_NAME_LABEL};
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::{string_map::*, string_view::*};
-use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
+use vstd::{prelude::*, utf8::*};
 
 verus! {
 

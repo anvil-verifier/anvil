@@ -5,8 +5,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use verus_temporal_logic::{defs::*, rules::*};
-use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
+use vstd::{prelude::*, utf8::*};
 
 verus! {
 

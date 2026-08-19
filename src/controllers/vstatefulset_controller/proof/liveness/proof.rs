@@ -19,8 +19,7 @@ use crate::vstatefulset_controller::{
     },
 };
 use crate::reconciler::spec::io::*;
-use vstd::{map::*, map_lib::*, math::*, prelude::*};
-use vstd::utf8::is_ascii_chars;
+use vstd::{map::*, map_lib::*, math::*, prelude::*, utf8::*};
 
 verus! {
 

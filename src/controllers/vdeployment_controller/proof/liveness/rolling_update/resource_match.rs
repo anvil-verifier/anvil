@@ -17,9 +17,8 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*};
+use vstd::{seq_lib::*, map_lib::*, multiset::*, utf8::*};
 use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
 
 verus !{
 

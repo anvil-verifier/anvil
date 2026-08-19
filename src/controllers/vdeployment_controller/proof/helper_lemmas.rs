@@ -13,9 +13,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
-use vstd::{seq_lib::*, map_lib::*, set_lib::*};
-use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
+use vstd::{prelude::*, seq_lib::*, map_lib::*, set_lib::*, utf8::*};
 
 verus! {
 

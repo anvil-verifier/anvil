@@ -8,9 +8,7 @@ use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
     vstatefulset_controller::trusted::liveness_theorem as liveness_theorem,
 };
-use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
-use vstd::string::StringSliceAdditionalSpecFns;
+use vstd::{prelude::*, vstd::string::*, utf8::*};
 
 verus! {
 

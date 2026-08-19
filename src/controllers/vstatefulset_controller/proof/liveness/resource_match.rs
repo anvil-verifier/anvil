@@ -20,9 +20,8 @@ use crate::vstatefulset_controller::{
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*, set::*};
+use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*, set::*, utf8::*};
 use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
 
 verus! {
 

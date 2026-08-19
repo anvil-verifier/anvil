@@ -15,8 +15,7 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
-use vstd::{map::*, map_lib::*, prelude::*};
-use vstd::utf8::is_ascii_chars;
+use vstd::{map::*, map_lib::*, prelude::*, utf8::*};
 
 verus! {
 

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::spec::{common::*, owner_reference::*};
 use crate::vstd_ext::string_view::*;
-use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
+use vstd::{prelude::*, utf8::*};
 
 verus! {
 

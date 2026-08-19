@@ -1,8 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-use vstd::prelude::*;
-use vstd::utf8::is_ascii_chars;
+use vstd::{prelude::*, utf8::*};
 use crate::vstd_ext::seq_lib::*;
 
 verus! {

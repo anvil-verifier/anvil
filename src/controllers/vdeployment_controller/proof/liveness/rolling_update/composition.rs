@@ -12,8 +12,7 @@ use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::
 use crate::vdeployment_controller::proof::helper_invariants;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
-use vstd::{prelude::*, set_lib::*, map_lib::*, multiset::*};
-use vstd::utf8::is_ascii_chars;
+use vstd::{prelude::*, set_lib::*, map_lib::*, multiset::*, utf8::*};
 use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {

@@ -19,8 +19,7 @@ use crate::vstatefulset_controller::{
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
-use vstd::utf8::is_ascii_chars;
+use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*, utf8::*};
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
