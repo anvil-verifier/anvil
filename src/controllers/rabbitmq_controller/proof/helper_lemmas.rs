@@ -20,6 +20,7 @@ use crate::vstatefulset_controller::trusted::spec_types::*;
 use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
+use vstd::utf8::is_ascii_chars;
 
 verus! {
 
@@ -751,6 +752,12 @@ ensures
         },
     }
     let resp_msg = handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
+    // the created object's name is built from the (ascii) rabbitmq name, so the api
+    // server does not reject the create request as invalid
+    assert(is_ascii_chars(msg.content.get_create_request().obj.metadata.name->0)) by {
+        assert(s.resources().contains_key(rabbitmq.object_ref()));
+        lemma_resource_name_is_ascii(sub_resource, rabbitmq);
+    }
     assert(resp_msg.content.get_create_response().res is Ok);
     let local_state = s_prime.ongoing_reconciles(controller_id)[rabbitmq.object_ref()].local_state;
     let unmarshalled_state = RabbitmqReconcileState::unmarshal(local_state).unwrap();
@@ -1061,6 +1068,25 @@ pub proof fn rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(
             }
         }
     );
+}
+
+// Every sub resource's name is the "rabbitmq" prefix, a dash, the (ascii) rabbitmq name
+// and a literal suffix, so it is ascii.
+pub proof fn lemma_resource_name_is_ascii(sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+requires is_ascii_chars(rabbitmq.metadata.name->0),
+ensures is_ascii_chars(get_request(sub_resource, rabbitmq).key.name),
+{
+    broadcast use vstd::utf8::is_ascii_chars_concat;
+    reveal_strlit("rabbitmq");
+    reveal_strlit("-");
+    reveal_strlit("-nodes");
+    reveal_strlit("-client");
+    reveal_strlit("-erlang-cookie");
+    reveal_strlit("-default-user");
+    reveal_strlit("-plugins-conf");
+    reveal_strlit("-server-conf");
+    reveal_strlit("-server");
+    reveal_strlit("-peer-discovery");
 }
 
 }
