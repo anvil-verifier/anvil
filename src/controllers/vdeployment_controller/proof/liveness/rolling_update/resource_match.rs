@@ -19,6 +19,7 @@ use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
 use vstd::{seq_lib::*, map_lib::*, multiset::*};
 use vstd::prelude::*;
+use vstd::utf8::is_ascii_chars;
 
 verus !{
 
@@ -152,6 +153,7 @@ ensures
 
 // same as lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp with stronger post
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(20))]
 pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp_with_nv(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, diff: nat
 )
@@ -169,6 +171,9 @@ ensures
     spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)))
        .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), ru_exists_pending_list_resp_in_flight_and_match_req(vd, controller_id, new_vrs.object_ref()))))),
 {
+    // this proof does not reason about the ascii-ness of any name; unfolding
+    // is_ascii_chars (a quantifier) here only slows the solver down
+    hide(is_ascii_chars);
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)
