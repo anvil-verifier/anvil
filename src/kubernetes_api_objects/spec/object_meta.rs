@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::spec::{common::*, owner_reference::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
+use vstd::utf8::is_ascii_chars;
 
 verus! {
 
@@ -195,6 +196,8 @@ impl ObjectMetaView {
 
     pub open spec fn well_formed_for_namespaced(self) -> bool {
         &&& self.name is Some
+        // the name is an RFC 1123 DNS subdomain (or label), so it is ascii
+        &&& is_ascii_chars(self.name->0)
         &&& self.namespace is Some
         &&& self.resource_version is Some
         &&& self.uid is Some

@@ -22,3 +22,29 @@ pub mod vstatefulset_controller;
 pub mod rabbitmq_controller;
 #[path = "controllers/composition/mod.rs"]
 pub mod composition;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

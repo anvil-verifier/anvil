@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use vstd::prelude::*;
+use vstd::utf8::is_ascii_chars;
 use crate::vstd_ext::seq_lib::*;
 
 verus! {
@@ -31,6 +32,22 @@ pub fn usize_to_string(i: usize) -> (s: String)
     i.to_string()
 }
 
+// the inverse of usize_to_string/int_to_string_view. Returns None if s is not such a representation.
+// Note that the None case also assumes that no natural number whose decimal representation exceeds usize::MAX
+#[verifier(external_body)]
+pub fn parse_usize(s: &str) -> (res: Option<usize>)
+    ensures
+        res is Some ==> s@ == int_to_string_view(res->0 as int),
+        res is None ==> forall |i: nat| s@ != #[trigger] int_to_string_view(i as int),
+{
+    // the round-trip check rejects the representations that parse accepts but to_string
+    // never produces, e.g. "+1" and "007"
+    match s.parse::<usize>() {
+        Ok(i) if i.to_string() == s => Some(i),
+        _ => None,
+    }
+}
+
 #[verifier(external_body)]
 pub fn starts_with(s: &String, prefix: &str) -> (res: bool)
     ensures res == starts_with_spec(s@, prefix@),
@@ -43,6 +60,11 @@ pub uninterp spec fn int_to_string_view(i: int) -> StringView;
 #[verifier(external_body)]
 pub proof fn int_to_string_view_injectivity()
     ensures forall |i: int, j: int| int_to_string_view(i) == int_to_string_view(j) ==> i == j,
+{}
+
+#[verifier(external_body)]
+pub proof fn int_to_string_view_ascii()
+    ensures forall |i: int| is_ascii_chars(#[trigger] int_to_string_view(i)),
 {}
 
 #[verifier(external_body)]

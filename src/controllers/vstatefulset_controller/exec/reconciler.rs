@@ -11,6 +11,7 @@ use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStep;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
 use crate::vstd_ext::string_view::StringView;
+use vstd::utf8::is_ascii_chars;
 use crate::vstd_ext::{seq_lib::*, string_map::StringMap, vec_lib::*};
 use crate::{
     vstatefulset_controller::model::reconciler as model_reconciler,
@@ -1228,6 +1229,7 @@ pub fn make_pvcs(vsts: &VStatefulSet, ordinal: usize) -> (pvcs: Vec<PersistentVo
 
 pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (result: Option<Pod>)
     requires
+        is_ascii_chars(parent_name@),
         pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
     ensures
         result.deep_view() == model_reconciler::get_pod_with_ord(
@@ -1248,6 +1250,7 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
     for idx in 0..pods.len()
         invariant
             idx <= pods.len(),
+            is_ascii_chars(parent_name@),
             filtered.deep_view() == pods.deep_view().take(idx as int).filter(
                 model_reconciler::pod_has_ord(parent_name@, ord as nat),
             ),
@@ -1304,6 +1307,7 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
     Vec<Pod>,
 ))
     requires
+        is_ascii_chars(parent_name@),
         pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
     ensures
         result.0.deep_view() == model_reconciler::partition_pods(
@@ -1331,6 +1335,7 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
     while i < replicas
         invariant
             i <= replicas,
+            is_ascii_chars(parent_name@),
             needed.deep_view() == model_reconciler::partition_pods(
                 parent_name@,
                 replicas as nat,
@@ -1381,6 +1386,7 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
 
     for i in 0..pods.len()
         invariant
+            is_ascii_chars(parent_name@),
             condemned.deep_view() == pods.deep_view().take(i as int).filter(
                 |pod: PodView|
                     model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
