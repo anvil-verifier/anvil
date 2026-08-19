@@ -263,8 +263,7 @@ pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringV
             &&& generated_name(s, generate_name_field) == generate_name_field + suffix
             &&& #[trigger] dash_free(suffix)
         },
-        // the generated suffix is alphanumeric, so the generated name is ascii
-        // as long as the provided generate_name field is
+        // the generated suffix is alphanumeric, so the name is ascii if generate_name is
         is_ascii_chars(generate_name_field) ==> is_ascii_chars(generated_name(s, generate_name_field)),
 {}
 

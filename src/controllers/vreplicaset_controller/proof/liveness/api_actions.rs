@@ -356,8 +356,6 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
         ) == matching_pods(vrs, s_prime.resources()),
         matching_pods(vrs, s.resources()).len() + 1 == matching_pods(vrs, s_prime.resources()).len(),
 {
-    // is_ascii_chars is a quantifier; unfolding it here only slows the solver down.
-    // All the ascii reasoning this proof needs happens inside lemma_pod_generate_name_is_ascii.
     hide(is_ascii_chars);
     let created_obj = new_obj_in_etcd(s, cluster, msg.content.get_create_request());
 
@@ -384,8 +382,6 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
         }
     }
 
-    // the created pod's name is generated from pod_generate_name(vrs), which is ascii
-    // because vrs's name (in etcd, hence well formed) is; so the api server accepts it
     assert(is_ascii_chars(created_obj.metadata.name->0)) by {
         assert(s.resources().contains_key(vrs.object_ref()));
         assert(is_ascii_chars(vrs.metadata.name->0));

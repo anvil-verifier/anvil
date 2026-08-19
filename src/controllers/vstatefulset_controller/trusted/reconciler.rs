@@ -14,9 +14,9 @@ use vstd::string::StringSliceAdditionalSpecFns;
 
 verus! {
 
-    // The pod name of a vstatefulset is "vstatefulset-" + parent_name + "-" + ordinal,
-    // so getting the ordinal is stripping that prefix and parsing the rest.
-    // parent_name is ascii (guaranteed by state_validation), which lets us index by byte.
+    // A pod name is "vstatefulset-" + parent_name + "-" + ordinal, so getting the ordinal is
+    // stripping that prefix and parsing the rest. parent_name is ascii (its metadata is
+    // well formed), which lets us index by byte.
     pub fn get_ordinal(parent_name: &String, pod_name: &String) -> (ordinal: Option<usize>)
         requires is_ascii_chars(parent_name@),
         ensures
@@ -34,8 +34,7 @@ verus! {
             == prefix@ + int_to_string_view(ord as int) by {
             assert(liveness_theorem::pod_name(parent_name@, ord) =~= prefix@ + int_to_string_view(ord as int));
         }
-        // every pod name that carries an ordinal is ascii, because both the prefix and the
-        // decimal representation of the ordinal are
+        // a pod name carrying an ordinal is ascii, since the prefix and the ordinal are
         let prefix_str = prefix.as_str();
         let pod_str = pod_name.as_str();
         if !pod_str.is_ascii() {

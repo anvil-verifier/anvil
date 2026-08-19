@@ -4805,8 +4805,6 @@ requires
 ensures
     inductive_current_state_matches(vsts, controller_id)(s_prime),
 {
-    // this proof does not need to reason about the ascii-ness of any name; unfolding
-    // is_ascii_chars (a quantifier) here only slows the solver down
     hide(is_ascii_chars);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();

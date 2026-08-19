@@ -30,8 +30,6 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(sel
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
 {
-    // this proof only needs the resource version part of well-formedness; unfolding
-    // is_ascii_chars (a quantifier) here only slows the solver down
     hide(is_ascii_chars);
     let inv = Self::object_in_ok_get_response_has_smaller_rv_than_etcd();
     let next = |s, s_prime| {

@@ -143,9 +143,6 @@ ensures
 }
 
 
-// Spun off from lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step:
-// the branch where the handled request does not come from this vd's reconcile. Keeping it in
-// its own query keeps both halves well within the resource limit.
 #[verifier(spinoff_prover)]
 proof fn lemma_inductive_current_state_matches_preserves_during_api_server_step_on_other_msg(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState, msg: Message
@@ -165,8 +162,6 @@ requires
 ensures
     inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
 {
-    // this proof does not reason about the ascii-ness of any name; unfolding
-    // is_ascii_chars (a quantifier) here only slows the solver down
     hide(is_ascii_chars);
     let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
         &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
@@ -256,8 +251,6 @@ requires
 ensures
     inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime)
 {
-    // this proof does not reason about the ascii-ness of any name; unfolding
-    // is_ascii_chars (a quantifier) here only slows the solver down
     hide(is_ascii_chars);
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let msg = input->0;

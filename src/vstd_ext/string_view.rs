@@ -32,16 +32,16 @@ pub fn usize_to_string(i: usize) -> (s: String)
     i.to_string()
 }
 
-// the inverse of usize_to_string/int_to_string_view. Returns None if s is not such a representation.
-// Note that the None case also assumes that no natural number whose decimal representation exceeds usize::MAX
+// The inverse of usize_to_string: Some(i) iff s is the canonical decimal representation of i.
+// Trusted for the same reason as usize_to_string, as int_to_string_view is uninterpreted. The None
+// case also assumes no such number exceeds usize::MAX, as storing one in a usize already does.
 #[verifier(external_body)]
 pub fn parse_usize(s: &str) -> (res: Option<usize>)
     ensures
         res is Some ==> s@ == int_to_string_view(res->0 as int),
         res is None ==> forall |i: nat| s@ != #[trigger] int_to_string_view(i as int),
 {
-    // the round-trip check rejects the representations that parse accepts but to_string
-    // never produces, e.g. "+1" and "007"
+    // the round trip rejects what parse accepts but to_string never produces, e.g. "+1" and "007"
     match s.parse::<usize>() {
         Ok(i) if i.to_string() == s => Some(i),
         _ => None,

@@ -366,9 +366,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     }
 }
 
-// The generate_name field used for the pods created by the vreplicaset controller is
-// built from the "vreplicaset" prefix, dashes and the (ascii) vrs name, so it is ascii.
-// Kept as a standalone lemma so that its callers can hide(is_ascii_chars).
+// The generate_name field of a new pod is "vreplicaset-" + the (ascii) vrs name + a dash, so it is ascii.
 pub proof fn lemma_pod_generate_name_is_ascii(vrs: VReplicaSetView)
 requires is_ascii_chars(vrs.metadata.name->0),
 ensures is_ascii_chars(pod_generate_name(vrs)),

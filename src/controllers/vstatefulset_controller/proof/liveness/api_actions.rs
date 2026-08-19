@@ -133,8 +133,7 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     pending_create_pvc_req_in_flight(vsts, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
-    // needed to know that the pvc template index is within the range of the templates,
-    // which in turn tells us the template name is ascii (by vsts's state validation)
+    // needed to know the pvc template index is in range, hence the template name is ascii
     at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s),
     local_state_is_valid_and_coherent(vsts, controller_id)(s),
 ensures
@@ -163,8 +162,6 @@ ensures
         };
         assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
             assert(metadata_validity_check(created_obj) is None) by {
-                // the created pvc's name is built from the (ascii) vsts name and the
-                // (ascii, by state validation) pvc template name, so it is ascii
                 VStatefulSetView::marshal_preserves_integrity();
                 assert(s.resources().contains_key(vsts.object_ref()));
                 let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
@@ -227,7 +224,6 @@ ensures
         assert(metadata_validity_check(created_obj) is None) by {
             assert(created_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
             assert(controller_owner_filter()(vsts.controller_owner_ref()));
-            // the created pod's name is built from the (ascii) vsts name, so it is ascii
             helper_lemmas::lemma_vsts_name_is_ascii(s, vsts);
             helper_lemmas::lemma_pod_name_is_ascii(vsts.metadata.name->0, ord);
         }

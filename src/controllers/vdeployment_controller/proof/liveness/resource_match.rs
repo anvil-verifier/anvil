@@ -921,8 +921,6 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         )))),
 {
-    // this proof does not reason about the ascii-ness of any name; unfolding
-    // is_ascii_chars (a quantifier) here only slows the solver down
     hide(is_ascii_chars);
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),

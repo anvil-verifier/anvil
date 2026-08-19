@@ -752,8 +752,6 @@ ensures
         },
     }
     let resp_msg = handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
-    // the created object's name is built from the (ascii) rabbitmq name, so the api
-    // server does not reject the create request as invalid
     assert(is_ascii_chars(msg.content.get_create_request().obj.metadata.name->0)) by {
         assert(s.resources().contains_key(rabbitmq.object_ref()));
         lemma_resource_name_is_ascii(sub_resource, rabbitmq);
@@ -1070,8 +1068,7 @@ pub proof fn rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(
     );
 }
 
-// Every sub resource's name is the "rabbitmq" prefix, a dash, the (ascii) rabbitmq name
-// and a literal suffix, so it is ascii.
+// A sub resource name is "rabbitmq-" + the (ascii) rabbitmq name + a literal suffix, so it is ascii.
 pub proof fn lemma_resource_name_is_ascii(sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
 requires is_ascii_chars(rabbitmq.metadata.name->0),
 ensures is_ascii_chars(get_request(sub_resource, rabbitmq).key.name),

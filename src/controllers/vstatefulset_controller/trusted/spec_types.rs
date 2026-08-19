@@ -109,8 +109,7 @@ impl VStatefulSetView {
                 &&& pvc_template.metadata.namespace is Some
                 // fix https://github.com/kubernetes/kubernetes/issues/41153 
                 &&& dash_free(pvc_template.metadata.name->0)
-                // the pvc template name becomes part of the created pvc's name, which
-                // has to be an RFC 1123 DNS subdomain (or label), so it has to be ascii
+                // the template name becomes part of the created pvc name, which has to be ascii
                 &&& is_ascii_chars(pvc_template.metadata.name->0)
             }
         )

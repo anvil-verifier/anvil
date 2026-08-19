@@ -645,9 +645,7 @@ ensures
     }),
 {}
 
-// The generate_name field used for the vrs created by the vdeployment controller is
-// built from the (ascii) vd name, a dash and the decimal representation of a resource
-// version, so it is ascii. Kept as a standalone lemma so callers can hide(is_ascii_chars).
+// The generate_name field of a new vrs is the (ascii) vd name, a dash and a resource version, so it is ascii.
 pub proof fn lemma_new_vrs_generate_name_is_ascii(vd_name: StringView, rv: int)
 requires is_ascii_chars(vd_name),
 ensures is_ascii_chars(vd_name + "-"@ + int_to_string_view(rv)),
