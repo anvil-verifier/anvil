@@ -15,6 +15,7 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
+use vstd::utf8::is_ascii_chars;
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
@@ -371,6 +372,14 @@ ensures
         assert(metadata_validity_check(created_obj) is None) by {
             assert(created_obj.metadata.owner_references is Some);
             assert(created_obj.metadata.owner_references->0.len() == 1);
+            // the created vrs's name is generated from generate_name_field, which is
+            // ascii because vd's name (in etcd, hence well formed) is
+            assert(s.resources().contains_key(vd.object_ref()));
+            assert(is_ascii_chars(vd.metadata.name->0));
+            lemma_new_vrs_generate_name_is_ascii(
+                vd.metadata.name->0, triggering_cr.metadata.resource_version->0
+            );
+            generated_name_spec(s.api_server, generate_name_field);
         }
     }
     assert(resp_obj == created_obj);

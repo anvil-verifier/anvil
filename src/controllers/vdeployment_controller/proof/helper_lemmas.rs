@@ -15,6 +15,7 @@ use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
 use vstd::prelude::*;
+use vstd::utf8::is_ascii_chars;
 
 verus! {
 
@@ -643,4 +644,17 @@ ensures
         &&& (|s| filter_obj_keys_managed_by_vd(vd, s)) == (|s| filter_obj_keys_managed_by_vd(triggering_cr, s))
     }),
 {}
+
+// The generate_name field used for the vrs created by the vdeployment controller is
+// built from the (ascii) vd name, a dash and the decimal representation of a resource
+// version, so it is ascii. Kept as a standalone lemma so callers can hide(is_ascii_chars).
+pub proof fn lemma_new_vrs_generate_name_is_ascii(vd_name: StringView, rv: int)
+requires is_ascii_chars(vd_name),
+ensures is_ascii_chars(vd_name + "-"@ + int_to_string_view(rv)),
+{
+    broadcast use vstd::utf8::is_ascii_chars_concat;
+    reveal_strlit("-");
+    int_to_string_view_ascii();
+}
+
 }
