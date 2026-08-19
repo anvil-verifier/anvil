@@ -19,10 +19,9 @@ verus! {
     // parent_name is ascii (guaranteed by state_validation), which lets us index by byte.
     pub fn get_ordinal(parent_name: &String, pod_name: &String) -> (ordinal: Option<usize>)
         requires is_ascii_chars(parent_name@),
-        ensures (
-            (ordinal@ matches Some(v1) && model_reconciler::get_ordinal(parent_name@, pod_name@) matches Some(v2) && v1 == v2)
-            || (ordinal@ matches None && model_reconciler::get_ordinal(parent_name@, pod_name@) matches None)
-        )
+        ensures
+            ordinal is Some == model_reconciler::get_ordinal(parent_name@, pod_name@) is Some,
+            ordinal is Some ==> ordinal->0 == model_reconciler::get_ordinal(parent_name@, pod_name@)->0,
     {
         broadcast use vstd::string::group_string_axioms, vstd::utf8::is_ascii_chars_concat, vstd::slice::group_slice_axioms;
         proof {
