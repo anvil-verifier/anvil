@@ -14,11 +14,12 @@ use crate::vstatefulset_controller::{
         liveness::state_predicates::*,
         internal_rely_guarantee,
         helper_invariants,
+        helper_lemmas,
     },
 };
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
+use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*, utf8::*};
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
@@ -131,6 +132,9 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(req_msg_or_none(s, vsts.object_ref(), controller_id))),
     pending_create_pvc_req_in_flight(vsts, controller_id)(s),
     cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s),
+    // needed to know the pvc template index is in range, hence the template name is ascii
+    at_vsts_step(vsts, controller_id, at_step![AfterCreatePVC])(s),
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
 ensures
     pending_create_pvc_resp_msg_in_flight_and_created_pvc_exists(vsts, controller_id)(s_prime),
 {
@@ -156,7 +160,21 @@ ensures
             status: marshalled_default_status(Kind::PersistentVolumeClaimKind, cluster.installed_types), // Overwrite the status with the default one
         };
         assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
-            assert(metadata_validity_check(created_obj) is None);
+            assert(metadata_validity_check(created_obj) is None) by {
+                VStatefulSetView::marshal_preserves_integrity();
+                assert(s.resources().contains_key(vsts.object_ref()));
+                let cr = VStatefulSetView::unmarshal(s.resources()[vsts.object_ref()])->Ok_0;
+                assert(cr.spec == vsts.spec);
+                assert(vsts.state_validation());
+                assert(local_state.pvc_index > 0 && local_state.pvc_index <= pvc_cnt(vsts));
+                assert(i < pvc_cnt(vsts));
+                assert(vsts.spec.volume_claim_templates is Some);
+                assert(is_ascii_chars(vsts.spec.volume_claim_templates->0[i as int].metadata.name->0));
+                helper_lemmas::lemma_vsts_name_is_ascii(s, vsts);
+                helper_lemmas::lemma_pvc_name_is_ascii(
+                    vsts.spec.volume_claim_templates->0[i as int].metadata.name->0, vsts.metadata.name->0, ord
+                );
+            }
             assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
                 PersistentVolumeClaimView::marshal_status_preserves_integrity();
                 assert(PersistentVolumeClaimView::unmarshal_status(created_obj.status) is Ok);
@@ -205,6 +223,8 @@ ensures
         assert(metadata_validity_check(created_obj) is None) by {
             assert(created_obj.metadata.owner_references == Some(seq![vsts.controller_owner_ref()]));
             assert(controller_owner_filter()(vsts.controller_owner_ref()));
+            helper_lemmas::lemma_vsts_name_is_ascii(s, vsts);
+            helper_lemmas::lemma_pod_name_is_ascii(vsts.metadata.name->0, ord);
         }
         assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
             assert(PodView::unmarshal_status(created_obj.status) is Ok);

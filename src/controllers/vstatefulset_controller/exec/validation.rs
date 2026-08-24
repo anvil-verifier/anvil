@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, STATEFULSET_ORDINAL_LABEL, STATEFULSET_POD_NAME_LABEL};
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::{string_map::*, string_view::*};
-use vstd::prelude::*;
+use vstd::{prelude::*, utf8::*};
 
 verus! {
 
@@ -72,7 +72,7 @@ impl VStatefulSet {
             for idx in 0..vct.len()
                 invariant
                     0 <= idx <= vct.len(),
-                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.name is Some && vct[i]@.metadata.namespace is Some && dash_free(vct[i]@.metadata.name->0),
+                    forall |i: int|  #![trigger vct[i]] 0 <= i < idx ==> vct[i]@.state_validation() && vct[i]@.metadata.name is Some && vct[i]@.metadata.namespace is Some && dash_free(vct[i]@.metadata.name->0) && is_ascii_chars(vct[i]@.metadata.name->0),
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
                     self@.spec.volume_claim_templates is Some,
                     vct_view == self@.spec.volume_claim_templates->0,
@@ -93,6 +93,12 @@ impl VStatefulSet {
                 assert(dash_check == dash_free(vct_view[idx as int].metadata.name->0));
 
                 if !dash_check {
+                    return false;
+                }
+                let ascii_check = vct[idx].metadata().name().unwrap().is_ascii();
+                assert(ascii_check == is_ascii_chars(vct_view[idx as int].metadata.name->0));
+
+                if !ascii_check {
                     return false;
                 }
             }

@@ -14,7 +14,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
+use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*, utf8::*};
 use crate::vstd_ext::{seq_lib::*, set_lib::*, map_lib::*, string_view::*};
 
 verus! {
@@ -371,6 +371,12 @@ ensures
         assert(metadata_validity_check(created_obj) is None) by {
             assert(created_obj.metadata.owner_references is Some);
             assert(created_obj.metadata.owner_references->0.len() == 1);
+            assert(s.resources().contains_key(vd.object_ref()));
+            assert(is_ascii_chars(vd.metadata.name->0));
+            lemma_new_vrs_generate_name_is_ascii(
+                vd.metadata.name->0, triggering_cr.metadata.resource_version->0
+            );
+            generated_name_spec(s.api_server, generate_name_field);
         }
     }
     assert(resp_obj == created_obj);

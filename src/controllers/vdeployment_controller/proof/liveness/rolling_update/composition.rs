@@ -12,7 +12,7 @@ use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::
 use crate::vdeployment_controller::proof::helper_invariants;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vreplicaset_controller::trusted::liveness_theorem as vrs_liveness;
-use vstd::{prelude::*, set_lib::*, map_lib::*, multiset::*};
+use vstd::{prelude::*, set_lib::*, map_lib::*, multiset::*, utf8::*};
 use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {
@@ -141,6 +141,98 @@ ensures
     }
 }
 
+
+#[verifier(spinoff_prover)]
+proof fn lemma_inductive_current_state_matches_preserves_during_api_server_step_on_other_msg(
+    vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState, msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime),
+    vd_reconcile_request_only_interferes_with_itself_condition(controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+ensures
+    inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime),
+{
+    hide(is_ascii_chars);
+    let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
+        &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), 0)(s)
+    };
+    let new_msgs = s_prime.in_flight().sub(s.in_flight());
+    let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+    let local_state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+    assert(local_state == local_state_prime);
+    assert(s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0
+        == s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0);
+    VDeploymentReconcileState::marshal_preserves_integrity();
+    VReplicaSetView::marshal_preserves_integrity();
+        lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
+            s, s_prime, vd, cluster, controller_id, msg, new_vrs_key
+        );
+        let obj = s.resources()[new_vrs_key];
+        let etcd_vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+        let etcd_vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[new_vrs_key])->Ok_0;
+        assert(etcd_vrs.spec == etcd_vrs_prime.spec) by {
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+            }
+            // etcd_vrs's spec is not updated
+            lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                s, s_prime, vd, cluster, controller_id, msg
+            );
+        }
+        if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
+            assert(s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
+            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+            assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s));
+            assert forall |resp_msg| {
+                &&& #[trigger] s_prime.in_flight().contains(resp_msg)
+                &&& resp_msg.src is APIServer
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime) by {
+                assert(s.in_flight().contains(resp_msg)) by {
+                    if !s.in_flight().contains(resp_msg) {
+                        assert(new_msgs.contains(resp_msg));
+                        assert(!resp_msg_matches_req_msg(resp_msg, req_msg));
+                    }
+                }
+                lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg, Some(uid)
+                );
+                let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                let vrs_list = objects_to_vrs_list(resp_objs)->0;
+                let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                    let key = vrs.object_ref();
+                    let etcd_vrs = VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0;
+                    &&& s_prime.resources().contains_key(key)
+                    &&& VReplicaSetView::unmarshal(s_prime.resources()[key]) is Ok
+                    &&& valid_owned_obj_key(vd, s_prime)(key)
+                    &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
+                    &&& etcd_vrs.spec == vrs.spec
+                } by {
+                    let key = vrs.object_ref();
+                    let etcd_obj = s.resources()[key];
+                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                    assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
+                        assert(etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version());
+                        VReplicaSetView::marshal_preserves_integrity();
+                    }
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
+                }
+            }
+        }
+}
+
 #[verifier(spinoff_prover)]
 proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_during_api_server_step(
     vd: VDeploymentView, controller_id: int, cluster: Cluster, new_vrs_key: ObjectRef, s: ClusterState, s_prime: ClusterState, input: Option<Message>
@@ -158,6 +250,7 @@ requires
 ensures
     inductive_current_state_matches(vd, controller_id, new_vrs_key)(s_prime)
 {
+    hide(is_ascii_chars);
     let step = choose |step| cluster.next_step(s, s_prime, step);
     let msg = input->0;
     let (uid, key) = choose |nv_uid_key: (Uid, ObjectRef)| {
@@ -173,64 +266,9 @@ ensures
         VDeploymentReconcileState::marshal_preserves_integrity();
         VReplicaSetView::marshal_preserves_integrity();
         if msg.src != HostId::Controller(controller_id, vd.object_ref()) {
-            lemma_api_request_other_than_pending_req_msg_maintains_current_state_matches_with_nv_key(
-                s, s_prime, vd, cluster, controller_id, msg, new_vrs_key
+            lemma_inductive_current_state_matches_preserves_during_api_server_step_on_other_msg(
+                vd, controller_id, cluster, new_vrs_key, s, s_prime, msg
             );
-            let obj = s.resources()[new_vrs_key];
-            let etcd_vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
-            let etcd_vrs_prime = VReplicaSetView::unmarshal(s_prime.resources()[new_vrs_key])->Ok_0;
-            assert(etcd_vrs.spec == etcd_vrs_prime.spec) by {
-                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
-                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
-                }
-                // etcd_vrs's spec is not updated
-                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, msg
-                );
-            }
-            if at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s) {
-                assert(s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg is Some);
-                let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-                assert(req_msg_is_list_vrs_req(vd, controller_id, req_msg, s));
-                assert forall |resp_msg| {
-                    &&& #[trigger] s_prime.in_flight().contains(resp_msg)
-                    &&& resp_msg.src is APIServer
-                    &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                } implies resp_msg_is_ok_list_resp_containing_matched_vrs(vd, resp_msg, s_prime) by {
-                    assert(s.in_flight().contains(resp_msg)) by {
-                        if !s.in_flight().contains(resp_msg) {
-                            assert(new_msgs.contains(resp_msg));
-                            assert(!resp_msg_matches_req_msg(resp_msg, req_msg));
-                        }
-                    }
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, msg, Some(uid)
-                    );
-                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                    let vrs_list = objects_to_vrs_list(resp_objs)->0;
-                    let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-                    assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
-                        let key = vrs.object_ref();
-                        let etcd_vrs = VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0;
-                        &&& s_prime.resources().contains_key(key)
-                        &&& VReplicaSetView::unmarshal(s_prime.resources()[key]) is Ok
-                        &&& valid_owned_obj_key(vd, s_prime)(key)
-                        &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
-                        &&& etcd_vrs.spec == vrs.spec
-                    } by {
-                        let key = vrs.object_ref();
-                        let etcd_obj = s.resources()[key];
-                        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
-                            assert(etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version());
-                            VReplicaSetView::marshal_preserves_integrity();
-                        }
-                        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                            s, s_prime, vd, cluster, controller_id, msg
-                        );
-                    }
-                }
-            }
         } else {
             assert(s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()));
             let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;

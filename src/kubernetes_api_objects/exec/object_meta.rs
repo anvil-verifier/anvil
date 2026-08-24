@@ -166,6 +166,7 @@ impl ObjectMeta {
         ensures b == self@.well_formed_for_namespaced(),
     {
         self.name().is_some()
+        && self.name().unwrap().is_ascii()
         && self.namespace().is_some()
         && self.resource_version().is_some()
         && self.has_some_uid()

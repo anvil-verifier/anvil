@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use verus_temporal_logic::{defs::*, rules::*};
-use vstd::prelude::*;
+use vstd::{prelude::*, utf8::*};
 
 verus! {
 
@@ -22,12 +22,14 @@ pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePr
 }
 
 // TODO: investigate flaky proof.
+#[verifier(rlimit(20))]
 pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(self, spec: TempPred<ClusterState>)
     requires
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
 {
+    hide(is_ascii_chars);
     let inv = Self::object_in_ok_get_response_has_smaller_rv_than_etcd();
     let next = |s, s_prime| {
         &&& self.next()(s, s_prime)

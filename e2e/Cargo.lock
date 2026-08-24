@@ -336,6 +336,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -466,6 +472,7 @@ dependencies = [
  "tracing-subscriber",
  "tungstenite 0.20.1",
  "verifiable-controllers",
+ "vstd",
 ]
 
 [[package]]
@@ -696,7 +703,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.9",
- "indexmap 2.14.0",
+ "indexmap",
  "slab",
  "tokio",
  "tokio-util",
@@ -987,16 +994,6 @@ checksum = "7d20d6b07bfbc108882d88ed8e37d39636dcc260e15e30c45e6ba089610b917c"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
-]
-
-[[package]]
-name = "indexmap"
-version = "1.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
-dependencies = [
- "autocfg",
- "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -2047,7 +2044,7 @@ version = "0.9.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1bf28c79a99f70ee1f1d83d10c875d2e70618417fda01ad1785e027579d9d38"
 dependencies = [
- "indexmap 2.14.0",
+ "indexmap",
  "itoa",
  "ryu",
  "serde",
@@ -2371,7 +2368,7 @@ version = "0.25.4+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7193cbd0ce53dc966037f54351dbbcf0d5a642c7f0038c382ef9e677ce8c13f2"
 dependencies = [
- "indexmap 2.14.0",
+ "indexmap",
  "toml_datetime",
  "toml_parser",
  "winnow 0.7.13",
@@ -2671,16 +2668,15 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "verus_builtin"
-version = "0.0.0-2026-05-17-0151"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cab9266bfb5cf45a080f425c560b0e0be2bf81194f0e80258990c49c1829d8b9"
+version = "0.0.0-2026-08-09-0044"
+source = "git+https://github.com/verus-lang/verus.git#8d3dedcdb8d114346c86e52cfaac41ae46a893f2"
 
 [[package]]
 name = "verus_builtin_macros"
-version = "0.0.0-2026-07-12-0122"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fb60e3a141ababe618fbdb759f14aa8544f6346a98a44c1e3a7dbe20b1f2892"
+version = "0.0.0-2026-08-09-0044"
+source = "git+https://github.com/verus-lang/verus.git#8d3dedcdb8d114346c86e52cfaac41ae46a893f2"
 dependencies = [
+ "convert_case",
  "proc-macro2",
  "quote",
  "syn 2.0.118",
@@ -2691,9 +2687,8 @@ dependencies = [
 
 [[package]]
 name = "verus_prettyplease"
-version = "0.0.0-2026-05-31-0205"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ffdc94c89109a67c59646f6b6e71b49de394020f45294247dd716470523245b"
+version = "0.0.0-2026-08-09-0044"
+source = "git+https://github.com/verus-lang/verus.git#8d3dedcdb8d114346c86e52cfaac41ae46a893f2"
 dependencies = [
  "proc-macro2",
  "verus_syn",
@@ -2701,11 +2696,10 @@ dependencies = [
 
 [[package]]
 name = "verus_state_machines_macros"
-version = "0.0.0-2026-06-14-0213"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6704a9ce586a5027f87933d9a84817411c937804090a9585c28bf335ac37eefc"
+version = "0.0.0-2026-08-02-0125"
+source = "git+https://github.com/verus-lang/verus.git#8d3dedcdb8d114346c86e52cfaac41ae46a893f2"
 dependencies = [
- "indexmap 1.9.3",
+ "indexmap",
  "proc-macro2",
  "quote",
  "verus_syn",
@@ -2713,9 +2707,8 @@ dependencies = [
 
 [[package]]
 name = "verus_syn"
-version = "0.0.0-2026-05-31-0205"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "030b774330d5ec618691c2cd6fba8bbb13bd538f3884a1143450baec25749706"
+version = "0.0.0-2026-08-02-0125"
+source = "git+https://github.com/verus-lang/verus.git#8d3dedcdb8d114346c86e52cfaac41ae46a893f2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2725,16 +2718,15 @@ dependencies = [
 [[package]]
 name = "verus_temporal_logic"
 version = "0.1.0"
-source = "git+https://github.com/anvil-verifier/verus-tla?rev=8bb157b50b6200296d4b04d1302644d269e29443#8bb157b50b6200296d4b04d1302644d269e29443"
+source = "git+https://github.com/anvil-verifier/verus-tla#f385e5a741a2d368b95c1aa1ec0f8d6752db7158"
 dependencies = [
  "vstd",
 ]
 
 [[package]]
 name = "vstd"
-version = "0.0.0-2026-07-12-0122"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd0a0d328e1d6382af99a65f71677cf4b9200ec24e09fcafa7b1a3af8c8f5111"
+version = "0.0.0-2026-08-09-0044"
+source = "git+https://github.com/verus-lang/verus.git#8d3dedcdb8d114346c86e52cfaac41ae46a893f2"
 dependencies = [
  "verus_builtin",
  "verus_builtin_macros",

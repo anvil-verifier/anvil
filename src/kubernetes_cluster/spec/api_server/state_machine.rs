@@ -4,7 +4,7 @@ use crate::kubernetes_cluster::spec::{api_server::types::*, message::*, cluster:
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::vstd_ext::string_view::*;
-use vstd::{multiset::*, prelude::*};
+use vstd::{multiset::*, prelude::*, utf8::*};
 
 verus! {
 
@@ -114,6 +114,9 @@ pub open spec fn metadata_validity_check(obj: DynamicObjectView) -> Option<APIEr
     if obj.metadata.owner_references is Some
     && obj.metadata.owner_references->0.len() > 1
     && obj.metadata.owner_references->0.filter(|o: OwnerReferenceView| o.controller is Some && o.controller->0).len() > 1 {
+        Some(APIError::Invalid)
+    } else if obj.metadata.name is Some && !is_ascii_chars(obj.metadata.name->0) {
+        // the name has to be an RFC 1123 DNS subdomain (or label), which is ascii
         Some(APIError::Invalid)
     } else {
         None
@@ -259,6 +262,8 @@ pub proof fn generated_name_spec(s: APIServerState, generate_name_field: StringV
             &&& generated_name(s, generate_name_field) == generate_name_field + suffix
             &&& #[trigger] dash_free(suffix)
         },
+        // the generated suffix is alphanumeric, so the name is ascii if generate_name is
+        is_ascii_chars(generate_name_field) ==> is_ascii_chars(generated_name(s, generate_name_field)),
 {}
 
 // TODO: add fine grained support for namespace and kind

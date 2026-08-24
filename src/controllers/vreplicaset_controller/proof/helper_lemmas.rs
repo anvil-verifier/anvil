@@ -19,7 +19,7 @@ use crate::vreplicaset_controller::{
     proof::{helper_invariants, predicate::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*};
+use vstd::{seq_lib::*, map_lib::*, utf8::*};
 use vstd::prelude::*;
 
 verus! {
@@ -363,6 +363,16 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             assert(resp_objs[idxi].object_ref() != resp_objs[idxj].object_ref());
         }
     }
+}
+
+// The generate_name field of a new pod is "vreplicaset-" + the (ascii) vrs name + a dash, so it is ascii.
+pub proof fn lemma_pod_generate_name_is_ascii(vrs: VReplicaSetView)
+requires is_ascii_chars(vrs.metadata.name->0),
+ensures is_ascii_chars(pod_generate_name(vrs)),
+{
+    broadcast use vstd::utf8::is_ascii_chars_concat;
+    reveal_strlit("vreplicaset");
+    reveal_strlit("-");
 }
 
 }

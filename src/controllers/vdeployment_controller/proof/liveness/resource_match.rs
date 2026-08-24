@@ -15,7 +15,7 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*};
+use vstd::{seq_lib::*, map_lib::*, multiset::*, utf8::*};
 use vstd::prelude::*;
 
 verus !{
@@ -920,6 +920,7 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         )))),
 {
+    hide(is_ascii_chars);
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),

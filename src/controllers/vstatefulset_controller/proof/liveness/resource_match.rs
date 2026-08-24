@@ -20,7 +20,7 @@ use crate::vstatefulset_controller::{
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
-use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*, set::*};
+use vstd::{seq_lib::*, map_lib::*, multiset::*, relations::*, set::*, utf8::*};
 use vstd::prelude::*;
 
 verus! {
@@ -4804,6 +4804,7 @@ requires
 ensures
     inductive_current_state_matches(vsts, controller_id)(s_prime),
 {
+    hide(is_ascii_chars);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     VStatefulSetView::marshal_preserves_integrity();
     let new_msgs = s_prime.in_flight().sub(s.in_flight());

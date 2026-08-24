@@ -2,7 +2,7 @@ use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{label_selector::*, pod_template_spec::*, persistent_volume_claim::*, prelude::*};
 use crate::vstd_ext::string_view::*;
 use crate::vstatefulset_controller::trusted::exec_types;
-use vstd::prelude::*;
+use vstd::{prelude::*, utf8::*};
 
 verus! {
 
@@ -108,6 +108,8 @@ impl VStatefulSetView {
                 &&& pvc_template.metadata.namespace is Some
                 // fix https://github.com/kubernetes/kubernetes/issues/41153 
                 &&& dash_free(pvc_template.metadata.name->0)
+                // the template name becomes part of the created pvc name, which has to be ascii
+                &&& is_ascii_chars(pvc_template.metadata.name->0)
             }
         )
 

@@ -45,6 +45,8 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     && obj.metadata().owner_references().unwrap().len() > 1
     && filter_controller_references(obj.metadata().owner_references().unwrap()).len() > 1 {
         Some(APIError::Invalid)
+    } else if obj.metadata().name().is_some() && !obj.metadata().name().unwrap().is_ascii() {
+        Some(APIError::Invalid)
     } else {
         None
     }

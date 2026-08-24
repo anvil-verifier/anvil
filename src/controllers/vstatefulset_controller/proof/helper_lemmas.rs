@@ -15,6 +15,7 @@ use crate::vstatefulset_controller::{
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
 use vstd::{seq_lib::*, map_lib::*, set_lib::*};
 use vstd::prelude::*;
+use vstd::utf8::*;
 
 verus! {
 
@@ -254,6 +255,50 @@ pub proof fn vsts_rely_condition_equivalent_to_lifted_vsts_rely_condition(
             }
         }
     );
+}
+
+// The names built by the vstatefulset controller concatenate the "vstatefulset" prefix, dashes,
+// the (ascii) parent and pvc template names and an ordinal, so they are ascii.
+pub proof fn lemma_pod_name_without_vsts_prefix_is_ascii(parent_name: StringView, ord: nat)
+requires is_ascii_chars(parent_name),
+ensures is_ascii_chars(pod_name_without_vsts_prefix(parent_name, ord)),
+{
+    broadcast use is_ascii_chars_concat;
+    reveal_strlit("-");
+    int_to_string_view_ascii();
+}
+
+pub proof fn lemma_pod_name_is_ascii(parent_name: StringView, ord: nat)
+requires is_ascii_chars(parent_name),
+ensures is_ascii_chars(pod_name(parent_name, ord)),
+{
+    broadcast use is_ascii_chars_concat;
+    reveal_strlit("vstatefulset");
+    reveal_strlit("-");
+    lemma_pod_name_without_vsts_prefix_is_ascii(parent_name, ord);
+}
+
+pub proof fn lemma_pvc_name_is_ascii(pvc_template_name: StringView, vsts_name: StringView, ord: nat)
+requires
+    is_ascii_chars(pvc_template_name),
+    is_ascii_chars(vsts_name),
+ensures is_ascii_chars(pvc_name(pvc_template_name, vsts_name, ord)),
+{
+    broadcast use is_ascii_chars_concat;
+    reveal_strlit("vstatefulset");
+    reveal_strlit("-");
+    lemma_pod_name_without_vsts_prefix_is_ascii(vsts_name, ord);
+}
+
+// The vsts lives in etcd, and every object in etcd has well-formed (hence ascii) metadata.
+pub proof fn lemma_vsts_name_is_ascii(s: ClusterState, vsts: VStatefulSetView)
+requires
+    Cluster::desired_state_is(vsts)(s),
+    Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+ensures is_ascii_chars(vsts.metadata.name->0),
+{
+    assert(s.resources().contains_key(vsts.object_ref()));
+    assert(Cluster::etcd_object_is_weakly_well_formed(vsts.object_ref())(s));
 }
 
 }
