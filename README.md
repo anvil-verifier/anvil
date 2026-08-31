@@ -5,13 +5,17 @@
 
 Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs. Anvil's specifications and proofs are written in [verus-tla](https://github.com/anvil-verifier/verus-tla), the TLA embedding in Verus. The verified controllers use the [kube](https://github.com/kube-rs/kube) client to communicate with the Kubernetes API server and can be deployed in real-world Kubernetes clusters.
 
-## Welder: Formally Verifying Kubernetes Cluster Control Planes
+To verify Kubernetes controllers, developers need to specify the correctness properties and write machine-checkable proofs to show the controller implementation satisfies the properties. Anvil enables developers to verify a key liveness property called **Eventually Stable Reconciliation (ESR)**,it states that a controller should *eventually* make the cluster state match its desired state, and stay in that desired state *stably*, despite failures and network issues.
+
+Verifying controllers still requires some expertise in SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controllers/) we have verified (see their `proof/` folders).
+
+## Welder: Compositional Verification for Kubernetes Control Plane
 
 Welder is a framework built on top of Anvil for verifying a fleet of Kubernetes controllers. In addition to Anvil's correctness specification, developers formally specify rely-guarantee conditions and liveness dependencies (CORE) of each controller, and verify that controllers respect each other's non-interference requirements and dependencies.
 
-So far, we have built and verified both builtin and custom Kubernetes controllers using Welder: three controllers for managing builtin Kubernetes workloads, including ReplicaSet, Deployment, and StatefulSet, and one custom controller for managing RabbitMQ deployed on Kubernetes. We used the [upstream Kubernetes controllers](https://github.com/kubernetes/kubernetes/tree/master/pkg/controller) and the [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) as references when building our controllers. We chose these controllers because the Deployment and RabbitMQ controllers depend on the ReplicaSet and StatefulSet controllers respectively, so they require both dependency and non-interference to be satisfied. With Welder, we formally proved that they work together towards their reconciliation goals with respect to those requirements. To avoid interference, we additionally applied some patches that the reference controllers lack, whose absence can cause real conflicts [[kubernetes#138038](https://github.com/kubernetes/kubernetes/issues/138038), [kubernetes#41153](https://github.com/kubernetes/kubernetes/issues/41153)]. Welder is now merged into Anvil's main branch, and we are using it to build and verify more controllers.
+So far, we have built and verified both builtin and custom Kubernetes controllers using Welder: three controllers for managing builtin Kubernetes workloads, including ReplicaSet, Deployment, and StatefulSet, and one custom controller for managing RabbitMQ deployed on Kubernetes. We used the [upstream Kubernetes controllers](https://github.com/kubernetes/kubernetes/tree/master/pkg/controller) and the [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) as references when building our controllers. Welder is now merged into Anvil's main branch, and we are using it to build and verify more controllers.
 
-The best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controllers/). Anvil builds and verifies through [`cargo verus`](https://github.com/verus-lang/verus). See [`build.md`](build.md) for how to build, verify, and run controllers.
+The best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controllers/). We briefly cover how to build, verify and run controllers in the following sections.
 
 ## Implementing controllers with Anvil
 
@@ -36,6 +40,8 @@ Every time `reconcile()` is invoked, it starts with the initial state, transitio
 For more details, you can refer to the controller [examples](src/controllers/) we have built (see their `exec/` folders).
 
 ### Composing controllers with Welder
+
+> Welder is only required for multi-controller verifications
 
 A controller verified in isolation says nothing about how it behaves next to others. On top of its ESR, Welder asks each controller for more specifications:
 
@@ -68,13 +74,9 @@ pub open spec fn core(cluster: CoreCluster, s: CoreSet) -> bool
 
 Proving it for a given `CoreCluster` and `CoreSet` establishes the guarantee conditions of every controller in the set unconditionally, and their ESR whenever the relies and liveness dependencies are met. We provide proof helpers in `src/kubernetes_cluster/proof/core.rs`. Usually we begin with a singleton `CoreSet`, prove the CORE spec for it, then compose it with another `CoreSet` by `compose` when the two sets are independent, or by `compose_dep` when one depends on the other's progress. Please check our composition proof examples in `src/controllers/composition`.
 
-## Verifying controllers with Anvil
+### Compiling, Verifying, deploying and testing controllers
 
-Verifying a Kubernetes controller requires the developers to specify some correctness properties and write machine-checkable proofs to show the controller implementation satisfies the properties.
-
-Anvil allows developers to verify diverse types of correctness properties. A key property we find useful is **Eventually Stable Reconciliation (ESR)**, a liveness property stating that a controller should *eventually* make the cluster state match its desired state, and stay in that desired state *stably*, despite failures and network issues.
-
-Verifying controllers still requires some expertise in SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controllers/) we have verified (see their `proof/` folders).
+See [build.md](./build.md).
 
 
 ## Source organization
