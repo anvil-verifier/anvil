@@ -26,8 +26,9 @@ This project uses [`cargo verus`](https://github.com/verus-lang/verus). All thir
     │   ├── vdeployment_controller/  vreplicaset_controller/
     │   ├── vstatefulset_controller/ rabbitmq_controller/
     │   └── composition/
+    ├── tla_demo.rs     # proof code for the TLA demo
     └── bin/            # binary entry points (one per controller / verification target)
-        ├── esr_composition.rs   tla_demo.rs
+        ├── esr_composition.rs
         ├── vdeployment_controller.rs   vdeployment_admission_controller.rs
         ├── vreplicaset_controller.rs   vreplicaset_admission_controller.rs
         ├── vstatefulset_controller.rs  vstatefulset_admission_controller.rs
@@ -45,7 +46,7 @@ Run `./tools/setup-verus.sh` to fetch, build, and wire up a local Verus binary.
 
 ## Build and verify
 
-Use `cargo verus focus` for verification. Unlike `cargo verus verify`, `focus` actually runs the SMT solver on the current crate. Most verification targets are library modules (under `src/controllers/`, `src/kubernetes_cluster/`, etc.), so combine `--lib` with `--verify-module <mod>` to narrow scope:
+Most verification targets are library modules (under `src/controllers/`, `src/kubernetes_cluster/`, etc.), so combine `--lib` with `--verify-only-module <mod>` to narrow scope:
 
 ```sh
 # Verify the entire Anvil framework + every controller and proof:
@@ -57,7 +58,7 @@ cargo verus verify --lib -- --verify-only-module vreplicaset_controller
 # Verify the composition proofs:
 cargo verus verify --lib -- --verify-only-module composition
 
-# Verify the TLA demo (proof code lives in src/bin/tla_demo.rs):
+# Verify the TLA demo (proof code lives in src/tla_demo.rs):
 cargo verus verify --lib -- --verify-only-module tla_demo
 ```
 
