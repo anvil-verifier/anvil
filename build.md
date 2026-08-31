@@ -2,38 +2,21 @@
 
 This project uses [`cargo verus`](https://github.com/verus-lang/verus). All third-party dependencies (kube, k8s-openapi, tokio, …) live in the top-level `Cargo.toml`; the Verus standard library (`vstd`) is tracking the `main` branch of [verus-lang/verus](https://github.com/verus-lang/verus).
 
-## Code structure
+## Source organization
 
-```
-.
-├── Cargo.toml          # single root package: verifiable-controllers
-├── build.md
-├── deploy/             # CRDs, RBAC, kind config, sample workloads
-├── docker/
-│   └── controller/     # Dockerfile — bakes a host-built binary into an image
-├── e2e/                # end-to-end test crate
-├── tools/
-│   ├── setup-verus.sh  # fetch, build and wire up Verus
-│   ├── deploy.sh       # apply deploy/<controller>/* to a kind cluster
-│   └── local-test.sh   # build controller image + run e2e against kind
-└── src/
-    ├── lib.rs          # framework library
-    ├── crds.rs         # k8s CRD type definitions
-    ├── kubernetes_api_objects/ kubernetes_cluster/ reconciler/
-    ├── shim_layer/ external_shim_layer/ state_machine/
-    ├── vstd_ext/ unit_tests/
-    ├── controllers/    # verified controller implementations
-    │   ├── vdeployment_controller/  vreplicaset_controller/
-    │   ├── vstatefulset_controller/ rabbitmq_controller/
-    │   └── composition/
-    ├── tla_demo.rs     # proof code for the TLA demo
-    └── bin/            # binary entry points (one per controller / verification target)
-        ├── esr_composition.rs
-        ├── vdeployment_controller.rs   vdeployment_admission_controller.rs
-        ├── vreplicaset_controller.rs   vreplicaset_admission_controller.rs
-        ├── vstatefulset_controller.rs  vstatefulset_admission_controller.rs
-        └── rabbitmq_controller.rs
-```
+`src/`
+
+- `reconciler/` This defines the API for implementing `reconcile()` as a state machine.
+- `shim_layer/` A layer that intercepts the requests returned by each state transition of `reconcile()`, issues the requests to the Kubernetes API server (or other endpoints customized by developers), and feeds the response to the next state transition of `reconcile()`. This layer is built on top of [kube](https://github.com/kube-rs/kube).
+- `kubernetes_cluster/` A model of the core components in a Kubernetes cluster that controllers often interact with, including API servers, etcd, and some built-in controllers. It is written as a TLA-style state machine.
+- `kubernetes_api_objects/` A library that defines commonly used Kubernetes API objects (e.g., Pod, ConfigMap, StatefulSet, Service, etc.). Most definitions are imported from [k8s-openapi](https://github.com/Arnavion/k8s-openapi) (which is also used by [kube](https://github.com/kube-rs/kube)) with a wrapper that allows formal reasoning on these objects.
+- `state_machine/` A library for defining TLA-style state machines, used by `kubernetes_cluster/`.
+- `controllers/` Example controllers we built and verified using Anvil (e.g., `rabbitmq_controller/`, `vreplicaset_controller/`, `vdeployment_controller/`, `vstatefulset_controller/`), plus their `composition/` proofs.
+- `crds.rs` Custom resource type definitions (`kube`-derived), shared by the controllers and the e2e tests.
+- `bin/` Binary entry points, one per controller, admission webhook, and verification target (e.g., `esr_composition.rs`).
+- `tla_demo.rs` Proof code for the TLA demo.
+
+Everything lives in a single cargo package (`verifiable-controllers`); see [`build.md`](build.md) for the full layout and the `cargo verus` build/verify commands.
 
 ### Dependencies
 

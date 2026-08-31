@@ -78,22 +78,6 @@ Proving it for a given `CoreCluster` and `CoreSet` establishes the guarantee con
 
 See [build.md](./build.md).
 
-
-## Source organization
-
-`src/`
-
-- `reconciler/` This defines the API for implementing `reconcile()` as a state machine.
-- `shim_layer/` A layer that intercepts the requests returned by each state transition of `reconcile()`, issues the requests to the Kubernetes API server (or other endpoints customized by developers), and feeds the response to the next state transition of `reconcile()`. This layer is built on top of [kube](https://github.com/kube-rs/kube).
-- `kubernetes_cluster/` A model of the core components in a Kubernetes cluster that controllers often interact with, including API servers, etcd, and some built-in controllers. It is written as a TLA-style state machine.
-- `kubernetes_api_objects/` A library that defines commonly used Kubernetes API objects (e.g., Pod, ConfigMap, StatefulSet, Service, etc.). Most definitions are imported from [k8s-openapi](https://github.com/Arnavion/k8s-openapi) (which is also used by [kube](https://github.com/kube-rs/kube)) with a wrapper that allows formal reasoning on these objects.
-- `state_machine/` A library for defining TLA-style state machines, used by `kubernetes_cluster/`.
-- `controllers/` Example controllers we built and verified using Anvil (e.g., `rabbitmq_controller/`, `vreplicaset_controller/`, `vdeployment_controller/`, `vstatefulset_controller/`), plus their `composition/` proofs.
-- `crds.rs` Custom resource type definitions (`kube`-derived), shared by the controllers and the e2e tests.
-- `bin/` Binary entry points, one per controller, admission webhook, and verification target (e.g., `esr_composition.rs`, `tla_demo.rs`).
-
-Everything lives in a single cargo package (`verifiable-controllers`); see [`build.md`](build.md) for the full layout and the `cargo verus` build/verify commands.
-
 ## Publications
 
 - Welder: Compositional Liveness Verification of Cluster Control Planes <br>
