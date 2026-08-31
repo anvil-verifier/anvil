@@ -16,7 +16,11 @@ This project uses [`cargo verus`](https://github.com/verus-lang/verus). All thir
 - `bin/` Binary entry points, one per controller, admission webhook, and verification target (e.g., `esr_composition.rs`).
 - `tla_demo.rs` Proof code for the TLA demo.
 
-Everything lives in a single cargo package (`verifiable-controllers`); see [`build.md`](build.md) for the full layout and the `cargo verus` build/verify commands.
+`e2e/`: end-to-end tests for controllers
+
+`tools/`: scripts to setup environment, build controller images and deploy controllers
+
+Anvil is packed into a single cargo package (`verifiable-controllers`); see the sections below for the `cargo verus` build/verify commands.
 
 ### Dependencies
 
