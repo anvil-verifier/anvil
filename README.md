@@ -5,7 +5,7 @@
 
 Anvil is a framework for building and formally verifying Kubernetes controllers. Developers use Anvil to implement Kubernetes controllers in Rust, specify correctness properties in a formal language, and verify that the controller implementations satisfy the correctness properties with machine-checkable proofs. Anvil is built on top of [Verus](https://github.com/verus-lang/verus), a tool for verifying Rust programs. Anvil's specifications and proofs are written in [verus-tla](https://github.com/anvil-verifier/verus-tla), the TLA embedding in Verus. The verified controllers use the [kube](https://github.com/kube-rs/kube) client to communicate with the Kubernetes API server and can be deployed in real-world Kubernetes clusters.
 
-To verify Kubernetes controllers, developers need to specify the correctness properties and write machine-checkable proofs to show the controller implementation satisfies the properties. Anvil enables developers to verify a key liveness property called **Eventually Stable Reconciliation (ESR)**,it states that a controller should *eventually* make the cluster state match its desired state, and stay in that desired state *stably*, despite failures and network issues.
+To verify Kubernetes controllers, developers need to specify the correctness properties and write machine-checkable proofs to show the controller implementation satisfies the properties. Anvil enables developers to verify a key liveness property called **Eventually Stable Reconciliation (ESR)**: a controller should *eventually* make the cluster state match its desired state, and stay in that desired state *stably*, despite failures and network issues.
 
 Verifying controllers still requires some expertise in SMT-based theorem proving. For more details, you can refer to the controller [examples](src/controllers/) we have verified (see their `proof/` folders).
 
@@ -28,7 +28,7 @@ pub trait Reconciler{
     // initial state
     fn reconcile_init_state() -> Self::T;
     // state transition
-    fn reconcile_core(cr: &Self::R, resp_o: Option<Response<...>, state: Self::T) -> (Self::T, Option<Request<...>>);
+    fn reconcile_core(cr: &Self::R, resp_o: Option<Response<...>>, state: Self::T) -> (Self::T, Option<Request<...>>);
     // ending state (reconcile is done without any error)
     fn reconcile_done(state: &Self::T) -> bool;
     // ending state (reconcile encounters error)
@@ -80,7 +80,7 @@ See [build.md](./build.md).
 
 ## Publications
 
-- Welder: Compositional Liveness Verification of Cluster Control Planes <br>
+- [Welder: Compositional Liveness Verification of Cluster Control Planes](https://cathy-cai.page/pubs/welder26.pdf) <br>
 Zhizhen Cathy Cai, Nikhil Date, Jiawei Tyler Gu, Cody Rivera, Tej Chajed, Oded Padon, Tianyin Xu, and Xudong Sun. In Proceedings of the 32nd ACM Symposium on Operating Systems Principles (SOSP'26), Prague, Czechia, Sep. 2026.
 
 - [Anvil: Verifying Liveness of Cluster Management Controllers](https://www.usenix.org/conference/osdi24/presentation/sun-xudong) <br>
