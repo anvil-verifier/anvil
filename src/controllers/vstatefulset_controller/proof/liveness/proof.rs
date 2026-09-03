@@ -617,8 +617,6 @@ proof fn spec_entails_no_pending_req_msg_at_done_for_key(spec: TempPred<ClusterS
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, cluster.reconcile_model(controller_id).done)))),
 {
     hide(is_ascii_chars);
-    // get_ordinal's `exists`/`choose` over pod names is irrelevant here but drives a
-    // matching loop through the reconcile transition, so keep it opaque.
     hide(get_ordinal);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
