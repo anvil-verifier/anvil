@@ -592,7 +592,20 @@ pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])));
 }
 
-#[verifier(rlimit(200))]
+proof fn no_pending_req_msg_at_done_for_cr(cluster: Cluster, controller_id: int, cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState)
+    requires
+        cluster.type_is_installed_in_cluster::<VStatefulSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vsts_controller_model()),
+        (cluster.reconcile_model(controller_id).done)
+            ((cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0),
+    ensures
+        (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None,
+{
+    hide(is_ascii_chars);
+    VStatefulSetReconcileState::marshal_preserves_integrity();
+}
+
+#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 proof fn spec_entails_no_pending_req_msg_at_done_for_key(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
     requires
@@ -603,10 +616,18 @@ proof fn spec_entails_no_pending_req_msg_at_done_for_key(spec: TempPred<ClusterS
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, cluster.reconcile_model(controller_id).done)))),
 {
+    hide(is_ascii_chars);
+    // get_ordinal's `exists`/`choose` over pod names is irrelevant here but drives a
+    // matching loop through the reconcile transition, so keep it opaque.
+    hide(get_ordinal);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
-    VStatefulSetReconcileState::marshal_preserves_integrity();
+    assert forall |cr: DynamicObjectView, resp_o: Option<ResponseContent>, pre_state: ReconcileLocalState|
+        (cluster.reconcile_model(controller_id).done)((#[trigger] (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state)).0)
+        implies (cluster.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None by {
+        no_pending_req_msg_at_done_for_cr(cluster, controller_id, cr, resp_o, pre_state);
+    }
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
 }
 
