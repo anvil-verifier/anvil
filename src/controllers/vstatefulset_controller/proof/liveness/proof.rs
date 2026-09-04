@@ -189,6 +189,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
     ensures
         provided_spec.and(spec_before_phase_n(i, vsts, cluster, controller_id)).entails(true_pred().leads_to(invariants_since_phase_n(i, vsts, cluster, controller_id))),
 {
+    hide(get_ordinal);
     let spec = provided_spec.and(spec_before_phase_n(i, vsts, cluster, controller_id));
 
     reveal_with_fuel(spec_before_phase_n, 6);
@@ -369,6 +370,7 @@ proof fn spec_entails_no_pending_req_msg_at_init_for_key(spec: TempPred<ClusterS
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![Init])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -388,6 +390,7 @@ proof fn spec_entails_no_pending_req_msg_at_create_pvc_for_key(spec: TempPred<Cl
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![CreatePVC])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -407,6 +410,7 @@ proof fn spec_entails_no_pending_req_msg_at_skip_pvc_for_key(spec: TempPred<Clus
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![SkipPVC])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -426,6 +430,7 @@ proof fn spec_entails_no_pending_req_msg_at_create_needed_for_key(spec: TempPred
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![CreateNeeded])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -485,6 +490,7 @@ proof fn spec_entails_pending_req_or_resp_in_flight_at_aftercreatepvc_for_key(sp
     ensures
         spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, at_step_or![AfterCreatePVC])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -505,6 +511,7 @@ proof fn spec_entails_pending_req_or_resp_in_flight_at_aftercreateneeded_for_key
     ensures
         spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, at_step_or![AfterCreateNeeded])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -525,6 +532,7 @@ proof fn spec_entails_pending_req_or_resp_in_flight_at_afterupdateneeded_for_key
     ensures
         spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, at_step_or![AfterUpdateNeeded])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -545,6 +553,7 @@ proof fn spec_entails_pending_req_or_resp_in_flight_at_afterdeletecondemned_for_
     ensures
         spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, at_step_or![AfterDeleteCondemned])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -710,6 +719,7 @@ proof fn spec_entails_no_pending_req_msg_at_get_pvc_for_key(spec: TempPred<Clust
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![GetPVC])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -814,6 +824,7 @@ proof fn spec_entails_no_pending_req_msg_at_update_needed_for_key(spec: TempPred
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![UpdateNeeded])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -850,6 +861,7 @@ proof fn spec_entails_no_pending_req_msg_at_delete_condemned_for_key(spec: TempP
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![DeleteCondemned])))),
 {
+    hide(get_ordinal);
     hide(is_ascii_chars);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -880,6 +892,7 @@ proof fn spec_entails_no_pending_req_msg_at_delete_outdated_for_key(spec: TempPr
     ensures
         spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, key, at_step_or![DeleteOutdated])))),
 {
+    hide(get_ordinal);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);
@@ -1038,6 +1051,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vsts: VSt
     ensures
         spec.entails(derived_invariants_since_beginning(vsts, cluster, controller_id)),
 {
+    hide(get_ordinal);
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
