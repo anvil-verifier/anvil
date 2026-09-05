@@ -818,6 +818,8 @@ ensures
     ))))
 {
     hide(local_state_is_valid_and_coherent_with_etcd);
+    // quantified over pairs of etcd keys, so unfolding it costs quadratic instantiations
+    hide(Cluster::etcd_objects_have_unique_uids);
     let nv_uid_key_replicas = Some((nv_uid_key_replicas_sm.0, nv_uid_key_replicas_sm.1, nv_uid_key_replicas_sm.2));
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
@@ -1209,6 +1211,7 @@ ensures
     )))),
 {
     hide(local_state_is_valid_and_coherent_with_etcd);
+    hide(Cluster::etcd_objects_have_unique_uids);
     let nv_uid_key_replicas = (nv_uid_key_replicas_sm.0, nv_uid_key_replicas_sm.1, nv_uid_key_replicas_sm.2);
     let updated_replicas = updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas);
     let pre = and!(
@@ -1315,6 +1318,7 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let nv_new = (nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas));
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
@@ -1418,6 +1422,7 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
         resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key_replicas),
@@ -1454,6 +1459,9 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg
                 );
             },
             Step::ControllerStep(input) => {
@@ -1612,6 +1620,7 @@ ensures
         local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
     )(s_prime),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let step = choose |step| cluster.next_step(s, s_prime, step);
     match step {
         Step::APIServerStep(input) => {
