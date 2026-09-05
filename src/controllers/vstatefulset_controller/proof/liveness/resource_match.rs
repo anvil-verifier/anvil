@@ -569,6 +569,7 @@ ensures
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -1980,6 +1981,7 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len, outdated_len)
     ))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -2281,6 +2283,7 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len, outdated_len)
     ))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -3574,6 +3577,7 @@ requires
 ensures
     after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len)(s_prime),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     reveal(get_ordinal);
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();

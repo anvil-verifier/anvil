@@ -1208,6 +1208,7 @@ ensures
         local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
     )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     hide(local_state_is_valid_and_coherent_with_etcd);
     let nv_uid_key_replicas = (nv_uid_key_replicas_sm.0, nv_uid_key_replicas_sm.1, nv_uid_key_replicas_sm.2);
     let updated_replicas = updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas);
@@ -1315,6 +1316,7 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let nv_new = (nv_uid_key_replicas.0, nv_uid_key_replicas.1, updated_replicas(Some(nv_uid_key_replicas.2), vd.spec.replicas));
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
@@ -1506,6 +1508,7 @@ ensures
             local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
         )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
         no_pending_req_in_cluster(vd, controller_id),
@@ -1615,6 +1618,7 @@ ensures
         local_state_is_valid_and_coherent_with_etcd(vd, controller_id)
     )(s_prime),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let step = choose |step| cluster.next_step(s, s_prime, step);
     match step {
         Step::APIServerStep(input) => {

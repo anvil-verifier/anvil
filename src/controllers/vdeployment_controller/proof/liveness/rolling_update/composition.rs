@@ -796,7 +796,6 @@ pub proof fn current_state_match_vd_implies_exists_old_vrs_set(
         old_vrs_set_is_owned_by_vd(vrs_set, vd, new_vrs_key)(s),
         conjuncted_desired_state_is_vrs(vrs_set)(s),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
     let vrs_set = s.resources().values()
         .filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind())
         .map(|obj| VReplicaSetView::unmarshal(obj)->Ok_0)

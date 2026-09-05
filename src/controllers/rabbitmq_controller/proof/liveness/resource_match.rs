@@ -488,7 +488,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
             ).leads_to(lift_state(at_after_get_resource_step_and_exists_not_found_resp_in_flight(sub_resource, rabbitmq, controller_id)))
         ),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let pre = |s: ClusterState| {
         &&& !s.resources().contains_key(resource_key)
@@ -706,7 +705,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
             )
         ),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
+    hide(Cluster::etcd_objects_have_unique_uids);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let pre = |s: ClusterState| {
         &&& !s.resources().contains_key(resource_key)
@@ -1042,6 +1041,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
                 )
         ),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let pre = req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, controller_id, req_msg);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let input = Some(req_msg);
@@ -1135,7 +1135,6 @@ ensures
         inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime)
     }),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
     let key = rabbitmq.object_ref();
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match sub_resource {
@@ -1289,7 +1288,7 @@ ensures
             inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime)
         }),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
+    hide(Cluster::etcd_objects_have_unique_uids);
     let key = rabbitmq.object_ref();
     let step = choose |step| cluster.next_step(s, s_prime, step);
     match sub_resource {
@@ -1495,7 +1494,6 @@ requires
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
     RabbitmqReconcileState::marshal_preserves_integrity();
     RabbitmqClusterView::marshal_preserves_integrity();
     match sub_resource {
@@ -1803,6 +1801,7 @@ requires
 ensures
     inductive_current_state_matches(rabbitmq, sub_resource, controller_id)(s_prime),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     RabbitmqReconcileState::marshal_preserves_integrity();
     RabbitmqClusterView::marshal_preserves_integrity();
     match sub_resource {

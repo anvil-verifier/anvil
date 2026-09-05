@@ -20,8 +20,6 @@ pub open spec fn etcd_object_is_weakly_well_formed(key: ObjectRef) -> StatePred<
     }
 }
 
-// opaque: quantified over pairs of etcd keys, so unfolding costs quadratic instantiations
-#[verifier::opaque]
 pub open spec fn etcd_objects_have_unique_uids() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |k1: ObjectRef, k2: ObjectRef| {
@@ -68,7 +66,6 @@ pub proof fn lemma_always_etcd_objects_have_unique_uids(self, spec: TempPred<Clu
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
     ensures spec.entails(always(lift_state(Self::etcd_objects_have_unique_uids()))),
 {
-    reveal(Cluster::etcd_objects_have_unique_uids);
     let invariant = Self::etcd_objects_have_unique_uids();
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& self.next()(s, s_prime)
