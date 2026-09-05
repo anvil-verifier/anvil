@@ -293,6 +293,7 @@ requires
 ensures
     Cluster::every_new_req_msg_if_in_flight_then_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))(s, s_prime),
 {
+    hide(get_ordinal);
     let requirements = all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id);
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
             implies requirements(msg, s_prime) by {
@@ -585,6 +586,7 @@ ensures
         owner_reference_requirements(vsts)
     )))))
 {
+    hide(get_ordinal);
     let key_cond = |key: ObjectRef| {
         &&& key.kind == Kind::PodKind
         &&& key.namespace == vsts.object_ref().namespace
