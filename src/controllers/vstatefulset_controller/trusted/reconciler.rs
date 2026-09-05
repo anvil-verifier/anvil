@@ -23,6 +23,7 @@ verus! {
     {
         broadcast use vstd::string::group_string_axioms, vstd::utf8::is_ascii_chars_concat, vstd::slice::group_slice_axioms;
         proof {
+            reveal(model_reconciler::get_ordinal);
             reveal_strlit("vstatefulset");
             reveal_strlit("-");
         }

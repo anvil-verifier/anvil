@@ -617,9 +617,12 @@ pub open spec fn pod_filter(vsts: VStatefulSetView) -> spec_fn(PodView) -> bool 
     }
 }
 
+// opaque: unfolding the choose over pod names drives a matching loop
+#[verifier::opaque]
 pub open spec fn get_ordinal(parent_name: StringView, compared_pod_name: StringView) -> Option<nat> {
-    if (exists |ord| compared_pod_name == pod_name(parent_name, ord)) {
-        Some(choose |ord| compared_pod_name == pod_name(parent_name, ord))
+    let ord = choose |ord: nat| compared_pod_name == pod_name(parent_name, ord);
+    if compared_pod_name == pod_name(parent_name, ord) {
+        Some(ord)
     } else {
         None
     }

@@ -859,8 +859,7 @@ ensures
     return resp_msg;
 }
 
-// A create/get-then-update request is only ever produced by the Get step of some sub resource, and it
-// moves the reconcile to the Create/Update step of that same sub resource.
+// a create/get-then-update request comes from the Get step of a sub resource
 #[verifier(spinoff_prover)]
 pub proof fn lemma_request_from_reconcile_core_step(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState)
 ensures
@@ -888,8 +887,7 @@ ensures
     hide(make_default_user_secret_data);
 }
 
-// Such a request targets the resource key of the sub resource the reconcile is working on, and stamps
-// the triggering cr as the sole (controller) owner of the object it carries.
+// such a request targets that sub resource's key and owns the object by the cr
 #[verifier(spinoff_prover)]
 pub proof fn lemma_request_from_reconcile_core_shape(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState)
 ensures

@@ -24,6 +24,7 @@ ensures
     (get_ordinal(vsts_name, compared_pod_name) == Some(ord))
         <==> compared_pod_name == pod_name(vsts_name, ord)
 {
+    reveal(get_ordinal);
     if pod_name(vsts_name, ord) == compared_pod_name {
         assert(get_ordinal(vsts_name, compared_pod_name) is Some);
         if get_ordinal(vsts_name, compared_pod_name) != Some(ord) {

@@ -358,6 +358,7 @@ requires
 ensures
     local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
 {
+    reveal(get_ordinal);
     // basically copy-pasting coherence pred and invoke non-interference lemma
     let state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;
     let state_prime = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state)->Ok_0;

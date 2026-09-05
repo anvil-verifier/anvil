@@ -25,10 +25,7 @@ use vstd::prelude::*;
 
 verus! {
 
-// local_state_is_valid_and_coherent only looks at etcd and at the reconcile local state,
-// so every step that touches neither maintains it. Proving this once here means the many
-// "this step cannot affect us" branches below do not have to unfold the coherence predicate,
-// and can keep hide(local_state_is_coherent_with_etcd) in effect.
+// coherence only reads etcd and the reconcile local state, so a step touching neither maintains it
 pub proof fn lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, controller_id: int
 )
@@ -1242,7 +1239,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_index, needed_index, nat0!(), condemned_len, outdated_len)
     )))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let after_get_pvc_state_with_resp = and!(
         at_vsts_step(vsts, controller_id, at_step![AfterGetPVC]),
@@ -1561,7 +1557,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
     ))))
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -1723,7 +1718,6 @@ ensures
         after_handle_create_or_skip_pvc_helper(vsts, controller_id, pvc_index, needed_index, condemned_len, outdated_len)
     ))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -2166,7 +2160,6 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)
     ))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -2295,7 +2288,6 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len, outdated_len)
     ))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -2736,7 +2728,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index + nat1!(), condemned_len, outdated_len)
     )))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -2947,6 +2938,7 @@ ensures
     )))),
 {
     hide(local_state_is_coherent_with_etcd);
+    reveal(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -3084,7 +3076,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     )))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -3368,7 +3359,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     )))),
 {
-    hide(get_ordinal);
     hide(local_state_is_coherent_with_etcd);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -3599,6 +3589,7 @@ requires
 ensures
     after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len)(s_prime),
 {
+    reveal(get_ordinal);
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
     let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
@@ -4013,7 +4004,6 @@ ensures
     pvc_index == pvc_cnt(vsts)
         ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
 {
-    hide(get_ordinal);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
@@ -4381,6 +4371,7 @@ ensures
     pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len, outdated_len)(s_prime),
 {
+    reveal(get_ordinal);
     let req_msg = req_msg_or_none(s, vsts.object_ref(), controller_id).unwrap();
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
         s, s_prime, vsts, cluster, controller_id, req_msg
@@ -4767,6 +4758,7 @@ requires
 ensures
     inductive_current_state_matches(vsts, controller_id)(s_prime),
 {
+    reveal(get_ordinal);
     PodView::marshal_preserves_integrity();
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {
@@ -5004,4 +4996,4 @@ ensures
     }
 }
 
-}// bust-1788592634336599658
+}
