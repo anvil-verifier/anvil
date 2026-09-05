@@ -36,6 +36,7 @@ ensures
     nv_uid_key_replicas_status.1 != new_vrs_key ==> nv_uid_key_replicas_status.2 == 0 && get_replicas(vd.spec.replicas) == 0,
     ru_new_vrs_and_no_old_vrs_from_resp_objs(vd, controller_id, msg, nv_uid_key_replicas_status, new_vrs_key)(s),
 {
+    reveal(Cluster::etcd_objects_have_unique_uids);
     lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
         vd, cluster, controller_id, new_vrs_key, s
     );

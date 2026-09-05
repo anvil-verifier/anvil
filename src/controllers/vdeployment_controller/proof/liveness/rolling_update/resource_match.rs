@@ -451,6 +451,7 @@ ensures
     local_state_at_after_scale_vrs(vd, controller_id, new_vrs_key)(s_prime),
     ru_pending_scale_new_vrs_by_one_req_in_flight(vd, controller_id)(s_prime),
 {
+    reveal(Cluster::etcd_objects_have_unique_uids);
     lemma_esr_equiv_to_instantiated_etcd_state_is_with_nv_key(
         vd, cluster, controller_id, new_vrs_key, s
     );
