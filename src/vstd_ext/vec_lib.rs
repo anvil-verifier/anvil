@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use vstd::prelude::*;
 use vstd::seq_lib::*;
-use super::seq_lib::lemma_filter_push;
+use super::seq_lib::*;
 
 verus! {
 
