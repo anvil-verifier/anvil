@@ -1011,6 +1011,7 @@ pub proof fn internal_guarantee_condition_holds(
     ensures
         spec.entails(always(lift_state(no_interfering_request_between_vsts(controller_id, vsts))))
 {
+    reveal(get_ordinal);
     let invariant = no_interfering_request_between_vsts(controller_id, vsts);
 
     cluster.lemma_always_cr_states_are_unmarshallable::<VStatefulSetReconciler, VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView>(spec, controller_id);

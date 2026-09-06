@@ -25,6 +25,20 @@ use vstd::prelude::*;
 
 verus! {
 
+// coherence only reads etcd and the reconcile local state, so a step touching neither maintains it
+pub proof fn lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(
+    s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, controller_id: int
+)
+requires
+    s_prime.resources() == s.resources(),
+    s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state
+        == s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state,
+    local_state_is_valid_and_coherent(vsts, controller_id)(s),
+ensures
+    local_state_is_valid_and_coherent(vsts, controller_id)(s_prime),
+{
+}
+
 pub proof fn lemma_spec_entails_reconcile_idle_leads_to_current_state_matches(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -555,6 +569,7 @@ ensures
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -1070,11 +1085,16 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                     lemma_from_get_pvc_to_after_get_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
+                } else {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             },
-            Step::BuiltinControllersStep(_) => {}, // hardener
+            Step::BuiltinControllersStep(_) => {
+                lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+            },
             _ => {
                 assert(s_prime.resources() == s.resources());
+                lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
             }
         }
     }
@@ -1302,13 +1322,18 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_get_pvc_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, msg, needed_index, condemned_len, outdated_len);
                         assert(skip_or_create_pvc_state(s_prime));
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                Step::BuiltinControllersStep(_) => {}, // hardener
+                Step::BuiltinControllersStep(_) => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
                 _ => {
                     // also hardener, I have to guess which hardener works here
                     assert(s_prime.in_flight().contains(msg));
                     assert(s_prime.resources() == s.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -1470,10 +1495,13 @@ ensures
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_skip_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
                 _ => {
                     assert(s.resources() == s_prime.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -1527,7 +1555,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), needed_index, nat0!(), condemned_len, outdated_len)
     ))))
 {
-    hide(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -1563,9 +1590,13 @@ ensures
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_create_pvc_to_after_create_pvc(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                _ => {}
+                _ => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
             }
         }
         let input = (None, Some(vsts.object_ref()));
@@ -1612,11 +1643,16 @@ ensures
                         }
                     },
                     // hardeners, this part is flaky
-                    Step::BuiltinControllersStep(_) => {},
-                    Step::ScheduleControllerReconcileStep(_) => {},
+                    Step::BuiltinControllersStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
+                    Step::ScheduleControllerReconcileStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
                     _ => {
                         assert(s_prime.in_flight().contains(msg));
                         assert(s_prime.resources() == s.resources());
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 }
             }
@@ -1679,7 +1715,6 @@ ensures
         after_handle_create_or_skip_pvc_helper(vsts, controller_id, pvc_index, needed_index, condemned_len, outdated_len)
     ))),
 {
-    hide(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -1731,6 +1766,8 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_after_create_pvc_to_next_state(s, s_prime, vsts, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len);
                         assert(after_handle_create_or_skip_pvc_helper(vsts, controller_id, pvc_index, needed_index, condemned_len, outdated_len)(s_prime));
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
                 Step::APIServerStep(input) => {
@@ -1753,11 +1790,14 @@ ensures
                         internal_rely_guarantee::lemma_no_interference_on_pvcs(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                 },
-                Step::BuiltinControllersStep(_) => {}, // hardener
+                Step::BuiltinControllersStep(_) => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
                 _ => {
                     // also hardener, I have to guess which hardener works here
                     assert(s_prime.in_flight().contains(msg));
                     assert(s_prime.resources() == s.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -1941,6 +1981,7 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len, outdated_len)
     ))),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -1976,9 +2017,13 @@ ensures
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_create_needed_to_after_create_needed(s, s_prime, vsts, cluster, controller_id, needed_index, condemned_len, outdated_len);
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                _ => {}
+                _ => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
             }
         }
         let input = (None, Some(vsts.object_ref()));
@@ -2034,11 +2079,16 @@ ensures
                             }
                         }
                     },
-                    Step::BuiltinControllersStep(_) => {},
-                    Step::ScheduleControllerReconcileStep(_) => {},
+                    Step::BuiltinControllersStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
+                    Step::ScheduleControllerReconcileStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
                     _ => {
                         assert(s_prime.in_flight().contains(msg));
                         assert(s_prime.resources() == s.resources());
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 }
             }
@@ -2106,7 +2156,6 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)
     ))),
 {
-    hide(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -2159,9 +2208,11 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_create_needed_pod_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, msg, needed_index, condemned_len, outdated_len);
                         assert(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)(s_prime));
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                Step::APIServerStep(input) => { // slowest part, we can harden this by creating another proof with coherence predicate hidden
+                Step::APIServerStep(input) => {
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                     let key = req_msg.content.get_create_request().key();
@@ -2182,6 +2233,7 @@ ensures
                 _ => {
                     assert(s_prime.in_flight().contains(msg));
                     assert(s_prime.resources() == s.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -2231,7 +2283,7 @@ ensures
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index + nat1!(), condemned_len, outdated_len)
     ))),
 {
-    hide(get_ordinal);
+    hide(Cluster::etcd_objects_have_unique_uids);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -2267,9 +2319,13 @@ ensures
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_update_needed_to_after_update_needed(s, s_prime, vsts, cluster, controller_id, needed_index, condemned_len, outdated_len);
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                _ => {}
+                _ => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
             }
         }
         let input = (None, Some(vsts.object_ref()));
@@ -2312,13 +2368,21 @@ ensures
                             assert(after_update_needed_state_with_response(s_prime));
                         } else {
                             lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
+                            assert(pending_get_then_update_needed_pod_req_in_flight(vsts, controller_id)(s_prime)) by {
+                                reveal(local_state_is_coherent_with_etcd);
+                            }
                         }
                     },
-                    Step::BuiltinControllersStep(_) => {},
-                    Step::ScheduleControllerReconcileStep(_) => {},
+                    Step::BuiltinControllersStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
+                    Step::ScheduleControllerReconcileStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
                     _ => {
                         assert(s_prime.in_flight().contains(msg));
                         assert(s_prime.resources() == s.resources());
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 }
             }
@@ -2441,9 +2505,11 @@ ensures
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                             lemma_from_get_then_update_needed_pod_resp_to_next_state(s, s_prime, vsts, cluster, controller_id, msg, needed_index, condemned_len, outdated_len);
                             assert(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)(s_prime));
+                        } else {
+                            lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                         }
                     },
-                    Step::APIServerStep(input) => { // slowest part, we can harden this by creating another proof with coherence predicate hidden
+                    Step::APIServerStep(input) => {
                         lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                         let key = req_msg.content.get_get_then_update_request().key();
@@ -2464,6 +2530,7 @@ ensures
                     _ => {
                         assert(s_prime.in_flight().contains(msg));
                         assert(s_prime.resources() == s.resources());
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 }
             }
@@ -2612,9 +2679,13 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                     lemma_from_delete_condemned_to_after_delete_condemned(s, s_prime, vsts, cluster, controller_id, condemned_index, condemned_len, outdated_len);
+                } else {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             },
-            _ => {}
+            _ => {
+                lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+            },
         }
     }
     let input = (None, Some(vsts.object_ref()));
@@ -2704,10 +2775,13 @@ ensures
                         lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                     }
                 },
-                Step::BuiltinControllersStep(_) => {},
+                Step::BuiltinControllersStep(_) => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
                 _ => {
                     assert(s_prime.in_flight().contains(msg));
                     assert(s_prime.resources() == s.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -2855,6 +2929,7 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     )))),
 {
+    reveal(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -2920,9 +2995,11 @@ ensures
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_after_delete_condemned_to_delete_condemned_or_outdated(s, s_prime, vsts, cluster, controller_id, msg, condemned_index, condemned_len, outdated_len);
                         assert(delete_condemned_or_outdated_state(s_prime));
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                Step::APIServerStep(input) => { // slowest part, we can harden this by creating another proof with coherence predicate hidden
+                Step::APIServerStep(input) => {
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                     let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg->0;
                     let key = req_msg.content.get_get_then_delete_request().key();
@@ -2938,6 +3015,7 @@ ensures
                 _ => {
                     assert(s_prime.in_flight().contains(msg));
                     assert(s_prime.resources() == s.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -2989,7 +3067,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     )))),
 {
-    hide(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -3032,10 +3109,16 @@ ensures
                     Step::ControllerStep(input) => {
                         if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                             lemma_from_delete_outdated_to_after_delete_outdated_or_done(s, s_prime, vsts, cluster, controller_id, condemned_len, outdated_len);
+                        } else {
+                            lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                         }
                     },
-                    Step::BuiltinControllersStep(_) => {},
-                    _ => {}
+                    Step::BuiltinControllersStep(_) => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
+                    _ => {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                    },
                 }
             }
             let input = (None, Some(vsts.object_ref()));
@@ -3084,10 +3167,13 @@ ensures
                                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vsts, cluster, controller_id, input->0);
                             }
                         },
-                        Step::BuiltinControllersStep(_) => {},
+                        Step::BuiltinControllersStep(_) => {
+                            lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                        },
                         _ => {
                             assert(s_prime.in_flight().contains(msg));
                             assert(s_prime.resources() == s.resources());
+                            lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                         }
                     }
                 }
@@ -3211,10 +3297,16 @@ ensures
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_delete_outdated_to_after_delete_outdated_or_done(s, s_prime, vsts, cluster, controller_id, condemned_len, outdated_len);
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
-                Step::BuiltinControllersStep(_) => {},
-                _ => {}
+                Step::BuiltinControllersStep(_) => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
+                _ => {
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
+                },
             }
         }
         let input = (None, Some(vsts.object_ref()));
@@ -3256,7 +3348,6 @@ ensures
         pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_len, condemned_len, outdated_len)
     )))),
 {
-    hide(get_ordinal);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
@@ -3312,6 +3403,8 @@ ensures
                 Step::ControllerStep(input) => {
                     if input.0 == controller_id && input.2 == Some(vsts.object_ref()) {
                         lemma_from_after_delete_outdated_to_done(s, s_prime, vsts, cluster, controller_id, msg, condemned_len, outdated_len);
+                    } else {
+                        lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                     }
                 },
                 Step::APIServerStep(input) => {
@@ -3336,6 +3429,7 @@ ensures
                 _ => {
                     assert(s_prime.in_flight().contains(msg));
                     assert(s_prime.resources() == s.resources());
+                    lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(s, s_prime, vsts, controller_id);
                 }
             }
         }
@@ -3483,6 +3577,8 @@ requires
 ensures
     after_handle_list_pod_helper(vsts, controller_id, condemned_len, outdated_len)(s_prime),
 {
+    hide(Cluster::etcd_objects_have_unique_uids);
+    reveal(get_ordinal);
     let current_local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let triggering_cr = VStatefulSetView::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].triggering_cr).unwrap();
     let wrapped_resp = Some(ResponseView::KResponse(resp_msg.content->APIResponse_0));
@@ -3897,7 +3993,6 @@ ensures
     pvc_index == pvc_cnt(vsts)
         ==> at_vsts_step(vsts, controller_id, at_step_or![CreateNeeded, UpdateNeeded])(s_prime),
 {
-    hide(get_ordinal);
     VStatefulSetReconcileState::marshal_preserves_integrity();
     let local_state = VStatefulSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
     let next_local_state = VStatefulSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vsts.object_ref()].local_state).unwrap();
@@ -4265,6 +4360,7 @@ ensures
     pending_get_then_delete_condemned_pod_resp_in_flight_and_condemned_pod_is_deleted(vsts, controller_id)(s_prime),
     pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, pvc_cnt(vsts), replicas(vsts), condemned_index, condemned_len, outdated_len)(s_prime),
 {
+    reveal(get_ordinal);
     let req_msg = req_msg_or_none(s, vsts.object_ref(), controller_id).unwrap();
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
         s, s_prime, vsts, cluster, controller_id, req_msg
@@ -4651,6 +4747,7 @@ requires
 ensures
     inductive_current_state_matches(vsts, controller_id)(s_prime),
 {
+    reveal(get_ordinal);
     PodView::marshal_preserves_integrity();
     let new_msgs = s_prime.in_flight().sub(s.in_flight());
     if s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref()) {

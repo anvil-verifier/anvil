@@ -12,10 +12,11 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::kubernetes_cluster::proof::api_server::*;
 use crate::rabbitmq_controller::{
-    model::resource::*,
+    model::{reconciler::*, resource::*},
     proof::{predicate::*, resource::*, guarantee::*, helper_invariants::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*, rely_guarantee::*},
 };
+use crate::reconciler::spec::io::*;
 use crate::vstatefulset_controller::trusted::spec_types::*;
 use verus_temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
@@ -858,8 +859,70 @@ ensures
     return resp_msg;
 }
 
+// a create/get-then-update request comes from the Get step of a sub resource
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(200))]
+pub proof fn lemma_request_from_reconcile_core_step(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState)
+ensures
+    forall |resp_o: Option<ResponseView<VoidERespView>>|
+        #![trigger reconcile_core(rabbitmq, resp_o, state)]
+        reconcile_core(rabbitmq, resp_o, state).1 is Some
+        && reconcile_core(rabbitmq, resp_o, state).1->0 is KRequest
+        ==> {
+            let sub_resource = state.reconcile_step->AfterKRequestStep_1;
+            let action = match reconcile_core(rabbitmq, resp_o, state).1->0->KRequest_0 {
+                APIRequest::CreateRequest(_) => Some(ActionKind::Create),
+                APIRequest::GetThenUpdateRequest(_) => Some(ActionKind::Update),
+                _ => None,
+            };
+            action is Some ==> {
+                &&& state.reconcile_step is AfterKRequestStep
+                &&& state.reconcile_step->AfterKRequestStep_0 == ActionKind::Get
+                &&& reconcile_core(rabbitmq, resp_o, state).0.reconcile_step
+                    == RabbitmqReconcileStep::AfterKRequestStep(action->0, sub_resource)
+            }
+        },
+{
+    hide(default_rbmq_config);
+    hide(make_rabbitmq_pod_spec);
+    hide(make_default_user_secret_data);
+}
+
+// such a request targets that sub resource's key and owns the object by the cr
+#[verifier(spinoff_prover)]
+pub proof fn lemma_request_from_reconcile_core_shape(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState)
+ensures
+    forall |resp_o: Option<ResponseView<VoidERespView>>|
+        #![trigger reconcile_core(rabbitmq, resp_o, state)]
+        reconcile_core(rabbitmq, resp_o, state).1 is Some
+        && reconcile_core(rabbitmq, resp_o, state).1->0 is KRequest
+        ==> {
+            let sub_resource = state.reconcile_step->AfterKRequestStep_1;
+            match reconcile_core(rabbitmq, resp_o, state).1->0->KRequest_0 {
+                APIRequest::CreateRequest(req) => {
+                    &&& state.reconcile_step is AfterKRequestStep
+                    &&& req.key() == get_request(sub_resource, rabbitmq).key
+                    &&& req.obj.metadata.name is Some
+                    &&& req.obj.metadata.finalizers is None
+                    &&& req.obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+                },
+                APIRequest::GetThenUpdateRequest(req) => {
+                    &&& state.reconcile_step is AfterKRequestStep
+                    &&& req.key() == get_request(sub_resource, rabbitmq).key
+                    &&& req.owner_ref == rabbitmq.controller_owner_ref()
+                    &&& req.obj.metadata.finalizers is None
+                    &&& req.obj.metadata.deletion_timestamp is None
+                    &&& req.obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+                },
+                _ => true,
+            }
+        },
+{
+    hide(default_rbmq_config);
+    hide(make_rabbitmq_pod_spec);
+    hide(make_default_user_secret_data);
+}
+
+#[verifier(spinoff_prover)]
 pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile_equals(controller_id: int, cluster: Cluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: ClusterState, s_prime: ClusterState, msg: Message, step: Step)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),
@@ -893,6 +956,7 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
         Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)(s)
             ==> msg.content.get_get_then_update_request().owner_ref == rabbitmq.controller_owner_ref(),
 {
+    hide(reconcile_core);
     assert(step is ControllerStep);
     let (id, _, cr_key_opt) = step->ControllerStep_0;
     if msg.content.get_get_then_update_request().owner_ref.kind == RabbitmqClusterView::kind()
@@ -910,7 +974,10 @@ pub proof fn lemma_resource_get_then_update_request_msg_implies_key_in_reconcile
     RabbitmqReconcileState::marshal_preserves_integrity();
     RabbitmqClusterView::marshal_preserves_integrity();
     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
-    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    lemma_request_from_reconcile_core_step(cr, local_state);
+    lemma_request_from_reconcile_core_shape(cr, local_state);
+    let local_step = local_state.reconcile_step;
     let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Update);
@@ -964,6 +1031,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
             &&& #[trigger] owner_reference_eq_without_uid(owner_reference, rabbitmq.controller_owner_ref())
         },
 {
+    hide(reconcile_core);
     // Since we know that this step creates a sub resource create request message, it is easy to see that it's a controller action.
     // This action creates a resource, and there may be sub-resources sharing the same Kind, so we have to show that only the correct sub-resource
     // is possible by extra reasoning about the strings.
@@ -984,11 +1052,14 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(c
     let cr = RabbitmqClusterView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr)->Ok_0;
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    let local_step = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
+    let local_state = RabbitmqReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0;
+    let local_step = local_state.reconcile_step;
     let local_step_prime = RabbitmqReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state)->Ok_0.reconcile_step;
     RabbitmqReconcileState::marshal_preserves_integrity();
     RabbitmqClusterView::marshal_preserves_integrity();
     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
+    lemma_request_from_reconcile_core_step(cr, local_state);
+    lemma_request_from_reconcile_core_shape(cr, local_state);
     assert(local_step is AfterKRequestStep && local_step->AfterKRequestStep_0 == ActionKind::Get);
     assert(local_step_prime is AfterKRequestStep && local_step_prime->AfterKRequestStep_0 == ActionKind::Create);
     assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![cr.controller_owner_ref()]));
