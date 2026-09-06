@@ -1,40 +1,50 @@
+#![allow(unused_imports)]
 use vstd::prelude::*;
 use vstd::seq_lib::*;
+use super::seq_lib::*;
 
 verus! {
 
-trait VerusClone: View + Sized {
-    fn verus_clone(&self) -> (r: Self)
-        ensures self == r;
-}
-
-fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_spec: spec_fn(V)->bool) -> (r: Vec<V>)
+// Filters v with the exec predicate f, whose result must agree with the spec predicate pred on the
+// deep view of every element. Replaces the hand-written filter loop plus its take/push proof.
+pub fn vec_filter<T, F>(v: &Vec<T>, f: F, Ghost(pred): Ghost<spec_fn(T::V) -> bool>) -> (res: Vec<T>)
+where
+    T: DeepView + Clone,
+    F: Fn(&T) -> bool,
     requires
-        forall|v: V| #[trigger] f.requires((&v,)),
-        forall |v:V,r:bool| f.ensures((&v,), r) ==> f_spec(v) == r,
-    ensures r@.to_multiset() =~= v@.to_multiset().filter(f_spec)
+        forall |i: int| 0 <= i < v@.len() ==> #[trigger] call_requires(f, (&v@[i],)),
+        forall |t: T, b: bool| #[trigger] call_ensures(f, (&t,), b) ==> b == pred(t.deep_view()),
+        forall |a: T, b: T| #[trigger] call_ensures(T::clone, (&a,), b) ==> b.deep_view() == a.deep_view(),
+    ensures
+        res.deep_view() == v.deep_view().filter(pred),
+        forall |i: int| #![trigger res@[i]] 0 <= i < res@.len() ==> pred(res@[i].deep_view()),
 {
-    let mut r = Vec::new();
-    let mut i = 0;
-    broadcast use group_seq_properties;
-    for i in 0..v.len()
+    let mut res: Vec<T> = Vec::new();
+    for idx in 0..v.len()
         invariant
-            forall|v: V| #[trigger] f.requires((&v,)),
-            i <= v.len(),
-            r@.to_multiset() =~= v@.subrange(0, i as int).to_multiset().filter(f_spec),
-            forall |v:V,r:bool| f.ensures((&v,), r) ==> f_spec(v) == r,
+            res.deep_view() == v.deep_view().take(idx as int).filter(pred),
+            forall |i: int| 0 <= i < v@.len() ==> #[trigger] call_requires(f, (&v@[i],)),
+            forall |t: T, b: bool| #[trigger] call_ensures(f, (&t,), b) ==> b == pred(t.deep_view()),
+            forall |a: T, b: T| #[trigger] call_ensures(T::clone, (&a,), b) ==> b.deep_view() == a.deep_view(),
     {
-        let ghost pre_r = r@.to_multiset();
-        proof {
-            broadcast use group_to_multiset_ensures;
+        let e = &v[idx];
+        if f(e) {
+            let cloned_e = e.clone();
+            res.push(cloned_e);
         }
-        assert(v@.subrange(0, i as int + 1) =~= v@.subrange(0, i as int).push(v@[i as int]));
-        if f(&v[i]) {
-            r.push(v[i].verus_clone());
+        proof {
+            lemma_filter_push(v.deep_view().take(idx as int), pred, e.deep_view());
+            assert(v.deep_view().take(idx as int).push(e.deep_view()) =~= v.deep_view().take(idx + 1 as int));
         }
     }
-    assert(v@.subrange(0, v.len() as int) =~= v@);
-    r
+    assert(v.deep_view().take(v.len() as int) =~= v.deep_view());
+    proof {
+        broadcast use Seq::lemma_filter_pred;
+        assert forall |i: int| #![trigger res@[i]] 0 <= i < res@.len() implies pred(res@[i].deep_view()) by {
+            assert(res.deep_view()[i] == res@[i].deep_view());
+        }
+    }
+    res
 }
 
 }

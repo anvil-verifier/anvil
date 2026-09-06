@@ -56,7 +56,7 @@ jobs:
             rust-toolchain.toml
             target
           key: toolchain-${{ runner.os }}-${{ needs.setup-toolchain.outputs.verus-sha }}
-      - name: Verify vreplicaset controller
+      - name: Verify all controllers
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus/source/target-verus/release"
