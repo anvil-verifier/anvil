@@ -6,7 +6,7 @@ use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::io::*;
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView, exec_types::*, step::*};
-use crate::vstd_ext::{seq_lib::*, string_map::StringMap, string_view::*};
+use crate::vstd_ext::{seq_lib::*, string_map::StringMap, string_view::*, vec_lib::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -340,58 +340,26 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
     Some(pods)
 }
 
-// TODO: This function can be replaced by a map.
-// Revisit it if Verus supports Vec.map.
 fn filter_pods(pods: Vec<Pod>, vrs: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
     requires vrs@.well_formed(),
     ensures filtered_pods.deep_view() == model_reconciler::filter_pods(pods.deep_view(), vrs@),
 {
-    let mut filtered_pods = Vec::new();
-    let mut idx = 0;
-
-    proof {
-        assert_seqs_equal!(
-            filtered_pods.deep_view(),
-            model_reconciler::filter_pods(pods.deep_view().take(0), vrs@)
-        );
-    }
-
-    for idx in 0..pods.len()
-        invariant
-            idx <= pods.len(),
-            filtered_pods.deep_view()
-                == model_reconciler::filter_pods(pods.deep_view().take(idx as int), vrs@),
-    {
-        let pod = &pods[idx];
-
+    vec_filter(
+        &pods,
         // TODO: check other conditions such as pod status
-        // Check the following conditions:
-        // (1) the pod's label should match the replica set's selector
-        if pod.metadata().owner_references_contains(&vrs.controller_owner_ref())
-        && vrs.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::new()))
-        // (2) the pod should not be terminating (its deletion timestamp is nil)
-        && !pod.metadata().has_deletion_timestamp()
-        && pod.metadata().name().is_some()
-        && has_vrs_prefix(&pod.metadata().name().unwrap()){
-            filtered_pods.push(pod.clone());
-        }
-
-        proof {
-            let spec_filter = model_reconciler::pod_filter(vrs@);
-            let old_filtered = if spec_filter(pod@) {
-                filtered_pods.deep_view().drop_last()
-            } else {
-                filtered_pods.deep_view()
-            };
-            assert(old_filtered == pods.deep_view().take(idx as int).filter(spec_filter));
-            lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
-            assert(pods.deep_view().take(idx as int).push(pod@)
-                   == pods.deep_view().take((idx + 1) as int));
-            assert(spec_filter(pod@) ==> filtered_pods.deep_view() == old_filtered.push(pod@));
-        }
-    }
-    assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
-    filtered_pods
+        |pod: &Pod| -> (b: bool)
+            ensures b == model_reconciler::pod_filter(vrs@)(pod.deep_view())
+        {
+            // (1) the pod's label should match the replica set's selector
+            pod.metadata().owner_references_contains(&vrs.controller_owner_ref())
+            && vrs.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::new()))
+            // (2) the pod should not be terminating (its deletion timestamp is nil)
+            && !pod.metadata().has_deletion_timestamp()
+            && pod.metadata().name().is_some()
+            && has_vrs_prefix(&pod.metadata().name().unwrap())
+        },
+        Ghost(model_reconciler::pod_filter(vrs@)),
+    )
 }
 
 fn has_vrs_prefix(name: &String) -> (res: bool)
@@ -482,42 +450,13 @@ fn filter_by_controller_owner(owner_refs: Vec<OwnerReference>) -> (res: Vec<Owne
     ensures
         res.deep_view() == owner_refs.deep_view().filter(controller_owner_filter()),
 {
-    let mut filtered = Vec::new();
-
-    proof {
-        assert_seqs_equal!(
-            filtered.deep_view(),
-            owner_refs.deep_view().take(0).filter(controller_owner_filter())
-        );
-    }
-
-    for idx in 0..owner_refs.len()
-        invariant
-            idx <= owner_refs.len(),
-            filtered.deep_view()
-                == owner_refs.deep_view().take(idx as int).filter(controller_owner_filter()),
-    {
-        let owner_ref = &owner_refs[idx];
-        if is_controller_owner(owner_ref.clone()) {
-            filtered.push(owner_ref.clone());
-        }
-
-        proof {
-            let pred = controller_owner_filter();
-            let old_filtered = if pred(owner_ref@) {
-                filtered.deep_view().drop_last()
-            } else {
-                filtered.deep_view()
-            };
-            assert(old_filtered == owner_refs.deep_view().take(idx as int).filter(pred));
-            lemma_filter_push(owner_refs.deep_view().take(idx as int), pred, owner_ref@);
-            assert(owner_refs.deep_view().take(idx as int).push(owner_ref@)
-                   == owner_refs.deep_view().take((idx + 1) as int));
-            assert(pred(owner_ref@) ==> filtered.deep_view() == old_filtered.push(owner_ref@));
-        }
-    }
-    assert(owner_refs.deep_view() == owner_refs.deep_view().take(owner_refs.len() as int));
-    filtered
+    vec_filter(
+        &owner_refs,
+        |owner_ref: &OwnerReference| -> (b: bool)
+            ensures b == controller_owner_filter()(owner_ref.deep_view())
+        { is_controller_owner(owner_ref.clone()) },
+        Ghost(controller_owner_filter()),
+    )
 }
 
 fn is_controller_owner(owner_ref: OwnerReference) -> (res: bool)

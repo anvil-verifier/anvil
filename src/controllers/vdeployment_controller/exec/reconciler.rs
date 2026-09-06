@@ -9,7 +9,7 @@ use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::liveness_theorem as esr_theorem;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
-use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
+use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*, vec_lib::*};
 use tracing::{error, info};
 use vstd::{map::*, prelude::*, seq_lib::*, set::*};
 // for assert(objs.deep_view() == extract_some_k_list_resp_view(resp_o.deep_view()).unwrap());
@@ -438,40 +438,14 @@ ensures
     filtered_vrs_list.deep_view() == vrs_list.deep_view().filter(|vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd@)),
     forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(filtered_vrs_list[i]@, vd@),
 {
-    let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
-    let mut idx = 0;
-
-    proof {
-        assert(filtered_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd@)));
-    }
-
-    for idx in 0..vrs_list.len()
-    invariant
-        vd@.well_formed(),
-        idx <= vrs_list.len(),
-        filtered_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd@)),
-        forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(filtered_vrs_list[i]@, vd@),
-    {
-        let vrs = &vrs_list[idx];
-        if valid_owned_vrs(vrs, vd) {
-            filtered_vrs_list.push(vrs.clone());
-        }
-
-        proof {
-            let filter = |vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd@);
-            let pre_filtered_vrs_list = if filter(vrs@) {
-                filtered_vrs_list.deep_view().drop_last()
-            } else {
-                filtered_vrs_list.deep_view()
-            };
-            assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(filter));
-            lemma_filter_push(vrs_list.deep_view().take(idx as int), filter, vrs@);
-            assert(vrs_list.deep_view().take(idx as int).push(vrs@)
-                   == vrs_list.deep_view().take(idx + 1 as int));
-            assert(filter(vrs@) ==> filtered_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs@));
-        }
-    }
-    assert(vrs_list.deep_view() == vrs_list.deep_view().take(vrs_list.len() as int));
+    let ghost valid_vrs = |vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd@);
+    let filtered_vrs_list = vec_filter(
+        &vrs_list,
+        |vrs: &VReplicaSet| -> (b: bool)
+            ensures b == esr_theorem::valid_owned_vrs(vrs.deep_view(), vd@)
+        { valid_owned_vrs(vrs, vd) },
+        Ghost(valid_vrs),
+    );
     filtered_vrs_list
 }
 
@@ -486,120 +460,76 @@ ensures
     res.0.is_some() ==> esr_theorem::valid_owned_vrs(res.0.unwrap()@, vd@),
     forall |i: int| 0 <= i < res.1.len() ==> #[trigger] esr_theorem::valid_owned_vrs(res.1[i]@, vd@),
 {
-    let mut reusable_vrs_list = Vec::<VReplicaSet>::new();
-    let mut old_vrs_list = Vec::<VReplicaSet>::new();
+    let ghost valid_vrs = |vrs: VReplicaSetView| esr_theorem::valid_owned_vrs(vrs, vd@);
+    let ghost template_filter = esr_theorem::match_template_without_hash(vd@.spec.template);
+    let ghost nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+    proof {
+        true_pred_on_all_element_equal_to_pred_on_all_index(vrs_list.deep_view(), valid_vrs);
+        assert forall |i: int| 0 <= i < vrs_list@.len() implies #[trigger] vrs_list@[i].deep_view().state_validation() by {
+            assert(esr_theorem::valid_owned_vrs(vrs_list[i]@, vd@));
+        }
+    }
+
+    let reusable_vrs_list = vec_filter(
+        &vrs_list,
+        |vrs: &VReplicaSet| -> (b: bool)
+            requires vrs.deep_view().state_validation()
+            ensures b == esr_theorem::match_template_without_hash(vd@.spec.template)(vrs.deep_view())
+        { match_template_without_hash(&vd.spec().template(), vrs) },
+        Ghost(template_filter),
+    );
+    proof {
+        true_pred_on_seq_implies_true_pred_on_filtered_seq(vrs_list.deep_view(), valid_vrs, template_filter);
+        true_pred_on_all_element_equal_to_pred_on_all_index(reusable_vrs_list.deep_view(), valid_vrs);
+    }
+
     let mut reusable_vrs = Option::<VReplicaSet>::None;
-    let mut idx = 0;
-    assert(reusable_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(esr_theorem::match_template_without_hash(vd@.spec.template)));
-    for idx in 0..vrs_list.len()
-    invariant
-        reusable_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(esr_theorem::match_template_without_hash(vd@.spec.template)),
-        forall |i: int| 0 <= i < reusable_vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(reusable_vrs_list[i]@, vd@),
-        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(vrs_list[i]@, vd@),
-        vd@.well_formed(),
-        idx <= vrs_list.len(),
-    {
-        assert(esr_theorem::valid_owned_vrs(vrs_list[idx as int]@, vd@));
-        if match_template_without_hash(&vd.spec().template(), &vrs_list[idx]) {
-            reusable_vrs_list.push(vrs_list[idx].clone());
-        }
-        proof {
-            let pre_filtered_vrs_list = if esr_theorem::match_template_without_hash(vd@.spec.template)(vrs_list[idx as int]@) {
-                reusable_vrs_list.deep_view().drop_last()
-            } else {
-                reusable_vrs_list.deep_view()
-            };
-            assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(esr_theorem::match_template_without_hash(vd@.spec.template)));
-            lemma_filter_push(vrs_list.deep_view().take(idx as int), esr_theorem::match_template_without_hash(vd@.spec.template), vrs_list[idx as int]@);
-            assert(vrs_list.deep_view().take(idx as int).push(vrs_list[idx as int]@) == vrs_list.deep_view().take(idx + 1 as int));
-            assert(esr_theorem::match_template_without_hash(vd@.spec.template)(vrs_list[idx as int]@ ) ==> reusable_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
-        }
-    }
-    assert(reusable_vrs_list.deep_view() == vrs_list.deep_view().filter(esr_theorem::match_template_without_hash(vd@.spec.template))) by {
-        assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
-    }
     if reusable_vrs_list.len() > 0 {
-        let mut reusable_nonempty_vrs_list = Vec::<VReplicaSet>::new();
-        assert(reusable_nonempty_vrs_list.deep_view() == reusable_vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0));
-        for idx in 0..reusable_vrs_list.len()
-        invariant
-            reusable_nonempty_vrs_list.deep_view() == reusable_vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0),
-            forall |i: int| 0 <= i < reusable_nonempty_vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(reusable_nonempty_vrs_list[i]@, vd@),
-            forall |i: int| 0 <= i < reusable_vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(reusable_vrs_list[i]@, vd@),
-            vd@.well_formed(),
-            idx <= reusable_vrs_list.len(),
-        {
-            assert(esr_theorem::valid_owned_vrs(reusable_vrs_list[idx as int]@, vd@));
-            if reusable_vrs_list[idx].spec().replicas().is_none() || reusable_vrs_list[idx].spec().replicas().unwrap() > 0 {
-                reusable_nonempty_vrs_list.push(reusable_vrs_list[idx].clone());
-            }
-            proof {
-                let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
-                let pre_filtered_vrs_list = if nonempty_vrs_filter(reusable_vrs_list[idx as int]@) {
-                    reusable_nonempty_vrs_list.deep_view().drop_last()
-                } else {
-                    reusable_nonempty_vrs_list.deep_view()
-                };
-                assert(pre_filtered_vrs_list == reusable_vrs_list.deep_view().take(idx as int).filter(nonempty_vrs_filter));
-                lemma_filter_push(reusable_vrs_list.deep_view().take(idx as int), nonempty_vrs_filter, reusable_vrs_list[idx as int]@);
-                assert(reusable_vrs_list.deep_view().take(idx as int).push(reusable_vrs_list[idx as int]@)
-                    == reusable_vrs_list.deep_view().take(idx + 1 as int));
-                assert(nonempty_vrs_filter(reusable_vrs_list[idx as int]@ ) ==> reusable_nonempty_vrs_list.deep_view() == pre_filtered_vrs_list.push(reusable_vrs_list[idx as int]@));
-            }
-        }
-        assert(reusable_nonempty_vrs_list.deep_view() == reusable_vrs_list.deep_view().filter(|vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0)) by {
-            assert(reusable_vrs_list.deep_view().take(reusable_vrs_list.len() as int) == reusable_vrs_list.deep_view());
+        let reusable_nonempty_vrs_list = vec_filter(
+            &reusable_vrs_list,
+            |vrs: &VReplicaSet| -> (b: bool)
+                ensures b == (vrs.deep_view().spec.replicas is None || vrs.deep_view().spec.replicas.unwrap() > 0)
+            { vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 },
+            Ghost(nonempty_vrs_filter),
+        );
+        proof {
+            true_pred_on_seq_implies_true_pred_on_filtered_seq(reusable_vrs_list.deep_view(), valid_vrs, nonempty_vrs_filter);
+            true_pred_on_all_element_equal_to_pred_on_all_index(reusable_nonempty_vrs_list.deep_view(), valid_vrs);
         }
         if reusable_nonempty_vrs_list.len() > 0 {
-            assert(esr_theorem::valid_owned_vrs(reusable_nonempty_vrs_list[0]@, vd@));
             reusable_vrs = Some(reusable_nonempty_vrs_list[0].clone());
         } else {
             reusable_vrs = Some(reusable_vrs_list[0].clone());
         }
     }
     assert(reusable_vrs.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).0);
-    assert(old_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| {
-                &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
-                &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
-            }));
-    for idx in 0..vrs_list.len()
-    invariant
-        old_vrs_list.deep_view() == vrs_list.deep_view()
-            .take(idx as int).filter(|vrs: VReplicaSetView| {
-                &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
-                &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
-            }),
-        forall |i: int| 0 <= i < old_vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(old_vrs_list[i]@, vd@),
-        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] esr_theorem::valid_owned_vrs(vrs_list[i]@, vd@),
-        vd@.well_formed(),
-        idx <= vrs_list.len(),
-    {
-        assert(esr_theorem::valid_owned_vrs(vrs_list[idx as int]@, vd@));
-        let vrs = &vrs_list[idx];
-        if (reusable_vrs.is_none() || !vrs.metadata().uid_eq(&reusable_vrs.as_ref().unwrap().metadata()))
-            && (vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0) {
-            old_vrs_list.push(vrs.clone());
-        }
-        proof {
-            let spec_filter = |vrs: VReplicaSetView| {
-                &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
-                &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
-            };
-            let pre_filtered_vrs_list = if spec_filter(vrs@) {
-                old_vrs_list.deep_view().drop_last()
-            } else {
-                old_vrs_list.deep_view()
-            };
-            assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(spec_filter));
-            lemma_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs@);
-            assert(vrs_list.deep_view().take(idx as int).push(vrs@)
-                   == vrs_list.deep_view().take(idx + 1 as int));
-            assert(spec_filter(vrs@) ==> old_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs@));
+
+    let ghost old_vrs_filter = |vrs: VReplicaSetView| {
+        &&& (reusable_vrs.is_none() || vrs.metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
+        &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
+    };
+    let old_vrs_list = vec_filter(
+        &vrs_list,
+        |vrs: &VReplicaSet| -> (b: bool)
+            ensures b == ({
+                &&& (reusable_vrs.is_none() || vrs.deep_view().metadata.uid != reusable_vrs.deep_view().unwrap().metadata.uid)
+                &&& (vrs.deep_view().spec.replicas.is_none() || vrs.deep_view().spec.replicas.unwrap() > 0)
+            })
+        {
+            (reusable_vrs.is_none() || !vrs.metadata().uid_eq(&reusable_vrs.as_ref().unwrap().metadata()))
+            && (vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0)
+        },
+        Ghost(old_vrs_filter),
+    );
+    proof {
+        true_pred_on_seq_implies_true_pred_on_filtered_seq(vrs_list.deep_view(), valid_vrs, old_vrs_filter);
+        true_pred_on_all_element_equal_to_pred_on_all_index(old_vrs_list.deep_view(), valid_vrs);
+        assert forall |i: int| 0 <= i < old_vrs_list.len()
+            implies #[trigger] esr_theorem::valid_owned_vrs(old_vrs_list[i]@, vd@) by {
+            assert(valid_vrs(old_vrs_list.deep_view()[i]));
         }
     }
-    assert(old_vrs_list.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1) by {
-        assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
-    };
+    assert(old_vrs_list.deep_view() == model_reconciler::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).1);
     return (reusable_vrs, old_vrs_list);
 }
 

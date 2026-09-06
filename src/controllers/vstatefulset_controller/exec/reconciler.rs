@@ -1021,49 +1021,28 @@ pub fn update_storage(vsts: &VStatefulSet, mut pod: Pod, ordinal: usize) -> (res
         }
     }
 
-    let mut filtered_current_volumes: Vec<Volume> = Vec::new();
-    for i in 0..current_volumes.len()
-        invariant
-            i <= current_volumes.len(),
-            current_volumes.deep_view() == spec_current_volumes,
-            templates.deep_view() == spec_templates,
-            vsts@.well_formed(),
-            forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some,
-            filtered_current_volumes.deep_view() == spec_current_volumes.take(i as int).filter(model_reconciler::volume_filter(spec_templates)),
-    {
-        let vol = &current_volumes[i];
-        let mut keep = true;
-        let ghost vol_name = spec_current_volumes[i as int].name;
-        for j in 0..templates.len()
-            invariant
-                keep == (forall|k: int| #![trigger spec_templates[k]] 0 <= k < j ==> vol_name != spec_templates[k].metadata.name->0),
-                templates.deep_view() == spec_templates,
-                forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some,
-                i < current_volumes.len(),
-                current_volumes.deep_view() == spec_current_volumes,
-                vol@ == spec_current_volumes[i as int],
-                vol_name == spec_current_volumes[i as int].name,
+    let filtered_current_volumes = vec_filter(
+        &current_volumes,
+        |vol: &Volume| -> (b: bool)
+            ensures b == model_reconciler::volume_filter(spec_templates)(vol.deep_view())
         {
-            let name_matches = vol.name() == templates[j].metadata().name().unwrap();
-            if name_matches { keep = false; }
-            proof {
-                assert(name_matches == (vol_name == spec_templates[j as int].metadata.name->0));
+            let mut keep = true;
+            for j in 0..templates.len()
+                invariant
+                    keep == (forall|k: int| #![trigger spec_templates[k]] 0 <= k < j ==> vol.deep_view().name != spec_templates[k].metadata.name->0),
+                    templates.deep_view() == spec_templates,
+                    forall|k: int| 0 <= k < spec_templates.len() ==> #[trigger] spec_templates[k].metadata.name is Some,
+            {
+                let name_matches = vol.name() == templates[j].metadata().name().unwrap();
+                if name_matches { keep = false; }
+                proof {
+                    assert(name_matches == (vol.deep_view().name == spec_templates[j as int].metadata.name->0));
+                }
             }
-        }
-        if keep { filtered_current_volumes.push(vol.clone()); }
-        proof {
-            let old_filtered = if model_reconciler::volume_filter(spec_templates)(spec_current_volumes[i as int]) {
-                filtered_current_volumes.deep_view().drop_last()
-            } else {
-                filtered_current_volumes.deep_view()
-            };
-            lemma_filter_push(spec_current_volumes.take(i as int), model_reconciler::volume_filter(spec_templates), spec_current_volumes[i as int]);
-            assert(spec_current_volumes.take(i as int).push(spec_current_volumes[i as int]) == spec_current_volumes.take(i + 1));
-        }
-    }
-    proof {
-        assert(spec_current_volumes.take(current_volumes.len() as int) == spec_current_volumes);
-    }
+            keep
+        },
+        Ghost(model_reconciler::volume_filter(spec_templates)),
+    );
 
     let ghost original_pod = pod@;
     let filtered_len = filtered_current_volumes.len();
@@ -1237,62 +1216,22 @@ pub fn get_pod_with_ord(parent_name: String, pods: &Vec<Pod>, ord: usize) -> (re
             ord as nat,
         ),
 {
-    let mut filtered: Vec<Pod> = Vec::new();
-
     proof {
-        let model_filtered = pods.deep_view().take(0).filter(
-            model_reconciler::pod_has_ord(parent_name@, ord as nat),
-        );
-        assert(filtered.deep_view() == model_filtered);
-    }
-
-    for idx in 0..pods.len()
-        invariant
-            idx <= pods.len(),
-            is_ascii_chars(parent_name@),
-            filtered.deep_view() == pods.deep_view().take(idx as int).filter(
-                model_reconciler::pod_has_ord(parent_name@, ord as nat),
-            ),
-            pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
-    {
-        let pod = &pods[idx];
-        proof {
-            assert(pod@.metadata.name is Some) by {
-                assert((|pod: PodView| pod.metadata.name is Some)(pods.deep_view()[idx as int]));
-            }
-        }
-        if get_ordinal(&parent_name, &pod.metadata().name().unwrap()).is_some() && get_ordinal(&parent_name, &pod.metadata().name().unwrap()).unwrap()
-            == ord {
-            filtered.push(pod.clone());
-        }
-        proof {
-            let old_filtered = if model_reconciler::pod_has_ord(parent_name@, ord as nat)(pod@) {
-                filtered.deep_view().drop_last()
-            } else {
-                filtered.deep_view()
-            };
-            assert(old_filtered == pods.deep_view().take(idx as int).filter(
-                model_reconciler::pod_has_ord(parent_name@, ord as nat),
-            ));
-            lemma_filter_push(
-                pods.deep_view().take(idx as int),
-                model_reconciler::pod_has_ord(parent_name@, ord as nat),
-                pod@,
-            );
-            assert(pods.deep_view().take(idx as int).push(pod@) == pods.deep_view().take(idx + 1));
-            assert(filtered.deep_view() == pods.deep_view().take(idx + 1).filter(
-                model_reconciler::pod_has_ord(parent_name@, ord as nat),
-            ));
+        assert forall |i: int| 0 <= i < pods@.len() implies #[trigger] pods@[i].deep_view().metadata.name is Some by {
+            assert((|pod: PodView| pod.metadata.name is Some)(pods.deep_view()[i]));
         }
     }
-
-    proof {
-        assert(pods.deep_view().take(pods.len() as int) == pods.deep_view());
-    }
-
-    assert(filtered.deep_view() == pods.deep_view().filter(
-        model_reconciler::pod_has_ord(parent_name@, ord as nat),
-    ));
+    let filtered = vec_filter(
+        pods,
+        |pod: &Pod| -> (b: bool)
+            requires pod.deep_view().metadata.name is Some
+            ensures b == model_reconciler::pod_has_ord(parent_name@, ord as nat)(pod.deep_view())
+        {
+            let ordinal = get_ordinal(&parent_name, &pod.metadata().name().unwrap());
+            ordinal.is_some() && ordinal.unwrap() == ord
+        },
+        Ghost(model_reconciler::pod_has_ord(parent_name@, ord as nat)),
+    );
 
     if filtered.len() > 0 {
         Some(filtered[0].clone())
@@ -1374,53 +1313,25 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
         i += 1;
     }
 
-    let mut condemned: Vec<Pod> = Vec::new();
-
     proof {
-        assert_seqs_equal!(
-                condemned.deep_view(),
-                pods.deep_view().take(0).filter(|pod: PodView| model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas)
-            );
-    }
-
-    for i in 0..pods.len()
-        invariant
-            is_ascii_chars(parent_name@),
-            condemned.deep_view() == pods.deep_view().take(i as int).filter(
-                |pod: PodView|
-                    model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
-                        && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas,
-            ),
-            pods.deep_view().all(|pod: PodView| pod.metadata.name is Some),
-    {
-        let pod = &pods[i];
-        proof {
-            assert(pod@.metadata.name is Some) by {
-                assert((|pod: PodView| pod.metadata.name is Some)(pods.deep_view()[i as int]));
-            }
-        }
-        let ordinal = get_ordinal(&parent_name, &pod.metadata().name().unwrap());
-        if ordinal.is_some() && ordinal.unwrap() >= replicas {
-            condemned.push(pod.clone());
-        }
-        proof {
-            let spec_filter = |pod: PodView|
-                model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
-                    && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas;
-            let old_filtered = if spec_filter(pod@) {
-                condemned.deep_view().drop_last()
-            } else {
-                condemned.deep_view()
-            };
-            assert(old_filtered == pods.deep_view().take(i as int).filter(spec_filter));
-            lemma_filter_push(pods.deep_view().take(i as int), spec_filter, pod@);
-            assert(pods.deep_view().take(i as int).push(pod@) == pods.deep_view().take(i + 1));
+        assert forall |i: int| 0 <= i < pods@.len() implies #[trigger] pods@[i].deep_view().metadata.name is Some by {
+            assert((|pod: PodView| pod.metadata.name is Some)(pods.deep_view()[i]));
         }
     }
-
-    proof {
-        assert(pods.deep_view().take(pods.len() as int) == pods.deep_view());
-    }
+    let mut condemned = vec_filter(
+        &pods,
+        |pod: &Pod| -> (b: bool)
+            requires pod.deep_view().metadata.name is Some
+            ensures b == (model_reconciler::get_ordinal(parent_name@, pod.deep_view().metadata.name->0) is Some
+                && model_reconciler::get_ordinal(parent_name@, pod.deep_view().metadata.name->0)->0 >= replicas)
+        {
+            let ordinal = get_ordinal(&parent_name, &pod.metadata().name().unwrap());
+            ordinal.is_some() && ordinal.unwrap() >= replicas
+        },
+        Ghost(|pod: PodView|
+            model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
+                && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas),
+    );
 
     sort_pods_by_ord(&parent_name, &mut condemned);
 
@@ -1529,54 +1440,18 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
     ensures
         filtered.deep_view() =~= pods.deep_view().filter(model_reconciler::pod_filter(vsts@)),
 {
-    let mut filtered_pods = Vec::new();
-
-    proof {
-        assert_seqs_equal!(filtered_pods.deep_view(),pods.deep_view().filter(model_reconciler::pod_filter(vsts@)).take(0));
-    }
-
-    let mut idx = 0;
-    for idx in 0..pods.len()
-        invariant
-            idx <= pods.len(),
-            filtered_pods.deep_view() == pods.deep_view().take(idx as int).filter(model_reconciler::pod_filter(vsts@)),
-            vsts@.well_formed(),
-    {
-        let pod = &pods[idx];
-        if pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
+    vec_filter(
+        &pods,
+        |pod: &Pod| -> (b: bool)
+            ensures b == model_reconciler::pod_filter(vsts@)(pod.deep_view())
+        {
+            pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
             && vsts.metadata().name().is_some()
             && pod.metadata().name().is_some()
-            && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap()).is_some() {
-            filtered_pods.push(pod.clone());
-        }
-        // prove the invariant
-
-        proof {
-            let spec_filter = |pod: PodView|
-                pod.metadata.owner_references_contains(vsts@.controller_owner_ref())
-                && vsts@.metadata.name is Some
-                && pod.metadata.name is Some
-                && model_reconciler::get_ordinal(
-                    vsts@.metadata.name->0,
-                    pod.metadata.name->0,
-                ) is Some;
-
-            let old_filtered = if spec_filter(pod@) {
-                filtered_pods.deep_view().drop_last()
-            } else {
-                filtered_pods.deep_view()
-            };
-
-            assert(old_filtered == pods.deep_view().take(idx as int).filter(spec_filter));
-            lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
-            assert(pods.deep_view().take(idx as int).push(pod@) == pods.deep_view().take(
-                (idx + 1) as int,
-            ));
-        }
-
-    }
-    assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
-    filtered_pods
+            && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap()).is_some()
+        },
+        Ghost(model_reconciler::pod_filter(vsts@)),
+    )
 }
 
 pub fn pod_name(parent_name: String, ordinal: usize) -> (result: String)
@@ -1637,47 +1512,13 @@ pub fn get_largest_unmatched_pods(
             pods.deep_view(),
         ),
 {
-    let mut filtered_pods = Vec::<Option<Pod>>::new();
-
-    proof {
-        assert_seqs_equal!(filtered_pods.deep_view(), pods.deep_view().take(0).filter(model_reconciler::outdated_pod_filter(vsts@)));
-    }
-
-    let mut ord: usize = 0;
-
-    while ord < pods.len() 
-        invariant 
-            ord <= pods.len(),
-            filtered_pods.deep_view() == pods.deep_view().take(ord as int).filter(model_reconciler::outdated_pod_filter(vsts@)),
-            vsts@.well_formed(),
-        decreases pods.len() - ord,
-    {
-        let pod_or_none = &pods[ord];
-        if pod_or_none.is_some() && !pod_spec_matches(vsts, pod_or_none.clone().unwrap()) {
-            proof {
-                assert(model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view()));
-            }
-            filtered_pods.push(pod_or_none.clone());
-        }
-        proof {
-            let old_filtered = if model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view()) {
-                filtered_pods.deep_view().drop_last()
-            } else {
-                filtered_pods.deep_view()
-            };
-            assert(old_filtered == pods.deep_view().take(ord as int).filter(model_reconciler::outdated_pod_filter(vsts@)));
-            lemma_filter_push(pods.deep_view().take(ord as int), model_reconciler::outdated_pod_filter(vsts@), pod_or_none.deep_view());
-            assert(pods.deep_view().take(ord as int).push(pods.deep_view()[ord as int]) == pods.deep_view().take(
-                (ord + 1) as int,
-            ));
-        }
-        ord += 1;
-    }
-
-    proof {
-        assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
-        assert(filtered_pods.deep_view() == pods.deep_view().filter(model_reconciler::outdated_pod_filter(vsts@)));
-    }
+    let filtered_pods = vec_filter(
+        pods,
+        |pod_or_none: &Option<Pod>| -> (b: bool)
+            ensures b == model_reconciler::outdated_pod_filter(vsts@)(pod_or_none.deep_view())
+        { pod_or_none.is_some() && !pod_spec_matches(vsts, pod_or_none.clone().unwrap()) },
+        Ghost(model_reconciler::outdated_pod_filter(vsts@)),
+    );
 
     if filtered_pods.len() > 0 {
         filtered_pods[filtered_pods.len() - 1].clone()
