@@ -134,17 +134,11 @@ ensures
                 } else {
                     None
                 };
-                assert(new_vrs is Some ==> {
-                    &&& new_vrs->0.metadata.uid is Some
-                    &&& new_vrs->0.metadata.name is Some
-                    &&& new_vrs->0.metadata.namespace is Some
-                }) by {
-                    if new_vrs is Some {
-                        let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
-                        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
-                        if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
-                            seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter);
-                        }
+                if new_vrs is Some {
+                    let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
+                    seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
+                    if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
+                        seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter);
                     }
                 }
                 lemma_filter_old_and_new_vrs_from_resp_objs_implies_etcd_state_is(vd, cluster, controller_id, nv_uid_key_replicas_sm, old_vrs_list.len(), msg, s);
@@ -706,7 +700,6 @@ ensures
     assert forall |vrs| #[trigger] vrs_list.contains(vrs) implies vrs.metadata.uid is Some by {
         let i = choose |i: int| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
         VReplicaSetView::marshal_preserves_metadata();
-        assert(resp_objs.contains(resp_objs[i])); // trigger
         assert(VReplicaSetView::unmarshal(resp_objs[i]) is Ok);
         assert(vrs_list[i] == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
     }
@@ -761,6 +754,10 @@ ensures
             }
         }
     };
+    if new_vrs is Some {
+        let new_vrs_idx = choose |i: int| 0 <= i < managed_vrs_list.len() && managed_vrs_list[i] == new_vrs->0;
+        assert(0 <= new_vrs_idx < managed_vrs_list.len() && managed_vrs_list[new_vrs_idx] == new_vrs->0);
+    }
     let map_key = |vrs: VReplicaSetView| vrs.object_ref();
     assert(old_vrs_list.map_values(map_key).no_duplicates()) by { // triggering_cr.well_formed()
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -818,6 +815,7 @@ ensures
     ))))
 {
     hide(local_state_is_valid_and_coherent_with_etcd);
+    hide(Cluster::etcd_objects_have_unique_uids);
     let nv_uid_key_replicas = Some((nv_uid_key_replicas_sm.0, nv_uid_key_replicas_sm.1, nv_uid_key_replicas_sm.2));
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
@@ -860,7 +858,8 @@ ensures
                 // prove coherence part in resp_msg_is_ok_list_resp_containing_matched_vrs
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 let managed_vrs_list = objects_to_vrs_list(resp_objs)->0.filter(|vrs| valid_owned_vrs(vrs, vd));
-                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                assert forall |i: int| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.len() implies {
+                    let vrs = managed_vrs_list[i];
                     let key = vrs.object_ref();
                     let etcd_obj = s_prime.resources()[key];
                     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -963,7 +962,8 @@ ensures
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 let vrs_list = objects_to_vrs_list(resp_objs)->0;
                 let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                assert forall |i: int| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.len() implies {
+                    let vrs = managed_vrs_list[i];
                     let key = vrs.object_ref();
                     let etcd_obj = s_prime.resources()[key];
                     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -1253,7 +1253,8 @@ ensures
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 let vrs_list = objects_to_vrs_list(resp_objs)->0;
                 let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                assert forall |i: int| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.len() implies {
+                    let vrs = managed_vrs_list[i];
                     let key = vrs.object_ref();
                     let etcd_obj = s_prime.resources()[key];
                     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;

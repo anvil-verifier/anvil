@@ -33,7 +33,7 @@ where
             res.push(cloned_e);
         }
         proof {
-            lemma_filter_push(v.deep_view().take(idx as int), pred, e.deep_view());
+            v.deep_view().take(idx as int).lemma_filter_push(e.deep_view(), pred);
             assert(v.deep_view().take(idx as int).push(e.deep_view()) =~= v.deep_view().take(idx + 1 as int));
         }
     }

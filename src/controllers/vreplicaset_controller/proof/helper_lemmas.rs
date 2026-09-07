@@ -248,13 +248,11 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     assert(matching_pods(vrs, s.resources()).map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
     assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
         // get rid of objects_to_pods
-        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
         assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]) is Ok);
         PodView::marshal_preserves_integrity();
         PodView::marshal_preserves_metadata();
         assert(resp_pods.len() == resp_objs.len());
         // prove 2 filters are equal
-        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
         assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
             &&& #[trigger] resp_objs[i].kind == PodView::kind()
             &&& #[trigger] resp_objs[i].metadata.namespace is Some
@@ -276,10 +274,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
                 assert(filtered_pods == resp_pods.filter(filter_pods_pred));
                 assert(PodView::unmarshal(filtered_objs[i]) is Ok) by {
-                    assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj) is Ok) by {
-                        true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
-                    }
-                    true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
+                    true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
                 }
                 assert(PodView::unmarshal(filtered_objs[i])->Ok_0 == filtered_pods[i]);
             }
@@ -306,26 +301,12 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         && filtered_pods.no_duplicates()
         implies filtered_pod_keys[i] != filtered_pod_keys[j] by {
 
-        seq_filter_contains_implies_seq_contains(
-            resp_pods,
-            |pod: PodView|
-                pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp is None
-                && pod.metadata.name is Some
-                && has_vrs_prefix(pod.metadata.name->0),
-            filtered_pods[i]
-        );
-        seq_filter_contains_implies_seq_contains(
-            resp_pods,
-            |pod: PodView|
-                pod.metadata.owner_references_contains(vrs.controller_owner_ref())
-                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp is None
-                && pod.metadata.name is Some
-                && has_vrs_prefix(pod.metadata.name->0),
-            filtered_pods[j]
-        );
+        seq_filter_is_a_subset_of_original_seq(resp_pods, |pod: PodView|
+            pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+            && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+            && pod.metadata.deletion_timestamp is None
+            && pod.metadata.name is Some
+            && has_vrs_prefix(pod.metadata.name->0));
 
         let idxi = choose |idx| 0 <= idx < resp_pods.len() && resp_pods[idx] == filtered_pods[i];
         let idxj = choose |idx| 0 <= idx < resp_pods.len() && resp_pods[idx] == filtered_pods[j];

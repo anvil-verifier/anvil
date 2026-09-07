@@ -1409,11 +1409,8 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         );
         assert(filter_result.len() == 0) by {
             if filter_result.len() != 0 {
-                seq_filter_contains_implies_seq_contains(
-                    model_input,
-                    |o: DynamicObjectView| PodView::unmarshal(o).is_err(),
-                    filter_result[0],
-                );
+                seq_filter_is_a_subset_of_original_seq(model_input, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
+                assert(model_input.contains(filter_result[0]));
             }
         };
         assert(model_result.is_some());

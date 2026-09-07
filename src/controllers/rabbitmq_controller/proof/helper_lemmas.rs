@@ -598,9 +598,6 @@ ensures
                         // s_prime.resources() == s.resources().
                         let etcd_obj = s.resources()[resource_key];
                         let owner_refs = etcd_obj.metadata.owner_references->0;
-                        if owner_refs.contains(req.owner_ref) {
-                            lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
-                        }
                         assert(s_prime.resources() == s.resources());
                     }
                     assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
@@ -612,9 +609,6 @@ ensures
                         if req.key == resource_key && s.resources().contains_key(resource_key) {
                             let etcd_obj = s.resources()[resource_key];
                             let owner_refs = etcd_obj.metadata.owner_references->0;
-                            if owner_refs.contains(req.owner_ref) {
-                                lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
-                            }
                             assert(s_prime.resources() == s.resources());
                         }
                         assert(s.resources().contains_key(resource_key) ==> s_prime.resources().contains_key(resource_key));
@@ -632,9 +626,6 @@ ensures
                                     // The owner_references_contains check fails, so handle returns TransactionAbort.
                                     let etcd_obj = s.resources()[resource_key];
                                     let owner_refs = etcd_obj.metadata.owner_references->0;
-                                    if owner_refs.contains(req.owner_ref) {
-                                        lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
-                                    }
                                     assert(s_prime.resources() == s.resources());
                                 }
                                 // For non-CM: status-only change preserves spec; contains_key preserved.

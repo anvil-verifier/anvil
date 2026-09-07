@@ -46,15 +46,16 @@ ensures
     let nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
     let key_map = |vrs: VReplicaSetView| vrs.object_ref();
     VReplicaSetView::marshal_preserves_integrity();
-    assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+    assert forall |j: int| #![trigger managed_vrs_list[j]] 0 <= j < managed_vrs_list.len() implies {
+        let vrs = managed_vrs_list[j];
         &&& vrs.metadata.name is Some
         &&& vrs.metadata.uid is Some
         &&& vrs.metadata.namespace is Some
     } by {
+        let vrs = managed_vrs_list[j];
         seq_filter_is_a_subset_of_original_seq(vrs_list, |vrs| valid_owned_vrs(vrs, vd));
         assert(exists |i| 0 <= i < vrs_list.len() && #[trigger] vrs_list[i] == vrs);
         let i = choose |i| 0 <= i < vrs_list.len() && #[trigger] vrs_list[i] == vrs;
-        assert(resp_objs.contains(resp_objs[i])); // trigger
         assert(vrs_list == resp_objs.map_values(|o| VReplicaSetView::unmarshal(o)->Ok_0));
         assert(vrs_list[i] == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
         VReplicaSetView::marshal_preserves_metadata();
@@ -77,7 +78,7 @@ ensures
             let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == k;
             let vrs = managed_vrs_list[i];
             assert(vrs.object_ref() == k);
-            assert(managed_vrs_list.contains(vrs)); // trigger
+            assert(managed_vrs_list.contains(vrs));
             assert(false) by {
                 assert(!match_template_without_hash(vd.spec.template)(vrs));
                 assert(match_template_without_hash(vd.spec.template)(vrs)) by {
@@ -98,12 +99,14 @@ ensures
         &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
     };
-    assert(managed_vrs_list.contains(new_vrs)) by { // trigger
+    assert(managed_vrs_list.contains(new_vrs)) by {
         seq_filter_is_a_subset_of_original_seq(managed_vrs_list, match_template_without_hash(vd.spec.template));
         if managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).len() > 0 {
             seq_filter_is_a_subset_of_original_seq(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)), nonempty_vrs_filter); 
         }
     }
+    let new_vrs_idx = choose |i: int| 0 <= i < managed_vrs_list.len() && managed_vrs_list[i] == new_vrs;
+    assert(0 <= new_vrs_idx < managed_vrs_list.len() && managed_vrs_list[new_vrs_idx] == new_vrs);
     assert(old_vrs_list == managed_vrs_list.filter(old_vrs_filter)) by {
         same_filter_implies_same_result(managed_vrs_list, old_vrs_filter, |vrs: VReplicaSetView| {
             &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
@@ -146,7 +149,7 @@ ensures
             let i = choose |i: int| 0 <= i < managed_vrs_list.len() && #[trigger] managed_vrs_list.map_values(key_map)[i] == new_vrs_key;
             let vrs = managed_vrs_list[i];
             assert(vrs.object_ref() == new_vrs_key);
-            assert(managed_vrs_list.contains(vrs)); // trigger
+            assert(managed_vrs_list.contains(vrs));
             assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).filter(nonempty_vrs_filter).contains(vrs)) by {
                 assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs)); // trigger
             }
@@ -161,7 +164,7 @@ ensures
         if old_vrs_list.len() > 0 {
             let havoc_vrs = old_vrs_list[0];
             assert(old_vrs_list.contains(havoc_vrs));
-            seq_filter_contains_implies_seq_contains(managed_vrs_list, old_vrs_filter, havoc_vrs);
+            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, old_vrs_filter);
             assert(get_replicas(havoc_vrs.spec.replicas) > 0);
             if havoc_vrs.object_ref() == new_vrs_key {
                 assert(get_replicas(vrs_with_nv_key.spec.replicas) > 0);

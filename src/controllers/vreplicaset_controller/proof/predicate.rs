@@ -189,9 +189,9 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matching_pods(
     &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
     &&& resp_objs.no_duplicates()
     &&& resp_obj_keys.no_duplicates()
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+    &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]) is Ok
+    &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace is Some
+    &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace == vrs.metadata.namespace
 }
 
 // Pod creation predicates (and function)

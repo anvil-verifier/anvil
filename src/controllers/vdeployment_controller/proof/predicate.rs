@@ -140,13 +140,15 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     &&& managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         == filter_obj_keys_managed_by_vd(vd, s)
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+        let obj = resp_objs[i];
         &&& VReplicaSetView::unmarshal(obj) is Ok
         &&& obj.metadata.namespace is Some
         &&& obj.metadata.name is Some
         &&& obj.metadata.uid is Some
     }
-    &&& forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
+    &&& forall |i: int| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.len() ==> {
+        let vrs = managed_vrs_list[i];
         let key = vrs.object_ref();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;

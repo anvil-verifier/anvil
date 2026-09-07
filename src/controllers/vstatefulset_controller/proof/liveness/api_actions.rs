@@ -56,19 +56,7 @@ ensures
                 assert(resp_objs.no_duplicates()) by {
             lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
         }
-        assert forall |o| #[trigger] resp_objs.contains(o) implies {
-            &&& o.kind == Kind::PodKind
-            &&& PodView::unmarshal(o) is Ok
-            &&& s_prime.resources().contains_key(o.object_ref())
-            &&& s_prime.resources()[o.object_ref()] == o
-            &&& o.metadata.namespace is Some
-            &&& o.metadata.namespace->0 == vsts.metadata.namespace->0
-            &&& o.metadata.name is Some
-        } by {
-            assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                lemma_set_to_seq_contains_all_elements(s.resources().values().filter(list_req_filter));
-            }
-        }
+        lemma_set_to_seq_contains_all_indices(s.resources().values().filter(list_req_filter));
         assert(objects_to_pods(resp_objs) is Some) by {
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                 resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Err
@@ -489,9 +477,7 @@ ensures
                 &&& outdated_key.namespace == vsts.metadata.namespace->0
                 &&& pod_name_match(outdated_key.name, vsts.metadata.name->0)
             }) by {
-                seq_filter_contains_implies_seq_contains(
-                    state.needed, outdated_pod_filter(vsts), outdated_pod
-                );
+                seq_filter_is_a_subset_of_original_seq(state.needed, outdated_pod_filter(vsts));
             }
             if s.resources().contains_key(outdated_key) {
                 internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);

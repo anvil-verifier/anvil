@@ -29,6 +29,15 @@ pub proof fn lemma_set_to_seq_contains_all_elements<A>(s: Set<A>)
     }
 }
 
+pub proof fn lemma_set_to_seq_contains_all_indices<A>(s: Set<A>)
+    ensures forall |i: int| 0 <= i < s.to_seq().len() ==> s.contains(#[trigger] s.to_seq()[i]),
+{
+    lemma_set_to_seq_contains_all_elements(s);
+    assert forall |i: int| 0 <= i < s.to_seq().len() implies s.contains(#[trigger] s.to_seq()[i]) by {
+        assert(s.to_seq().contains(s.to_seq()[i]));
+    }
+}
+
 pub proof fn lemma_set_to_seq_has_no_duplicates<A>(s: Set<A>)
     ensures s.to_seq().no_duplicates(),
     decreases s.len()

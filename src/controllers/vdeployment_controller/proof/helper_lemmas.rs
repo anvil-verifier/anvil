@@ -400,7 +400,8 @@ pub proof fn lemma_old_vrs_filter_on_objs_eq_filter_on_keys(
 )
 requires
     // required as precondition of commutativity_of_seq_map_and_filter
-    forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
+    forall |i: int| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.len() ==> {
+        let vrs = managed_vrs_list[i];
         let key = vrs.object_ref();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
@@ -427,7 +428,6 @@ ensures
     // precondition of commutativity_of_seq_map_and_filter
     assert forall |i: int| 0 <= i && i < managed_vrs_list.len() implies
         new_vrs_filter(managed_vrs_list[i]) == filter_old_vrs_keys(new_vrs_uid, s)(managed_vrs_keys[i]) by {
-        assert(managed_vrs_list.contains(managed_vrs_list[i])); // trigger
         assert(managed_vrs_keys[i] == managed_vrs_list[i].object_ref());
     }
     commutativity_of_seq_map_and_filter(managed_vrs_list, new_vrs_filter, filter_old_vrs_keys(new_vrs_uid, s), |vrs: VReplicaSetView| vrs.object_ref());
@@ -458,7 +458,8 @@ requires
     vd.spec.template.metadata is Some,
     vd.spec.template.metadata->0.labels is Some,
     resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates(),
-    forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+        let obj = resp_objs[i];
         &&& VReplicaSetView::unmarshal(obj) is Ok
         &&& obj.metadata.namespace is Some
         &&& obj.metadata.name is Some
@@ -486,21 +487,18 @@ ensures
     assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()) == vrs_list.map_values(map_key)) by {
             assert forall |i| 0 <= i < resp_objs.len() implies vrs_list[i].object_ref() == #[trigger] resp_objs[i].object_ref() by {
-                assert(resp_objs.contains(resp_objs[i])); // trigger
             }
         }
         map_values_weakens_no_duplicates(vrs_list, map_key);
         seq_filter_preserves_no_duplicates(vrs_list, valid_owned_vrs_filter);
         seq_filter_preserves_no_duplicates(managed_vrs_list, old_vrs_list_filter_with_new_vrs);
         assert(old_vrs_list.no_duplicates());
-        assert forall |vrs| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) by {
-            seq_filter_contains_implies_seq_contains(managed_vrs_list, old_vrs_list_filter_with_new_vrs, vrs);
-            seq_filter_contains_implies_seq_contains(vrs_list, valid_owned_vrs_filter, vrs);
+        assert forall |k: int| 0 <= k < old_vrs_list.len() implies vrs_list.contains(#[trigger] old_vrs_list[k]) by {
+            seq_filter_is_a_subset_of_original_seq(managed_vrs_list, old_vrs_list_filter_with_new_vrs);
+            seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_vrs_filter);
         }
         assert forall |i, j| 0 <= i < old_vrs_list.len() && 0 <= j < old_vrs_list.len() && i != j && old_vrs_list.no_duplicates() implies
             #[trigger] old_vrs_list[i].object_ref() != #[trigger] old_vrs_list[j].object_ref() by {
-            assert(old_vrs_list.contains(old_vrs_list[i])); // trigger of vrs_list.contains
-            assert(old_vrs_list.contains(old_vrs_list[j]));
             let m = choose |m| 0 <= m < vrs_list.len() && vrs_list[m] == old_vrs_list[i];
             let n = choose |n| 0 <= n < vrs_list.len() && vrs_list[n] == old_vrs_list[j];
             assert(old_vrs_list[i].object_ref() != old_vrs_list[j].object_ref()) by {
@@ -562,8 +560,8 @@ ensures
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
             assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
             let i = choose |i: int| 0 <= i && i < managed_vrs_list.len() && #[trigger] managed_vrs_list[i].object_ref() == k;
+            assert(managed_vrs_list.contains(managed_vrs_list[i]));
             assert(match_template_without_hash(vd.spec.template)(managed_vrs_list[i])) by {
-                assert(managed_vrs_list.contains(managed_vrs_list[i])); // trigger
                 assert(managed_vrs_list[i].spec == etcd_vrs.spec);
             }
             assert(false);

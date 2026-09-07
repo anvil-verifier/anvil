@@ -78,12 +78,10 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
             if obj.metadata.owner_references_contains(req.owner_ref) {
                 assert(req.owner_ref != vrs.controller_owner_ref());
                 if req.well_formed() {
-                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                    lemma_singleton_contains_at_most_one_element(
-                        obj.metadata.owner_references->0.filter(controller_owner_filter()),
-                        vrs.controller_owner_ref(),
-                        req.owner_ref
-                    );
+                    let ctrl_owners = obj.metadata.owner_references->0.filter(controller_owner_filter());
+                    assert(ctrl_owners.contains(req.owner_ref));
+                    assert(ctrl_owners.contains(vrs.controller_owner_ref()));
+                    assert(ctrl_owners[0] == req.owner_ref && ctrl_owners[0] == vrs.controller_owner_ref());
                 } else {
                     assert(s_prime.resources()[req.key()] == s.resources()[req.key()]);
                 }
@@ -147,6 +145,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         resp_msg == handle_list_request_msg(msg, s.api_server).1,
         resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, resp_msg),
 {
+    PodView::marshal_preserves_integrity();
     let pre = { 
         &&& cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg)))
         &&& req_msg_is_list_pods_req(vrs, msg)
@@ -174,61 +173,27 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         lemma_set_to_seq_contains_all_elements(selected_elements);
     }
 
-    assert forall |o: DynamicObjectView| #![auto]
-    pre && resp_objs.contains(o)
-    implies !PodView::unmarshal(o).is_err()
-            && o.metadata.namespace == vrs.metadata.namespace by {
-        // Tricky reasoning about .to_seq
-        let selector = |o: DynamicObjectView| {
-            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-            &&& o.object_ref().kind == PodView::kind()
-        };
-        let selected_elements = s.resources().values().filter(selector);
-        lemma_set_to_seq_contains_all_elements(selected_elements);
-        assert(resp_objs == selected_elements.to_seq());
-        assert(selected_elements.contains(o));
-    }
+    let selector = |o: DynamicObjectView| {
+        &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+        &&& o.object_ref().kind == PodView::kind()
+    };
+    let selected_elements = s.resources().values().filter(selector);
+    assert(resp_objs == selected_elements.to_seq());
+    lemma_set_to_seq_contains_all_indices(selected_elements);
     seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
 
     // TODO: Shorten up this proof.
     assert_by(objects_to_pods(resp_objs).unwrap().no_duplicates(), {
-        let selector = |o: DynamicObjectView| {
-            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-            &&& o.object_ref().kind == PodView::kind()
-        };
-        let selected_elements = s.resources().values().filter(selector);
         lemma_set_to_seq_has_no_duplicates(selected_elements);
         let selected_elements_seq = selected_elements.to_seq();
         let pods_seq = objects_to_pods(selected_elements_seq).unwrap();
-        assert(selected_elements_seq.no_duplicates());
-
-        assert forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-            x != y
-            && selected_elements_seq.contains(x)
-            && selected_elements_seq.contains(y) implies x.object_ref() != y.object_ref() by {
-            lemma_set_to_seq_contains_all_elements(selected_elements);
-            assert(selected_elements.contains(x));
-            assert(selected_elements.contains(y));
-        }
-
-        let lem = forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-            x != y
-            && selected_elements_seq.contains(x)
-            && selected_elements_seq.contains(y) ==> x.object_ref() != y.object_ref();
 
         assert forall |i: int, j: int| #![auto]
-            0 <= i && i < pods_seq.len() && (0 <= j && j < pods_seq.len()) && !(i == j)
-            && objects_to_pods(selected_elements_seq) is Some
-            && lem
+            0 <= i < pods_seq.len() && 0 <= j < pods_seq.len() && i != j
             implies pods_seq[i] != pods_seq[j] by {
-            let o1 = selected_elements_seq[i];
-            let o2 = selected_elements_seq[j];
-            assert(o1.object_ref() != o2.object_ref());
             PodView::marshal_preserves_integrity();
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(selected_elements_seq, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
-            assert(selected_elements_seq.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0);
-            assert(selected_elements_seq.contains(o1));
-            assert(selected_elements_seq.contains(o2));
+            assert(selected_elements_seq[i].object_ref() != selected_elements_seq[j].object_ref());
         }
 
         assert(pods_seq.no_duplicates());
@@ -243,19 +208,10 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
         lemma_set_to_seq_has_no_duplicates(selected_elements);
         let selected_elements_seq = selected_elements.to_seq();
         assert(selected_elements_seq.no_duplicates());
-        assert forall |o1: DynamicObjectView, o2: DynamicObjectView| #![auto]
-            o1 != o2
-            && selected_elements_seq.contains(o1)
-            && selected_elements_seq.contains(o2)
-            && pre
-            implies o1.object_ref() != o2.object_ref() by {
-            lemma_set_to_seq_contains_all_elements(selected_elements);
-            assert(selected_elements.contains(o1));
-            assert(selected_elements.contains(o2));
-            assert(s.resources().values().contains(o1));
-            assert(s.resources().values().contains(o2));
-            assert(o1.object_ref() != o2.object_ref());
-        }
+        lemma_set_to_seq_contains_all_indices(selected_elements);
+        assert forall |i: int, j: int| #![auto]
+            0 <= i < selected_elements_seq.len() && 0 <= j < selected_elements_seq.len() && i != j && pre
+            implies selected_elements_seq[i].object_ref() != selected_elements_seq[j].object_ref() by {}
         let selected_element_keys = selected_elements_seq.map_values(|o: DynamicObjectView| o.object_ref());
         assert(selected_element_keys.no_duplicates());
         assert(resp_obj_keys =~= selected_element_keys);
@@ -326,6 +282,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
     return resp_msg;
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     msg: Message,
@@ -398,10 +355,14 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
         matching_pod_entries(vrs, s.resources()).insert(created_obj.object_ref(), created_obj).values()
         =~= matching_pod_entries(vrs, s.resources()).values().insert(created_obj),
         {
+            broadcast use Set::lemma_map_contains;
+
             assert forall |o: DynamicObjectView|
                 #[trigger] matching_pod_entries(vrs, s.resources()).values().insert(created_obj).contains(o) 
                 implies matching_pod_entries(vrs, s.resources()).insert(created_obj.object_ref(), created_obj).values().contains(o) by {
                 if o == created_obj {
+                    assert(matching_pod_entries(vrs, s.resources())
+                        .insert(created_obj.object_ref(), created_obj).contains_key(created_obj.object_ref()));
                     assert(
                         matching_pod_entries(vrs, s.resources())
                             .insert(created_obj.object_ref(), created_obj)[created_obj.object_ref()] == created_obj
@@ -411,6 +372,10 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
                     let key = choose |key: ObjectRef|
                         matching_pod_entries(vrs, s.resources()).contains_key(key)
                         && #[trigger] matching_pod_entries(vrs, s.resources())[key] == o;
+                    assert(!matching_pod_entries(vrs, s.resources()).contains_key(created_obj.object_ref()));
+                    assert(key != created_obj.object_ref());
+                    assert(matching_pod_entries(vrs, s.resources())
+                        .insert(created_obj.object_ref(), created_obj).contains_key(key));
                     assert(
                         matching_pod_entries(vrs, s.resources())
                             .insert(created_obj.object_ref(), created_obj)[key] == o
@@ -520,7 +485,7 @@ pub proof fn lemma_get_then_update_vrs_status_request_updates_vrs_status_and_ret
     assert(current_obj.metadata.owner_references_contains(req.owner_ref)) by {
         assert(current_obj.metadata.owner_references->0.filter(controller_owner_filter())
             .contains(current_obj.metadata.owner_references->0.filter(controller_owner_filter())[0]));
-        seq_filter_contains_implies_seq_contains(current_obj.metadata.owner_references->0, controller_owner_filter(), req.owner_ref);
+        seq_filter_is_a_subset_of_original_seq(current_obj.metadata.owner_references->0, controller_owner_filter());
     }
     assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources())) by {
         assert(req.obj.kind == VReplicaSetView::kind());

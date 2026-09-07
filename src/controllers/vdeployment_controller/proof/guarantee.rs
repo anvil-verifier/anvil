@@ -129,11 +129,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                             );
                             assert(controller_owners[0] == triggering_cr.controller_owner_ref());
                             assert(controller_owners.contains(triggering_cr.controller_owner_ref()));
-                            seq_filter_contains_implies_seq_contains(
-                                owners,
-                                |o: OwnerReferenceView| o.controller is Some && o.controller->0,
-                                triggering_cr.controller_owner_ref()
-                            );
+                            seq_filter_is_a_subset_of_original_seq(owners, |o: OwnerReferenceView| o.controller is Some && o.controller->0);
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
                         }
                     }
