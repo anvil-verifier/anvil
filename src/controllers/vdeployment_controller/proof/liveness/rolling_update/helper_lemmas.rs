@@ -129,7 +129,6 @@ ensures
     } else {
         if get_replicas(new_vrs.spec.replicas) > 0 {
             assert(new_vrs.metadata.uid->0 != uid_of_vrs_with_nv_key);
-            assert(managed_vrs_list.contains(new_vrs)); // trigger
             assert(managed_vrs_list.filter(|vrs: VReplicaSetView| {
                 &&& Some(uid_of_vrs_with_nv_key) is None || vrs.metadata.uid->0 != Some(uid_of_vrs_with_nv_key)->0
                 &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
@@ -163,11 +162,9 @@ ensures
         // vrs with new_vrs_key must has 0 replicas
         if old_vrs_list.len() > 0 {
             let havoc_vrs = old_vrs_list[0];
-            assert(old_vrs_list.contains(havoc_vrs));
             seq_filter_is_a_subset_of_original_seq(managed_vrs_list, old_vrs_filter);
             assert(get_replicas(havoc_vrs.spec.replicas) > 0);
             if havoc_vrs.object_ref() == new_vrs_key {
-                assert(get_replicas(vrs_with_nv_key.spec.replicas) > 0);
                 let vrs_with_nv_key = choose |vrs| #[trigger] managed_vrs_list.contains(vrs) && vrs.object_ref() == new_vrs_key;
                 assert(get_replicas(vrs_with_nv_key.spec.replicas) > 0);
                 assert(managed_vrs_list.filter(match_template_without_hash(vd.spec.template)).contains(vrs_with_nv_key));

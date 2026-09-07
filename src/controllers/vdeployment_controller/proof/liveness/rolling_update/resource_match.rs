@@ -704,12 +704,6 @@ ensures
     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     assert(vds_prime.old_vrs_list == old_vrs_list);
     assert(vds_prime.old_vrs_index == old_vrs_list.len());
-
-    // prove local_state_is_coherent_with_etcd_valid_and_coherent(s_prime)
-    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
-        implies managed_vrs_list.contains(vds_prime.old_vrs_list[i]) by {
-        assert(old_vrs_list.contains(vds_prime.old_vrs_list[i])); // trigger
-    }
 }
 
 }

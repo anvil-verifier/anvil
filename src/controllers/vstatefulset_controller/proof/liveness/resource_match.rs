@@ -767,8 +767,10 @@ ensures
             }
         }
     }
-    assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies
-        s_prime.resources().contains_key(obj.object_ref()) && weakly_eq(obj, s_prime.resources()[obj.object_ref()]) by {
+    assert forall |i: int| #![trigger owned_objs[i]] 0 <= i < owned_objs.len() implies
+        s_prime.resources().contains_key(owned_objs[i].object_ref())
+        && weakly_eq(owned_objs[i], s_prime.resources()[owned_objs[i].object_ref()]) by {
+        let obj = owned_objs[i];
         let key = obj.object_ref();
         seq_filter_is_a_subset_of_original_seq(
             resp_objs,
@@ -3615,7 +3617,6 @@ ensures
         PodView::marshal_preserves_integrity();
         seq_filter_is_a_subset_of_original_seq(pods, pod_filter(vsts));
         let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
-        assert(objs.contains(objs[i]));
         assert(objs[i].metadata.owner_references_contains(vsts.controller_owner_ref()));
         assert(owned_objs.contains(objs[i]));
         let obj = s.resources()[pod.object_ref()];

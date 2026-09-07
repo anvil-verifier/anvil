@@ -51,15 +51,6 @@ ensures
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
             lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
-            // now we know resp_objs has no duplicates, prove keys are unique by contradiction
-            assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
-                if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
-                    // trigger of s.resources()[o.object_ref()] == o
-                    assert(resp_objs.contains(resp_objs[i]));
-                    assert(resp_objs.contains(resp_objs[j]));
-                    assert(resp_objs[i] == resp_objs[j]);
-                }
-            }
         }
         let vrs_list = objects_to_vrs_list(resp_objs)->0;
         assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0));
@@ -184,15 +175,6 @@ ensures
         }
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
             lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
-            // now we know resp_objs has no duplicates, prove keys are unique by contradiction
-            assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
-                if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
-                    // trigger of s.resources()[o.object_ref()] == o
-                    assert(resp_objs.contains(resp_objs[i]));
-                    assert(resp_objs.contains(resp_objs[j]));
-                    assert(resp_objs[i] == resp_objs[j]);
-                }
-            }
         }
         let vrs_list = objects_to_vrs_list(resp_objs)->0;
         assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o)->Ok_0));
@@ -216,7 +198,6 @@ ensures
             let vrs = managed_vrs_list[j];
             seq_filter_is_a_subset_of_original_seq(vrs_list, |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
             let i = choose |i| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
-            assert(resp_objs.contains(resp_objs[i])); // trigger
             assert(VReplicaSetView::unmarshal(resp_objs[i])->Ok_0 == vrs);
             assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]) by {
                 assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
@@ -277,10 +258,7 @@ ensures
         }) by {
             VReplicaSetView::marshal_preserves_integrity();
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(new_vrs.object_ref()));
-            assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).to_set().contains(new_vrs.object_ref()));
             assert(managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).contains(new_vrs.object_ref()));
-            assert(exists |i| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).len()
-                && managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref()))[i] == new_vrs.object_ref());
             let i = choose |i| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref())).len()
                 && managed_vrs_list.map_values((|vrs: VReplicaSetView| vrs.object_ref()))[i] == new_vrs.object_ref();
             assert(managed_vrs_list[i].object_ref() == new_vrs.object_ref());

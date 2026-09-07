@@ -560,7 +560,6 @@ ensures
             assert(filter_obj_keys_managed_by_vd(vd, s).contains(k));
             assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).contains(k));
             let i = choose |i: int| 0 <= i && i < managed_vrs_list.len() && #[trigger] managed_vrs_list[i].object_ref() == k;
-            assert(managed_vrs_list.contains(managed_vrs_list[i]));
             assert(match_template_without_hash(vd.spec.template)(managed_vrs_list[i])) by {
                 assert(managed_vrs_list[i].spec == etcd_vrs.spec);
             }

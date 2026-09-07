@@ -761,9 +761,6 @@ ensures
                             objs,
                             |o: DynamicObjectView| PodView::unmarshal(o).is_err()
                         );
-                        assert forall |i| 0 <= i < objs.len() implies PodView::unmarshal(#[trigger] objs[i]) is Ok by {
-                            assert(objs.contains(objs[i]));
-                        }
                         let filtered_pods = pods.filter(pod_filter(vsts));
                         assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
                             &&& pod.metadata.name is Some
@@ -887,8 +884,7 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
-                                assert(resp_objs.contains(resp_objs[i])); // trigger
-                                lemma_set_to_seq_contains_all_elements(selected_elements);
+                                lemma_set_to_seq_contains_all_indices(selected_elements);
                                 assert(s.resources().values().filter(selector).contains(resp_objs[i]));
                                 lemma_filter_set(s.resources().values(), selector);
                             }

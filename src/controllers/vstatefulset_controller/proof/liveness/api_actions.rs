@@ -66,8 +66,6 @@ ensures
             assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j)
                 implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
                 if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
-                    assert(resp_objs.contains(resp_objs[i]));
-                    assert(resp_objs.contains(resp_objs[j])); // trigger of s.resources()[o.object_ref()] == o
                     assert(resp_objs[i] == resp_objs[j]);
                 }
             }
@@ -83,14 +81,14 @@ ensures
             assert(forall |obj| #[trigger] s_prime.resources().values().contains(obj) ==>
                 (list_req_filter(obj) && owner_ref_filter(obj) <==> valid_owned_object_filter(vsts)(obj)));
         }
-        assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies {
+        assert forall |i: int| #![trigger owned_objs[i]] 0 <= i < owned_objs.len() implies {
+            let obj = owned_objs[i];
             let key = obj.object_ref();
             let etcd_obj = s_prime.resources()[key];
             &&& s_prime.resources().contains_key(key)
             &&& weakly_eq(obj, etcd_obj)
         } by {
-            assert(owned_objs.to_set().contains(obj));
-            assert(s_prime.resources().values().contains(obj));
+            assert(owned_objs.to_set().contains(owned_objs[i]));
         }
     }
 }
