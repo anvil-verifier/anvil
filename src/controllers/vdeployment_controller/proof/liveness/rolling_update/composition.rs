@@ -209,7 +209,8 @@ ensures
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 let vrs_list = objects_to_vrs_list(resp_objs)->0;
                 let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                assert forall |i: int| #![trigger managed_vrs_list[i]] 0 <= i < managed_vrs_list.len() implies {
+                    let vrs = managed_vrs_list[i];
                     let key = vrs.object_ref();
                     let etcd_vrs = VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0;
                     &&& s_prime.resources().contains_key(key)
@@ -218,6 +219,7 @@ ensures
                     &&& etcd_vrs.metadata.without_resource_version() == vrs.metadata.without_resource_version()
                     &&& etcd_vrs.spec == vrs.spec
                 } by {
+                    let vrs = managed_vrs_list[i];
                     let key = vrs.object_ref();
                     let etcd_obj = s.resources()[key];
                     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;

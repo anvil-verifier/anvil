@@ -332,11 +332,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
                                 },
                                 APIRequest::GetThenUpdateRequest(req) => {
                                     if req.key() == resource_key && s.resources().contains_key(resource_key) {
-                                        let etcd_obj = s.resources()[resource_key];
-                                        let owner_refs = etcd_obj.metadata.owner_references->0;
-                                        if owner_refs.contains(req.owner_ref) {
-                                            lemma_singleton_contains_at_most_one_element(owner_refs, req.owner_ref, owner_refs[0]);
-                                        }
                                         assert(s_prime.resources() == s.resources());
                                     }
                                 },

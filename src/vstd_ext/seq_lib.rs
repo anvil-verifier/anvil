@@ -131,50 +131,22 @@ pub proof fn seq_unequal_preserved_by_add_auto<A>(suffix: Seq<A>)
 }
 
 pub proof fn seq_pred_false_on_all_elements_is_equivalent_to_empty_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
-    ensures (forall |e: A| #[trigger] s.contains(e) ==> !pred(e)) <==> s.filter(pred).len() == 0,
+    ensures (forall |i: int| 0 <= i < s.len() ==> !pred(#[trigger] s[i])) <==> s.filter(pred).len() == 0,
 {
     if s.len() != 0 {
-        assert((forall |e: A| s.contains(e) ==> !pred(e)) ==> s.filter(pred).len() == 0) by {
-            // p -> q <== >!p || q
-            if (forall |e: A| s.contains(e) ==> !pred(e))
-            {
-                seq_pred_false_on_all_elements_implies_empty_filter(s, pred);
-            }
+        if (forall |i: int| 0 <= i < s.len() ==> !pred(s[i])) {
+            assert(s.all(|x: A| !pred(x)));
+            s.lemma_all_neg_filter_empty(pred);
         }
-        assert(s.filter(pred).len() == 0 ==> (forall |e: A| s.contains(e) ==> !pred(e))) by {
-            if (s.filter(pred).len() == 0)
-            {
-                empty_filter_implies_seq_pred_false_on_all_elements(s, pred);
-            }
+        if (s.filter(pred).len() == 0) {
+            empty_filter_implies_seq_pred_false_on_all_indices(s, pred);
         }
     }
 }
 
-proof fn seq_pred_false_on_all_elements_implies_empty_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
-    requires forall |e: A| #![auto] s.contains(e) ==> !pred(e),
-    ensures s.filter(pred).len() == 0,
-    decreases s.len()
-    // If `pred` is false on every element, filter will return an empty sequence.
-{
-    reveal(Seq::filter);
-    if s.len() != 0 {
-        let subseq = s.drop_last();
-        // prove precondition for subseq and recursive call
-        assert(forall |e: A| subseq.contains(e) ==> !pred(e)) by {
-            assert(forall |i: int| 0 <= i < subseq.len() ==> s.contains(#[trigger] s[i]) ==> !pred(subseq[i]));
-        }
-        seq_pred_false_on_all_elements_implies_empty_filter(subseq, pred);
-        assert(subseq.filter(pred) == s.filter(pred)) by {
-            assert(!pred(s.last())) by {
-                assert(s.contains(s.last()) ==> !pred(s.last()));
-            };
-        } // s.filter(pred) == subseq.filter(pred) == ... == Seq::empty()
-    }
-}
-
-proof fn empty_filter_implies_seq_pred_false_on_all_elements<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+proof fn empty_filter_implies_seq_pred_false_on_all_indices<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     requires s.filter(pred).len() == 0,
-    ensures forall |e: A| #![auto] s.contains(e) ==> !pred(e)
+    ensures forall |i: int| 0 <= i < s.len() ==> !pred(#[trigger] s[i])
     decreases s.len()
     // If `pred` is false on every element, filter will return an empty sequence.
 {
@@ -195,11 +167,9 @@ proof fn empty_filter_implies_seq_pred_false_on_all_elements<A>(s: Seq<A>, pred:
             reveal(Seq::filter);
             assert(!pred(s.last()));
         }
-        empty_filter_implies_seq_pred_false_on_all_elements(s.drop_last(), pred);
-        assert forall |e: A| #![auto] s.contains(e) ==> !pred(e) by {
-            assert(forall |i: int| 0 <= i < subseq.len() ==> (subseq.contains(#[trigger] subseq[i]) ==> !pred(subseq[i])));
-            assert(forall |i: int| 0 <= i < subseq.len() ==> s[i] == subseq[i]);
-            // assert(!pred(s.last()) && s.contains(s.last()));
+        empty_filter_implies_seq_pred_false_on_all_indices(s.drop_last(), pred);
+        assert forall |i: int| 0 <= i < s.len() implies !pred(#[trigger] s[i]) by {
+            if i < subseq.len() { assert(s[i] == subseq[i]); }
         }
     }
 }
@@ -230,18 +200,9 @@ pub proof fn map_values_weakens_no_duplicates<A, B>(s: Seq<A>, map: spec_fn(A) -
     }
 }
 
-pub proof fn seq_filter_contains_implies_seq_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, elt: A)
-    requires s.filter(pred).contains(elt),
-    ensures s.contains(elt)
-{
-    seq_filter_is_a_subset_of_original_seq(s, pred);
-}
-
-// useful theorem to prove the 2 above
 pub proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     ensures
-        forall |e: A| s.filter(pred).contains(e) ==> #[trigger] s.contains(e),
-        forall |i: int| 0 <= i < s.filter(pred).len() ==> s.contains(#[trigger] s.filter(pred)[i]), // 2nd form
+        forall |i: int| 0 <= i < s.filter(pred).len() ==> s.contains(#[trigger] s.filter(pred)[i]),
     decreases s.len()
 {
     reveal(Seq::filter);
@@ -249,63 +210,16 @@ pub proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(
         let subseq = s.drop_last();
         seq_filter_is_a_subset_of_original_seq(subseq, pred);
         assert(forall |i: int| 0 <= i < subseq.filter(pred).len() ==> subseq.contains(#[trigger] subseq.filter(pred)[i]));
-        // assert(forall |i: int| 0 <= i < s.filter(pred).len() ==> s.contains(#[trigger] s.filter(pred)[i]));
-        // assert(forall |e: A| s.filter(pred).contains(e) ==> #[trigger] s.contains(e));
     }
 }
 
 pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filter_pred: spec_fn(A) -> bool)
-    requires forall |e: A| s.contains(e) ==> pred(e),
-    ensures forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)
+    requires forall |i: int| 0 <= i < s.len() ==> pred(#[trigger] s[i]),
+    ensures forall |i: int| 0 <= i < s.filter(filter_pred).len() ==> pred(#[trigger] s.filter(filter_pred)[i]),
 {
-    assert(forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)) by {
-        assert(forall |e: A| s.filter(filter_pred).contains(e) ==> #[trigger] s.contains(e)) by {
-            seq_filter_is_a_subset_of_original_seq(s, filter_pred);
-        }
-        assert(forall |e: A| s.contains(e) ==> pred(e));
-    }
-}
-
-pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
-    ensures
-        (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))
-{
-    if s.len() != 0 {
-        assert((forall |i: int| 0 <= i < s.len() ==> pred(s[i])) ==> (forall |obj: A| s.contains(obj) ==> pred(obj)));
-        assert((forall |obj: A| s.contains(obj) ==> pred(obj)) ==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))) by {
-            if (forall |obj: A| s.contains(obj) ==> pred(obj)) {
-                assert(forall |i: int| 0 <= i < s.len() ==> pred(s[i])) by {
-                    assert(forall |i: int| 0 <= i < s.len() ==> s.contains(#[trigger] s[i]) ==> pred(s[i]));
-                }
-            }
-        }
-    }
-}
-
-pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, e: A)
-    ensures s.push(e).to_set() == s.to_set().insert(e)
-{
-    assert(s.push(e).to_set() =~= s.to_set().insert(e)) by {
-        assert forall |obj: A| s.push(e).to_set().contains(obj) implies #[trigger] s.to_set().insert(e).contains(obj) by {
-            assert(s.push(e).contains(obj));
-            if obj == e {
-                assert(s.to_set().insert(e).contains(e));
-            } else {
-                assert(s.contains(obj));
-                assert(s.to_set().contains(obj));
-                assert(s.to_set().insert(e).contains(obj));
-            }
-        }
-        assert forall |obj: A| s.to_set().insert(e).contains(obj) implies #[trigger] s.push(e).to_set().contains(obj) by {
-            if obj == e {
-                assert(s.push(e).last() == e); // why this trivial line is required
-                assert(s.push(e).contains(e));
-            } else {
-                assert(s.to_set().contains(obj));
-                assert(s.contains(obj));
-                assert(s == s.push(e).drop_last());
-            }
-        }
+    lemma_different_filtered_elems_map_to_different_elems(s, filter_pred);
+    assert forall |i: int| 0 <= i < s.filter(filter_pred).len() implies pred(#[trigger] s.filter(filter_pred)[i]) by {
+        assert(s.filter(filter_pred)[i] == s[filter_idx(s, filter_pred, i)]);
     }
 }
 
@@ -317,20 +231,11 @@ pub proof fn lemma_filter_to_set_eq_to_set_filter<A>(s: Seq<A>, pred: spec_fn(A)
     if s.len() > 0 {
         let subseq = s.drop_last();
         lemma_filter_to_set_eq_to_set_filter(subseq, pred);
-        lemma_filter_push(subseq, pred, s.last());
+        subseq.lemma_filter_push(s.last(), pred);
         if pred(s.last()) {
-            push_to_set_eq_to_set_insert(subseq.filter(pred), s.last());
+            subseq.filter(pred).lemma_push_to_set_commute(s.last());
         }
     }
-}
-
-pub proof fn lemma_filter_push<A>(s: Seq<A>, pred: spec_fn(A) -> bool, e: A)
-    ensures
-        pred(e) ==> s.push(e).filter(pred) == s.filter(pred).push(e),
-        !pred(e) ==> s.push(e).filter(pred) == s.filter(pred),
-{
-    reveal(Seq::filter);
-    assert(s.push(e).drop_last() == s);
 }
 
 // Q: Why reveal is required as filter is open spec
@@ -378,16 +283,16 @@ pub proof fn commutativity_of_seq_drop_last_and_map<A, B>(s: Seq<A>, pred: spec_
 }
 
 pub proof fn same_filter_implies_same_result<A>(s: Seq<A>, f1: spec_fn(A) -> bool, f2: spec_fn(A) -> bool)
-    requires forall |e: A| #[trigger] s.contains(e) ==> (f1(e) == f2(e)),
+    requires forall |i: int| 0 <= i < s.len() ==> (f1(#[trigger] s[i]) == f2(s[i])),
     ensures s.filter(f1) == s.filter(f2),
     decreases s.len()
 {
     reveal(Seq::filter);
     if s.len() != 0 {
         let subseq = s.drop_last();
-        assert(forall |e: A| #[trigger] subseq.contains(e) ==> s.contains(e));
+        assert(forall |i: int| 0 <= i < subseq.len() ==> #[trigger] subseq[i] == s[i]);
         same_filter_implies_same_result(subseq, f1, f2);
-        assert(s.contains(s.last()));
+        assert(s[s.len() - 1] == s.last());
         if f1(s.last()){
             assert(f2(s.last()));
             assert(s.filter(f1) == subseq.filter(f1).push(s.last()));
@@ -401,15 +306,15 @@ pub proof fn same_filter_implies_same_result<A>(s: Seq<A>, f1: spec_fn(A) -> boo
 }
 
 pub proof fn lemma_homomorphism_of_map_values<A, B, C>(s: Seq<A>, f1: spec_fn(A) -> B, f2: spec_fn(B) -> C, g: spec_fn(A)->C)
-    requires forall |e: A| #[trigger] s.contains(e) ==> f2(f1(e)) == g(e),
+    requires forall |i: int| 0 <= i < s.len() ==> f2(f1(#[trigger] s[i])) == g(s[i]),
     ensures s.map_values(g) == s.map_values(f1).map_values(f2),
     decreases s.len()
 {
     if s.len() != 0 {
         let subseq = s.drop_last();
-        assert(forall |e: A| #[trigger] subseq.contains(e) ==> s.contains(e));
-        lemma_homomorphism_of_map_values(subseq, f1, f2, g);    
-        assert(s.contains(s.last()));
+        assert(forall |i: int| 0 <= i < subseq.len() ==> #[trigger] subseq[i] == s[i]);
+        lemma_homomorphism_of_map_values(subseq, f1, f2, g);
+        assert(s[s.len() - 1] == s.last());
         assert(s.map_values(g) == subseq.map_values(g).push(g(s.last())));
     }
 }
@@ -525,16 +430,5 @@ ensures
         }
     };
 }
-
-// Verus can directly prove it, but without this lemma a lot of flakiness is introduced
-pub proof fn lemma_singleton_contains_at_most_one_element<A>(s: Seq<A>, e1: A, e2: A)
-requires
-    s.len() <= 1,
-    s.contains(e1),
-    s.contains(e2),
-    e1 != e2,
-ensures
-    false,
-{}
 
 }

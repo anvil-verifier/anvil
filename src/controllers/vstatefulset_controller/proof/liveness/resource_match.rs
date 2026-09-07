@@ -767,11 +767,14 @@ ensures
             }
         }
     }
-    assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies
-        s_prime.resources().contains_key(obj.object_ref()) && weakly_eq(obj, s_prime.resources()[obj.object_ref()]) by {
+    assert forall |i: int| #![trigger owned_objs[i]] 0 <= i < owned_objs.len() implies
+        s_prime.resources().contains_key(owned_objs[i].object_ref())
+        && weakly_eq(owned_objs[i], s_prime.resources()[owned_objs[i].object_ref()]) by {
+        let obj = owned_objs[i];
         let key = obj.object_ref();
-        seq_filter_contains_implies_seq_contains(
-            resp_objs, |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()), obj
+        seq_filter_is_a_subset_of_original_seq(
+            resp_objs,
+            |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref())
         );
         assert({
             &&& s.resources().contains_key(key)
@@ -3417,11 +3420,7 @@ ensures
                     let outdated_pod = get_largest_unmatched_pods(vsts, local_state.needed);
                     assert(outdated_pod is Some);
                     if s_prime.resources().contains_key(key) {
-                        seq_filter_contains_implies_seq_contains(
-                            local_state.needed,
-                            outdated_pod_filter(vsts),
-                            outdated_pod
-                        );
+                        seq_filter_is_a_subset_of_original_seq(local_state.needed, outdated_pod_filter(vsts));
                         internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, input->0);
                         assert(false);
                     }
@@ -3616,9 +3615,8 @@ ensures
         &&& pod_spec_weakly_eq(pod, PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0)
     } by {
         PodView::marshal_preserves_integrity();
-        seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
+        seq_filter_is_a_subset_of_original_seq(pods, pod_filter(vsts));
         let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
-        assert(objs.contains(objs[i]));
         assert(objs[i].metadata.owner_references_contains(vsts.controller_owner_ref()));
         assert(owned_objs.contains(objs[i]));
         let obj = s.resources()[pod.object_ref()];
@@ -3645,7 +3643,7 @@ ensures
             assert(condemned.to_set().contains(condemned_pod));
             assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
         }
-        seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
+        seq_filter_is_a_subset_of_original_seq(filtered_pods, condemned_ord_filter);
     }
     assert(forall |pod: PodView| #[trigger] condemned.contains(pod) ==> pod.metadata.name is Some);
     // coherence of needed pods
@@ -3664,7 +3662,7 @@ ensures
         let obj = s.resources()[key];
         let etcd_pod = PodView::unmarshal(obj)->Ok_0;
         assert(get_pod_with_ord(vsts_name, filtered_pods, ord) is Some);
-        seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed[ord as int]->0);
+        seq_filter_is_a_subset_of_original_seq(filtered_pods, pod_has_ord(vsts_name, ord));
         // trigger all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
         get_ordinal_eq_pod_name(vsts_name, ord, key.name);
         assert(pod_name_match(key.name, vsts_name));
@@ -3691,7 +3689,7 @@ ensures
             assert(get_ordinal(vsts_name, key.name) == Some(ord));
             assert(exists |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key);
             let resp_obj = choose |obj: DynamicObjectView| #[trigger] filtered_resp_objs.contains(obj) && obj.object_ref() == key;
-            seq_filter_contains_implies_seq_contains(objs, owner_ref_filter, resp_obj);
+            seq_filter_is_a_subset_of_original_seq(objs, owner_ref_filter);
             let resp_pod = PodView::unmarshal(resp_obj)->Ok_0;
             PodView::marshal_preserves_metadata();
             assert(resp_pod.object_ref() == key);
@@ -3702,7 +3700,7 @@ ensures
                     assert(pods[i] == resp_pod);
                     assert(pods.contains(pods[i]));
                 }
-                seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), resp_pod);
+                seq_filter_is_a_subset_of_original_seq(pods, pod_filter(vsts));
             }
         }
     }
@@ -3738,7 +3736,7 @@ ensures
             let i = choose |i: nat| i < outdated_pod_keys.len() && outdated_pod_keys[i as int] == key;
             let pod_opt = needed.filter(outdated_pod_filter(vsts))[i as int];
             assert(pod_opt is Some && pod_opt->0.object_ref() == key);
-            seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt);
+            seq_filter_is_a_subset_of_original_seq(needed, outdated_pod_filter(vsts));
             assert(s.resources().contains_key(key));
             assert(pod_spec_weakly_eq(pod_opt->0, PodView::unmarshal(s.resources()[key])->Ok_0));
             assert(outdated_obj_key_filter(s, vsts)(key));
@@ -3758,7 +3756,10 @@ ensures
             assert(owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref()).contains(key));
             let obj = choose |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) && obj.object_ref() == key;
             assert(weakly_eq(obj, s.resources()[key]));
-            seq_filter_contains_implies_seq_contains(objs, |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref()), obj);
+            seq_filter_is_a_subset_of_original_seq(
+                objs,
+                |obj: DynamicObjectView| obj.metadata.owner_references_contains(vsts.controller_owner_ref())
+            );
             assert(objs.contains(obj));
             let pod = PodView::unmarshal(obj)->Ok_0;
             assert(filtered_pods.contains(pod)) by {
@@ -3789,8 +3790,7 @@ ensures
             let pod_opt_i = needed.filter(outdated_pod_filter(vsts))[i as int];
             let pod_opt_j = needed.filter(outdated_pod_filter(vsts))[j as int];
             assert(pod_opt_i is Some && pod_opt_j is Some);
-            seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_i);
-            seq_filter_contains_implies_seq_contains(needed, outdated_pod_filter(vsts), pod_opt_j);
+            seq_filter_is_a_subset_of_original_seq(needed, outdated_pod_filter(vsts));
             lemma_different_filtered_elems_map_to_different_elems(needed, outdated_pod_filter(vsts));
             let pod_ord_i = filter_idx(needed, outdated_pod_filter(vsts), i as int) as nat;
             let pod_ord_j = filter_idx(needed, outdated_pod_filter(vsts), j as int) as nat;
@@ -4468,7 +4468,7 @@ ensures
     assert(next_local_state == handle_delete_outdated(triggering_cr, None, local_state).0);
     assert forall |pod_or_none: Option<PodView>| #[trigger] outdated_pods.contains(pod_or_none)
         && pod_or_none is Some implies pod_or_none->0.metadata.name is Some by {
-        seq_filter_contains_implies_seq_contains(local_state.needed, outdated_pod_filter(triggering_cr), pod_or_none);
+        seq_filter_is_a_subset_of_original_seq(local_state.needed, outdated_pod_filter(triggering_cr));
     }
     assert(get_largest_unmatched_pods(triggering_cr, next_local_state.needed) ==
         get_largest_unmatched_pods(vsts, next_local_state.needed)) by {
@@ -4479,7 +4479,7 @@ ensures
         let pod = get_largest_unmatched_pods(triggering_cr, local_state.needed)->0;
         assert(outdated_pods.contains(Some(pod))); // trigger
         assert(s_prime.resources().contains_key(pod.object_ref())) by {
-            seq_filter_contains_implies_seq_contains(local_state.needed, outdated_pod_filter(triggering_cr), Some(pod));
+            seq_filter_is_a_subset_of_original_seq(local_state.needed, outdated_pod_filter(triggering_cr));
         }
     } else {
         assert(get_largest_unmatched_pods(triggering_cr, local_state.needed) is None);
@@ -4519,9 +4519,7 @@ ensures
         &&& key.namespace == vsts.metadata.namespace->0
         &&& pod_name_match(key.name, vsts.metadata.name->0)
     }) by {
-        seq_filter_contains_implies_seq_contains(
-            next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
-        );
+        seq_filter_is_a_subset_of_original_seq(next_local_state.needed, outdated_pod_filter(vsts));
     }
     get_ordinal_eq_pod_name(vsts.metadata.name->0, outdated_ord, outdated_pod.metadata.name->0);
     lemma_get_then_delete_pod_request_returns_ok_or_not_found_err(
@@ -4555,9 +4553,7 @@ ensures
         let outdated_pod_keys = next_local_state.needed.filter(outdated_pod_filter(vsts)).map_values(|pod_opt: Option<PodView>| pod_opt->0.object_ref());
         assert(req.key() == outdated_pod.object_ref()) by {
             // so outdated pod follows needed pod naming convention
-            seq_filter_contains_implies_seq_contains(
-                next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
-            );
+            seq_filter_is_a_subset_of_original_seq(next_local_state.needed, outdated_pod_filter(vsts));
         }
         assert(outdated_pod_keys.to_set().remove(outdated_pod.object_ref()) == outdated_obj_keys_in_etcd(s_prime, vsts)) by {
             if s.resources().contains_key(req.key()) {
@@ -4592,9 +4588,7 @@ ensures
     let outdated_pod = get_largest_unmatched_pods(vsts, next_local_state.needed)->0;
     assert(req.key() == outdated_pod.object_ref()) by {
         // so outdated pod follows needed pod naming convention
-        seq_filter_contains_implies_seq_contains(
-            next_local_state.needed, outdated_pod_filter(vsts), Some(outdated_pod)
-        );
+        seq_filter_is_a_subset_of_original_seq(next_local_state.needed, outdated_pod_filter(vsts));
     }
 }
 
@@ -4809,7 +4803,7 @@ ensures
                                     &&& PodView::unmarshal(s.resources()[pod.object_ref()])->Ok_0 == pod
                                 } by {
                                     PodView::marshal_preserves_integrity();
-                                    seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
+                                    seq_filter_is_a_subset_of_original_seq(pods, pod_filter(vsts));
                                     let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
                                     assert(objs.contains(objs[i]));
                                     assert(PodView::unmarshal(objs[i])->Ok_0 == pod);
@@ -4828,7 +4822,7 @@ ensures
                                 if condemned.len() > 0 {
                                     let condemned_pod = condemned[0];
                                     assert(condemned.to_set().contains(condemned_pod));
-                                    seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
+                                    seq_filter_is_a_subset_of_original_seq(filtered_pods, condemned_ord_filter);
                                     let ord = get_ordinal(vsts_name, condemned_pod.metadata.name->0)->0;
                                     get_ordinal_eq_pod_name(vsts_name, ord, condemned_pod.metadata.name->0);
                                     assert(condemned_pod.object_ref() == ObjectRef {
@@ -4875,7 +4869,7 @@ ensures
                                         assert(false);
                                     }
                                     let needed_pod = needed[ord as int]->0;
-                                    seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(vsts_name, ord), needed_pod);
+                                    seq_filter_is_a_subset_of_original_seq(filtered_pods, pod_has_ord(vsts_name, ord));
                                     assert(filtered_pods.contains(needed_pod)); // trigger
                                 }
                             }
@@ -4949,9 +4943,7 @@ ensures
                     if get_largest_unmatched_pods(vsts, local_state.needed) is Some {
                         assert(local_state.needed.filter(outdated_pod_filter(vsts)).len() > 0);
                         let outdated_pod = local_state.needed.filter(outdated_pod_filter(vsts))[0];
-                        seq_filter_contains_implies_seq_contains(
-                            local_state.needed, outdated_pod_filter(vsts), outdated_pod
-                        );
+                        seq_filter_is_a_subset_of_original_seq(local_state.needed, outdated_pod_filter(vsts));
                         assert(false);
                     }
                     assert(next_local_state.reconcile_step == Error || next_local_state.reconcile_step == Done);

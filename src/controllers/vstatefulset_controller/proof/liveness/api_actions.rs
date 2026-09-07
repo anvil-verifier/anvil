@@ -56,19 +56,7 @@ ensures
                 assert(resp_objs.no_duplicates()) by {
             lemma_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
         }
-        assert forall |o| #[trigger] resp_objs.contains(o) implies {
-            &&& o.kind == Kind::PodKind
-            &&& PodView::unmarshal(o) is Ok
-            &&& s_prime.resources().contains_key(o.object_ref())
-            &&& s_prime.resources()[o.object_ref()] == o
-            &&& o.metadata.namespace is Some
-            &&& o.metadata.namespace->0 == vsts.metadata.namespace->0
-            &&& o.metadata.name is Some
-        } by {
-            assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                lemma_set_to_seq_contains_all_elements(s.resources().values().filter(list_req_filter));
-            }
-        }
+        lemma_set_to_seq_contains_all_indices(s.resources().values().filter(list_req_filter));
         assert(objects_to_pods(resp_objs) is Some) by {
             seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                 resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Err
@@ -78,8 +66,6 @@ ensures
             assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j)
                 implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
                 if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
-                    assert(resp_objs.contains(resp_objs[i]));
-                    assert(resp_objs.contains(resp_objs[j])); // trigger of s.resources()[o.object_ref()] == o
                     assert(resp_objs[i] == resp_objs[j]);
                 }
             }
@@ -95,14 +81,14 @@ ensures
             assert(forall |obj| #[trigger] s_prime.resources().values().contains(obj) ==>
                 (list_req_filter(obj) && owner_ref_filter(obj) <==> valid_owned_object_filter(vsts)(obj)));
         }
-        assert forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) implies {
+        assert forall |i: int| #![trigger owned_objs[i]] 0 <= i < owned_objs.len() implies {
+            let obj = owned_objs[i];
             let key = obj.object_ref();
             let etcd_obj = s_prime.resources()[key];
             &&& s_prime.resources().contains_key(key)
             &&& weakly_eq(obj, etcd_obj)
         } by {
-            assert(owned_objs.to_set().contains(obj));
-            assert(s_prime.resources().values().contains(obj));
+            assert(owned_objs.to_set().contains(owned_objs[i]));
         }
     }
 }
@@ -489,9 +475,7 @@ ensures
                 &&& outdated_key.namespace == vsts.metadata.namespace->0
                 &&& pod_name_match(outdated_key.name, vsts.metadata.name->0)
             }) by {
-                seq_filter_contains_implies_seq_contains(
-                    state.needed, outdated_pod_filter(vsts), outdated_pod
-                );
+                seq_filter_is_a_subset_of_original_seq(state.needed, outdated_pod_filter(vsts));
             }
             if s.resources().contains_key(outdated_key) {
                 internal_rely_guarantee::lemma_no_interference_on_pods(s, s_prime, vsts, cluster, controller_id, req_msg);

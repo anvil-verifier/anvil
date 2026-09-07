@@ -116,13 +116,15 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods(
     // coherence with etcd which preserves across steps taken by other controllers satisfying rely conditions
     &&& owned_objs.to_set().map(|obj: DynamicObjectView| obj.object_ref())
         == s.resources().values().filter(valid_owned_object_filter(vsts)).map(|obj: DynamicObjectView| obj.object_ref())
-    &&& forall |obj: DynamicObjectView| #[trigger] owned_objs.contains(obj) ==> {
+    &&& forall |i: int| #![trigger owned_objs[i]] 0 <= i < owned_objs.len() ==> {
+        let obj = owned_objs[i];
         let key = obj.object_ref();
         let etcd_obj = s.resources()[key];
         &&& s.resources().contains_key(key)
         &&& weakly_eq(obj, etcd_obj)
     }
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+        let obj = resp_objs[i];
         &&& obj.kind == Kind::PodKind
         &&& PodView::unmarshal(obj) is Ok
         &&& obj.metadata.name is Some
@@ -1006,7 +1008,8 @@ pub open spec fn resp_msg_is_ok_list_resp_of_pods_after_current_state_matches(
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+    &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+        let obj = resp_objs[i];
         &&& obj.kind == Kind::PodKind
         &&& PodView::unmarshal(obj) is Ok
         &&& obj.metadata.name is Some

@@ -73,7 +73,7 @@ pub proof fn lemma_guarantee_from_reconcile_state(
             if let Some(pod) = get_largest_unmatched_pods(vsts, state.needed) {
                 assert(msg.content.is_get_then_delete_request());
                 let req = msg.content.get_get_then_delete_request();
-                seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(vsts), Some(pod));
+                seq_filter_is_a_subset_of_original_seq(state.needed, outdated_pod_filter(vsts));
                 assert(exists |i| 0 <= i < state.needed.len() && #[trigger] state.needed[i] == Some(pod));
                 assert(has_vsts_prefix(pod.metadata.name->0));
                 assert(req.key.name == pod.metadata.name->0);

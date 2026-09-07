@@ -435,9 +435,9 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                             &&& resp_objs.no_duplicates()
                             &&& resp_obj_keys.no_duplicates()
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                            &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]) is Ok
+                            &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace is Some
+                            &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace == vrs.metadata.namespace
                         }
                     };
                     assert((|resp_msg: Message| list_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
@@ -639,9 +639,9 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                         &&& resp_objs.no_duplicates()
                         &&& resp_obj_keys.no_duplicates()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                        &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]) is Ok
+                        &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace is Some
+                        &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace == vrs.metadata.namespace
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
@@ -912,9 +912,9 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                         &&& resp_objs.no_duplicates()
                         &&& resp_obj_keys.no_duplicates()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                        &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]) is Ok
+                        &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace is Some
+                        &&& forall |i: int| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> PodView::unmarshal(resp_objs[i]).unwrap().metadata.namespace == vrs.metadata.namespace
                         &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                     }
                 };

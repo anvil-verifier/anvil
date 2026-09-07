@@ -150,10 +150,8 @@ ensures
                                 if cr_key.namespace == vsts.metadata.namespace->0 {
                                     if obj.metadata.owner_references_contains(req_owner_ref) {
                                         assert(req_owner_ref != vsts.controller_owner_ref());
-                                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req_owner_ref));
-                                        lemma_singleton_contains_at_most_one_element(
-                                            obj.metadata.owner_references->0.filter(controller_owner_filter()), req_owner_ref, vsts.controller_owner_ref()
-                                        );
+                                        let ctrl_owners = obj.metadata.owner_references->0.filter(controller_owner_filter());
+                                        assert(ctrl_owners.contains(req_owner_ref));
                                     }
                                 } // or else, namespace is different, so should not be touched at all
                             }
@@ -763,9 +761,6 @@ ensures
                             objs,
                             |o: DynamicObjectView| PodView::unmarshal(o).is_err()
                         );
-                        assert forall |i| 0 <= i < objs.len() implies PodView::unmarshal(#[trigger] objs[i]) is Ok by {
-                            assert(objs.contains(objs[i]));
-                        }
                         let filtered_pods = pods.filter(pod_filter(vsts));
                         assert forall |pod: PodView| #[trigger] filtered_pods.contains(pod) implies {
                             &&& pod.metadata.name is Some
@@ -773,7 +768,7 @@ ensures
                             &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
                         } by {
                             PodView::marshal_preserves_metadata();
-                            seq_filter_contains_implies_seq_contains(pods, pod_filter(vsts), pod);
+                            seq_filter_is_a_subset_of_original_seq(pods, pod_filter(vsts));
                             let i = choose |i: int| 0 <= i < pods.len() && pods[i as int] == pod;
                             assert(PodView::unmarshal(objs[i as int]) is Ok);
                             assert(pod.metadata.namespace == objs[i as int].metadata.namespace);
@@ -789,7 +784,7 @@ ensures
                             &&& pod_name_match(pod.metadata.name->0, cr_key.name)
                             &&& pod.metadata.namespace == Some(vsts.metadata.namespace->0)
                         } by {
-                            seq_filter_contains_implies_seq_contains(filtered_pods, pod_has_ord(cr_key.name, ord), needed[ord as int]->0);
+                            seq_filter_is_a_subset_of_original_seq(filtered_pods, pod_has_ord(cr_key.name, ord));
                         }
                         let condemned_ord_filter = |pod: PodView| get_ordinal(cr_key.name, pod.metadata.name->0) is Some && get_ordinal(cr_key.name, pod.metadata.name->0)->0 >= replicas(vsts);
                         assert(condemned.to_set() == filtered_pods.filter(condemned_ord_filter).to_set()) by {
@@ -809,7 +804,7 @@ ensures
                                 assert(condemned.to_set().contains(condemned_pod));
                                 assert(filtered_pods.filter(condemned_ord_filter).contains(condemned_pod));
                             }
-                            seq_filter_contains_implies_seq_contains(filtered_pods, condemned_ord_filter, condemned_pod);
+                            seq_filter_is_a_subset_of_original_seq(filtered_pods, condemned_ord_filter);
                         }
                     }
                 }
@@ -889,8 +884,7 @@ ensures
                                     &&& o.object_ref().kind == req_msg.content.get_list_request().kind
                                 };
                                 let selected_elements = s.resources().values().filter(selector);
-                                assert(resp_objs.contains(resp_objs[i])); // trigger
-                                lemma_set_to_seq_contains_all_elements(selected_elements);
+                                lemma_set_to_seq_contains_all_indices(selected_elements);
                                 assert(s.resources().values().filter(selector).contains(resp_objs[i]));
                                 lemma_filter_set(s.resources().values(), selector);
                             }
@@ -1151,7 +1145,7 @@ pub proof fn internal_guarantee_condition_holds(
                                     assert(msg.content.is_get_then_delete_request());
                                     let req = msg.content.get_get_then_delete_request();
                                     if let Some(pod) = get_largest_unmatched_pods(triggering_vsts, state.needed) {
-                                        seq_filter_contains_implies_seq_contains(state.needed, outdated_pod_filter(triggering_vsts), Some(pod));
+                                        seq_filter_is_a_subset_of_original_seq(state.needed, outdated_pod_filter(triggering_vsts));
                                         // trigger for local_pods_and_pvcs_are_bound_to_vsts_with_key_in_local_state
                                         assert(exists |i: int| 0 <= i < state.needed.len() && #[trigger] state.needed[i] == Some(pod));
                                         assert(get_ordinal(vsts.metadata.name->0, pod.metadata.name->0) is Some);

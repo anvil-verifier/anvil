@@ -405,11 +405,8 @@ ensures
         let filter_result = model_input.filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err());
         assert(filter_result.len() == 0) by {
             if filter_result.len() != 0 {
-                seq_filter_contains_implies_seq_contains(
-                    model_input,
-                    |obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err(),
-                    filter_result[0]
-                );
+                seq_filter_is_a_subset_of_original_seq(model_input, |obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err());
+                assert(model_input.contains(filter_result[0]));
             }
         };
         assert(model_result.is_some());
@@ -464,7 +461,6 @@ ensures
     let ghost template_filter = esr_theorem::match_template_without_hash(vd@.spec.template);
     let ghost nonempty_vrs_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0;
     proof {
-        true_pred_on_all_element_equal_to_pred_on_all_index(vrs_list.deep_view(), valid_vrs);
         assert forall |i: int| 0 <= i < vrs_list@.len() implies #[trigger] vrs_list@[i].deep_view().state_validation() by {
             assert(esr_theorem::valid_owned_vrs(vrs_list[i]@, vd@));
         }
@@ -480,7 +476,6 @@ ensures
     );
     proof {
         true_pred_on_seq_implies_true_pred_on_filtered_seq(vrs_list.deep_view(), valid_vrs, template_filter);
-        true_pred_on_all_element_equal_to_pred_on_all_index(reusable_vrs_list.deep_view(), valid_vrs);
     }
 
     let mut reusable_vrs = Option::<VReplicaSet>::None;
@@ -494,7 +489,6 @@ ensures
         );
         proof {
             true_pred_on_seq_implies_true_pred_on_filtered_seq(reusable_vrs_list.deep_view(), valid_vrs, nonempty_vrs_filter);
-            true_pred_on_all_element_equal_to_pred_on_all_index(reusable_nonempty_vrs_list.deep_view(), valid_vrs);
         }
         if reusable_nonempty_vrs_list.len() > 0 {
             reusable_vrs = Some(reusable_nonempty_vrs_list[0].clone());
@@ -523,7 +517,6 @@ ensures
     );
     proof {
         true_pred_on_seq_implies_true_pred_on_filtered_seq(vrs_list.deep_view(), valid_vrs, old_vrs_filter);
-        true_pred_on_all_element_equal_to_pred_on_all_index(old_vrs_list.deep_view(), valid_vrs);
         assert forall |i: int| 0 <= i < old_vrs_list.len()
             implies #[trigger] esr_theorem::valid_owned_vrs(old_vrs_list[i]@, vd@) by {
             assert(valid_vrs(old_vrs_list.deep_view()[i]));

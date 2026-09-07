@@ -206,8 +206,7 @@ ensures
                                                 &&& owner_ref.name == cr_key.name
                                             }
                                         } by {
-                                        assert(filtered_pods.contains(filtered_pods[i]));
-                                        seq_filter_contains_implies_seq_contains(pods, pod_filter(vrs), filtered_pods[i]);
+                                        seq_filter_is_a_subset_of_original_seq(pods, pod_filter(vrs));
                                         let pod = filtered_pods[i];
                                         assert(pod.metadata.owner_references_contains(vrs.controller_owner_ref()));
                                         let owner_ref = vrs.controller_owner_ref();

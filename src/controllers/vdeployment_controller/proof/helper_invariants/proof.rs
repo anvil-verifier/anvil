@@ -348,11 +348,7 @@ ensures
                             assert(controller_owners[0] == triggering_cr.controller_owner_ref());
                             assert(controller_owners == seq![triggering_cr.controller_owner_ref()]);
                             assert(controller_owners.contains(triggering_cr.controller_owner_ref()));
-                            seq_filter_contains_implies_seq_contains(
-                                owners,
-                                |o: OwnerReferenceView| o.controller is Some && o.controller->0,
-                                triggering_cr.controller_owner_ref()
-                            );
+                            seq_filter_is_a_subset_of_original_seq(owners, |o: OwnerReferenceView| o.controller is Some && o.controller->0);
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
                         }
                     }
@@ -1061,18 +1057,12 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
             if (new_msgs.contains(msg)) {
                 if current_req_msg == req_msg {
                     let resp_objs = msg.content.get_list_response().res.unwrap();
-                    assert forall |o: DynamicObjectView| #[trigger] resp_objs.contains(o)
-                    implies !VReplicaSetView::unmarshal(o).is_err() by {
-                        // Tricky reasoning about .to_seq
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
-                            &&& o.object_ref().kind == req_msg.content.get_list_request().kind
-                        };
-                        let selected_elements = s.resources().values().filter(selector);
-                        lemma_set_to_seq_contains_all_elements(selected_elements);
-                        assert(resp_objs =~= selected_elements.to_seq());
-                        assert(selected_elements.contains(o));
-                    }
+                    let selector = |o: DynamicObjectView| {
+                        &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                        &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                    };
+                    assert(resp_objs =~= s.resources().values().filter(selector).to_seq());
+                    lemma_set_to_seq_contains_all_indices(s.resources().values().filter(selector));
                     seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                         resp_objs,
                         |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()
@@ -1084,14 +1074,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                         &&& resp_objs[i].kind == VReplicaSetView::kind()
                         &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
                     } by {
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
-                            &&& o.object_ref().kind == req_msg.content.get_list_request().kind
-                        };
-                        let selected_elements = s.resources().values().filter(selector);
-                        assert(resp_objs.contains(resp_objs[i])); // trigger
-                        lemma_set_to_seq_contains_all_elements(selected_elements);
-                        assert(s.resources().values().filter(selector).contains(resp_objs[i]));
                         lemma_filter_set(s.resources().values(), selector);
                     }
                 } else {
@@ -1186,7 +1168,7 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                     assert(resp_obj.metadata.owner_references is Some);
                     assert(resp_obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_owner_singleton) by {
                         assert(make_replica_set(triggering_cr).metadata.owner_references == Some(controller_owner_singleton));
-                        lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
+                        Seq::empty().lemma_filter_push(triggering_cr.controller_owner_ref(), controller_owner_filter());
                         assert(req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_owner_singleton);
                     }
                     assert(resp_obj.metadata == new_vrs.metadata);
@@ -1203,7 +1185,6 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                 assert(s.in_flight().contains(msg));
                 assert(controller_owners == controller_owner_singleton);
             }
-            assert(controller_owners == controller_owner_singleton);
         }
     }
 }
@@ -1266,11 +1247,7 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                 &&& filtered_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                 &&& controller_owners == controller_owner_singleton
             } by {
-                seq_filter_contains_implies_seq_contains(
-                    vrs_list,
-                    |vrs: VReplicaSetView| valid_owned_vrs(vrs, triggering_cr),
-                    filtered_vrs_list[i]
-                );
+                seq_filter_is_a_subset_of_original_seq(vrs_list, |vrs: VReplicaSetView| valid_owned_vrs(vrs, triggering_cr));
                 // Show that vrs_list[idx1] and filtered_vrs_list[i] have the same metadata.
                 let idx1 = choose |j| 0 <= j < vrs_list.len() && vrs_list[j] == filtered_vrs_list[i];
                 assert(vrs_list[idx1].metadata == filtered_vrs_list[i].metadata);
@@ -1280,11 +1257,9 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                 seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                     objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()
                 );
-                assert(objs.contains(objs[idx1]));
                 assert(VReplicaSetView::unmarshal(objs[idx1]).is_ok());
                 let unwrap_obj = |o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap();
                 assert(vrs_list == objs.map_values(unwrap_obj));
-                assert(objs.contains(objs[idx1]));
                 assert(objs[idx1].metadata == vrs_list[idx1].metadata);
                 // Show owner reference properties.
                 let controller_owners = filtered_vrs_list[i].metadata.owner_references->0.filter(controller_owner_filter());
@@ -1317,15 +1292,10 @@ ensures vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd_with_k
                 &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                 &&& controller_owners == controller_owner_singleton
             } by {
-                assert(old_vrs_list.contains(old_vrs_list[i]));
-                seq_filter_contains_implies_seq_contains(
-                    filtered_vrs_list,
-                    |vrs: VReplicaSetView| {
-                        &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
-                        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-                    },
-                    old_vrs_list[i]
-                );
+                seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, |vrs: VReplicaSetView| {
+                    &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
+                    &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+                });
             }
         }
         if reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS && is_ok_resp(cr_msg.content->APIResponse_0) {
