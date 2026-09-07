@@ -170,6 +170,7 @@ ensures
     spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)))
        .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), ru_exists_pending_list_resp_in_flight_and_match_req(vd, controller_id, new_vrs.object_ref()))))),
 {
+    hide(ru_resp_msg_is_ok_list_resp_containing_matched_vrs);
     hide(is_ascii_chars);
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
