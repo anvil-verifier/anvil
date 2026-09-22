@@ -465,6 +465,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
 }
 
 #[verifier(spinoff_prover)]
+#[verifier(rlimit(50))]
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: Message
 )
