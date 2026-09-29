@@ -22,6 +22,7 @@ verus! {
 
 // -------------- Leads-to Chaining Reasoning --------------
 
+#[verifier(rlimit(50))]
 pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
 )
