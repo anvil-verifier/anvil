@@ -452,6 +452,9 @@ proof fn lemma_new_vrs_replicas_diff_never_increases(
                     assert(get_replicas(new_vrs_prime.spec.replicas) == get_replicas(req_vrs.spec.replicas));
                     replicas_diff(vd, new_vrs_prime)
                 } else {
+                    // the only other pending request is the list request
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s));
+                    assert(s_prime.resources() == s.resources());
                     n
                 }
             } else {
@@ -470,125 +473,6 @@ proof fn lemma_new_vrs_replicas_diff_never_increases(
             n
         }
     }
-}
-
-proof fn lemma_true_leads_to_reconcile_idle(vd: VDeploymentView, cluster: Cluster, controller_id: int)
-    requires
-        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    ensures
-        assumption_and_invariants_of_all_phases(vd, cluster, controller_id).entails(true_pred().leads_to(lift_state(
-            |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-        ))),
-{
-    let spec = assumption_and_invariants_of_all_phases(vd, cluster, controller_id);
-    terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-    spec_entails_tla_forall_apply(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), vd.object_ref());
-}
-
-proof fn lemma_reconcile_scheduled_leads_to_init(vd: VDeploymentView, cluster: Cluster, controller_id: int)
-    requires
-        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    ensures
-        assumption_and_invariants_of_all_phases(vd, cluster, controller_id).entails(lift_state(|s: ClusterState| {
-            &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-            &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
-        }).leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![Init]),
-            no_pending_req_in_cluster(vd, controller_id)
-        )))),
-{
-    let spec = assumption_and_invariants_of_all_phases(vd, cluster, controller_id);
-    let reconcile_scheduled = |s: ClusterState| {
-        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-        &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
-    };
-    let init = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
-        no_pending_req_in_cluster(vd, controller_id)
-    );
-    let input = (None, Some(vd.object_ref()));
-    let stronger_next = |s, s_prime| {
-        &&& cluster.next()(s, s_prime)
-        &&& Cluster::crash_disabled(controller_id)(s)
-        &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
-        &&& helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime)
-        &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
-    };
-    always_to_always_later(spec, lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-        later(lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id))),
-        later(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))
-    );
-    assert forall |s, s_prime| reconcile_scheduled(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies init(s_prime) by {
-        VDeploymentReconcileState::marshal_preserves_integrity();
-        lemma_cr_fields_eq_to_cr_predicates_eq(vd, controller_id, s_prime);
-    }
-    cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, reconcile_scheduled, init
-    );
-}
-
-// true ~> reconcile_idle ~> reconcile_scheduled ~> init, same as lemma_true_leads_to_always_current_state_matches
-proof fn lemma_true_leads_to_init(vd: VDeploymentView, cluster: Cluster, controller_id: int)
-    requires
-        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    ensures
-        assumption_and_invariants_of_all_phases(vd, cluster, controller_id).entails(true_pred().leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![Init]),
-            no_pending_req_in_cluster(vd, controller_id)
-        )))),
-{
-    let spec = assumption_and_invariants_of_all_phases(vd, cluster, controller_id);
-    always_to_always_later(spec, lift_state(desired_state_is(vd)));
-    let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref());
-    lemma_true_leads_to_reconcile_idle(vd, cluster, controller_id);
-    let reconcile_scheduled = |s: ClusterState| {
-        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-        &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
-    };
-    assert(spec.entails(lift_state(reconcile_idle).leads_to(lift_state(reconcile_scheduled)))) by {
-        let input = vd.object_ref();
-        let stronger_reconcile_idle = |s: ClusterState| {
-            &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
-            &&& !s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
-        };
-        let stronger_next = |s, s_prime| {
-            &&& cluster.next()(s, s_prime)
-            &&& desired_state_is(vd)(s)
-            &&& desired_state_is(vd)(s_prime)
-        };
-        combine_spec_entails_always_n!(
-            spec, lift_action(stronger_next),
-            lift_action(cluster.next()),
-            lift_state(desired_state_is(vd)),
-            later(lift_state(desired_state_is(vd)))
-        );
-        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(
-            spec, controller_id, input, stronger_next, and!(stronger_reconcile_idle, desired_state_is(vd)), reconcile_scheduled
-        );
-        temp_pred_equality(
-            lift_state(stronger_reconcile_idle).and(lift_state(desired_state_is(vd))),
-            lift_state(and!(stronger_reconcile_idle, desired_state_is(vd)))
-        );
-        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
-        entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
-        or_leads_to(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
-        temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
-    }
-    let init = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
-        no_pending_req_in_cluster(vd, controller_id)
-    );
-    lemma_reconcile_scheduled_leads_to_init(vd, cluster, controller_id);
-    leads_to_trans_n!(spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init));
 }
 
 // Ranking of iterative_esr decreases: once the new vrs stably has diff > 0 replicas to go, the vd controller scales it
