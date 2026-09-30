@@ -80,7 +80,7 @@ See [build.md](./build.md).
 
 ## Publications
 
-- [Welder: Compositional Liveness Verification of Cluster Control Planes](https://cathy-cai.page/pubs/welder26.pdf) <br>
+- [Welder: Compositional Liveness Verification of Cluster Control Planes](https://dl.acm.org/doi/10.1145/3830418.3843868) <br>
 Zhizhen Cathy Cai, Nikhil Date, Jiawei Tyler Gu, Cody Rivera, Tej Chajed, Oded Padon, Tianyin Xu, and Xudong Sun. In Proceedings of the 32nd ACM Symposium on Operating Systems Principles (SOSP'26), Prague, Czechia, Sep. 2026.
 
 - [Anvil: Verifying Liveness of Cluster Management Controllers](https://www.usenix.org/conference/osdi24/presentation/sun-xudong) <br>
