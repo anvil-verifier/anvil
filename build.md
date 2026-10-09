@@ -49,7 +49,7 @@ cargo verus verify --lib -- --rlimit 50 --verify-only-module composition
 cargo verus verify --lib -- --rlimit 50 --verify-only-module tla_demo
 ```
 
-Pass extra Verus flags after `--`; CI verifies with `--rlimit 50`. Replace `--lib` with `--bin <name>` to verify a specific binary's own source.
+Pass extra Verus flags after `--`; Replace `--lib` with `--bin <name>` to verify a specific binary's own source.
 
 ## Build and test
 
