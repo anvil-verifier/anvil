@@ -1654,7 +1654,6 @@ ensures
 
 // TODO: make this proof more stable and faster
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(20))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )

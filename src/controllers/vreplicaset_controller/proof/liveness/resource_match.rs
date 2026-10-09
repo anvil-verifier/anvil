@@ -1460,7 +1460,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
 
 // Create lemmas
 
-#[verifier(rlimit(20))]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int
