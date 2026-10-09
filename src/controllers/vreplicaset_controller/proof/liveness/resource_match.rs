@@ -22,7 +22,6 @@ verus! {
 
 // -------------- Leads-to Chaining Reasoning --------------
 
-#[verifier(rlimit(50))]
 pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
 )
@@ -1330,7 +1329,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     );
 }
 
-#[verifier(rlimit(50))]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message
@@ -1460,7 +1458,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(
 
 // Create lemmas
 
-#[verifier(rlimit(20))]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int
