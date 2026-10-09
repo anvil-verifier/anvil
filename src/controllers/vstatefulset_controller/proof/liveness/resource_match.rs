@@ -2427,7 +2427,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_spec_entails_after_update_needed_leads_to_next_state(
     vsts: VStatefulSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, needed_index: nat, condemned_len: nat, outdated_len: nat

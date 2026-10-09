@@ -37,16 +37,16 @@ Most verification targets are library modules (under `src/controllers/`, `src/ku
 
 ```sh
 # Verify the entire Anvil framework + every controller and proof:
-cargo verus verify --lib -- --rlimit 50
+cargo verus verify --lib -- --rlimit 100
 
 # Verify a single controller, scoped to its module:
-cargo verus verify --lib -- --rlimit 50 --verify-only-module vreplicaset_controller
+cargo verus verify --lib -- --rlimit 100 --verify-only-module vreplicaset_controller
 
 # Verify the composition proofs:
-cargo verus verify --lib -- --rlimit 50 --verify-only-module composition
+cargo verus verify --lib -- --rlimit 100 --verify-only-module composition
 
 # Verify the TLA demo (proof code lives in src/tla_demo.rs):
-cargo verus verify --lib -- --rlimit 50 --verify-only-module tla_demo
+cargo verus verify --lib -- --rlimit 100 --verify-only-module tla_demo
 ```
 
 Pass extra Verus flags after `--`; Replace `--lib` with `--bin <name>` to verify a specific binary's own source.

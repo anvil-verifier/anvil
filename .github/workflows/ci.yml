@@ -60,7 +60,7 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           export PATH="$PATH:$HOME/verus/source/target-verus/release"
-          cargo verus verify --lib -- --rlimit 50
+          cargo verus verify --lib -- --rlimit 100
 
   vreplicaset-admission-e2e-test:
     needs: setup-toolchain
