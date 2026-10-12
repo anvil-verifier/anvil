@@ -300,7 +300,6 @@ pub proof fn lemma_true_leads_to_init(vd: VDeploymentView, cluster: Cluster, con
     leads_to_trans_n!(spec, true_pred(), lift_state(reconcile_idle), lift_state(reconcile_scheduled), lift_state(init));
 }
 
-#[verifier(rlimit(20))]
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.

@@ -178,7 +178,6 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
     );
 }
 
-#[verifier(rlimit(50))]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, i: nat)
     requires
         1 <= i <= 5,
@@ -620,7 +619,6 @@ proof fn spec_entails_pending_req_or_resp_in_flight_at_afterdeleteoutdated_for_k
     cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, key, at_step_or![AfterDeleteOutdated]);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -638,7 +636,6 @@ pub proof fn spec_entails_pending_request_invariants_part1(spec: TempPred<Cluste
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init])));
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 proof fn spec_entails_no_pending_req_msg_at_done_for_key(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
     requires
@@ -657,7 +654,6 @@ proof fn spec_entails_no_pending_req_msg_at_done_for_key(spec: TempPred<ClusterS
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, cluster.reconcile_model(controller_id).done);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part2_done(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -730,7 +726,6 @@ proof fn spec_entails_no_pending_req_msg_at_get_pvc_for_key(spec: TempPred<Clust
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_or![GetPVC]);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part3_get_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -747,7 +742,6 @@ pub proof fn spec_entails_pending_request_invariants_part3_get_pvc(spec: TempPre
     spec_entails_always_tla_forall_equality(spec, |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC])));
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part3_create_pvc(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -797,7 +791,6 @@ pub proof fn spec_entails_pending_request_invariants_part4(spec: TempPred<Cluste
     spec_entails_pending_request_invariants_part4_update_needed(spec, cluster, controller_id);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part4_create_needed(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -834,7 +827,6 @@ proof fn spec_entails_no_pending_req_msg_at_update_needed_for_key(spec: TempPred
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_or![UpdateNeeded]);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part4_update_needed(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
@@ -888,7 +880,6 @@ proof fn spec_entails_no_pending_req_msg_at_delete_outdated_for_key(spec: TempPr
     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, key, at_step_or![DeleteOutdated]);
 }
 
-#[verifier(rlimit(50))]
 #[verifier(spinoff_prover)]
 pub proof fn spec_entails_pending_request_invariants_part5(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
