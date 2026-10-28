@@ -25,6 +25,8 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 
 #[verifier(spinoff_prover)]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)

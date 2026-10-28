@@ -14,6 +14,8 @@ use vstd::{prelude::*, multiset::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -225,8 +227,6 @@ pub proof fn lemma_reconcile_scheduled_leads_to_init(vd: VDeploymentView, cluste
         &&& helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)(s_prime)
         &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(helper_invariants::vd_in_reconciles_has_the_same_spec_uid_name_namespace_and_labels_as_vd(vd, controller_id)));
-    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -256,7 +256,6 @@ pub proof fn lemma_true_leads_to_init(vd: VDeploymentView, cluster: Cluster, con
         )))),
 {
     let spec = assumption_and_invariants_of_all_phases(vd, cluster, controller_id);
-    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref());
     lemma_true_leads_to_reconcile_idle(vd, cluster, controller_id);
     let reconcile_scheduled = |s: ClusterState| {
@@ -288,8 +287,6 @@ pub proof fn lemma_true_leads_to_init(vd: VDeploymentView, cluster: Cluster, con
             lift_state(and!(stronger_reconcile_idle, desired_state_is(vd)))
         );
         leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(desired_state_is(vd)));
-        entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
-        or_leads_to(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
         temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
     }
     let init = and!(
@@ -343,7 +340,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             let s = ex.head();
             assert(current_state_matches_with_new_vrs_key(vd, new_vrs_key)(s));
         }
-        entails_implies_leads_to(spec, lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
         let stronger_next = |s, s_prime| {
             &&& cluster.next()(s, s_prime)
             &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
@@ -355,7 +351,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             lift_state(vd_rely_condition(cluster, controller_id)),
             lifted_vd_rely_condition(cluster, controller_id)
         );
-        always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
         combine_spec_entails_always_n!(spec,
             lift_action(stronger_next),
             lift_action(cluster.next()),
@@ -370,7 +365,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         }
         leads_to_stable(spec, lift_action(stronger_next), lifted_done(new_vrs_key), lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)));
     }
-    leads_to_exists_pointwise(spec, lifted_done, |new_vrs_key: ObjectRef| always(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key))));
     leads_to_trans_n!(spec,
         true_pred(),
         lift_state(init),
@@ -402,15 +396,12 @@ pub proof fn lemma_vd_composed_eventually_stable_reconciliation(
     vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
 
     // Extract always(lift_action(cluster.next())) from next_with_wf
-    entails_trans(spec, next_with_wf(cluster, controller_id), always(lift_action(cluster.next())));
 
     // Derive always(lifted_vd_reconcile_request_only_interferes_with_itself)
     assert(spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))) by {
         assert forall |vd| #[trigger] spec.entails(always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))) by {
             helper_invariants::lemma_always_vd_reconcile_request_only_interferes_with_itself(spec, cluster, controller_id, vd);
         }
-        spec_entails_tla_forall(spec, |vd| always(lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
-        spec_entails_always_tla_forall_equality(spec, |vd| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)));
         only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself(spec, cluster, controller_id);
     }
 
@@ -425,13 +416,6 @@ pub proof fn lemma_vd_composed_eventually_stable_reconciliation(
         spec_entails_always_desired_state_is_leads_to_assumption_and_invariants_of_all_phases(spec, vd, cluster, controller_id);
         rolling_update_leads_to_composed_current_state_matches_vd(spec, vd, controller_id, cluster);
     }
-    spec_entails_tla_forall(spec, |vd: VDeploymentView|
-        always(lift_state(desired_state_is(vd))).leads_to(
-            always(lift_state(composed_current_state_matches(vd)))));
-    tla_forall_p_tla_forall_q_equality(
-        |vd: VDeploymentView| composed_vd_eventually_stable_reconciliation_per_cr()(vd),
-        |vd: VDeploymentView| always(lift_state(desired_state_is(vd))).leads_to(always(lift_state(composed_current_state_matches(vd))))
-    );
 }
 
 }

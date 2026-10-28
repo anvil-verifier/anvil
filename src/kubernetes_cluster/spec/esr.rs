@@ -7,6 +7,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 // This desired_state_is specifies what the desired state looks like (described in the cr object).

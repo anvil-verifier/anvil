@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // ============================================================
 // Concrete id assignment and cluster instantiation
 // ============================================================
@@ -196,7 +198,6 @@ pub proof fn vrs_vd_core_holds(cluster: CoreCluster)
         assert(s1.members.contains(vrs_id()));
         tla_forall_apply(esr_fn_s1, vrs_id());
         entails_trans(spec.and(esr_s1), esr_s1, s2.liveness_dependency);
-        entails_implies(spec, esr_s1, s2.liveness_dependency);
     }
 
     assert(compatible(cluster, s1, s2)) by {
@@ -205,8 +206,6 @@ pub proof fn vrs_vd_core_holds(cluster: CoreCluster)
         let r12_fn = |pair: (int, int)| if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
         let r21_fn = |pair: (int, int)| if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-        entails_preserved_by_always(lift_state(vrs_guarantee(vrs_id())), lift_state(vd_rely(vrs_id())));
-        entails_preserved_by_always(lift_state(vd_guarantee(vd_id())), lift_state(vrs_rely(vd_id())));
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s1)).entails(#[trigger] r21_fn(pair)) by {
             if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) {
@@ -215,8 +214,6 @@ pub proof fn vrs_vd_core_holds(cluster: CoreCluster)
                 entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vrs_guarantee(vrs_id()))), always(lift_state(vd_rely(vrs_id()))));
             }
         }
-        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s1)), r21_fn);
-        entails_implies(spec, tla_forall(g_fn_s1), tla_forall(r21_fn));
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s2)).entails(#[trigger] r12_fn(pair)) by {
             if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) {
@@ -225,10 +222,7 @@ pub proof fn vrs_vd_core_holds(cluster: CoreCluster)
                 entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(vd_guarantee(vd_id()))), always(lift_state(vrs_rely(vd_id()))));
             }
         }
-        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
-        entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
 
-        entails_and(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose_dep(cluster, s1, s2);
@@ -257,7 +251,6 @@ pub proof fn vsts_rmq_core_holds(cluster: CoreCluster)
         assert(s1.members.contains(vsts_id()));
         tla_forall_apply(esr_fn_s1, vsts_id());
         entails_trans(spec.and(esr_s1), esr_s1, s2.liveness_dependency);
-        entails_implies(spec, esr_s1, s2.liveness_dependency);
     }
 
     assert(compatible(cluster, s1, s2)) by {
@@ -266,8 +259,6 @@ pub proof fn vsts_rmq_core_holds(cluster: CoreCluster)
         let r12_fn = |pair: (int, int)| if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
         let r21_fn = |pair: (int, int)| if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) { (cluster.registry[pair.0].safety_partial_rely)(pair.1) } else { true_pred::<ClusterState>() };
 
-        entails_preserved_by_always(lift_state(vsts_guarantee(vsts_id())), lift_state(rmq_rely(vsts_id())));
-        entails_preserved_by_always(lift_state(rmq_guarantee(rmq_id())), lift_state(vsts_rely(rmq_id())));
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s1)).entails(#[trigger] r21_fn(pair)) by {
             if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) {
@@ -276,8 +267,6 @@ pub proof fn vsts_rmq_core_holds(cluster: CoreCluster)
                 entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vsts_guarantee(vsts_id()))), always(lift_state(rmq_rely(vsts_id()))));
             }
         }
-        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s1)), r21_fn);
-        entails_implies(spec, tla_forall(g_fn_s1), tla_forall(r21_fn));
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s2)).entails(#[trigger] r12_fn(pair)) by {
             if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) {
@@ -286,10 +275,7 @@ pub proof fn vsts_rmq_core_holds(cluster: CoreCluster)
                 entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(rmq_guarantee(rmq_id()))), always(lift_state(vsts_rely(rmq_id()))));
             }
         }
-        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
-        entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
 
-        entails_and(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose_dep(cluster, s1, s2);
@@ -350,14 +336,6 @@ proof fn all_core_holds(cluster: CoreCluster)
 
         // Lift pointwise implications through always(...). Verus derives the
         // 6 cross-kind implications directly (same pattern as VRS/VD).
-        entails_preserved_by_always(lift_state(vrs_guarantee(vrs_id())), lift_state(vsts_rely(vrs_id())));
-        entails_preserved_by_always(lift_state(vrs_guarantee(vrs_id())), lift_state(rmq_rely(vrs_id())));
-        entails_preserved_by_always(lift_state(vd_guarantee(vd_id())), lift_state(vsts_rely(vd_id())));
-        entails_preserved_by_always(lift_state(vd_guarantee(vd_id())), lift_state(rmq_rely(vd_id())));
-        entails_preserved_by_always(lift_state(vsts_guarantee(vsts_id())), lift_state(vrs_rely(vsts_id())));
-        entails_preserved_by_always(lift_state(vsts_guarantee(vsts_id())), lift_state(vd_rely(vsts_id())));
-        entails_preserved_by_always(lift_state(rmq_guarantee(rmq_id())), lift_state(vrs_rely(rmq_id())));
-        entails_preserved_by_always(lift_state(rmq_guarantee(rmq_id())), lift_state(vd_rely(rmq_id())));
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s1)).entails(#[trigger] r21_fn(pair)) by {
             if s2.members.contains(pair.0) && !s2.members.contains(pair.1) && s1.members.contains(pair.1) {
@@ -371,8 +349,6 @@ proof fn all_core_holds(cluster: CoreCluster)
                 entails_trans(spec.and(tla_forall(g_fn_s1)), always(lift_state(vd_guarantee(vd_id()))), always(lift_state(rmq_rely(vd_id()))));
             }
         }
-        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s1)), r21_fn);
-        entails_implies(spec, tla_forall(g_fn_s1), tla_forall(r21_fn));
 
         assert forall |pair: (int, int)| spec.and(tla_forall(g_fn_s2)).entails(#[trigger] r12_fn(pair)) by {
             if s1.members.contains(pair.0) && !s1.members.contains(pair.1) && s2.members.contains(pair.1) {
@@ -386,9 +362,6 @@ proof fn all_core_holds(cluster: CoreCluster)
                 entails_trans(spec.and(tla_forall(g_fn_s2)), always(lift_state(rmq_guarantee(rmq_id()))), always(lift_state(vd_rely(rmq_id()))));
             }
         }
-        spec_entails_tla_forall(spec.and(tla_forall(g_fn_s2)), r12_fn);
-        entails_implies(spec, tla_forall(g_fn_s2), tla_forall(r12_fn));
-        entails_and(spec, tla_forall(g_fn_s1).implies(tla_forall(r21_fn)), tla_forall(g_fn_s2).implies(tla_forall(r12_fn)));
     }
 
     compose(cluster, s1, s2);

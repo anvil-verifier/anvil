@@ -22,6 +22,8 @@ use vstd::prelude::*;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn lemma_from_init_to_not_desired_state_is(vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, new_vrs: VReplicaSetView, diff: nat)
 requires
     diff > 0,
@@ -81,7 +83,6 @@ ensures
         lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp_with_nv(vd, spec, cluster, controller_id, req_msg, new_vrs, diff);
     };
     // \A |msg| (list_req_msg(msg) ~> list_resp) |= (\E |msg| list_resp_msg(msg)) ~> list_resp
-    leads_to_exists_intro(spec, list_req_msg, list_resp);
     let list_resp_msg = |msg| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         ru_resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg, new_vrs.object_ref())
@@ -118,7 +119,6 @@ ensures
             vd, spec, cluster, controller_id, msg, new_vrs, diff
         );
     }
-    leads_to_exists_intro(spec, list_resp_msg, scale_nv_req);
     let scale_nv_req_msg = |msg| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
         local_state_at_after_scale_vrs(vd, controller_id, new_vrs.object_ref()),
@@ -143,10 +143,8 @@ ensures
                 vd, spec, cluster, controller_id, msg, new_vrs, diff
             );
         }
-        entails_implies_leads_to(spec, pre_post, neg_post);
         leads_to_trans(spec, scale_nv_req_msg(msg), pre_post, neg_post);
     }
-    leads_to_exists_intro(spec, scale_nv_req_msg, neg_post);
     leads_to_trans_n!(spec, init, list_resp, scale_nv_req, neg_post);
 }
 

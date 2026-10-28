@@ -29,6 +29,8 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     always(lift_action(cluster.next()))
     .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
@@ -44,7 +46,6 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
 pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(next_with_wf(cluster, controller_id))),
 {
-    always_p_is_stable(lift_action(cluster.next()));
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.api_server_next());
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.builtin_controllers_next());
     cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
@@ -52,21 +53,9 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
     assert(valid(stable(cluster.disable_crash().weak_fairness(controller_id)))) by {
         let split_always = always(lift_state(cluster.disable_crash().pre(controller_id))).implies(eventually(lift_action(cluster.disable_crash().forward(controller_id))));
-        always_p_is_stable::<ClusterState>(split_always);
     }
     Cluster::action_weak_fairness_is_stable(cluster.disable_req_drop());
     Cluster::action_weak_fairness_is_stable(cluster.disable_pod_monkey());
-    stable_and_n!(
-        always(lift_action(cluster.next())),
-        tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
-        tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
-        tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
-        tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
-        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))),
-        cluster.disable_crash().weak_fairness(controller_id),
-        cluster.disable_req_drop().weak_fairness(()),
-        cluster.disable_pod_monkey().weak_fairness(())
-    );
 }
 
 // Pending request invariants for all reconcile states
@@ -131,26 +120,6 @@ pub proof fn spec_entails_pending_request_invariants_combine(spec: TempPred<Clus
     let a_to_p_15 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded])));
     let a_to_p_16 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned])));
     let a_to_p_17 = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated])));
-    combine_spec_entails_always_n!(spec,
-        pending_request_invariants(cluster, controller_id),
-        a_to_p_1,
-        a_to_p_2,
-        a_to_p_3,
-        a_to_p_4,
-        a_to_p_5,
-        a_to_p_6,
-        a_to_p_7,
-        a_to_p_8,
-        a_to_p_9,
-        a_to_p_10,
-        a_to_p_11,
-        a_to_p_12,
-        a_to_p_13,
-        a_to_p_14,
-        a_to_p_15,
-        a_to_p_16,
-        a_to_p_17
-    );
 }
 
 pub open spec fn derived_invariants_since_beginning(vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
@@ -220,99 +189,11 @@ pub proof fn spec_entails_derived_invariants_combine(spec: TempPred<ClusterState
         spec.entails(derived_invariants_since_beginning(vsts, cluster, controller_id)),
 {
     let a_to_p = |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()));
-    entails_and_n!(spec,
-        always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
-        always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
-        always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))),
-        always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())),
-        always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
-        always(lift_state(Cluster::etcd_objects_have_unique_uids())),
-        always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
-        always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())),
-        always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))),
-        always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
-        always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())),
-        always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id))),
-        always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))),
-        always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))),
-        always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
-        always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))),
-        always(tla_forall(a_to_p)),
-        always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
-        always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
-        always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
-        always(pending_request_invariants(cluster, controller_id)),
-        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))),
-        always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
-        always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())),
-        always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())),
-        always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))),
-        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))),
-        always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
-    );
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(derived_invariants_since_beginning(vsts, cluster, controller_id))),
 {
-    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_unique_id()));
-    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()));
-    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()));
-    always_p_is_stable(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)));
-    always_p_is_stable(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()));
-    always_p_is_stable(lift_state(Cluster::etcd_objects_have_unique_uids()));
-    always_p_is_stable(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()));
-    always_p_is_stable(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()));
-    always_p_is_stable(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)));
-    always_p_is_stable(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
-    always_p_is_stable(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()));
-    always_p_is_stable(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id)));
-    always_p_is_stable(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)));
-    always_p_is_stable(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)));
-    always_p_is_stable(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)));
-    always_p_is_stable(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)));
-    always_p_is_stable(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref()))));
-    always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
-    always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
-    always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id)));
-    always_p_is_stable(pending_request_invariants(cluster, controller_id));
-    always_p_is_stable(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)));
-    always_p_is_stable(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
-    always_p_is_stable(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref()));
-    always_p_is_stable(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts()));
-    always_p_is_stable(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id)));
-    always_p_is_stable(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id)));
-    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)));
-    stable_and_n!(
-        always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
-        always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())),
-        always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))),
-        always(lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id())),
-        always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())),
-        always(lift_state(Cluster::etcd_objects_have_unique_uids())),
-        always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())),
-        always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>())),
-        always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id))),
-        always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
-        always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())),
-        always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VStatefulSetView>(controller_id))),
-        always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))),
-        always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))),
-        always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
-        always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id))),
-        always(tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())))),
-        always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
-        always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
-        always(lift_state(Cluster::cr_states_are_unmarshallable::<VStatefulSetReconcileState, VStatefulSetView>(controller_id))),
-        always(pending_request_invariants(cluster, controller_id)),
-        always(lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id))),
-        always(lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests())),
-        always(lift_state(helper_invariants::all_pvcs_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_or_owner_ref())),
-        always(lift_state(helper_invariants::buildin_controllers_do_not_delete_pvcs_owned_by_vsts())),
-        always(lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id))),
-        always(lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VStatefulSetView>(controller_id))),
-        always(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)))
-    );
 }
 
 // The invariants that hold throughout the execution (next + weak fairness + derived invariants)
@@ -325,10 +206,6 @@ pub proof fn invariants_is_stable(vsts: VStatefulSetView, cluster: Cluster, cont
 {
     next_with_wf_is_stable(cluster, controller_id);
     derived_invariants_since_beginning_is_stable(vsts, cluster, controller_id);
-    stable_and_n!(
-        next_with_wf(cluster, controller_id),
-        derived_invariants_since_beginning(vsts, cluster, controller_id)
-    );
 }
 
 // Phase I: crash, req_drop, pod_monkey disabled, schedule_has_spec, schedule_has_name_namespace, schedule_has_no_deletion_timestamp
@@ -344,14 +221,6 @@ pub open spec fn invariants_since_phase_i(controller_id: int, vsts: VStatefulSet
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vsts: VStatefulSetView)
     ensures valid(stable(invariants_since_phase_i(controller_id, vsts))),
 {
-    stable_and_always_n!(
-        lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vsts)),
-        lift_state(helper_invariants::vsts_in_schedule_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
-        lift_state(helper_invariants::vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id))
-    );
 }
 
 // Phase II: reconcile_has_spec, no pending requests from non-controllers, pending req xor, reconcile_has_name_namespace, ongoing_reconciles_has_no_deletion_timestamp
@@ -367,13 +236,6 @@ pub open spec fn invariants_since_phase_ii(controller_id: int, vsts: VStatefulSe
 pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vsts: VStatefulSetView)
     ensures valid(stable(invariants_since_phase_ii(controller_id, vsts))),
 {
-    stable_and_always_n!(
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vsts)),
-        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vsts.object_ref())),
-        lift_state(helper_invariants::vsts_in_reconciles_has_the_same_name_and_namespace_as_vsts(vsts, controller_id)),
-        lift_state(helper_invariants::vsts_in_ongoing_reconciles_has_no_deletion_timestamp(vsts, controller_id))
-    );
 }
 
 // Phase III: every msg from key is pending req msg, all pod requests carry correct owner ref
@@ -386,10 +248,6 @@ pub open spec fn invariants_since_phase_iii(vsts: VStatefulSetView, cluster: Clu
 pub proof fn invariants_since_phase_iii_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iii(vsts, cluster, controller_id))),
 {
-    stable_and_always_n!(
-        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vsts.object_ref())),
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(helper_invariants::all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id)))
-    );
 }
 
 // Phase IV: 3 message-type owner ref invariants + builtin_controllers_do_not_delete_pods_owned_by_vsts
@@ -410,18 +268,6 @@ pub open spec fn invariants_since_phase_iv(vsts: VStatefulSetView, cluster: Clus
 pub proof fn invariants_since_phase_iv_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iv(vsts, cluster, controller_id))),
 {
-    stable_and_always_n!(
-        lift_state(Cluster::every_create_msg_sets_owner_references_as_for_all(
-            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
-        )),
-        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(
-            cluster.installed_types, helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
-        )),
-        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(
-            helper_invariants::is_vsts_pod_key(vsts), helper_invariants::owner_reference_requirements(vsts)
-        )),
-        lift_state(helper_invariants::buildin_controllers_do_not_delete_pods_owned_by_vsts(vsts))
-    );
 }
 
 // Phase V: all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp
@@ -433,7 +279,6 @@ pub open spec fn invariants_since_phase_v(vsts: VStatefulSetView, cluster: Clust
 pub proof fn invariants_since_phase_v_is_stable(vsts: VStatefulSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_v(vsts, cluster, controller_id))),
 {
-    always_p_is_stable(lift_state(helper_invariants::all_pods_in_etcd_matching_vsts_have_correct_owner_ref_and_no_deletion_timestamp(vsts)));
 }
 
 // The combination of invariants and all phases
@@ -455,21 +300,11 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vsts: VStatefulSe
 {
     reveal_with_fuel(spec_before_phase_n, 5);
     invariants_is_stable(vsts, cluster, controller_id);
-    always_p_is_stable(lift_state(Cluster::desired_state_is(vsts)));
     invariants_since_phase_i_is_stable(controller_id, vsts);
     invariants_since_phase_ii_is_stable(controller_id, vsts);
     invariants_since_phase_iii_is_stable(vsts, cluster, controller_id);
     invariants_since_phase_iv_is_stable(vsts, cluster, controller_id);
     invariants_since_phase_v_is_stable(vsts, cluster, controller_id);
-    stable_and_n!(
-        invariants(vsts, cluster, controller_id),
-        always(lift_state(Cluster::desired_state_is(vsts))),
-        invariants_since_phase_i(controller_id, vsts),
-        invariants_since_phase_ii(controller_id, vsts),
-        invariants_since_phase_iii(vsts, cluster, controller_id),
-        invariants_since_phase_iv(vsts, cluster, controller_id),
-        invariants_since_phase_v(vsts, cluster, controller_id)
-    );
 }
 
 pub open spec fn invariants_since_phase_n(n: nat, vsts: VStatefulSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
@@ -513,13 +348,6 @@ pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
-    always_p_is_stable(lift_state(vsts_rely_conditions(cluster, controller_id)));
-    always_p_is_stable(lift_state(vsts_rely_conditions_pod_monkey()));
-    stable_and_n!(
-        next_with_wf(cluster, controller_id),
-        always(lift_state(vsts_rely_conditions(cluster, controller_id))),
-        always(lift_state(vsts_rely_conditions_pod_monkey()))
-    );
 }
 
 }

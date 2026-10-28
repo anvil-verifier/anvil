@@ -4,6 +4,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn there_is_the_controller_state(controller_id: int) -> StatePred<ClusterState> {

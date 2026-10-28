@@ -21,6 +21,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn make_resource_key(cr_key: ObjectRef, sub_resource: SubResource) -> ObjectRef {
     let prefix = RabbitmqClusterView::kind()->CustomResourceKind_0 + "-"@;
     match sub_resource {

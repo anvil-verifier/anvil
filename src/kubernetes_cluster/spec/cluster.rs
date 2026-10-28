@@ -13,6 +13,8 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // The ClusterState includes the state of the api_server (including the key-value store),
 // the states of each controller running in the cluster (and the associated external system if exists),
 // the state of the network (the pending messages).

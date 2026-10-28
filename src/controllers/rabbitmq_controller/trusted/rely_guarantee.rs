@@ -8,6 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn rmq_rely_conditions(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |other_id: int| #[trigger] cluster.controller_models.remove(controller_id).contains_key(other_id)

@@ -17,6 +17,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn ru_exists_pending_list_resp_in_flight_and_match_req(
     vd: VDeploymentView, controller_id: int, new_vrs_key: ObjectRef
 ) -> StatePred<ClusterState> {

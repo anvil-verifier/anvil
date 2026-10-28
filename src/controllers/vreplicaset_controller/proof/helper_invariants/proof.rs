@@ -21,6 +21,9 @@ use vstd::{map::*, map_lib::*, multiset::*, prelude::*, seq_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
+#[verifier::spinoff_prover]
 pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vrs_reconcile(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -147,9 +150,6 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         }
     }
 
-    always_to_always_later(spec, lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)));
-    always_to_always_later(spec, lift_state(no_pending_mutation_request_not_from_controller_on_pods()));
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VReplicaSetView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -484,10 +484,6 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, stronger_requirements);
 
     // Convert true ~> []stronger_requirements to true ~> []requirements.
-    entails_preserved_by_always(
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements)),
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
-    );
     leads_to_weaken(
         spec,
         true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements))),
@@ -759,7 +755,6 @@ ensures
         &&& desired_state_is(vrs)(s)
         &&& desired_state_is(vrs)(s_prime)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -814,7 +809,6 @@ ensures
         &&& vrs_in_schedule_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -855,7 +849,6 @@ pub proof fn lemma_true_leads_to_always_vrs_in_schedule_has_spec_and_uid_as(clus
         &&& desired_state_is(vrs)(s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -914,7 +907,6 @@ pub proof fn lemma_true_leads_to_always_vrs_in_reconcile_has_spec_and_uid_as(clu
             &&& stronger_next(s, s_prime)
             &&& desired_state_is(vrs)(s_prime)
         };
-        always_to_always_later(spec, lift_state(desired_state_is(vrs)));
         combine_spec_entails_always_n!(
             spec, lift_action(even_stronger_next),
             lift_action(stronger_next),
@@ -929,7 +921,6 @@ pub proof fn lemma_true_leads_to_always_vrs_in_reconcile_has_spec_and_uid_as(clu
         let input = (None, Some(vrs.object_ref()));
         cluster.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, scheduled_and_not_reconcile, post);
     });
-    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
     let not_reconcile = Cluster::reconcile_idle(controller_id, vrs.object_ref());
     or_leads_to_combine_and_equality!(
         spec, lift_state(not_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(not_scheduled_or_reconcile);

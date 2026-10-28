@@ -10,6 +10,8 @@ use crate::vstd_ext::string_view::StringView;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn vsts_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     tla_forall(|vsts: VStatefulSetView| vsts_eventually_stable_reconciliation_per_cr(vsts))
 }

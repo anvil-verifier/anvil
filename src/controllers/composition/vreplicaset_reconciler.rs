@@ -15,6 +15,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn vrs_controller_spec(id: int) -> ControllerSpec {
     ControllerSpec {
         esr: vrs_eventually_stable_reconciliation(),
@@ -73,7 +75,6 @@ pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
             tla_forall_apply(G_fn, c);
         }
     }
-    spec_entails_tla_forall(spec, G_fn);
 
     let spec_r = spec.and(tla_forall(R_fn));
     assert forall |c: int| spec_r.entails(#[trigger] ESR_fn(c)) by {
@@ -88,12 +89,9 @@ pub proof fn vrs_singleton_core_holds(cluster: CoreCluster, id: int)
             assert(ESR_fn(c) == vrs_eventually_stable_reconciliation());
         }
     }
-    spec_entails_tla_forall(spec_r, ESR_fn);
-    entails_implies(spec, tla_forall(R_fn), tla_forall(ESR_fn));
 
     assert(spec.entails(tla_forall(G_fn).and(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn))))) by {
         temp_pred_equality(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)), tla_forall(R_fn));
-        entails_and(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
     }
 }
 

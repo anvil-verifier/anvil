@@ -17,6 +17,8 @@ use vstd::{prelude::*, map_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn local_pods_have_vrs_prefix(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |cr_key: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(cr_key) && cr_key.kind == VReplicaSetView::kind()
@@ -392,7 +394,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     lemma_always_local_pods_have_vrs_prefix(spec, cluster, controller_id);
-    always_to_always_later(spec, lift_state(local_pods_have_vrs_prefix(controller_id)));
 
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)

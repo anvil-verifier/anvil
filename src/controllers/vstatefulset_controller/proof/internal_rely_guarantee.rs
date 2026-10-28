@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // Before proving the shield lemma, we need to establish some rely-guarantee conditions
 // about VSTS controller itself and other non-controller components in the cluster
 // So in total we have
@@ -1030,7 +1032,6 @@ pub proof fn internal_guarantee_condition_holds(
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()(s)
     };
 
-    always_to_always_later(spec, lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),
@@ -1197,23 +1198,12 @@ pub proof fn internal_guarantee_condition_holds_on_all_vsts(spec: TempPred<Clust
     ensures
         spec.entails(always(lift_state(vsts_internal_guarantee_conditions(controller_id))))
 {
-    let guarantee = lift_state(vsts_internal_guarantee_conditions(controller_id));
-    let target = always(guarantee);
-    let no_interfering_request = |vsts: VStatefulSetView| lift_state(no_interfering_request_between_vsts(controller_id, vsts));
-    assert forall |ex: Execution<ClusterState>| spec.satisfied_by(ex) implies target.satisfied_by(ex) by {
-        assert forall |vsts: VStatefulSetView| #![trigger no_interfering_request(vsts)] always(no_interfering_request(vsts)).satisfied_by(ex) by {
-            internal_guarantee_condition_holds(spec, cluster, controller_id, vsts);
-            assert(spec.entails(always(no_interfering_request(vsts))));
-            assert(valid(spec.implies(always(no_interfering_request(vsts)))));
-            assert(spec.implies(always(no_interfering_request(vsts))).satisfied_by(ex));
-        }
-        assert(forall |vsts: VStatefulSetView, i: nat| #[trigger] no_interfering_request(vsts).satisfied_by(ex.suffix(i)));
-        assert forall |i: nat| #[trigger] guarantee.satisfied_by(ex.suffix(i)) by {
-            assert forall |vsts: VStatefulSetView| #[trigger] no_interfering_request_between_vsts(controller_id, vsts)(ex.suffix(i).head()) by {
-                assert(no_interfering_request(vsts).satisfied_by(ex.suffix(i)));
-            }
-        };
+    let a_to_p = |vsts: VStatefulSetView| no_interfering_request_between_vsts(controller_id, vsts);
+    assert(forall |vsts: VStatefulSetView| #[trigger] no_interfering_request_between_vsts(controller_id, vsts) == a_to_p(vsts));
+    assert forall |vsts: VStatefulSetView| true implies spec.entails(always(lift_state(#[trigger] a_to_p(vsts)))) by {
+        internal_guarantee_condition_holds(spec, cluster, controller_id, vsts);
     }
+    spec_entails_always_lift_state_forall_within_domain_equality(spec, a_to_p, ISet::full(), vsts_internal_guarantee_conditions(controller_id));
 }
 
 }

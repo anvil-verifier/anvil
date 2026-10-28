@@ -30,6 +30,8 @@ use vstd::prelude::*;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn vsts_owned_by_rmq(vsts: VStatefulSetView, rabbitmq: RabbitmqClusterView) -> bool {
     &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rabbitmq))
     &&& vsts.spec.replicas == Some(rabbitmq.spec.replicas)
@@ -95,11 +97,6 @@ ensures
             controller_id, cluster, SubResource::VStatefulSetView, rabbitmq
         );
         // Step 3: spec |= □desired ~> □cluster_invariants
-        entails_implies_leads_to(
-            spec,
-            assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
-            always(lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)))
-        );
         leads_to_trans(
             spec,
             always(lift_state(Cluster::desired_state_is(rabbitmq))),
@@ -109,22 +106,11 @@ ensures
         // Step 4: Combine: spec |= □desired ~> □(inductive_current_state_matches(VSTS) ∧ cluster_invariants).
         // The first conjunct comes from the inductive(VSTS) ensures of
         // eventually_stable_reconciliation_holds_per_cr called above.
-        leads_to_always_and(
-            spec,
-            always(lift_state(Cluster::desired_state_is(rabbitmq))),
-            lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)),
-            lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView))
-        );
         // Step 5: Establish spec |= □lifted_inv
         entails_trans(
             spec,
             next_with_wf(cluster, controller_id),
             always(lift_action(cluster.next()))
-        );
-        entails_always_and_n!(
-            spec,
-            lift_action(cluster.next()),
-            lift_state(rmq_rely_conditions(cluster, controller_id))
         );
         // Step 6: Enhance with lifted_inv: spec |= □desired ~> □stable_rmq_post
         leads_to_always_enhance(
@@ -165,12 +151,7 @@ ensures
         };
 
         // Show always(stable_rmq_post) entails always(stronger_next).
-        entails_preserved_by_always(stable_rmq_post, lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)));
-        entails_preserved_by_always(stable_rmq_post, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::VStatefulSetView)));
-        entails_preserved_by_always(stable_rmq_post, lift_action(cluster.next()));
-        entails_preserved_by_always(stable_rmq_post, lift_state(rmq_rely_conditions(cluster, controller_id)));
         // []P entails [](later P) so we can pull inductive_csm(VSTS) at s_prime out as well.
-        always_to_always_later(always(stable_rmq_post), lift_state(inductive_current_state_matches(rabbitmq, SubResource::VStatefulSetView, controller_id)));
         combine_spec_entails_always_n!(
             always(stable_rmq_post),
             lift_action(stronger_next),
@@ -205,16 +186,6 @@ ensures
     assert(spec.entails(always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(
         tla_exists(lifted_always_vsts_pre).and(always(stable_rmq_post))
     ))) by {
-        entails_and(
-            always(stable_rmq_post),
-            tla_exists(lifted_always_vsts_pre),
-            always(stable_rmq_post)
-        );
-        entails_implies_leads_to(
-            spec,
-            always(stable_rmq_post),
-            tla_exists(lifted_always_vsts_pre).and(always(stable_rmq_post))
-        );
         leads_to_trans_n!(
             spec,
             always(lift_state(Cluster::desired_state_is(rabbitmq))),
@@ -245,8 +216,6 @@ ensures
     assert(spec.entails(tla_exists(lifted_always_vsts_pre).leads_to(tla_exists(lifted_always_vsts_post)))) by {
         assert forall |vsts: VStatefulSetView| spec.entails(#[trigger] lifted_always_vsts_pre(vsts).leads_to(lifted_always_vsts_post(vsts))) by {
             temp_pred_equality(lift_state(vsts_pre(rabbitmq)(vsts)), lift_state(Cluster::desired_state_is(vsts)).and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rabbitmq))));
-            always_and_equality(lift_state(Cluster::desired_state_is(vsts)), lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rabbitmq)));
-            always_and_equality(lift_state(vsts_liveness_theorem::current_state_matches(vsts)), lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rabbitmq)));
             if vsts_owned_by_rmq(vsts, rabbitmq) {
                 temp_pred_equality(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rabbitmq)), true_pred::<ClusterState>());
                 temp_pred_equality(lifted_always_vsts_pre(vsts), always(lift_state(Cluster::desired_state_is(vsts))));
@@ -256,10 +225,8 @@ ensures
                 false_is_stable::<ClusterState>();
                 stable_to_always(false_pred::<ClusterState>()); // false == [] false
                 temp_pred_equality(lifted_always_vsts_pre(vsts), false_pred::<ClusterState>());
-                false_leads_to_anything(spec, lifted_always_vsts_post(vsts));
             }
         }
-        leads_to_exists_pointwise(spec, lifted_always_vsts_pre, lifted_always_vsts_post);
     }
 
     assert forall |vsts: VStatefulSetView|
@@ -269,14 +236,7 @@ ensures
             implies #[trigger] lift_state(composed_current_state_matches(rabbitmq)).satisfied_by(ex) by {
             current_state_matches_vsts_implies_composed_current_state_matches(rabbitmq, vsts, ex.head());
         }
-        entails_preserved_by_always(
-            lift_state(vsts_liveness_theorem::current_state_matches(vsts))
-                .and(lift_state(|s: ClusterState| vsts_owned_by_rmq(vsts, rabbitmq))),
-            lift_state(composed_current_state_matches(rabbitmq))
-        );
-        entails_implies_leads_to(always(stable_rmq_post), lifted_always_vsts_post(vsts), lifted_always_composed_post);
     }
-    leads_to_exists_intro(always(stable_rmq_post), lifted_always_vsts_post, lifted_always_composed_post);
     temp_pred_equality(
         true_pred::<ClusterState>().and(always(stable_rmq_post)),
         always(stable_rmq_post)
@@ -285,12 +245,6 @@ ensures
     temp_pred_equality(
         always(stable_rmq_post).and(tla_exists(lifted_always_vsts_post)),
         tla_exists(lifted_always_vsts_post).and(always(stable_rmq_post))
-    );
-    entails_and_across_specs(
-        true_pred(),
-        spec,
-        always(stable_rmq_post).and(tla_exists(lifted_always_vsts_post)).leads_to(lifted_always_composed_post),
-        spec
     );
     temp_pred_equality(
         true_pred::<ClusterState>().and(spec),
@@ -311,12 +265,6 @@ ensures
         tla_exists(lifted_always_vsts_pre).and(always(stable_rmq_post))
             .leads_to(tla_exists(lifted_always_vsts_post).and(always(stable_rmq_post)))
     )) by {
-        leads_to_with_always(
-            spec,
-            tla_exists(lifted_always_vsts_pre),
-            tla_exists(lifted_always_vsts_post),
-            stable_rmq_post
-        );
     }
 
     leads_to_trans_n!(
@@ -346,7 +294,6 @@ ensures
     rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(spec, cluster, controller_id);
     // next_with_wf is stable, so spec |= next_with_wf ==> spec |= always(next_with_wf)
     next_with_wf_is_stable(cluster, controller_id);
-    stable_to_always(next_with_wf(cluster, controller_id));
     assert forall |rabbitmq: RabbitmqClusterView| spec.entails(
         always(lift_state(#[trigger] Cluster::desired_state_is(rabbitmq))).leads_to(
             always(lift_state(composed_current_state_matches(rabbitmq))))
@@ -354,9 +301,6 @@ ensures
         composed_rmq_eventually_stable_reconciliation_per_cr(spec, cluster, controller_id, rabbitmq);
     }
     let composed_csm = |rabbitmq: RabbitmqClusterView| composed_current_state_matches(rabbitmq);
-    spec_entails_tla_forall(spec, |rabbitmq: RabbitmqClusterView|
-        always(lift_state(Cluster::desired_state_is(rabbitmq))).leads_to(
-            always(lift_state(composed_csm(rabbitmq)))));
     assert(spec.entails(rmq_composed_eventually_stable_reconciliation()));
 }
 

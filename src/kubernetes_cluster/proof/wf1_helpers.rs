@@ -8,6 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub proof fn lemma_pre_leads_to_post_by_api_server(

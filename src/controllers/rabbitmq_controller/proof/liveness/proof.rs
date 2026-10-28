@@ -32,6 +32,8 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -135,24 +137,12 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq));
     // Assert rely condition on combined spec.
-    entails_and_across_specs(
-        provided_spec,
-        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
-        always(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        true_pred()
-    );
     temp_pred_equality(
         always(lift_state(rmq_rely_conditions(cluster, controller_id))).and(true_pred()),
         always(lift_state(rmq_rely_conditions(cluster, controller_id)))
     );
 
     // spec = provided_spec /\ assumption_and_invariants_of_all_phases => assumption_and_invariants_of_all_phases
-    entails_and_across_specs(
-        provided_spec,
-        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq),
-        true_pred(),
-        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
-    );
     temp_pred_equality(
         true_pred().and(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)),
         assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
@@ -337,7 +327,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
         &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)));
     combine_spec_entails_always_n!(
         spec, lift_action(cm_stronger_next),
         lift_action(cluster.next()),
@@ -392,7 +381,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
             };
 
             // Step 1: leads_to_with_always gives (true /\ []cm_mat) ~> (sub_mat /\ []cm_mat)
-            leads_to_with_always(spec, true_pred(), sub_mat, cm_mat);
 
             // Step 2 & 3: Chain true ~> []cm_mat ~> (sub_mat /\ []cm_mat) then weaken to combined
             temp_pred_equality(true_pred().and(always(cm_mat)), always(cm_mat));
@@ -406,7 +394,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
                     assert(always(cm_mat).implies(cm_mat).satisfied_by(ex));
                 }
             }
-            entails_implies_leads_to(spec, sub_mat.and(always(cm_mat)), lift_state(combined));
             leads_to_trans(spec, true_pred(), sub_mat.and(always(cm_mat)), lift_state(combined));
 
             // Step 4: Show combined is stable using leads_to_stable
@@ -418,7 +405,6 @@ proof fn lemma_true_leads_to_always_state_matches_for_all(spec: TempPred<Cluster
                 &&& cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s_prime)
                 &&& rmq_rely_conditions(cluster, controller_id)(s)
             };
-            always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
             combine_spec_entails_always_n!(
                 spec, lift_action(combined_stronger_next),
                 lift_action(cluster.next()),
@@ -490,7 +476,6 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
         &&& cluster.next()(s, s_prime)
         &&& Cluster::desired_state_is(rabbitmq)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(rabbitmq)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -499,8 +484,6 @@ proof fn lemma_from_reconcile_idle_to_scheduled(controller_id: int, cluster: Clu
     cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, controller_id, input, stronger_next, stronger_pre, post);
     temp_pred_equality(lift_state(pre).and(lift_state(Cluster::desired_state_is(rabbitmq))), lift_state(stronger_pre));
     leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(Cluster::desired_state_is(rabbitmq)));
-    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(rabbitmq.object_ref())}));
 }
 
@@ -533,7 +516,6 @@ proof fn lemma_from_scheduled_to_init_step(controller_id: int, cluster: Cluster,
         &&& Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq)(s)
         &&& Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -605,7 +587,6 @@ proof fn always_tla_forall_apply_for_sub_resource(controller_id: int, spec: Temp
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
 {
     let stable_spec = assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq);
-    entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(res, rabbitmq)))));
     entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq)))));
     entails_trans(spec, stable_spec, always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)))));
 
@@ -626,10 +607,6 @@ ensures
     assert(stable_spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))));
     assert(stable_spec.entails(always(lift_state(Cluster::req_drop_disabled()))));
     assert(stable_spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))));
-    entails_trans(stable_spec,
-        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
-        always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
-    );
     entails_trans(stable_spec,
         derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
         always(lift_state(rmq_guarantee(controller_id)))

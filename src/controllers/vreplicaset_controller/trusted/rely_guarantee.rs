@@ -7,6 +7,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // VRS Rely Condition
 
 // Other controllers don't create pods owned by a VReplicaSet.

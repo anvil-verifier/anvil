@@ -27,6 +27,8 @@ use vstd::{prelude::*, string::*, multiset::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // Proves AtAfterKRequestStep(Get, sub_resource) ~> resource_state_matches(sub_resource, rabbitmq) and AtAfterKRequestStep(Get, sub_resource) ~>
 // AtAfterKRequestStep(Get, next_resource). The second one is not applicable to StatefulSet which doesn't have a next resource.
 //
@@ -97,7 +99,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
         );
     }
-    leads_to_exists_intro(spec, |msg| lift_state(pre_without_key_msg(msg)), lift_state(not_found_resp));
 
     // Step 1b: not_found resp ~> create step
     let create_req = pending_req_in_flight_at_after_create_resource_step(sub_resource, rabbitmq, controller_id);
@@ -124,7 +125,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             controller_id, cluster, spec, sub_resource, rabbitmq, resp_msg
         );
     }
-    leads_to_exists_intro(spec, |msg| not_found_resp_msg(msg), lift_state(create_req));
 
     // Step 1c: create step ~> resource matches
     let create_req_msg = |req_msg| lift_state(
@@ -154,7 +154,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(resource_state_matches(sub_resource, rabbitmq))
         );
     }
-    leads_to_exists_intro(spec, |msg| create_req_msg(msg), lift_state(resource_state_matches(sub_resource, rabbitmq)));
 
     // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> resource_matches
     leads_to_trans_n!(
@@ -188,7 +187,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             controller_id, cluster, spec, sub_resource, rabbitmq, req_msg
         );
     }
-    leads_to_exists_intro(spec, |msg| lift_state(pre_with_key_msg(msg)), lift_state(ok_resp));
 
     // Step 2b: ok resp ~> update step
     let update_req = pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, controller_id);
@@ -232,7 +230,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             controller_id, cluster, spec, sub_resource, rabbitmq, resp_msg
         );
     }
-    leads_to_exists_intro(spec, |msg| ok_resp_msg(msg), lift_state(update_req));
 
     // Step 2c: update step ~> resource matches
     let update_req_msg = |req_msg| lift_state(
@@ -259,7 +256,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(resource_state_matches(sub_resource, rabbitmq))
         );
     }
-    leads_to_exists_intro(spec, |msg| update_req_msg(msg), lift_state(resource_state_matches(sub_resource, rabbitmq)));
 
     // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> resource_matches
     leads_to_trans_n!(
@@ -271,7 +267,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     );
 
     // Combine case 1 and case 2: pre = pre_with_key \/ pre_without_key
-    or_leads_to(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(resource_state_matches(sub_resource, rabbitmq)));
     temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
 
     // Second/Third ensures: chain through create/update ok responses to either
@@ -302,7 +297,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(csm_and_create_ok_resp)
         );
     }
-    leads_to_exists_intro(spec, |msg| create_req_msg(msg), lift_state(csm_and_create_ok_resp));
     assert(lift_state(csm_and_create_ok_resp) == tla_exists(|msg| csm_and_create_ok_resp_msg(msg))) by {
         assert forall |ex| #[trigger] lift_state(csm_and_create_ok_resp).satisfied_by(ex) implies
             tla_exists(|msg| csm_and_create_ok_resp_msg(msg)).satisfied_by(ex) by {
@@ -345,7 +339,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(csm_and_update_ok_resp)
         );
     }
-    leads_to_exists_intro(spec, |msg| update_req_msg(msg), lift_state(csm_and_update_ok_resp));
     assert(lift_state(csm_and_update_ok_resp) == tla_exists(|msg| csm_and_update_ok_resp_msg(msg))) by {
         assert forall |ex| #[trigger] lift_state(csm_and_update_ok_resp).satisfied_by(ex) implies
             tla_exists(|msg| csm_and_update_ok_resp_msg(msg)).satisfied_by(ex) by {
@@ -381,7 +374,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
             );
         }
-        leads_to_exists_intro(spec, |msg| csm_and_create_ok_resp_msg(msg), lift_state(inductive_csm_and_next_get));
 
         // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> csm /\ create_ok_resp ~> inductive_csm /\ next_get
         leads_to_trans_n!(
@@ -399,7 +391,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
             );
         }
-        leads_to_exists_intro(spec, |msg| csm_and_update_ok_resp_msg(msg), lift_state(inductive_csm_and_next_get));
 
         // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> csm /\ update_ok_resp ~> inductive_csm /\ next_get
         leads_to_trans_n!(
@@ -412,7 +403,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         );
 
         // Combine the two cases at inductive_csm_and_next_get.
-        or_leads_to(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm_and_next_get));
         temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
 
         // Weaken inductive_csm_and_next_get to next_get for the second ensures.
@@ -428,7 +418,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
             );
         }
-        leads_to_exists_intro(spec, |msg| csm_and_create_ok_resp_msg(msg), lift_state(inductive_csm));
 
         // Chain case 1: pre_without_key ~> not_found_resp ~> create_req ~> csm /\ create_ok_resp ~> inductive_csm
         leads_to_trans_n!(
@@ -446,7 +435,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
                 controller_id, cluster, spec, sub_resource, next_resource, rabbitmq, resp_msg
             );
         }
-        leads_to_exists_intro(spec, |msg| csm_and_update_ok_resp_msg(msg), lift_state(inductive_csm));
 
         // Chain case 2: pre_with_key ~> ok_resp ~> update_req ~> csm /\ update_ok_resp ~> inductive_csm
         leads_to_trans_n!(
@@ -459,7 +447,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         );
 
         // Combine the two cases at inductive_csm.
-        or_leads_to(spec, lift_state(pre_with_key), lift_state(pre_without_key), lift_state(inductive_csm));
         temp_pred_equality(lift_state(pre_with_key).or(lift_state(pre_without_key)), lift_state(pre));
     }
 }
@@ -971,7 +958,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
     if !sub_resource_needs_cm_rv(sub_resource) {
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
@@ -1051,7 +1037,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
     if !sub_resource_needs_cm_rv(sub_resource) {
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
@@ -1222,7 +1207,6 @@ ensures
         &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
     if !sub_resource_needs_cm_rv(sub_resource) {
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
@@ -1375,7 +1359,6 @@ ensures
         &&& !sub_resource_needs_cm_rv(sub_resource) || cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, SubResource::ServerConfigMap)(s)
         &&& rmq_rely_conditions(cluster, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, controller_id, rabbitmq, sub_resource)));
     if !sub_resource_needs_cm_rv(sub_resource) {
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
