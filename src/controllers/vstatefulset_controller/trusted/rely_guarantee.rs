@@ -12,8 +12,6 @@ use vstd::prelude::*;
 
 verus! {
 
-broadcast use verus_temporal_logic::rules::group_tla_rules;
-
 // VSTS Rely Condition
 
 pub open spec fn vsts_rely_conditions_pod_monkey() -> StatePred<ClusterState> {
