@@ -22,6 +22,8 @@ use vstd::prelude::*;
 
 verus!{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // NOTE: helpers must be declared `pub open` for the main invariant to be declared so.
 
 pub open spec fn no_other_pending_create_request_interferes_with_vrs_reconcile(

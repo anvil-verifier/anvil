@@ -17,6 +17,8 @@ use vstd::{prelude::*, map_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn local_pods_have_vrs_prefix(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |cr_key: ObjectRef| #[trigger] s.ongoing_reconciles(controller_id).contains_key(cr_key) && cr_key.kind == VReplicaSetView::kind()

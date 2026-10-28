@@ -32,6 +32,8 @@ use vstd::{map_lib::*, multiset::*, prelude::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd_reconcile(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int,
 )

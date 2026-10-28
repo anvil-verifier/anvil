@@ -23,6 +23,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // General helper predicates
 pub open spec fn lifted_vrs_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     lift_state(|s| {

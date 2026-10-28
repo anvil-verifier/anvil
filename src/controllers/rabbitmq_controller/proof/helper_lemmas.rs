@@ -24,6 +24,8 @@ use vstd::{multiset::*, prelude::*, string::*, utf8::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn rmq_with_different_key_implies_request_with_different_key(rabbitmq: RabbitmqClusterView, other_rmq: RabbitmqClusterView, sub_resource: SubResource)
 requires
     rabbitmq.object_ref() != other_rmq.object_ref()

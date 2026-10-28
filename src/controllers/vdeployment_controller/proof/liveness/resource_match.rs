@@ -20,6 +20,8 @@ use vstd::prelude::*;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn lemma_from_init_to_current_state_matches_with_nv_key(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )

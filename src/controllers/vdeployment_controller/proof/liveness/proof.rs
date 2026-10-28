@@ -14,6 +14,8 @@ use vstd::{prelude::*, multiset::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),

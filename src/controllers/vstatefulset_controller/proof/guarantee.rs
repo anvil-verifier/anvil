@@ -14,6 +14,8 @@ use crate::vstd_ext::{string_view::*, seq_lib::*, set_lib::*, map_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn lemma_guarantee_from_reconcile_state(
     msg: Message,
     state: VStatefulSetReconcileState,

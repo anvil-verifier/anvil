@@ -17,6 +17,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn needed_index_and_len(index: nat, len: nat) -> spec_fn(VStatefulSetReconcileState) -> bool {
     |s: VStatefulSetReconcileState| s.needed_index == index && s.needed.len() == len
 }

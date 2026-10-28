@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // ============================================================
 // Concrete id assignment and cluster instantiation
 // ============================================================

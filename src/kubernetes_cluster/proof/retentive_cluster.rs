@@ -4,6 +4,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl RetentiveCluster {
 
 // If an invariant (on the cluster state, not the history) holds for the state machine w/ the history

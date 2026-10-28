@@ -6,6 +6,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub struct CoreCluster {
     pub cluster: Cluster,
     pub registry: Map<int, ControllerSpec>,

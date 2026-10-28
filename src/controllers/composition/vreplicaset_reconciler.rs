@@ -15,6 +15,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn vrs_controller_spec(id: int) -> ControllerSpec {
     ControllerSpec {
         esr: vrs_eventually_stable_reconciliation(),

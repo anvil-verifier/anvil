@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // Before proving the shield lemma, we need to establish some rely-guarantee conditions
 // about VSTS controller itself and other non-controller components in the cluster
 // So in total we have

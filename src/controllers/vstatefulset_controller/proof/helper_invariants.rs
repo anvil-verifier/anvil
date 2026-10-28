@@ -30,6 +30,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // name collision prevention invariant, eventually holds
 // In the corner case when one vsts was created and then deleted, just before
 // another vsts with the same name comes, GC will delete pods owned by the previous vsts

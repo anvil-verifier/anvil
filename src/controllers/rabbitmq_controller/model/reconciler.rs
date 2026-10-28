@@ -19,6 +19,8 @@ use vstd::string::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Reconciler<RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView> for RabbitmqReconciler {
 
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {

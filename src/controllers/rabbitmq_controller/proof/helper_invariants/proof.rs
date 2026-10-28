@@ -28,6 +28,8 @@ use crate::reconciler::spec::io::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 
 pub proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr_forall(
     controller_id: int, cluster: Cluster, spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView

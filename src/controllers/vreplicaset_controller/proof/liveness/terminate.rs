@@ -18,6 +18,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn reconcile_eventually_terminates(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )

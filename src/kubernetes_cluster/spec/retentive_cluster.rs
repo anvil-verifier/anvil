@@ -4,6 +4,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // ClusterHistory includes the current state and a sequence of past states.
 pub struct ClusterHistory {
     pub current: ClusterState,

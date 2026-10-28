@@ -10,6 +10,8 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn rpc_id_counter_is(rpc_id: nat) -> StatePred<ClusterState> {

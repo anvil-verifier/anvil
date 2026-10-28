@@ -23,6 +23,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn rmq_controller_spec(id: int) -> ControllerSpec {
     ControllerSpec {
         esr: rmq_composed_eventually_stable_reconciliation(),

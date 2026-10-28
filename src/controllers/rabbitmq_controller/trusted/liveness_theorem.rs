@@ -20,6 +20,8 @@ use super::spec_types::RabbitmqClusterView;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn rmq_composed_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     Cluster::eventually_stable_reconciliation(|vrs| composed_current_state_matches(vrs))
 }

@@ -5,6 +5,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub struct ControllerSpec {
     pub esr: TempPred<ClusterState>,
     pub liveness_dependency: TempPred<ClusterState>,

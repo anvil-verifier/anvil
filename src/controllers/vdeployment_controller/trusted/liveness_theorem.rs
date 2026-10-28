@@ -12,6 +12,8 @@ use vstd::prelude::*;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // ESR composition
 pub open spec fn composed_vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
     tla_forall(composed_vd_eventually_stable_reconciliation_per_cr())

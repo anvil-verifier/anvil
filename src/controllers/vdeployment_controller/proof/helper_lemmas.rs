@@ -17,6 +17,8 @@ use vstd::{prelude::*, seq_lib::*, map_lib::*, set_lib::*, utf8::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn vd_rely_condition_equivalent_to_lifted_vd_rely_condition(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )

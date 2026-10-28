@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // serve as trigger to make Verus happy
 pub open spec fn scale_down_old_vrs_rank_n(n: nat) -> spec_fn(ReconcileLocalState) -> bool {
     at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]

@@ -17,6 +17,8 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn assumption_and_invariants_of_all_phases(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     invariants(vd, cluster, controller_id)
     .and(always(lift_state(desired_state_is(vd))))

@@ -30,6 +30,8 @@ use vstd::prelude::*;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn vsts_owned_by_rmq(vsts: VStatefulSetView, rabbitmq: RabbitmqClusterView) -> bool {
     &&& vsts.spec.template.spec == Some(make_rabbitmq_pod_spec(rabbitmq))
     &&& vsts.spec.replicas == Some(rabbitmq.spec.replicas)

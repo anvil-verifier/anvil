@@ -21,6 +21,8 @@ use vstd::{map::*, map_lib::*, multiset::*, prelude::*, seq_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 #[verifier::spinoff_prover]
 pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vrs_reconcile(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,

@@ -4,6 +4,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn no_req_before_rpc_id_is_in_flight(rpc_id: RPCId) -> StatePred<ClusterState> {

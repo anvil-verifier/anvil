@@ -25,6 +25,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // coherence only reads etcd and the reconcile local state, so a step touching neither maintains it
 pub proof fn lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, controller_id: int

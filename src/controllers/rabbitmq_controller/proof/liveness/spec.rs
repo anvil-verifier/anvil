@@ -24,6 +24,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn assumption_and_invariants_of_all_phases(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     invariants(controller_id, cluster, rabbitmq)
     .and(always(lift_state(Cluster::desired_state_is(rabbitmq))))

@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus !{
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // after inductive csm, the new vrs has > 0 replicas, thus the choice is deterministic
 pub proof fn inductive_current_state_matches_implies_filter_old_and_new_vrs_from_resp_objs(
     vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message, new_vrs_key: ObjectRef, s: ClusterState

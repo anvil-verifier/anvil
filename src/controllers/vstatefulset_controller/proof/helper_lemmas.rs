@@ -19,6 +19,8 @@ use vstd::utf8::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn get_ordinal_eq_pod_name(vsts_name: StringView, ord: nat, compared_pod_name: StringView)
 ensures
     (get_ordinal(vsts_name, compared_pod_name) == Some(ord))

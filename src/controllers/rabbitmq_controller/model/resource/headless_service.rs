@@ -19,6 +19,8 @@ use vstd::string::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub struct HeadlessServiceBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessServiceBuilder {

@@ -20,6 +20,8 @@ use vstd::{assert_seqs_equal, map::*, map_lib::*, math::*, multiset::*, prelude:
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // -------------- Leads-to Chaining Reasoning --------------
 
 pub proof fn lemma_from_diff_and_init_to_current_state_matches(

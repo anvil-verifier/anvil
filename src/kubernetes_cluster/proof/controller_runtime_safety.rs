@@ -10,6 +10,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn scheduled_cr_has_lower_uid_than_uid_counter(controller_id: int) -> StatePred<ClusterState> {

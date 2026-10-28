@@ -17,6 +17,8 @@ use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // *** Rolling update ESR composition helpers ***
 // TODO: fix after every_vrs_in_etcd_has_one_controller_owner is removed
 
