@@ -34,7 +34,6 @@ pub proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>
     assert forall |vrs: VReplicaSetView| #[trigger] spec.entails(vrs_eventually_stable_reconciliation_per_cr(vrs)) by {
         eventually_stable_reconciliation_holds_per_cr(spec, vrs, cluster, controller_id);
     };
-    spec_entails_tla_forall(spec, |vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs));
     temp_pred_equality(
         tla_forall(|vrs| vrs_eventually_stable_reconciliation_per_cr(vrs)),
         vrs_eventually_stable_reconciliation()
@@ -147,12 +146,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         implies spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
             assert(provided_spec.entails(always(lift_state(vrs_rely(other_id)))));
-            entails_and_across_specs(
-                provided_spec,
-                assumption_and_invariants_of_all_phases(vrs, cluster, controller_id),
-                always(lift_state(vrs_rely(other_id))),
-                true_pred()
-            );
             assert(spec.entails(always(lift_state(vrs_rely(other_id))).and(true_pred())));
             temp_pred_equality(
                 always(lift_state(vrs_rely(other_id))).and(true_pred()),
@@ -222,14 +215,12 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             let diff = choose |diff| lift_state(#[trigger] num_diff_pods_is(vrs, diff)).satisfied_by(ex);
             assert(diff_at_init(diff).satisfied_by(ex));
         }
-        always_implies_to_leads_to(spec, at_init, tla_exists(diff_at_init));
     });
 
     // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
     assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(stronger_post))) by {
         lemma_from_diff_and_init_to_current_state_matches(vrs, spec, cluster, controller_id, diff);
     }
-    leads_to_exists_intro(spec, diff_at_init, lift_state(stronger_post));
 
     // Chain everything together
     leads_to_trans_n!(
@@ -276,7 +267,6 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, vr
         &&& cluster.next()(s, s_prime)
         &&& desired_state_is(vrs)(s_prime)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -292,8 +282,6 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, vr
     );
     temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(vrs))), lift_state(stronger_pre));
     leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(vrs)));
-    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())}));
 }
 
@@ -342,8 +330,6 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VR
             assert(pre(s_prime));
         }
     }
-    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)));
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),

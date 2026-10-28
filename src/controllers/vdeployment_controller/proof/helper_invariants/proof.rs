@@ -175,9 +175,6 @@ ensures
         }
     }
 
-    always_to_always_later(spec, lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -262,7 +259,6 @@ ensures
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()(s)
     };
 
-    always_to_always_later(spec, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),
@@ -572,10 +568,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
         }
     }
 
-    always_to_always_later(spec, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
-    always_to_always_later(spec, lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -615,10 +607,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interferi
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, stronger_requirements);
 
     // Convert true ~> []stronger_requirements to true ~> []requirements.
-    entails_preserved_by_always(
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements)),
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
-    );
     leads_to_weaken(
         spec,
         true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements))),
@@ -811,8 +799,6 @@ ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_do
         }
     }
 
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<VDeploymentView>(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -1356,7 +1342,6 @@ ensures
         &&& desired_state_is(vd)(s)
         &&& desired_state_is(vd)(s_prime)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1445,7 +1430,6 @@ ensures
         &&& desired_state_is(vd)(s_prime)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1486,7 +1470,6 @@ ensures
         &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
         &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vd)));
     assert(spec.entails(lift_state(not_scheduled_or_reconcile).leads_to(lift_state(scheduled_and_not_reconcile)))) by {
         let (pre, post) = (not_scheduled_or_reconcile, scheduled_and_not_reconcile);
         let stronger_next = |s, s_prime| {

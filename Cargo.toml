@@ -45,3 +45,7 @@ k8s-openapi = { git = "https://github.com/Arnavion/k8s-openapi", tag = "v0.22.0"
 
 [package.metadata.verus]
 verify = true
+
+# Local experiment: verify against the opaque-operator / broadcast-group branch of verus-tla.
+[patch."https://github.com/anvil-verifier/verus-tla"]
+verus_temporal_logic = { path = "../verus-tla" }

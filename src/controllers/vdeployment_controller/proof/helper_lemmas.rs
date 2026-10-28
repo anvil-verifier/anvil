@@ -26,46 +26,12 @@ pub proof fn vd_rely_condition_equivalent_to_lifted_vd_rely_condition(
         <==>
             spec.entails(always(lifted_vd_rely_condition(cluster, controller_id))),
 {
-    let lhs = 
-        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))));
-    let rhs = spec.entails(always(lifted_vd_rely_condition(cluster, controller_id)));
-
-    assert_by(
-        lhs ==> rhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
-                lhs
-                && spec.satisfied_by(ex)
-                && cluster.controller_models.remove(controller_id).contains_key(other_id)
-                implies vd_rely(other_id)(ex.suffix(n).head()) by {
-                // Gradually unwrap the semantics of `spec.entails(always(lift_state(vd_rely(other_id))))`
-                // until Verus can show the consequent.
-                assert(valid(spec.implies(always(lift_state(vd_rely(other_id))))));
-                assert(spec.implies(always(lift_state(vd_rely(other_id)))).satisfied_by(ex));
-                assert(always(lift_state(vd_rely(other_id))).satisfied_by(ex));
-                assert(lift_state(vd_rely(other_id)).satisfied_by(ex.suffix(n)));
-            }
-        }
-    );
-    
-    assert_by(
-        rhs ==> lhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
-                rhs
-                && spec.satisfied_by(ex)
-                && cluster.controller_models.remove(controller_id).contains_key(other_id)
-                implies vd_rely(other_id)(ex.suffix(n).head()) by {
-                // Gradually unwrap the semantics of `spec.entails(always(lifted_vd_rely_condition(cluster, controller_id)))`
-                // until Verus can show the consequent.
-                assert(valid(spec.implies(always(lifted_vd_rely_condition(cluster, controller_id)))));
-                assert(spec.implies(always(lifted_vd_rely_condition(cluster, controller_id))).satisfied_by(ex));
-                assert(always(lifted_vd_rely_condition(cluster, controller_id)).satisfied_by(ex));
-                assert(lifted_vd_rely_condition(cluster, controller_id).satisfied_by(ex.suffix(n)));
-            }
-        }
-    );
+    let a_to_p = |other_id: int| vd_rely(other_id);
+    assert(forall |other_id: int| #[trigger] vd_rely(other_id) == a_to_p(other_id));
+    spec_entails_always_lift_state_forall_within_domain_equality(spec, a_to_p, cluster.controller_models.remove(controller_id).dom().to_iset(), |s| {
+            forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vd_rely(other_id)(s)
+        });
 }
 
 pub proof fn vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(
@@ -77,52 +43,19 @@ pub proof fn vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(
         <==>
             spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
 {
-    let lhs = 
-        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))));
-    let rhs = spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id)));
-
-    assert_by(
-        lhs ==> rhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
-                lhs
-                && spec.satisfied_by(ex)
-                && cluster.controller_models.remove(controller_id).contains_key(other_id)
-                implies 
-                vd_rely(other_id)(ex.suffix(n).head())
-                && vd_rely(other_id)(ex.suffix(n).head_next()) by {
-                // Gradually unwrap the semantics of `spec.entails(always(lift_state(vd_rely(other_id))))`
-                // until Verus can show the consequent.
-                assert(valid(spec.implies(always(lift_state(vd_rely(other_id))))));
-                assert(spec.implies(always(lift_state(vd_rely(other_id)))).satisfied_by(ex));
-                assert(always(lift_state(vd_rely(other_id))).satisfied_by(ex));
-                assert(lift_state(vd_rely(other_id)).satisfied_by(ex.suffix(n)));
-                assert(lift_state(vd_rely(other_id)).satisfied_by(ex.suffix(n + 1)));
-            }
+    always_lift_action_equality(
+        |s, s_prime| {
+            (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vd_rely(other_id)(s))
+            && (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                    ==> #[trigger] vd_rely(other_id)(s_prime))
+        },
+        |s| {
+            forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vd_rely(other_id)(s)
         }
     );
-    
-    assert_by(
-        rhs ==> lhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
-                rhs
-                && spec.satisfied_by(ex)
-                && cluster.controller_models.remove(controller_id).contains_key(other_id)
-                implies 
-                vd_rely(other_id)(ex.suffix(n).head())
-                && vd_rely(other_id)(ex.suffix(n).head_next()) by {
-                // Gradually unwrap the semantics of `spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id)))`
-                // until Verus can show the consequent.
-                assert(valid(spec.implies(always(lifted_vd_rely_condition_action(cluster, controller_id)))));
-                assert(spec.implies(always(lifted_vd_rely_condition_action(cluster, controller_id))).satisfied_by(ex));
-                assert(always(lifted_vd_rely_condition_action(cluster, controller_id)).satisfied_by(ex));
-                assert(lifted_vd_rely_condition_action(cluster, controller_id).satisfied_by(ex.suffix(n)));
-                assert(lifted_vd_rely_condition_action(cluster, controller_id).satisfied_by(ex.suffix(n + 1)));
-            }
-        }
-    );
+    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(spec, cluster, controller_id);
 }
 
 pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself(
@@ -132,40 +65,15 @@ ensures
     spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
     <==> spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
 {
-    let lhs = spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))));
-    let rhs = spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)));
-
-    assert(lhs ==> rhs) by {
-        assert forall |ex: Execution<ClusterState>, n: nat, vd: VDeploymentView| #![auto] lhs && spec.satisfied_by(ex)
-            implies helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head()) by {
-            // Gradually unwrap the semantics of lhs
-            // until Verus can show the consequent.
-            let tla_forall_body = |vd: VDeploymentView| 
-                lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd));
-
-            assert(valid(spec.implies(always(tla_forall(tla_forall_body)))));
-            assert(spec.implies(always(tla_forall(tla_forall_body))).satisfied_by(ex));
-            assert(always(tla_forall(tla_forall_body)).satisfied_by(ex));
-
-            assert(tla_forall(tla_forall_body).satisfied_by(ex.suffix(n)));
-
-            assert(tla_forall_body(vd).satisfied_by(ex.suffix(n)));
+    let a_to_p = |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd);
+    assert(forall |vd: VDeploymentView| #[trigger] helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd) == a_to_p(vd));
+    tla_forall_lift_state_equality(
+        |vd: VDeploymentView| lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)),
+        a_to_p,
+        |s| {
+            forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         }
-    }
-    
-    assert(rhs ==> lhs) by {
-        assert forall |ex: Execution<ClusterState>, n: nat, vd: VDeploymentView| #![auto] rhs && spec.satisfied_by(ex)
-            implies helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head()) by {
-            // Gradually unwrap the semantics of rhs
-            // until Verus can show the consequent.
-            assert(valid(spec.implies(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))));
-            assert(spec.implies(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))).satisfied_by(ex));
-            assert(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)).satisfied_by(ex));
-            
-            assert(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id).satisfied_by(ex.suffix(n)));
-
-        }
-    }
+    );
 }
 
 pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
@@ -177,59 +85,16 @@ pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_wi
         <==>
             spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)))
 {
-    let lhs = 
-        spec.entails(always(tla_forall(|vd: VDeploymentView| 
-            lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))));
-    let rhs = spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)));
-
-    assert_by(
-        lhs ==> rhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, vd: VDeploymentView| #![auto]
-                lhs
-                && spec.satisfied_by(ex)
-                implies 
-                helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head())
-                && helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head_next()) by {
-                // Gradually unwrap the semantics of lhs
-                // until Verus can show the consequent.
-                let tla_forall_body = |vd: VDeploymentView| 
-                    lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd));
-
-                assert(valid(spec.implies(always(tla_forall(tla_forall_body)))));
-                assert(spec.implies(always(tla_forall(tla_forall_body))).satisfied_by(ex));
-                assert(always(tla_forall(tla_forall_body)).satisfied_by(ex));
-
-                assert(tla_forall(tla_forall_body).satisfied_by(ex.suffix(n)));
-                assert(tla_forall(tla_forall_body).satisfied_by(ex.suffix(n + 1)));
-
-                assert(tla_forall_body(vd).satisfied_by(ex.suffix(n)));
-                assert(tla_forall_body(vd).satisfied_by(ex.suffix(n + 1)));
-            }
+    always_lift_action_equality(
+        |s, s_prime| {
+            (forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s))
+            && (forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime))
+        },
+        |s| {
+            forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         }
     );
-    
-    assert_by(
-        rhs ==> lhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, vd: VDeploymentView| #![auto]
-                rhs
-                && spec.satisfied_by(ex)
-                implies 
-                helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head())
-                && helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(ex.suffix(n).head_next()) by {
-                // Gradually unwrap the semantics of rhs
-                // until Verus can show the consequent.
-                assert(valid(spec.implies(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)))));
-                assert(spec.implies(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))).satisfied_by(ex));
-                assert(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)).satisfied_by(ex));
-                
-                assert(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id).satisfied_by(ex.suffix(n)));
-                assert(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id).satisfied_by(ex.suffix(n + 1)));
-
-            }
-        }
-    );
+    only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself(spec, cluster, controller_id);
 }
 
 pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_references_unchanged(

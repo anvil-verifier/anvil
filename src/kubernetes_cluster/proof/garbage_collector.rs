@@ -189,7 +189,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::garbage_collector_deletion_enabled(key)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s_prime) ==> Self::garbage_collector_deletion_enabled(key)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
@@ -237,7 +236,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec, input, stronger_next, BuiltinControllersStep::RunGarbageCollector, pre, delete_msg_in_flight
     );
 
-    leads_to_self(lift_state(post));
 
     assert_by(
         spec.entails(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).leads_to(lift_state(post))),
@@ -310,7 +308,6 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                 );
                 self.lemma_pre_leads_to_post_by_api_server(spec, input, stronger_next, APIServerStep::HandleRequest, msg_to_p_state, post);
             }
-            leads_to_exists_intro(spec, msg_to_p, lift_state(post));
             assert_by(
                 tla_exists(msg_to_p) == lift_state(pre),
                 {
@@ -422,7 +419,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
         &&& Self::req_drop_disabled()(s)
         &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
     };
-    always_to_always_later(spec, lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
@@ -447,60 +443,32 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
             // proof on havoc domain
             assert forall |k| spec.entails(lift_state(|s: ClusterState| havoc_domain(s).contains(k)).implies(eventually(always(lift_state(#[trigger] k_to_p(k)))))) by {
                 if cond(k) {
-                    entails_preserved_by_always(
-                        lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref)),
-                        lift_state(Self::every_create_msg_sets_owner_references_as(k, eventual_owner_ref))
-                    );
                     entails_trans(spec,
                         always(lift_state(Self::every_create_msg_sets_owner_references_as_for_all(cond, eventual_owner_ref))),
                         always(lift_state(Self::every_create_msg_sets_owner_references_as(k, eventual_owner_ref)))
-                    );
-                    entails_preserved_by_always(
-                        lift_state(Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref)),
-                        lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, k, eventual_owner_ref))
                     );
                     entails_trans(spec,
                         always(lift_state(Self::every_valid_update_msg_sets_owner_references_as_for_all(self.installed_types, cond, eventual_owner_ref))),
                         always(lift_state(Self::every_valid_update_msg_sets_owner_references_as(self.installed_types, k, eventual_owner_ref)))
                     );
-                    entails_preserved_by_always(
-                        lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref)),
-                        lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(k, eventual_owner_ref))
-                    );
                     entails_trans(spec,
                         always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(cond, eventual_owner_ref))),
                         always(lift_state(Self::every_create_msg_with_generate_name_matching_key_set_owner_references_as(k, eventual_owner_ref)))
                     );
-                    entails_preserved_by_always(
-                        lift_state(Self::object_has_no_finalizers_for_all(cond)),
-                        lift_state(Self::object_has_no_finalizers(k))
-                    );
                     entails_trans(spec,
                         always(lift_state(Self::object_has_no_finalizers_for_all(cond))),
                         always(lift_state(Self::object_has_no_finalizers(k)))
-                    );
-                    entails_preserved_by_always(
-                        lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref)),
-                        lift_state(Self::objects_owner_references_violates(k, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(k)))
                     );
                     entails_trans(spec,
                         always(lift_state(Self::gc_is_enabled_for_all_keys_violating_owner_ref_requirements(cond, eventual_owner_ref))),
                         always(lift_state(Self::objects_owner_references_violates(k, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(k))))
                     );
                     self.lemma_eventually_objects_owner_references_satisfies(spec, k, eventual_owner_ref);
-                    true_leads_to_eventually_always_equality(
-                        spec, lift_state(Self::objects_owner_references_satisfies(k, eventual_owner_ref))
-                    );
-                    vacuous_implies(spec,
-                        lift_state(|s: ClusterState| havoc_domain(s).contains(k)),
-                        eventually(always(lift_state(k_to_p(k))))
-                    );
                 } else {
                     temp_pred_equality(
                         lift_state(|s: ClusterState| havoc_domain(s).contains(k)),
                         false_pred()
                     );
-                    false_implies_anything(spec, eventually(always(lift_state(k_to_p(k)))));
                 }
             }
             assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies (forall |k| #[trigger] havoc_domain(s_prime).contains(k)==> havoc_domain(s).contains(k)) by {
@@ -573,9 +541,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies_for_all(
             lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))
         );
     }
-    true_leads_to_eventually_always_equality(
-        spec, lift_state(Self::objects_owner_references_satisfies_for_all(cond, eventual_owner_ref))
-    );
 }
 
 }

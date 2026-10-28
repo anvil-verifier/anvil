@@ -46,7 +46,6 @@ impl<State, Input, Output> Action<State, Input, Output> {
             spec.entails(self.weak_fairness(input)),
         ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
     {
-        always_implies_preserved_by_always::<State>(spec, lift_state(pre), lift_state(self.pre(input)));
         leads_to_weaken::<State>(spec, always(lift_state(self.pre(input))), lift_action(self.forward(input)), always(lift_state(pre)), lift_action(self.forward(input)));
         wf1_variant::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(pre), lift_state(post));
     }

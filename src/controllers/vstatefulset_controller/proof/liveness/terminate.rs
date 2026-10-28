@@ -407,43 +407,10 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
                 spec, vsts_with_key, cluster, controller_id
             );
         } else {
-            always_weaken(
-                spec,
-                lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-            );
-
             let terminated_vsts = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
-            assert forall |ex|
-                spec.entails(always(lift_state(terminated_vsts)))
-                implies
-                    #[trigger] spec.implies(always(
-                        true_pred().and(true_pred()).and(true_pred())
-                        .implies(later(lift_state(terminated_vsts)))
-                    )).satisfied_by(ex) by {
-                if spec.satisfied_by(ex) {
-                    assert forall |n: nat|
-                        spec.satisfied_by(ex)
-                        && spec.entails(always(lift_state(terminated_vsts)))
-                        implies
-                            #[trigger] true_pred().and(true_pred()).and(true_pred())
-                            .implies(later(lift_state(terminated_vsts))).satisfied_by(ex.suffix(n)) by {
-                        assert(valid(spec.implies(always(lift_state(terminated_vsts)))));
-                        assert(spec.implies(always(lift_state(terminated_vsts))).satisfied_by(ex));
-                        assert(always(lift_state(terminated_vsts)).satisfied_by(ex));
-                        assert(lift_state(terminated_vsts).satisfied_by(ex.suffix(n + 1)));
-                    }
-                }
-            }
-
-            entails_implies_leads_to(spec, always(true_pred()), true_pred());
-            wf1_variant(
-                spec,
-                true_pred(),
-                true_pred(),
-                true_pred(),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-            );
+            always_weaken(spec, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)), lift_state(terminated_vsts));
+            always_entails_leads_to_always(spec, true_pred(), lift_state(terminated_vsts));
+            leads_to_eliminate_always(spec, true_pred(), lift_state(terminated_vsts));
         }
     }
 
@@ -479,7 +446,6 @@ ensures
     cluster.lemma_reconcile_done_leads_to_reconcile_idle(spec, controller_id, vsts.object_ref());
     temp_pred_equality(lift_at_step_or![Done], lift_state(reconcile_done));
     temp_pred_equality(lift_at_step_or![Error], lift_state(reconcile_error));
-    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Prove AfterDeleteOutdated -> Idle first
     cluster.lemma_from_some_state_to_arbitrary_next_state(spec, controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated], at_step_or![Error, Done]);
@@ -499,13 +465,6 @@ ensures
     );
 
     // Prove DeleteOutdated -> Idle (goes to AfterDeleteOutdated, Error, or Done)
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![AfterDeleteOutdated],
-        lift_at_step_or![Error],
-        lift_at_step_or![Done];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![AfterDeleteOutdated, Error, Done],
         lift_at_step_or![AfterDeleteOutdated].or(lift_at_step_or![Error]).or(lift_at_step_or![Done])
@@ -519,12 +478,6 @@ ensures
 
     lemma_after_delete_condemned_leads_to_idle(spec, vsts, cluster, controller_id);
 
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![AfterDeleteCondemned],
-        lift_at_step_or![Error];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![AfterDeleteCondemned, Error],
         lift_at_step_or![AfterDeleteCondemned].or(lift_at_step_or![Error])
@@ -541,12 +494,6 @@ ensures
     lemma_after_create_and_update_needed_leads_to_idle(spec, vsts, cluster, controller_id);
 
 
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![AfterCreateNeeded],
-        lift_at_step_or![Error];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![AfterCreateNeeded, Error],
         lift_at_step_or![AfterCreateNeeded].or(lift_at_step_or![Error])
@@ -557,12 +504,6 @@ ensures
         at_step_or![AfterCreateNeeded, Error]
     );
 
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![AfterUpdateNeeded],
-        lift_at_step_or![Error];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![AfterUpdateNeeded, Error],
         lift_at_step_or![AfterUpdateNeeded].or(lift_at_step_or![Error])
@@ -585,8 +526,6 @@ ensures
             lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error]
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))], lift_at_step_or![CreateNeeded]);
-        entails_implies_leads_to(spec, lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))], lift_at_step_or![UpdateNeeded]);
 
         leads_to_trans_n!(
             spec,
@@ -602,13 +541,6 @@ ensures
             lift_state(reconcile_idle)
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))],
-            lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))],
-            lift_at_step_or![Error];
-            lift_state(reconcile_idle)
-        );
         temp_pred_equality(
             lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl)), (UpdateNeeded, needed_index_and_len(j, jl)), Error],
             lift_at_step_or![(CreateNeeded, needed_index_and_len(j, jl))].or(lift_at_step_or![(UpdateNeeded, needed_index_and_len(j, jl))]).or(lift_at_step_or![Error])
@@ -632,10 +564,6 @@ ensures
         // proved earlier
     }
 
-    leads_to_exists_intro(spec,
-        partial_pred_pvc,
-        target_idle
-    );
 
     let p_get_pvc = lift_state(lift_local(controller_id, vsts, at_step_or![GetPVC]));
     assert forall |ex: Execution<ClusterState>| #![trigger p_get_pvc.satisfied_by(ex)] p_get_pvc.satisfied_by(ex) implies tla_exists(partial_pred_pvc).satisfied_by(ex) by {
@@ -645,7 +573,6 @@ ensures
         assert(partial_pred_pvc((j_witness, jl_witness)).satisfied_by(ex));
     }
 
-    entails_implies_leads_to(spec, p_get_pvc, tla_exists(partial_pred_pvc));
     leads_to_trans_n!(
         spec,
         p_get_pvc,
@@ -674,12 +601,6 @@ ensures
 
     // Prove CreatePVC leads to idle
     // CreatePVC transitions to AfterCreatePVC | Error
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![AfterCreatePVC],
-        lift_at_step_or![Error];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![AfterCreatePVC, Error],
         lift_at_step_or![AfterCreatePVC].or(lift_at_step_or![Error])
@@ -692,13 +613,6 @@ ensures
 
     // Prove AfterGetPVC leads to idle
     // AfterGetPVC transitions to SkipPVC | CreatePVC | Error
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![SkipPVC],
-        lift_at_step_or![CreatePVC],
-        lift_at_step_or![Error];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![SkipPVC, CreatePVC, Error],
         lift_at_step_or![SkipPVC].or(lift_at_step_or![CreatePVC]).or(lift_at_step_or![Error])
@@ -733,12 +647,6 @@ ensures
         lift_state(reconcile_idle)
     );
 
-    or_leads_to_n!(
-        spec,
-        lift_at_step_or![AfterListPod],
-        lift_at_step_or![Done];
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(
         lift_at_step_or![AfterListPod, Done],
         lift_at_step_or![AfterListPod].or(lift_at_step_or![Done])
@@ -807,7 +715,6 @@ ensures
         ) by {
         let i_plus_1 = (i + 1) as nat;
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], pvc_with_indices(i_plus_1, l, n, ln));
 
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterGetPVC, pvc_and_needed_state(i, l, n, ln)
@@ -827,13 +734,6 @@ ensures
             at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error]
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]);
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
             lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
@@ -873,13 +773,6 @@ ensures
             at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]);
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
             lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))].or(lift_at_step_or![Error])
@@ -891,24 +784,11 @@ ensures
             lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
             lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))])
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]);
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
             lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
@@ -926,12 +806,6 @@ ensures
             pvc_with_indices(i_plus_1, l, n, ln)
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            pvc_with_indices(i_plus_1, l, n, ln)
-        );
         temp_pred_equality(
             pvc_with_indices(i, l, n, ln),
             lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
@@ -945,7 +819,6 @@ ensures
         ) by {
         let i_plus_1 = (i + 1) as nat;
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
 
         lemma_from_no_pending_req_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, GetPVC, pvc_and_needed_state(i, l, n, ln)
@@ -992,13 +865,6 @@ ensures
             at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln)), Error],
             lift_at_step_or![(AfterCreatePVC, pvc_and_needed_state(i_plus_1, l, n, ln))].or(lift_at_step_or![Error])
@@ -1010,23 +876,11 @@ ensures
             lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))];
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
             lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln))])
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(CreatePVC, pvc_and_needed_state(i, l, n, ln)), (SkipPVC, pvc_and_needed_state(i, l, n, ln)), Error],
             lift_at_step_or![(SkipPVC, pvc_and_needed_state(i, l, n, ln)), (CreatePVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
@@ -1039,12 +893,6 @@ ensures
             lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-        );
         temp_pred_equality(
             lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln)), Error],
             lift_at_step_or![(AfterGetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
@@ -1057,12 +905,6 @@ ensures
             lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]
-        );
         temp_pred_equality(
             pvc_with_indices(i, l, n, ln),
             lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
@@ -1082,7 +924,6 @@ ensures
             at_step_or![Error]
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![Error]);
 
         leads_to_trans_n!(
             spec,
@@ -1096,12 +937,6 @@ ensures
             lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))].or(lift_at_step_or![Error])
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(GetPVC, pvc_and_needed_state(i, l, n, ln))],
-            lift_at_step_or![Error];
-            lift_at_step_or![Error]
-        );
     };
 
     assert forall |i: nat, l: nat, n: nat, ln: nat| #![trigger pvc_with_indices(i, l, n, ln)]
@@ -1110,7 +945,6 @@ ensures
                 .leads_to(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error])
         ) by {
         if i >= l {
-            entails_implies_leads_to(spec, lift_at_step_or![Error], lift_at_step_or![(CreateNeeded, needed_index_and_len(n, ln)), (UpdateNeeded, needed_index_and_len(n, ln)), Error]);
             leads_to_trans_n!(
                 spec,
                 pvc_with_indices(i, l, n, ln),
@@ -1155,10 +989,6 @@ ensures
         assert forall |i: (nat, nat)| #![trigger partial_pred(i)] spec.entails(partial_pred(i).leads_to(target)) by {
             // proved earlier
         }
-        leads_to_exists_intro(spec,
-            partial_pred,
-            target
-        );
 
         let p = get_pvc_with_needed(vsts, controller_id, j, jl);
         assert forall |ex: Execution<ClusterState>| #![trigger p.satisfied_by(ex)] p.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
@@ -1167,7 +997,6 @@ ensures
            let l_witness = vsts_state.pvcs.len();
            assert(partial_pred((i_witness, l_witness)).satisfied_by(ex)); 
         }
-        entails_implies_leads_to(spec, p, tla_exists(partial_pred));
         leads_to_trans_n!(
             spec,
             p,
@@ -1214,7 +1043,6 @@ ensures
         n < l implies spec.entails(after_create_or_update_with_index_and_len(n, l).leads_to(after_create_or_update_with_index_and_len(n + 1 as nat, l))) by {
         let n_plus_1 = n + 1 as nat;
 
-        entails_implies_leads_to(spec, lift_at_step_or![Error], after_create_or_update_with_index_and_len(n_plus_1, l));
 
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterCreateNeeded, needed_index_and_len(n, l)
@@ -1253,7 +1081,6 @@ ensures
             at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error]
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n_plus_1, l)), Error], after_create_or_update_with_index_and_len(n_plus_1, l));
         leads_to_trans_n!(
             spec,
             lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
@@ -1261,7 +1088,6 @@ ensures
             after_create_or_update_with_index_and_len(n_plus_1, l)
         );
 
-        entails_implies_leads_to(spec, lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n_plus_1, l)), Error], after_create_or_update_with_index_and_len(n_plus_1, l));
         leads_to_trans_n!(
             spec,
             lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
@@ -1269,13 +1095,6 @@ ensures
             after_create_or_update_with_index_and_len(n_plus_1, l)
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![Error];
-            after_create_or_update_with_index_and_len(n_plus_1, l)
-        );
         temp_pred_equality(
             lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
             lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))].or(lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
@@ -1288,14 +1107,6 @@ ensures
             after_create_or_update_with_index_and_len(n_plus_1, l)
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(GetPVC, needed_index_and_len(n, l))],
-            lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![Error];
-            after_create_or_update_with_index_and_len(n_plus_1, l)
-        );
         temp_pred_equality(
             lift_at_step_or![(GetPVC, needed_index_and_len(n, l)), (CreateNeeded, needed_index_and_len(n, l)), (UpdateNeeded, needed_index_and_len(n, l)), Error],
             lift_at_step_or![(GetPVC, needed_index_and_len(n, l))].or(lift_at_step_or![(CreateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![(UpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
@@ -1315,13 +1126,6 @@ ensures
             after_create_or_update_with_index_and_len(n_plus_1, l)
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![Error];
-            after_create_or_update_with_index_and_len(n_plus_1, l)
-        );
         temp_pred_equality(
             after_create_or_update_with_index_and_len(n, l),
             lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))].or(lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
@@ -1375,13 +1179,6 @@ ensures
             lift_state(reconcile_idle)
         );
 
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))],
-            lift_at_step_or![Error];
-            lift_state(reconcile_idle)
-        );
         temp_pred_equality(
             after_create_or_update_with_index_and_len(n, l),
             lift_at_step_or![(AfterCreateNeeded, needed_index_and_len(n, l))].or(lift_at_step_or![(AfterUpdateNeeded, needed_index_and_len(n, l))]).or(lift_at_step_or![Error])
@@ -1414,10 +1211,6 @@ ensures
         // proved earlier
     }
 
-    leads_to_exists_intro(spec,
-        partial_pred,
-        target
-    );
 
     let p_create = lift_at_step_or![AfterCreateNeeded];
     assert forall |ex: Execution<ClusterState>| #![trigger p_create.satisfied_by(ex)] p_create.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
@@ -1427,7 +1220,6 @@ ensures
         assert(partial_pred((n_witness, l_witness)).satisfied_by(ex));
     }
 
-    entails_implies_leads_to(spec, p_create, tla_exists(partial_pred));
     leads_to_trans_n!(
         spec,
         p_create,
@@ -1443,7 +1235,6 @@ ensures
         assert(partial_pred((n_witness, l_witness)).satisfied_by(ex));
     }
 
-    entails_implies_leads_to(spec, p_update, tla_exists(partial_pred));
     leads_to_trans_n!(
         spec,
         p_update,
@@ -1476,8 +1267,6 @@ ensures
     assert forall |n: nat, l: nat| #![trigger delete_condemned_with_index_and_len(n, l)]
         n < l implies spec.entails(delete_condemned_with_index_and_len(n, l).leads_to(delete_condemned_with_index_and_len(n + 1 as nat, l))) by {
         let n_plus_1 = n + 1 as nat;
-        entails_implies_leads_to(spec, lift_at_step_or![Error], delete_condemned_with_index_and_len(n_plus_1, l));
-        entails_implies_leads_to(spec, lift_at_step_or![DeleteOutdated], delete_condemned_with_index_and_len(n_plus_1, l));
 
         lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
             spec, vsts, controller_id, AfterDeleteCondemned, condemned_index_and_len(n, l)
@@ -1494,18 +1283,10 @@ ensures
             at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
             at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error]
         );
-        entails_implies_leads_to(spec, lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error], delete_condemned_with_index_and_len(n_plus_1, l));
         leads_to_trans_n!(
             spec,
             lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
             lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n_plus_1, l)), Error],
-            delete_condemned_with_index_and_len(n_plus_1, l)
-        );
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l))],
-            lift_at_step_or![Error],
-            lift_at_step_or![DeleteOutdated];
             delete_condemned_with_index_and_len(n_plus_1, l)
         );
         temp_pred_equality(
@@ -1516,13 +1297,6 @@ ensures
             spec,
             lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
             lift_at_step_or![(DeleteCondemned, condemned_index_and_len(n, l)), Error, DeleteOutdated],
-            delete_condemned_with_index_and_len(n_plus_1, l)
-        );
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
-            lift_at_step_or![Error],
-            lift_at_step_or![DeleteOutdated];
             delete_condemned_with_index_and_len(n_plus_1, l)
         );
         temp_pred_equality(
@@ -1558,13 +1332,6 @@ ensures
             lift_at_step_or![Error, DeleteOutdated],
             lift_state(reconcile_idle)
         );
-        or_leads_to_n!(
-            spec,
-            lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))],
-            lift_at_step_or![Error],
-            lift_at_step_or![DeleteOutdated];
-            lift_state(reconcile_idle)
-        );
         temp_pred_equality(
             delete_condemned_with_index_and_len(n, l),
             lift_at_step_or![(AfterDeleteCondemned, condemned_index_and_len(n, l))].or(lift_at_step_or![Error]).or(lift_at_step_or![DeleteOutdated])
@@ -1597,10 +1364,6 @@ ensures
         // proved earlier
     }
 
-    leads_to_exists_intro(spec,
-        partial_pred,
-        target
-    );
 
     let p = lift_at_step_or![AfterDeleteCondemned];
     assert forall |ex: Execution<ClusterState>| #![trigger p.satisfied_by(ex)] p.satisfied_by(ex) implies tla_exists(partial_pred).satisfied_by(ex) by {
@@ -1610,7 +1373,6 @@ ensures
         assert(partial_pred((n_witness, l_witness)).satisfied_by(ex));
     }
 
-    entails_implies_leads_to(spec, p, tla_exists(partial_pred));
     leads_to_trans_n!(
         spec,
         p,
@@ -1638,7 +1400,6 @@ ensures
     let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, vsts.object_ref(), at_step_or![(step, pred)]
     ));
-    entails_preserved_by_always(pre, post);
     entails_trans(spec, always(pre), always(post));
 }
 
@@ -1661,7 +1422,6 @@ ensures
     let post = lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, vsts.object_ref(), at_step_or![(step, pred)]
     ));
-    entails_preserved_by_always(pre, post);
     entails_trans(spec, always(pre), always(post));
 }
 

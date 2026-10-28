@@ -123,7 +123,6 @@ proof fn lemma_eventually_always_every_valid_resource_update_request_sets_owner_
             }
         }
     }
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     invariant_n!(spec,
         lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -175,10 +174,6 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
     cluster.lemma_always_every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
-    always_to_always_later(spec, lift_state(rmq_guarantee(controller_id)));
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    always_to_always_later(spec, lift_state(Cluster::all_requests_from_pod_monkey_are_api_pod_requests()));
-    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)
         // &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers_nor_deletion_timestamp(sub_resource, rabbitmq)(s)
@@ -391,7 +386,6 @@ proof fn lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -402,8 +396,6 @@ proof fn lemma_always_requests_from_rmq_has_no_finalizers_or_timestamp_and_only_
         &&& Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)(s_prime)
         &&& rmq_rely_conditions(cluster, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)));
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -517,8 +509,6 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_from_gc_in_fligh
             }
         }
     }
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     invariant_n!(spec,
         lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -745,7 +735,6 @@ proof fn lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     cluster.lemma_always_cr_states_are_unmarshallable::<RabbitmqReconciler, RabbitmqReconcileState, RabbitmqClusterView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(spec, controller_id);
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -847,8 +836,6 @@ pub proof fn lemma_always_sts_in_etcd_with_rmq_key_match_rmq_selector(
     guarantee_condition_holds(spec, cluster, controller_id);
     lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(controller_id, cluster, spec, SubResource::VStatefulSetView, rabbitmq);
     lemma_always_sts_create_request_msg_has_correct_selector_with_rabbitmq_name(controller_id, cluster, spec, rabbitmq);
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    always_to_always_later(spec, lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1052,11 +1039,6 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
         }
     };
 
-    always_to_always_later(spec, lift_state(rmq_guarantee(controller_id)));
-    always_to_always_later(spec, lift_state(rmq_rely_conditions(cluster, controller_id)));
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
-    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
     invariant_n!(spec,
         lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -1079,10 +1061,6 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
     assert forall |s: ClusterState| #[trigger] Cluster::every_in_flight_req_msg_satisfies(requirements)(s)
         implies Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req)(s) by {
     }
-    entails_preserved_by_always(
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
-        lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req))
-    );
     leads_to_weaken(spec, true_pred(),
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
         true_pred(), always(lift_state(Cluster::every_create_msg_sets_owner_references_as(resource_key, owner_ref_req)))
@@ -1090,10 +1068,6 @@ pub proof fn lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_res
     assert forall |s: ClusterState| #[trigger] Cluster::every_in_flight_req_msg_satisfies(requirements)(s)
         implies Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req)(s) by {
     }
-    entails_preserved_by_always(
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
-        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req))
-    );
     leads_to_weaken(spec, true_pred(),
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
         true_pred(), always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(resource_key, owner_ref_req)))

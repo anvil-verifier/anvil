@@ -73,7 +73,6 @@ pub proof fn compose(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     let esr_s1 = tla_forall(|c: int| if s1.members.contains(c) { cluster.registry[c].esr } else { true_pred::<ClusterState>() });
 
     // valid(s2.liveness_dependency) means s1's ESR vacuously implies it
-    vacuous_implies(spec, esr_s1, s2.liveness_dependency);
     compose_dep(cluster, s1, s2);
 }
 
@@ -134,9 +133,6 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
     let f3 = tla_forall(G1_fn).implies(tla_forall(R21_fn)).and(tla_forall(G2_fn).implies(tla_forall(R12_fn)));
     let f4 = tla_forall(ESR1_fn).implies(s2.liveness_dependency);
 
-    entails_and(spec, tla_forall(G1_fn), ante1.implies(tla_forall(ESR1_fn)));
-    entails_and(spec, tla_forall(G2_fn), ante2.implies(tla_forall(ESR2_fn)));
-    entails_and(spec, tla_forall(G1_fn).implies(tla_forall(R21_fn)), tla_forall(G2_fn).implies(tla_forall(R12_fn)));
 
     // The compatibility implications discharged by the guarantees (modus ponens).
     implies_apply(spec, tla_forall(G1_fn), tla_forall(R21_fn));
@@ -152,14 +148,10 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             entails_trans(spec, tla_forall(G2_fn), G2_fn(c));
         }
     }
-    spec_entails_tla_forall(spec, Gs_fn);
 
     // Goal, part 2: spec |= ante => tla_forall(ESRs_fn), by the deduction theorem.
     // Reason under spec2 = spec /\ ante and discharge tla_forall(ESRs_fn).
     let spec2 = spec.and(ante);
-    entails_and(spec2, spec, ante);
-    entails_and(spec2, tla_forall(Rs_fn).and(s.liveness_dependency), tla_forall(environment_rely_s));
-    entails_and(spec2, tla_forall(Rs_fn), s.liveness_dependency);
 
     // Lift the spec-level facts we still need to spec2.
     entails_trans(spec2, spec, tla_forall(R12_fn));
@@ -182,7 +174,6 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             }
         }
     }
-    spec_entails_tla_forall(spec2, R1_fn);
 
     // spec2 |= tla_forall(R2_fn): symmetric, using r_21.
     assert forall |pair: (int, int)| spec2.entails(#[trigger] R2_fn(pair)) by {
@@ -197,7 +188,6 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             }
         }
     }
-    spec_entails_tla_forall(spec2, R2_fn);
 
     // spec2 |= tla_forall(environment_rely1) and environment_rely2 from environment_rely_s.
     assert forall |c: int| spec2.entails(#[trigger] environment_rely1(c)) by {
@@ -206,24 +196,18 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             entails_trans(spec2, tla_forall(environment_rely_s), environment_rely_s(c));
         }
     }
-    spec_entails_tla_forall(spec2, environment_rely1);
     assert forall |c: int| spec2.entails(#[trigger] environment_rely2(c)) by {
         if s2.members.contains(c) {
             tla_forall_apply(environment_rely_s, c);
             entails_trans(spec2, tla_forall(environment_rely_s), environment_rely_s(c));
         }
     }
-    spec_entails_tla_forall(spec2, environment_rely2);
 
     // spec2 |= tla_forall(ESR1_fn): assemble ante1 and discharge f1's implication.
-    entails_and(spec2, tla_forall(R1_fn), s1.liveness_dependency);
-    entails_and(spec2, tla_forall(R1_fn).and(s1.liveness_dependency), tla_forall(environment_rely1));
     implies_apply(spec2, ante1, tla_forall(ESR1_fn));
 
     // spec2 |= s2.liveness_dependency via satisfies_dependency (f4), then tla_forall(ESR2_fn).
     implies_apply(spec2, tla_forall(ESR1_fn), s2.liveness_dependency);
-    entails_and(spec2, tla_forall(R2_fn), s2.liveness_dependency);
-    entails_and(spec2, tla_forall(R2_fn).and(s2.liveness_dependency), tla_forall(environment_rely2));
     implies_apply(spec2, ante2, tla_forall(ESR2_fn));
 
     // spec2 |= tla_forall(ESRs_fn), merging ESR1 and ESR2 over the union.
@@ -236,11 +220,8 @@ pub proof fn compose_dep(cluster: CoreCluster, s1: CoreSet, s2: CoreSet)
             entails_trans(spec2, tla_forall(ESR2_fn), ESR2_fn(c));
         }
     }
-    spec_entails_tla_forall(spec2, ESRs_fn);
 
     // Discharge the deduction theorem and combine the two goal conjuncts.
-    entails_implies(spec, ante, tla_forall(ESRs_fn));
-    entails_and(spec, tla_forall(Gs_fn), ante.implies(tla_forall(ESRs_fn)));
 }
 
 }

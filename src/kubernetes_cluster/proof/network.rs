@@ -278,10 +278,6 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
     assert forall |key: ObjectRef| spec.entails(always(lift_state(#[trigger] Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key)))) by {
         self.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, controller_id, key);
     }
-    spec_entails_always_tla_forall_equality(
-        spec,
-        |key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))
-    );
     assert forall |ex| tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))).satisfied_by(ex)
         implies #[trigger] lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)).satisfied_by(ex) by {
         let s = ex.head();

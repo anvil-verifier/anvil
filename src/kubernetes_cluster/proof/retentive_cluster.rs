@@ -1,5 +1,5 @@
 use crate::kubernetes_cluster::spec::{cluster::*, retentive_cluster::*};
-use verus_temporal_logic::defs::*;
+use verus_temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -19,36 +19,13 @@ pub proof fn transfer_invariant_to_cluster(self, spec: TempPred<ClusterState>, i
     ensures
         spec.entails(always(lift_state(inv))),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(lift_state(inv)).satisfied_by(ex) by {
-        let ex_h = Execution::<ClusterHistory> {
-            nat_to_state: |i: nat| Self::construct_history_from_state(i, ex)
-        };
-        assert(spec.implies(lift_state(self.to_cluster().init())).satisfied_by(ex));
-        assert(spec.implies(always(lift_action(self.to_cluster().next()))).satisfied_by(ex));
-        assert_by(lift_state(self.init()).satisfied_by(ex_h), {
-            let s = ex.head();
-            let h = ex_h.head();
-            self.reverse_refinement_init(s, h);
-        });
-        assert_by(always(lift_action(self.next())).satisfied_by(ex_h), {
-            assert forall |i| #[trigger] lift_action(self.next()).satisfied_by(ex_h.suffix(i)) by {
-                assert(lift_action(self.to_cluster().next()).satisfied_by(ex.suffix(i)));
-                let s = ex.suffix(i).head();
-                let s_prime = ex.suffix(i).head_next();
-                let h = ex_h.suffix(i).head();
-                let h_prime = ex_h.suffix(i).head_next();
-                self.reverse_refinement_next(s, s_prime, h, h_prime);
-            }
-        });
-        assert_by(always(lift_state(|h: ClusterHistory| inv(h.current))).satisfied_by(ex_h), {
-            assert(lift_state(self.init()).and(always(lift_action(self.next()))).implies(always(lift_state(|h: ClusterHistory| inv(h.current)))).satisfied_by(ex_h));
-        });
-        assert_by(always(lift_state(inv)).satisfied_by(ex), {
-            assert forall |i| #[trigger] lift_state(inv).satisfied_by(ex.suffix(i)) by {
-                assert(lift_state(|h: ClusterHistory| inv(h.current)).satisfied_by(ex_h.suffix(i)));
-            }
-        })
-    }
+    history_variable_preserves_invariant(
+        spec, self.to_cluster().init(), self.to_cluster().next(), inv,
+        |h: ClusterHistory| h.current,
+        |s: ClusterState| ClusterHistory { current: s, past: Seq::<ClusterState>::empty() },
+        |h: ClusterHistory, s_prime: ClusterState| ClusterHistory { current: s_prime, past: h.past.push(h.current) },
+        self.init(), self.next(), |h: ClusterHistory| inv(h.current)
+    );
 }
 
 // If an invariant holds for the state machine w/o the history
@@ -64,34 +41,10 @@ pub proof fn transfer_invariant_from_cluster(self, spec: TempPred<ClusterHistory
     ensures
         spec.entails(always(lift_state(|h: ClusterHistory| inv(h.current)))),
 {
-    let inv_h = |h: ClusterHistory| inv(h.current);
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(lift_state(inv_h)).satisfied_by(ex) by {
-        let ex_s = Execution::<ClusterState> {
-            nat_to_state: |i: nat| (ex.nat_to_state)(i).current
-        };
-        assert(spec.implies(lift_state(self.init())).satisfied_by(ex));
-        assert(spec.implies(always(lift_action(self.next()))).satisfied_by(ex));
-        assert_by(lift_state(self.to_cluster().init()).satisfied_by(ex_s), {
-            let h = ex.head();
-            self.refinement_init(h);
-        });
-        assert_by(always(lift_action(self.to_cluster().next())).satisfied_by(ex_s), {
-            assert forall |i| #[trigger] lift_action(self.to_cluster().next()).satisfied_by(ex_s.suffix(i)) by {
-                assert(lift_action(self.next()).satisfied_by(ex.suffix(i)));
-                let h = ex.suffix(i).head();
-                let h_prime = ex.suffix(i).head_next();
-                self.refinement_next(h, h_prime);
-            }
-        });
-        assert_by(always(lift_state(inv)).satisfied_by(ex_s), {
-            assert(lift_state(self.to_cluster().init()).and(always(lift_action(self.to_cluster().next()))).implies(always(lift_state(inv))).satisfied_by(ex_s));
-        });
-        assert_by(always(lift_state(inv_h)).satisfied_by(ex), {
-            assert forall |i| #[trigger] lift_state(inv_h).satisfied_by(ex.suffix(i)) by {
-                assert(lift_state(inv).satisfied_by(ex_s.suffix(i)));
-            }
-        })
-    }
+    refinement_mapping_preserves_invariant(
+        spec, self.init(), self.next(), |h: ClusterHistory| inv(h.current),
+        |h: ClusterHistory| h.current, self.to_cluster().init(), self.to_cluster().next(), inv
+    );
 }
 
 pub open spec fn construct_history_from_state(i: nat, ex: Execution<ClusterState>) -> ClusterHistory

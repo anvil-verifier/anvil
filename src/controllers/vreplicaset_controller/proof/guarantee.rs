@@ -392,7 +392,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     lemma_always_local_pods_have_vrs_prefix(spec, cluster, controller_id);
-    always_to_always_later(spec, lift_state(local_pods_have_vrs_prefix(controller_id)));
 
     let stronger_next = |s, s_prime| {
         &&& cluster.next()(s, s_prime)

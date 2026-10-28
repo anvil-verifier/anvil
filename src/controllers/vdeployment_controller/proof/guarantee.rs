@@ -47,7 +47,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
 
-    always_to_always_later(spec, lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),

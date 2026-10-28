@@ -221,44 +221,10 @@ pub proof fn reconcile_eventually_terminates(
                 spec, vrs_with_key, cluster, controller_id
             );
         } else {
-            always_weaken(
-                spec, 
-                lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-            );
-
-
             let terminated_vrs = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
-            assert forall |ex|
-                spec.entails(always(lift_state(terminated_vrs)))
-                implies 
-                    #[trigger] spec.implies(always(
-                        true_pred().and(true_pred()).and(true_pred())
-                        .implies(later(lift_state(terminated_vrs)))
-                    )).satisfied_by(ex) by {
-                if spec.satisfied_by(ex) {
-                    assert forall |n: nat| 
-                        spec.satisfied_by(ex)
-                        && spec.entails(always(lift_state(terminated_vrs)))
-                        implies 
-                            #[trigger] true_pred().and(true_pred()).and(true_pred())
-                            .implies(later(lift_state(terminated_vrs))).satisfied_by(ex.suffix(n)) by {
-                        assert(valid(spec.implies(always(lift_state(terminated_vrs)))));
-                        assert(spec.implies(always(lift_state(terminated_vrs))).satisfied_by(ex));
-                        assert(always(lift_state(terminated_vrs)).satisfied_by(ex));
-                        assert(lift_state(terminated_vrs).satisfied_by(ex.suffix(n + 1)));
-                    }
-                }
-            }
-
-            entails_implies_leads_to(spec, always(true_pred()), true_pred());
-            wf1_variant(
-                spec,
-                true_pred(),
-                true_pred(),
-                true_pred(),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-            );
+            always_weaken(spec, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)), lift_state(terminated_vrs));
+            always_entails_leads_to_always(spec, true_pred(), lift_state(terminated_vrs));
+            leads_to_eliminate_always(spec, true_pred(), lift_state(terminated_vrs));
         }
     }
 
@@ -338,7 +304,6 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     cluster.lemma_reconcile_done_leads_to_reconcile_idle(spec, controller_id, vrs.object_ref());
     temp_pred_equality(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)), lift_state(cluster.reconciler_reconcile_done(controller_id, vrs.object_ref())));
     temp_pred_equality(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)), lift_state(cluster.reconciler_reconcile_error(controller_id, vrs.object_ref())));
-    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that after_create_pod_rank(0) \/ after_delete_pod_rank(0) ~> reconcile_idle.
     lemma_from_after_update_vrs_status_to_reconcile_idle(spec, vrs, cluster, controller_id);
@@ -357,11 +322,6 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         }
         leads_to_rank_step_one(spec, |n| lift_state(after_create_pod_rank(controller_id, vrs, n)));
 
-        always_implies_to_leads_to(
-            spec,
-            lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n))),
-            lift_state(after_create_pod_rank(controller_id, vrs, n))
-        );
         assert(spec.entails((|n| lift_state(after_create_pod_rank(controller_id, vrs, n)))(n)
                                 .leads_to((|n| lift_state(after_create_pod_rank(controller_id, vrs, n)))(0))));
         leads_to_trans_n!(
@@ -384,11 +344,6 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         }
         leads_to_rank_step_one(spec, |n| lift_state(after_delete_pod_rank(controller_id, vrs, n)));
 
-        always_implies_to_leads_to(
-            spec,
-            lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n))),
-            lift_state(after_delete_pod_rank(controller_id, vrs, n))
-        );
         assert(spec.entails((|n| lift_state(after_delete_pod_rank(controller_id, vrs, n)))(n)
                                 .leads_to((|n| lift_state(after_delete_pod_rank(controller_id, vrs, n)))(0))));
         leads_to_trans_n!(
@@ -404,12 +359,6 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     lemma_from_after_list_pods_to_reconcile_idle(spec, vrs, cluster, controller_id);
     assert(spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
         .leads_to(lift_state(reconcile_idle))));
-    or_leads_to_n!(
-        spec,
-        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
-        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done));
-        lift_state(reconcile_idle)
-    );
     temp_pred_equality(lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(),
         |rs: ReconcileLocalState| (at_step_closure(VReplicaSetRecStepView::AfterListPods)(rs) || at_step_closure(VReplicaSetRecStepView::Done)(rs)))),
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)).or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
@@ -429,16 +378,6 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     );
 
     // Finally, combine all cases
-    leads_to_exists_intro(
-        spec,
-        |n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n))),
-        lift_state(reconcile_idle)
-    );
-    leads_to_exists_intro(
-        spec,
-        |n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n))),
-        lift_state(reconcile_idle)
-    );
     let at_after_create_pod = |n: nat| {
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))
     };
@@ -716,11 +655,6 @@ pub proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
         || s.reconcile_step == VReplicaSetRecStepView::Error
     };
 
-    entails_implies_leads_to(
-        spec,
-        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)),
-        lift_state(after_create_pod_rank(controller_id, vrs, (n - 1) as nat))
-    );
 
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to_create_n(
         spec, vrs, cluster, controller_id, n
@@ -738,11 +672,6 @@ pub proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
         lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Error)))
     );
 
-    always_implies_to_leads_to(
-        spec,
-        lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_create)),
-        lift_state(after_create_pod_rank(controller_id, vrs, (n - 1) as nat))
-    );
     leads_to_trans_n!(
         spec,
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n))),
@@ -802,11 +731,6 @@ pub proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
         || s.reconcile_step == VReplicaSetRecStepView::Error
     };
 
-    entails_implies_leads_to(
-        spec,
-        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Error)),
-        lift_state(after_delete_pod_rank(controller_id, vrs, (n - 1) as nat))
-    );
 
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to_delete_n(
         spec, vrs, cluster, controller_id, n
@@ -824,11 +748,6 @@ pub proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
         lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Error)))
     );
 
-    always_implies_to_leads_to(
-        spec,
-        lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), state_after_delete)),
-        lift_state(after_delete_pod_rank(controller_id, vrs, (n - 1) as nat))
-    );
     leads_to_trans_n!(
         spec,
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n))),
@@ -901,16 +820,6 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         ||| s.reconcile_step == VReplicaSetRecStepView::Done
         ||| s.reconcile_step == VReplicaSetRecStepView::Error
     };
-    leads_to_exists_intro(
-        spec,
-        |n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n))),
-        lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))
-    );
-    leads_to_exists_intro(
-        spec,
-        |n| lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterDeletePod(n))),
-        lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))
-    );
     let at_after_create_pod = |n: nat| {
         lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))
     };
@@ -1072,27 +981,17 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
                 at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
             )))),
 {
-    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id,
-        vrs.object_ref(),
-        unwrap_local_state_closure(
-            |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
-        )
-    ));
-    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id,
-        vrs.object_ref(),
-        at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
-    ));
-
-    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
-        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
-        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
-        assert(always(pre).satisfied_by(ex));
-
-        assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {
-        }
-    }
+    always_weaken(spec, lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vrs.object_ref(),
+            unwrap_local_state_closure(
+                |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
+            )
+        )), lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vrs.object_ref(),
+            at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
+        )));
 }
 
 pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to_delete_n(
@@ -1115,27 +1014,17 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
                 at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
             )))),
 {
-    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id,
-        vrs.object_ref(),
-        unwrap_local_state_closure(
-            |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
-        )
-    ));
-    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id,
-        vrs.object_ref(),
-        at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
-    ));
-
-    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
-        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
-        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
-        assert(always(pre).satisfied_by(ex));
-
-        assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {
-        }
-    }
+    always_weaken(spec, lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vrs.object_ref(),
+            unwrap_local_state_closure(
+                |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
+            )
+        )), lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vrs.object_ref(),
+            at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
+        )));
 }
 
 // Havoc function for VReplicaSetView.

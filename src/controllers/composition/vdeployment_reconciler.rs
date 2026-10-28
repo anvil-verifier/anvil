@@ -81,7 +81,6 @@ pub proof fn vd_singleton_core_holds(cluster: CoreCluster, id: int)
             tla_forall_apply(G_fn, c);
         }
     }
-    spec_entails_tla_forall(spec, G_fn);
 
     // Group R with D (VD's liveness depends on VRS's ESR, so D is non-trivial).
     let assumption_rd = tla_forall(R_fn).and(s.liveness_dependency);
@@ -102,14 +101,11 @@ pub proof fn vd_singleton_core_holds(cluster: CoreCluster, id: int)
             assert(ESR_fn(c) == composed_vd_eventually_stable_reconciliation());
         }
     }
-    spec_entails_tla_forall(spec_rd, ESR_fn);
-    entails_implies(spec, assumption_rd, tla_forall(ESR_fn));
 
     // Collapse the env factor (every env_fn(c) is true_pred for VD) so the full
     // assumption shape R.and(D).and(env) matches assumption_rd.
     assert(spec.entails(tla_forall(G_fn).and(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn))))) by {
         temp_pred_equality(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)), assumption_rd);
-        entails_and(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
     }
 }
 

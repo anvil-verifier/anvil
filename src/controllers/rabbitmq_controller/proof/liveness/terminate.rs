@@ -153,7 +153,6 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
     cluster.lemma_reconcile_done_leads_to_reconcile_idle(spec, controller_id, rabbitmq.object_ref());
     temp_pred_equality(lift_state(at_step_state_pred(rabbitmq, controller_id, RabbitmqReconcileStep::Done)), lift_state(cluster.reconciler_reconcile_done(controller_id, rabbitmq.object_ref())));
     temp_pred_equality(lift_state(at_step_state_pred(rabbitmq, controller_id, RabbitmqReconcileStep::Error)), lift_state(cluster.reconciler_reconcile_error(controller_id, rabbitmq.object_ref())));
-    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that the sub resource that every intermediate steps can lead to reconcile idle.
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, cluster, controller_id, rabbitmq, SubResource::VStatefulSetView, RabbitmqReconcileStep::Done);
@@ -262,10 +261,7 @@ pub proof fn reconcile_eventually_terminates_forall_key(
                     assert(false);
                 }
             }
-            entails_preserved_by_always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)), idle_state);
             entails_trans(spec, always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id))), always(idle_state));
-            entails_implies_eventually(spec, always(idle_state));
-            true_leads_to_eventually_always_equality(spec, idle_state);
             leads_to_eliminate_always(spec, true_pred(), idle_state);
             temp_pred_equality(
                 true_pred().leads_to(idle_state),
@@ -274,7 +270,6 @@ pub proof fn reconcile_eventually_terminates_forall_key(
         }
     }
 
-    spec_entails_tla_forall(spec, post);
 }
 
 }

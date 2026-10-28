@@ -560,7 +560,6 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomR
         &&& self.each_custom_object_in_etcd_is_well_formed::<T>()(s_prime)
     };
     self.lemma_always_each_custom_object_in_etcd_is_well_formed::<T>(spec);
-    always_to_always_later(spec, lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>()));
 
     T::marshal_preserves_integrity();
     T::marshal_spec_preserves_integrity();

@@ -409,10 +409,6 @@ ensures
             }
         }
     }
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
-    always_to_always_later(spec, lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)));
-    always_to_always_later(spec, lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)));
     invariant_n!(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -444,14 +440,6 @@ ensures
             };
         };
     };
-    entails_preserved_by_always(
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
-        lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts)))
-    );
-    entails_implies_leads_to(spec,
-        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
-        always(lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as_for_all(is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
-    );
     leads_to_trans(spec,
         true_pred(),
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
@@ -537,11 +525,6 @@ ensures
             }
         }
     };
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))));
-    always_to_always_later(spec, lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)));
-    always_to_always_later(spec, lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)));
     invariant_n!(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -647,11 +630,6 @@ ensures
             }
         }
     };
-    always_to_always_later(spec, lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_to_always_later(spec, lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()));
-    always_to_always_later(spec, lift_state(Cluster::every_in_flight_req_msg_satisfies(all_pod_requests_from_vsts_controller_carry_only_vsts_owner_ref(vsts, controller_id))));
-    always_to_always_later(spec, lift_state(internal_rely_guarantee::vsts_internal_guarantee_conditions(controller_id)));
-    always_to_always_later(spec, lift_state(rely_guarantee::vsts_rely_conditions(cluster, controller_id)));
     invariant_n!(
         spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
@@ -682,14 +660,6 @@ ensures
             };
         };
     };
-    entails_preserved_by_always(
-        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements)),
-        lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts)))
-    );
-    entails_implies_leads_to(spec,
-        always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
-        always(lift_state(Cluster::every_valid_update_msg_sets_owner_references_as_for_all(cluster.installed_types, is_vsts_pod_key(vsts), owner_reference_requirements(vsts))))
-    );
     leads_to_trans(spec,
         true_pred(),
         always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))),
@@ -735,10 +705,6 @@ ensures
             }
         };
     };
-    entails_preserved_by_always(
-        lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts)),
-        lift_state(Cluster::object_has_no_finalizers_for_all(cond))
-    );
     entails_trans(spec,
         always(lift_state(all_pods_in_etcd_matching_vsts_have_no_finalizer_or_deletion_timestamp_and_one_owner_ref(vsts))),
         always(lift_state(Cluster::object_has_no_finalizers_for_all(cond)))
@@ -1320,7 +1286,6 @@ ensures
         &&& Cluster::desired_state_is(vsts)(s_prime)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1360,7 +1325,6 @@ ensures
         &&& !s.ongoing_reconciles(controller_id).contains_key(vsts.object_ref())
         &&& s.scheduled_reconciles(controller_id).contains_key(vsts.object_ref())
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
     assert(spec.entails(lift_state(not_scheduled_or_reconcile).leads_to(lift_state(scheduled_and_not_reconcile)))) by {
         let (pre, post) = (not_scheduled_or_reconcile, scheduled_and_not_reconcile);
         let stronger_next = |s, s_prime| {
@@ -1433,7 +1397,6 @@ ensures
         &&& Cluster::desired_state_is(vsts)(s)
         &&& Cluster::desired_state_is(vsts)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1471,7 +1434,6 @@ ensures
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& vsts_in_schedule_has_no_deletion_timestamp(vsts, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),

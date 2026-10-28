@@ -123,7 +123,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VStatefulSetView>(controller_id)(s)
     };
 
-    always_to_always_later(spec, lift_state(local_pods_and_pvcs_are_bound_to_vsts(controller_id)));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),

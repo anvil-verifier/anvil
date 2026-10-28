@@ -76,7 +76,6 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr<T: Custom
         &&& Self::there_is_the_controller_state(controller_id)(s)
     };
     self.lemma_always_each_custom_object_in_etcd_is_well_formed::<T>(spec);
-    always_to_always_later(spec, lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>()));
     self.lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec, controller_id);
     self.lemma_always_there_is_the_controller_state(spec, controller_id);
     combine_spec_entails_always_n!(
@@ -160,7 +159,6 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
         &&& Self::there_is_the_controller_state(controller_id)(s)
     };
     self.lemma_always_each_custom_object_in_etcd_is_well_formed::<T>(spec);
-    always_to_always_later(spec, lift_state(self.each_custom_object_in_etcd_is_well_formed::<T>()));
     self.lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec, controller_id);
     self.lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec, controller_id, cr);
     self.lemma_always_there_is_the_controller_state(spec, controller_id);

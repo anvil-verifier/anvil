@@ -132,7 +132,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                  invariants implies #[trigger] spec.entails(list_req_msg(req_msg, diff).leads_to(list_resp(diff))) by {
         lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(vrs, spec, cluster, controller_id, req_msg, diff);
     };
-    leads_to_exists_intro(spec, |req_msg| list_req_msg(req_msg, diff), list_resp(diff));
 
 
     assert_by(spec.entails(list_req(diff).leads_to(tla_exists(|req_msg| list_req_msg(req_msg, diff)))), {
@@ -141,7 +140,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
             assert((|req_msg: Message| list_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
         };
-        entails_implies_leads_to(spec, list_req(diff), tla_exists(|req_msg| list_req_msg(req_msg, diff)));
     });
 
     leads_to_trans_n!(
@@ -183,7 +181,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                 lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
             };
 
-            leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), update_vrs_status_req);
             assert_by(
                 spec.entails(create_resp(0).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)))),
                 {
@@ -198,7 +195,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                         };
                         assert((|resp_msg: Message| create_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                     };
-                    entails_implies_leads_to(spec, create_resp(0), tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)));
                 }
             );
 
@@ -219,12 +215,10 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         // TODO: triggering on `create_resp(-n)` lets verus panics
         assert forall |n: nat| #![trigger ranking_pred(n)]
                     spec.entails(create_resp(-n).leads_to(ranking_pred(n))) by {
-            entails_implies_leads_to(spec, create_resp(-n), ranking_pred(n));
         };
 
         assert forall |n: nat| #![trigger ranking_pred(n)]
                     spec.entails(ranking_pred(n).leads_to(create_resp(-n))) by {
-            entails_implies_leads_to(spec, ranking_pred(n), create_resp(-n));
         };
 
          // Proving n > 0 => ranking_pred(n) ~> ranking_pred(n - 1)
@@ -251,7 +245,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(create_resp(0).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)))),
             {
@@ -266,7 +259,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                     };
                     assert((|resp_msg: Message| create_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                 };
-                entails_implies_leads_to(spec, create_resp(0), tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, 0)));
             }
         );
 
@@ -312,7 +304,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                 lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
             };
 
-            leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), update_vrs_status_req);
             assert_by(
                 spec.entails(delete_resp(0).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)))),
                 {
@@ -327,7 +318,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                         };
                         assert((|resp_msg: Message| delete_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                     };
-                    entails_implies_leads_to(spec, delete_resp(0), tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)));
                 }
             );
 
@@ -345,12 +335,10 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         // Useful assertions to let us chain in and out of ranking_pred
         assert forall |n: nat| #![trigger ranking_pred(n)]
                     spec.entails(delete_resp(n as int).leads_to(ranking_pred(n))) by {
-            entails_implies_leads_to(spec, delete_resp(n as int), ranking_pred(n));
         };
 
         assert forall |n: nat| #![trigger ranking_pred(n)]
                     spec.entails(ranking_pred(n).leads_to(delete_resp(n as int))) by {
-            entails_implies_leads_to(spec, ranking_pred(n), delete_resp(n as int));
         };
 
          // Proving n > 0 => ranking_pred(n) ~> ranking_pred(n - 1)
@@ -377,7 +365,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(delete_resp(0).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)))),
             {
@@ -392,7 +379,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                     };
                     assert((|resp_msg: Message| delete_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                 };
-                entails_implies_leads_to(spec, delete_resp(0), tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, 0)));
             }
         );
 
@@ -413,7 +399,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             lemma_from_after_receive_list_pods_resp_to_after_update_vrs_status(vrs, spec, cluster, controller_id, resp_msg);
         };
 
-        leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, 0), update_vrs_status_req);
         assert_by(
             spec.entails(list_resp(0).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, 0)))),
             {
@@ -442,7 +427,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                     };
                     assert((|resp_msg: Message| list_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                 };
-                entails_implies_leads_to(spec, list_resp(0), tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, 0)));
             }
         );
 
@@ -467,7 +451,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
             assert((|msg| update_vrs_status_req_msg(msg))(msg).satisfied_by(ex));
         };
-        entails_implies_leads_to(spec, update_vrs_status_req, tla_exists(update_vrs_status_req_msg));
     };
     let update_vrs_status_resp = lift_state(
         |s: ClusterState| {
@@ -478,7 +461,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     assert forall |msg| spec.entails(#[trigger] update_vrs_status_req_msg(msg).leads_to(update_vrs_status_resp)) by {
         lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(spec, vrs, cluster, controller_id, msg);
     };
-    leads_to_exists_intro(spec, update_vrs_status_req_msg, update_vrs_status_resp);
     let update_vrs_status_resp_msg = |msg| lift_state(
         |s: ClusterState| {
             &&& resp_msg_is_the_in_flight_ok_resp_at_get_then_update_status_step(vrs, controller_id, msg)(s)
@@ -497,7 +479,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             };
             assert((|msg| update_vrs_status_resp_msg(msg))(msg).satisfied_by(ex));
         };
-        entails_implies_leads_to(spec, update_vrs_status_resp, tla_exists(update_vrs_status_resp_msg));
     };
     let post = lift_state(
         |s: ClusterState| {
@@ -508,7 +489,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     assert forall |msg| spec.entails(#[trigger] update_vrs_status_resp_msg(msg).leads_to(post)) by {
         lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done(spec, vrs, cluster, controller_id, msg);
     };
-    leads_to_exists_intro(spec, update_vrs_status_resp_msg, post);
     leads_to_trans_n!(
         spec,
         pre(diff),
@@ -616,8 +596,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
     };
 
     // Chain lemmas by transitivity.
-    leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, diff), create_req(diff));
-    leads_to_exists_intro(spec, |req_msg: Message| create_req_msg(req_msg, diff), create_resp(diff + 1));
     assert_by(
         spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)))),
         {
@@ -646,7 +624,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)));
         }
     );
     assert_by(
@@ -657,7 +634,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                 let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
                 assert((|req_msg: Message| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)));
         }
     );
     leads_to_trans_n!(
@@ -750,8 +726,6 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
     };
 
     // Chain the lemmas by transitivity.
-    leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, diff), create_req(diff));
-    leads_to_exists_intro(spec, |req_msg: Message| create_req_msg(req_msg, diff), create_resp(diff + 1));
     assert_by(
         spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)))),
         {
@@ -760,7 +734,6 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
                 let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
                 assert((|req_msg: Message| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)));
         }
     );
     assert_by(
@@ -777,7 +750,6 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
                 };
                 assert((|resp_msg: Message| create_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, create_resp(diff), tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, diff)));
         }
     );
 
@@ -892,8 +864,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
     };
 
     // Chain lemmas by transitivity.
-    leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, diff), delete_req(diff));
-    leads_to_exists_intro(spec, |req_msg: Message| delete_req_msg(req_msg, diff), delete_resp(diff - 1));
     assert_by(
         spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)))),
         {
@@ -920,7 +890,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)));
         }
     );
     assert_by(
@@ -931,7 +900,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                 let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
                 assert((|req_msg: Message| delete_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, delete_req(diff), tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)));
         }
     );
     leads_to_trans_n!(
@@ -1030,8 +998,6 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
     };
 
     // Chain the lemmas by transitivity.
-    leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, diff), delete_req(diff));
-    leads_to_exists_intro(spec, |req_msg: Message| delete_req_msg(req_msg, diff), delete_resp(diff - 1));
     assert_by(
         spec.entails(delete_req(diff).leads_to(tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)))),
         {
@@ -1040,7 +1006,6 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
                 let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
                 assert((|req_msg: Message| delete_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, delete_req(diff), tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)));
         }
     );
     assert_by(
@@ -1057,7 +1022,6 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
                 };
                 assert((|resp_msg: Message| delete_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
             };
-            entails_implies_leads_to(spec, delete_resp(diff), tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, diff)));
         }
     );
 
@@ -2644,7 +2608,6 @@ pub proof fn lemma_from_after_send_update_vrs_status_req_to_receive_ok_resp(
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2762,7 +2725,6 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_update_vrs_status_to_done
         &&& helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)(s)
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
@@ -2867,7 +2829,6 @@ pub proof fn lemma_current_state_matches_is_stable(
     let post = inductive_current_state_matches(vrs, controller_id);
     let final_post = current_state_matches(vrs);
 
-    entails_implies_leads_to(spec, lift_state(pre_post), lift_state(post));
     leads_to_trans(spec, p, lift_state(pre_post), lift_state(post));
 
     let stronger_next = |s, s_prime: ClusterState| {
@@ -2901,10 +2862,6 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s_prime)
     };
 
-    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
-    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
-    always_to_always_later(spec, lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)));
-    always_to_always_later(spec, lift_state(helper_invariants::vrs_in_ongoing_reconciles_has_only_one_owner_ref_and_no_deletion_timestamp(vrs, controller_id)));
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
