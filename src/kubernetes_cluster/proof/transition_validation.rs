@@ -235,8 +235,6 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
         }
     }
     init_invariant(spec, self.init(), next, inv);
-    always_weaken(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_etcd_and_triggering_cr(controller_id, cr)));
-    always_weaken(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_scheduled_and_triggering_cr(controller_id, cr)));
 }
 
 

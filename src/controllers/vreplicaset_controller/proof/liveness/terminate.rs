@@ -222,7 +222,6 @@ pub proof fn reconcile_eventually_terminates(
             );
         } else {
             let terminated_vrs = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
-            always_weaken(spec, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)), lift_state(terminated_vrs));
             always_entails_leads_to_always(spec, true_pred(), lift_state(terminated_vrs));
             leads_to_eliminate_always(spec, true_pred(), lift_state(terminated_vrs));
         }
@@ -981,17 +980,6 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
                 at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
             )))),
 {
-    always_weaken(spec, lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id,
-            vrs.object_ref(),
-            unwrap_local_state_closure(
-                |s: VReplicaSetReconcileState| s.reconcile_step is AfterCreatePod
-            )
-        )), lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id,
-            vrs.object_ref(),
-            at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
-        )));
 }
 
 pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to_delete_n(
@@ -1014,17 +1002,6 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
                 at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
             )))),
 {
-    always_weaken(spec, lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id,
-            vrs.object_ref(),
-            unwrap_local_state_closure(
-                |s: VReplicaSetReconcileState| s.reconcile_step is AfterDeletePod
-            )
-        )), lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id,
-            vrs.object_ref(),
-            at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
-        )));
 }
 
 // Havoc function for VReplicaSetView.

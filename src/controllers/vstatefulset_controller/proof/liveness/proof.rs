@@ -204,8 +204,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             always_tla_forall_apply(spec, |vsts: VStatefulSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vsts.object_ref())), vsts);
             let p = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done)));
             let q = tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error)));
-            always_weaken(spec, pending_request_invariants(cluster, controller_id), p);
-            always_weaken(spec, pending_request_invariants(cluster, controller_id), q);
             always_tla_forall_apply(
                 spec,
                 |vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
@@ -1138,10 +1136,6 @@ ensures
             }
         }
     }
-    always_weaken(stable_spec,
-        lift_state(helper_invariants::every_msg_from_vsts_controller_carries_vsts_key(controller_id)),
-        lift_state(internal_rely_guarantee::every_msg_from_vsts_controller_carries_vsts_key(controller_id))
-    );
 
     // Combine all extracted invariants into cluster_invariants_since_reconciliation
     combine_spec_entails_always_n!(stable_spec,

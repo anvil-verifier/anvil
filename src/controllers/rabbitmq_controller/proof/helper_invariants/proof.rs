@@ -668,10 +668,6 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
         lift_state(rmq_rely_conditions(cluster, controller_id)),
         lift_state(rmq_guarantee(controller_id))
     );
-    always_weaken(spec,
-        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
-        lift_state(Cluster::object_has_no_finalizers(resource_key))
-    );
 
     let state = |s: ClusterState| {
         Cluster::desired_state_is(rabbitmq)(s)

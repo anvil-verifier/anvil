@@ -217,7 +217,6 @@ pub proof fn reconcile_eventually_terminates(
             );
         } else {
             let terminated_vd = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
-            always_weaken(spec, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)), lift_state(terminated_vd));
             always_entails_leads_to_always(spec, true_pred(), lift_state(terminated_vd));
             leads_to_eliminate_always(spec, true_pred(), lift_state(terminated_vd));
         }
@@ -478,10 +477,5 @@ ensures
         controller_id, vd.object_ref(), at_step_or![(step, pred)]
     )))),
 {
-    always_weaken(spec, lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), at_step_or![step]
-        )), lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), at_step_or![(step, pred)]
-        )));
 }
 }

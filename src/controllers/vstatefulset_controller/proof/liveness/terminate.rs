@@ -130,23 +130,6 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
     ensures
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
 {
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![Init]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).done))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), cluster.reconcile_model(controller_id).error))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![GetPVC]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreatePVC]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![SkipPVC]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![CreateNeeded]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![UpdateNeeded]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteCondemned]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![DeleteOutdated]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterListPod]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterGetPVC]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreatePVC]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterCreateNeeded]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterUpdateNeeded]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteCondemned]))));
-    always_weaken(spec, pending_request_invariants(cluster, controller_id), tla_forall(|vsts: VStatefulSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vsts.object_ref(), at_step_or![AfterDeleteOutdated]))));
 
     
     let post = |key: ObjectRef|
@@ -408,7 +391,6 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, clust
             );
         } else {
             let terminated_vsts = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
-            always_weaken(spec, lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VStatefulSetView>(controller_id)), lift_state(terminated_vsts));
             always_entails_leads_to_always(spec, true_pred(), lift_state(terminated_vsts));
             leads_to_eliminate_always(spec, true_pred(), lift_state(terminated_vsts));
         }
