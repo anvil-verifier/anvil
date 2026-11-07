@@ -28,6 +28,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // Valid owner_references field satisfies that every owner reference in it valid uid, i.e., it points to some existing objects.
 // We don't test custom resource object here because we don't care about whether it's owner_references is valid.
 pub open spec fn owner_references_is_valid(obj: DynamicObjectView, s: ClusterState) -> bool {

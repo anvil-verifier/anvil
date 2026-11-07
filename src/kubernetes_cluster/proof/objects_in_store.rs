@@ -8,6 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn etcd_object_is_weakly_well_formed(key: ObjectRef) -> StatePred<ClusterState> {
@@ -291,9 +293,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed<T: CustomResourceVi
         &&& p1(s)
         &&& p2(s)
     };
-    entails_always_and_n!(spec, lift_state(p1), lift_state(p2));
     temp_pred_equality(lift_state(p1).and(lift_state(p2)), lift_state(p));
-    always_weaken::<ClusterState>(spec, lift_state(p), lift_state(invariant));
 }
 
 pub open spec fn each_object_in_etcd_has_at_most_one_controller_owner() -> StatePred<ClusterState> {

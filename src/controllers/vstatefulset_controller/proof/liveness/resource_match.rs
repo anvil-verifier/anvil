@@ -25,6 +25,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // coherence only reads etcd and the reconcile local state, so a step touching neither maintains it
 pub proof fn lemma_etcd_and_local_state_unchanged_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, controller_id: int
@@ -67,7 +69,6 @@ ensures
         let outdated_len = outdated_obj_keys_in_etcd(s, vsts).len();
         assert((|n: nat| lifted_idle_state_with_n_outdated_pods(n))(outdated_len).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec, lift_state(idle_state), tla_exists(lifted_idle_state_with_n_outdated_pods));
     let reconcile_scheduled_with_n_outdated_pods = |n: nat| and!(
         reconcile_scheduled(vsts, controller_id),
         n_outdated_pods_in_etcd(vsts, n)
@@ -113,11 +114,6 @@ ensures
     // n > 0 ~> 0
     leads_to_rank_step_one(spec, lifted_idle_state_with_n_outdated_pods);
     // n = 0 ~> 0
-    entails_implies_leads_to(spec, lifted_idle_state_with_n_outdated_pods(nat0!()), lifted_idle_state_with_n_outdated_pods(nat0!()));
-    leads_to_exists_intro(spec,
-        lifted_idle_state_with_n_outdated_pods,
-        lifted_idle_state_with_n_outdated_pods(nat0!())
-    );
     assert(spec.entails(lifted_idle_state_with_n_outdated_pods(nat0!()).leads_to(lift_state(done_state_and_current_state_matches)))) by {
         lemma_spec_entails_reconcile_idle_leads_to_reconcile_scheduled(
             vsts, spec, cluster, controller_id, nat0!()
@@ -140,7 +136,6 @@ ensures
         let s = ex.head();
         assert(inductive_current_state_matches(vsts, controller_id)(s));
     }
-    entails_implies_leads_to(spec, lift_state(done_state_and_current_state_matches), lift_state(inductive_current_state_matches(vsts, controller_id)));
     leads_to_trans_n!(spec,
         lift_state(idle_state),
         tla_exists(lifted_idle_state_with_n_outdated_pods),
@@ -170,7 +165,6 @@ ensures
         n_outdated_pods_in_etcd(vsts, outdated_len)
     )))),
 {
-    entails_preserved_by_always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)), lift_state(Cluster::desired_state_is(vsts)));
     entails_trans(spec, always(lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))), always(lift_state(Cluster::desired_state_is(vsts))));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -178,8 +172,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
         &&& Cluster::desired_state_is(vsts)(s_prime)
     };
-    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vsts)));
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -224,8 +216,6 @@ ensures
     );
     temp_pred_equality(lift_state(stronger_pre), lift_state(not_scheduled_state).and(lift_state(Cluster::desired_state_is(vsts))));
     leads_to_by_borrowing_inv(spec, lift_state(not_scheduled_state), lift_state(scheduled_state), lift_state(Cluster::desired_state_is(vsts)));
-    entails_implies_leads_to(spec, lift_state(scheduled_state), lift_state(scheduled_state));
-    or_leads_to(spec, lift_state(not_scheduled_state), lift_state(scheduled_state), lift_state(scheduled_state));
     temp_pred_equality(lift_state(idle_state), lift_state(not_scheduled_state).or(lift_state(scheduled_state)));
 }
 
@@ -255,7 +245,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -334,11 +323,6 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
     };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
-    );
     let inv = cluster_invariants_since_reconciliation(cluster, vsts, controller_id);
     let init_state = and!(
         at_vsts_step(vsts, controller_id, at_step![Init]),
@@ -375,7 +359,6 @@ ensures
         let condemned_len = partition_pods(vsts.metadata.name->0, replicas(vsts), filtered_pods).1.len();
         assert((|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)))((resp_msg, condemned_len)).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec, lift_state(after_list_pod_state), tla_exists(|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i))));
     leads_to_trans(spec,
         lift_state(init_state),
         lift_state(after_list_pod_state),
@@ -523,7 +506,6 @@ ensures
                 );
                 assert(done_state(s));
             }
-            entails_implies_leads_to(spec, lift_state(done_state_temp).and(lift_state(inv)), lift_state(done_state));
             leads_to_by_borrowing_inv(spec, lift_state(done_state_temp), lift_state(done_state), lift_state(inv));
         }
         leads_to_trans_n!(spec,
@@ -533,10 +515,6 @@ ensures
             lift_state(done_state)
         );
     }
-    leads_to_exists_intro(spec,
-        |i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i)),
-        lift_state(done_state)
-    );
     leads_to_trans(spec,
         lift_state(init_state),
         tla_exists(|i: (Message, nat)| lift_state(resp_msg_is_pending_at_after_list_pod_state_with_condemned_len(i))),
@@ -574,7 +552,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -643,7 +620,6 @@ ensures
             let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
             assert((|msg: Message| lift_state(req_msg_is_pending_msg_at_after_list_pod_state(msg)))(req_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec, lift_state(after_list_pod_state_with_req), tla_exists(|msg: Message| lift_state(req_msg_is_pending_msg_at_after_list_pod_state(msg))));
         assert forall |msg: Message| spec.entails(
             lift_state(#[trigger] req_msg_is_pending_msg_at_after_list_pod_state(msg)).leads_to(lift_state(after_list_pod_state_with_resp))
         ) by {
@@ -679,10 +655,6 @@ ensures
                 spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_list_pod_state(msg), after_list_pod_state_with_resp
             );
         }
-        leads_to_exists_intro(spec,
-            |msg: Message| lift_state(req_msg_is_pending_msg_at_after_list_pod_state(msg)),
-            lift_state(after_list_pod_state_with_resp)
-        );
         leads_to_trans(spec,
             lift_state(after_list_pod_state_with_req),
             tla_exists(|msg: Message| lift_state(req_msg_is_pending_msg_at_after_list_pod_state(msg))),
@@ -811,7 +783,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -959,11 +930,6 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
     };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id))
-    );
     let get_pvc_state = and!(
         at_vsts_step(vsts, controller_id, at_step![GetPVC]),
         local_state_is_valid_and_coherent(vsts, controller_id),
@@ -1011,11 +977,6 @@ ensures
     );
     lemma_spec_entails_create_pvc_leads_to_create_or_update_needed_or_get_pvc(
         vsts, spec, cluster, controller_id, pvc_index, needed_index, condemned_len, outdated_len
-    );
-    or_leads_to(spec,
-        lift_state(skip_pvc_state),
-        lift_state(create_pvc_state),
-        lift_state(next_state)
     );
     assert(skip_or_create_pvc_state =~= or!(skip_pvc_state, create_pvc_state));
     temp_pred_equality(
@@ -1071,7 +1032,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1142,7 +1102,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1169,10 +1128,6 @@ ensures
         assert(req_msg_is_pending_msg_at_after_get_pvc_state(req_msg)(s));
         assert((|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)))(req_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_get_pvc_state_with_req),
-        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_get_pvc_state(msg)).leads_to(lift_state(after_get_pvc_state_with_resp))) by {
         assert forall |s, s_prime| req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
             req_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime) || after_get_pvc_state_with_resp(s_prime) by {
@@ -1203,10 +1158,6 @@ ensures
             spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_get_pvc_state(msg), after_get_pvc_state_with_resp
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg)),
-        lift_state(after_get_pvc_state_with_resp)
-    );
     leads_to_trans(spec,
         lift_state(after_get_pvc_state_with_req),
         tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_get_pvc_state(msg))),
@@ -1252,7 +1203,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1286,10 +1236,6 @@ ensures
         };
         assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)))(resp_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_get_pvc_state_with_resp),
-        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_get_pvc_state(msg)).leads_to(lift_state(skip_or_create_pvc_state))) by {
         assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
             resp_msg_is_pending_msg_at_after_get_pvc_state(msg)(s_prime) || skip_or_create_pvc_state(s_prime) by {
@@ -1344,10 +1290,6 @@ ensures
             spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_get_pvc_state(msg), skip_or_create_pvc_state
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg)),
-        lift_state(skip_or_create_pvc_state)
-    );
     leads_to_trans(spec,
         lift_state(after_get_pvc_state_with_resp),
         tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_get_pvc_state(msg))),
@@ -1458,7 +1400,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1562,7 +1503,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1626,10 +1566,6 @@ ensures
             let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
             assert((|msg| lift_state(req_msg_is_pending_msg_at_after_create_pvc_state(msg)))(req_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec,
-            lift_state(after_create_pvc_state_with_request),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_create_pvc_state(msg)))
-        );
         assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_create_pvc_state(msg)).leads_to(lift_state(after_create_pvc_state_with_response))) by {
             assert forall |s, s_prime| req_msg_is_pending_msg_at_after_create_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
                 req_msg_is_pending_msg_at_after_create_pvc_state(msg)(s_prime) || after_create_pvc_state_with_response(s_prime) by {
@@ -1667,10 +1603,6 @@ ensures
                 spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_create_pvc_state(msg), after_create_pvc_state_with_response
             );
         }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(req_msg_is_pending_msg_at_after_create_pvc_state(msg)),
-            lift_state(after_create_pvc_state_with_response)
-        );
         leads_to_trans(spec,
             lift_state(after_create_pvc_state_with_request),
             tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_create_pvc_state(msg))),
@@ -1721,7 +1653,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -1753,10 +1684,6 @@ ensures
         };
         assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_create_pvc_state(msg)))(resp_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_create_pvc_state_with_response),
-        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_create_pvc_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_create_pvc_state(msg)).leads_to(
         lift_state(after_handle_create_or_skip_pvc_helper(vsts, controller_id, pvc_index, needed_index, condemned_len, outdated_len)))) by {
         assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_create_pvc_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
@@ -1806,10 +1733,6 @@ ensures
             spec, controller_id, (Some(msg), Some(vsts.object_ref())), stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_create_pvc_state(msg), after_handle_create_or_skip_pvc_helper(vsts, controller_id, pvc_index, needed_index, condemned_len, outdated_len)
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(resp_msg_is_pending_msg_at_after_create_pvc_state(msg)),
-        lift_state(after_handle_create_or_skip_pvc_helper(vsts, controller_id, pvc_index, needed_index, condemned_len, outdated_len))
-    );
     leads_to_trans(spec,
         lift_state(after_create_pvc_state_with_response),
         tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_create_pvc_state(msg))),
@@ -1907,11 +1830,6 @@ ensures
                 no_pending_req_in_cluster(vsts, controller_id),
                 pvc_needed_condemned_index_condemned_len_and_outdated_len_are(vsts, controller_id, nat0!(), needed_index + nat1!(), nat0!(), condemned_len, outdated_len)
             );
-            or_leads_to(spec,
-                lift_state(create_needed_state_with_needed_index(needed_index)),
-                lift_state(update_needed_state_with_needed_index(needed_index)),
-                lift_state(get_pvc_state)
-            );
             lemma_spec_entails_get_pvc_leads_to_create_or_update_needed(
                 vsts, spec, cluster, controller_id, needed_index + 1, condemned_len, outdated_len
             );
@@ -1921,11 +1839,6 @@ ensures
                 lift_state(create_or_update_needed_state_with_needed_index(needed_index + 1))
             );
         } else {
-            or_leads_to(spec,
-                lift_state(create_needed_state_with_needed_index(needed_index)),
-                lift_state(update_needed_state_with_needed_index(needed_index)),
-                lift_state(create_or_update_needed_state_with_needed_index(needed_index + 1))
-            );
         }
     }
     leads_to_greater_until_rec(spec,
@@ -1943,11 +1856,6 @@ ensures
         );
         lemma_spec_entails_updated_needed_pod_of_i_leads_to_get_pvc_or_delete_condemned_or_create_or_update_of_i_plus_one(
             vsts, spec, cluster, controller_id, max_minus_one, condemned_len, outdated_len
-        );
-        or_leads_to(spec,
-            lift_state(create_needed_state_with_needed_index(max_minus_one)),
-            lift_state(update_needed_state_with_needed_index(max_minus_one)),
-            lift_state(delete_condemned_or_outdated_state)
         );
     }
     leads_to_trans(spec,
@@ -1988,7 +1896,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2052,10 +1959,6 @@ ensures
             let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
             assert((|msg| lift_state(req_msg_is_pending_msg_at_after_create_needed_state(msg)))(req_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec,
-            lift_state(after_create_needed_state_with_request),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_create_needed_state(msg)))
-        );
         assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_create_needed_state(msg)).leads_to(lift_state(after_create_needed_state_with_response))) by {
             assert forall |s, s_prime| req_msg_is_pending_msg_at_after_create_needed_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
                 req_msg_is_pending_msg_at_after_create_needed_state(msg)(s_prime) || after_create_needed_state_with_response(s_prime) by {
@@ -2102,10 +2005,6 @@ ensures
                 spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_create_needed_state(msg), after_create_needed_state_with_response
             );
         }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(req_msg_is_pending_msg_at_after_create_needed_state(msg)),
-            lift_state(after_create_needed_state_with_response)
-        );
         leads_to_trans(spec,
             lift_state(after_create_needed_state_with_request),
             tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_create_needed_state(msg))),
@@ -2162,7 +2061,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2194,10 +2092,6 @@ ensures
         };
         assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_create_needed_state(msg)))(resp_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_create_needed_state_with_response),
-        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_create_needed_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_create_needed_state(msg)).leads_to(lift_state(
         after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)
     ))) by {
@@ -2248,10 +2142,6 @@ ensures
             after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(resp_msg_is_pending_msg_at_after_create_needed_state(msg)),
-        lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len))
-    );
     leads_to_trans(spec,
         lift_state(after_create_needed_state_with_response),
         tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_create_needed_state(msg))),
@@ -2290,7 +2180,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2354,10 +2243,6 @@ ensures
             let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
             assert((|msg| lift_state(req_msg_is_pending_msg_at_after_update_needed_state(msg)))(req_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec,
-            lift_state(after_update_needed_state_with_request),
-            tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_update_needed_state(msg)))
-        );
         assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_update_needed_state(msg)).leads_to(lift_state(after_update_needed_state_with_response))) by {
             assert forall |s, s_prime| req_msg_is_pending_msg_at_after_update_needed_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
                 req_msg_is_pending_msg_at_after_update_needed_state(msg)(s_prime) || after_update_needed_state_with_response(s_prime) by {
@@ -2396,10 +2281,6 @@ ensures
                 spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_update_needed_state(msg), after_update_needed_state_with_response
             );
         }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(req_msg_is_pending_msg_at_after_update_needed_state(msg)),
-            lift_state(after_update_needed_state_with_response)
-        );
         leads_to_trans(spec,
             lift_state(after_update_needed_state_with_request),
             tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_update_needed_state(msg))),
@@ -2456,7 +2337,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2490,10 +2370,6 @@ ensures
             };
             assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg)))(resp_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec,
-            lift_state(after_update_needed_state_with_response),
-            tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg)))
-        );
         assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_update_needed_state(msg)).leads_to(lift_state(
             after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)
         ))) by {
@@ -2544,10 +2420,6 @@ ensures
                 after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len)
             );
         }
-        leads_to_exists_intro(spec,
-            |msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg)),
-            lift_state(after_handle_after_create_or_after_update_needed_helper(vsts, controller_id, needed_index, condemned_len, outdated_len))
-        );
         leads_to_trans(spec,
             lift_state(after_update_needed_state_with_response),
             tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_update_needed_state(msg))),
@@ -2650,7 +2522,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2726,7 +2597,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2758,10 +2628,6 @@ ensures
         let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
         assert((|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)))(req_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_delete_condemned_state_with_request),
-        tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_delete_condemned_state(msg)).leads_to(lift_state(after_delete_condemned_state_with_response))) by {
         assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
             req_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s_prime) || after_delete_condemned_state_with_response(s_prime) by {
@@ -2794,10 +2660,6 @@ ensures
             spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_delete_condemned_state(msg), after_delete_condemned_state_with_response
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg)),
-        lift_state(after_delete_condemned_state_with_response)
-    );
     leads_to_trans(spec,
         lift_state(after_delete_condemned_state_with_request),
         tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_condemned_state(msg))),
@@ -2935,7 +2797,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -2982,10 +2843,6 @@ ensures
         };
         assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)))(resp_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_delete_condemned_state_with_response),
-        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)).leads_to(lift_state(delete_condemned_or_outdated_state))) by {
         assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
             resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)(s_prime) || delete_condemned_or_outdated_state(s_prime) by {
@@ -3029,10 +2886,6 @@ ensures
             delete_condemned_or_outdated_state
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg)),
-        lift_state(delete_condemned_or_outdated_state)
-    );
     leads_to_trans(spec,
         lift_state(after_delete_condemned_state_with_response),
         tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_condemned_state(msg))),
@@ -3072,7 +2925,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -3150,10 +3002,6 @@ ensures
                 let req_msg = s.ongoing_reconciles(controller_id)[vsts.object_ref()].pending_req_msg.unwrap();
                 assert((|msg| lift_state(req_msg_is_pending_msg_at_after_delete_outdated_state(msg)))(req_msg).satisfied_by(ex));
             }
-            entails_implies_leads_to(spec,
-                lift_state(after_delete_outdated_state_with_request),
-                tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_outdated_state(msg)))
-            );
             assert forall |msg| spec.entails(lift_state(#[trigger] req_msg_is_pending_msg_at_after_delete_outdated_state(msg)).leads_to(lift_state(after_delete_outdated_state_with_response))) by {
                 assert forall |s, s_prime| req_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
                     req_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s_prime) || after_delete_outdated_state_with_response(s_prime) by {
@@ -3186,10 +3034,6 @@ ensures
                     spec, input, stronger_next, APIServerStep::HandleRequest, req_msg_is_pending_msg_at_after_delete_outdated_state(msg), after_delete_outdated_state_with_response
                 );
             }
-            leads_to_exists_intro(spec,
-                |msg| lift_state(req_msg_is_pending_msg_at_after_delete_outdated_state(msg)),
-                lift_state(after_delete_outdated_state_with_response)
-            );
             leads_to_trans(spec,
                 lift_state(after_delete_outdated_state_with_request),
                 tla_exists(|msg| lift_state(req_msg_is_pending_msg_at_after_delete_outdated_state(msg))),
@@ -3258,7 +3102,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -3353,7 +3196,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -3391,10 +3233,6 @@ ensures
         };
         assert((|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)))(resp_msg).satisfied_by(ex));
     }
-    entails_implies_leads_to(spec,
-        lift_state(after_delete_outdated_state_with_response),
-        tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)))
-    );
     assert forall |msg| spec.entails(lift_state(#[trigger] resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)).leads_to(lift_state(done_state))) by {
         assert forall |s, s_prime| resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s) && #[trigger] stronger_next(s, s_prime) implies
             resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)(s_prime) || done_state(s_prime) by {
@@ -3438,10 +3276,6 @@ ensures
             spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_msg_is_pending_msg_at_after_delete_outdated_state(msg), done_state
         );
     }
-    leads_to_exists_intro(spec,
-        |msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg)),
-        lift_state(done_state)
-    );
     leads_to_trans(spec,
         lift_state(after_delete_outdated_state_with_response),
         tla_exists(|msg| lift_state(resp_msg_is_pending_msg_at_after_delete_outdated_state(msg))),
@@ -3476,7 +3310,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -4685,7 +4518,6 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vsts, controller_id)(s_prime)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vsts, controller_id)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -4720,8 +4552,6 @@ ensures
         }
     };
     leads_to_stable(spec, lift_action(stronger_next), p, lift_state(inductive));
-    entails_preserved_by_always(lift_state(inductive), lift_state(current_state_matches(vsts)));
-    entails_implies_leads_to(spec, always(lift_state(inductive)), always(lift_state(current_state_matches(vsts))));
     leads_to_trans(spec, p, always(lift_state(inductive)), always(lift_state(current_state_matches(vsts))));
 }
 
@@ -4886,6 +4716,9 @@ ensures
     assert(inductive_current_state_matches(vsts, controller_id)(s_prime));
 }
 
+// This state-level lemma became unstable once the module context contained the extended temporal broadcast group;
+// a separate prover instance prunes the temporal axioms it does not use.
+#[verifier::spinoff_prover]
 pub proof fn lemma_inductive_current_state_matches_preserves_from_s_to_s_prime_at_controller_step(
     s: ClusterState, s_prime: ClusterState, vsts: VStatefulSetView, cluster: Cluster, controller_id: int, input: (int, Option<Message>, Option<ObjectRef>)
 )

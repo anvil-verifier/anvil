@@ -4,6 +4,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn no_req_before_rpc_id_is_in_flight(rpc_id: RPCId) -> StatePred<ClusterState> {
@@ -125,7 +127,6 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(self, 
         self.lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rpc_id(spec, requirements, rpc_id);
     }
     let has_rpc_id = |rpc_id| lift_state(Self::rpc_id_counter_is(rpc_id));
-    leads_to_exists_intro(spec, has_rpc_id, always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))));
     assert_by(
         tla_exists(has_rpc_id) == true_pred::<ClusterState>(),
         {
@@ -153,20 +154,7 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
                     .and(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())))
                     .and(always(lift_action(self.next())));
     let stable_spec = always_spec.and(tla_forall(|i| self.api_server_next().weak_fairness(i)));
-    stable_and_always_n!(
-        lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_action(self.next())
-    );
     Self::tla_forall_action_weak_fairness_is_stable(self.api_server_next());
-    stable_and_n!(always_spec, tla_forall(|i| self.api_server_next().weak_fairness(i)));
-    entails_and_n!(
-        spec,
-        always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements))),
-        always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
-        always(lift_action(self.next())),
-        tla_forall(|i| self.api_server_next().weak_fairness(i))
-    );
 
     let spec_with_rpc_id = stable_spec.and(lift_state(Self::rpc_id_counter_is(rpc_id)));
 
@@ -197,7 +185,6 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
                         Self::rpc_id_counter_is(rpc_id)(s)
                         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
                     };
-                    entails_and(spec_with_rpc_id, lift_state(Self::rpc_id_counter_is(rpc_id)), lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
                     temp_pred_equality(
                         lift_state(init), lift_state(Self::rpc_id_counter_is(rpc_id)).and(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))
                     );
@@ -218,16 +205,10 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
 
             self.lemma_true_leads_to_always_no_req_before_rpc_id_is_in_flight(spec_with_rpc_id, rpc_id);
 
-            entails_preserved_by_always(
-                lift_state(invariant),
-                lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id))
-                .implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
-            );
             entails_trans(
                 spec_with_rpc_id, always(lift_state(invariant)),
                 always(lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)).implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
             );
-            always_implies_preserved_by_always(spec_with_rpc_id, lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)), lift_state(Self::every_in_flight_req_msg_satisfies(requirements)));
             leads_to_weaken(
                 spec_with_rpc_id,
                 true_pred(), always(lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id))),
@@ -294,7 +275,6 @@ pub proof fn lemma_eventually_no_req_before_rpc_id_is_in_flight(self, spec: Temp
     by {
         self.lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec, rpc_id, msg_num);
     }
-    leads_to_exists_intro(spec, pending_requests_num_is_n, no_more_pending_requests);
 
     // Now we merge all the cases on different message number together to get true_pred().
     // We only need to prove tla_exists(pending_requests_num_is_n) == true_pred::<ClusterState>(),
@@ -335,7 +315,6 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(self, s
                 }
             }
         });
-        entails_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
     } else {
         // The induction step:
         // If we already have "there are msg_num-1 such requests" ~> "all such requests are gone" (the inductive hypothesis),
@@ -365,9 +344,6 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(self, s
         ) by {
             self.pending_requests_num_decreases(spec, rpc_id, msg_num, msg);
         }
-        leads_to_exists_intro(
-            spec, pending_requests_num_is_msg_num_and_pending_req_in_flight, pending_requests_num_is_msg_num_minus_1
-        );
         // Now we merge all the splitted cases on different concrete messages.
         assert_by(tla_exists(pending_requests_num_is_msg_num_and_pending_req_in_flight) == pending_requests_num_is_msg_num, {
             assert forall |ex| #[trigger] pending_requests_num_is_msg_num.satisfied_by(ex)

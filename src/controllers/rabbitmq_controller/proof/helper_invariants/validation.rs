@@ -32,6 +32,8 @@ use crate::reconciler::spec::io::{VoidEReqView, VoidERespView};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // We need such a spec for stateful set because certain fields are determined by the spec of custom resource object and won't
 // be updated. So we need the transition validation of custom resource (rabbitmq) to show some fields of rabbitmq won't change
 // by the update request. Therefore, though updating stateful set won't update those fields, the stateful set will still match

@@ -24,6 +24,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn assumption_and_invariants_of_all_phases(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     invariants(controller_id, cluster, rabbitmq)
     .and(always(lift_state(Cluster::desired_state_is(rabbitmq))))
@@ -42,17 +44,11 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(controller_id: in
 {
     reveal_with_fuel(spec_before_phase_n, 9);
     invariants_is_stable(controller_id, cluster, rabbitmq);
-    always_p_is_stable(lift_state(Cluster::desired_state_is(rabbitmq)));
     invariants_since_phase_i_is_stable(controller_id, rabbitmq);
     invariants_since_phase_ii_is_stable(controller_id, rabbitmq);
     invariants_since_phase_iii_is_stable(controller_id, rabbitmq);
     invariants_since_phase_iv_is_stable(rabbitmq);
     invariants_since_phase_v_is_stable(rabbitmq);
-    stable_and_n!(
-        invariants(controller_id, cluster, rabbitmq), always(lift_state(Cluster::desired_state_is(rabbitmq))),
-        invariants_since_phase_i(controller_id, rabbitmq), invariants_since_phase_ii(controller_id, rabbitmq), invariants_since_phase_iii(controller_id, rabbitmq),
-        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq)
-    );
 }
 
 pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -67,20 +63,8 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(c
         forall |i: nat| 1 <= i <= 5 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))),
 {
     stable_spec_is_stable(cluster, controller_id);
-    stable_and_n!(
-        stable_spec(cluster, controller_id),
-        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
-    );
-    stable_and_n!(
-        stable_spec(cluster, controller_id),
-        invariants(controller_id, cluster, rabbitmq)
-    );
     assert forall |i: nat| 1 <= i <= 5
         implies valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)))) by {
-        stable_and_n!(
-            stable_spec(cluster, controller_id),
-            spec_before_phase_n(controller_id, i, cluster, rabbitmq)
-        );
     }
 }
 
@@ -126,12 +110,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 {
     let spec = provided_spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq));
     // Assert that the combined spec also entails the rely condition.
-    entails_and_across_specs(
-        provided_spec,
-        spec_before_phase_n(controller_id, i, cluster, rabbitmq),
-        always(lift_state(rmq_rely_conditions(cluster, controller_id))),
-        true_pred()
-    );
     temp_pred_equality(
         always(lift_state(rmq_rely_conditions(cluster, controller_id))).and(true_pred()),
         always(lift_state(rmq_rely_conditions(cluster, controller_id)))
@@ -143,14 +121,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, controller_id, rabbitmq);
-        leads_to_always_and_n!(
-            spec,
-            true_pred(),
-            lift_state(Cluster::crash_disabled(controller_id)),
-            lift_state(Cluster::pod_monkey_disabled()),
-            lift_state(Cluster::req_drop_disabled()),
-            lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
-        );
     } else {
         entails_trans_n!(spec,
             derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
@@ -172,12 +142,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             // Extract single-key pending_req_of_key_is_unique for the xor lemma
             always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, rabbitmq.object_ref());
-            leads_to_always_and_n!(
-                spec, true_pred(),
-                lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
-                lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-                lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref()))
-            );
         } else if i == 3 {
             helper_invariants::lemma_eventually_always_create_msg_owner_refs_satisfies_for_sub_resource_forall(controller_id, cluster, spec, rabbitmq);
             helper_invariants::lemma_eventually_always_every_valid_resource_update_request_sets_owner_references_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
@@ -192,11 +156,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 controller_id, key, cluster.reconcile_model(controller_id).error)), rabbitmq.object_ref());
             always_tla_forall_apply(spec, |key: ObjectRef| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)), rabbitmq.object_ref());
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, rabbitmq.object_ref());
-            leads_to_always_and_n!(
-                spec, true_pred(),
-                tla_forall(a_to_p_1), tla_forall(a_to_p_2), tla_forall(a_to_p_3),
-                lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))
-            );
         } else if i == 4 {
             helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(controller_id, cluster, spec, rabbitmq);
         } else if i == 5 {
@@ -214,11 +173,6 @@ pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
-    always_p_is_stable(lift_state(rmq_rely_conditions(cluster, controller_id)));
-    stable_and_n!(
-        next_with_wf(cluster, controller_id),
-        always(lift_state(rmq_rely_conditions(cluster, controller_id)))
-    );
 }
 
 pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPred<ClusterState>, controller_id: int, cluster: Cluster, rabbitmq: RabbitmqClusterView)
@@ -233,45 +187,18 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     let pre = spec.and(derived_invariants_since_beginning(controller_id, cluster, rabbitmq));
 
     // Proof of stable_spec
-    entails_and_n!(
-        spec,
-        next_with_wf(cluster, controller_id),
-        always(lift_state(rmq_rely_conditions(cluster, controller_id)))
-    );
 
-    entails_and_across_specs(
-        spec,
-        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
-        stable_spec(cluster, controller_id),
-        true_pred()
-    );
     temp_pred_equality(
         stable_spec(cluster, controller_id).and(true_pred()),
         stable_spec(cluster, controller_id)
     );
 
     // Proof of invariants
-    entails_and_across_specs(
-        spec,
-        derived_invariants_since_beginning(controller_id, cluster, rabbitmq),
-        next_with_wf(cluster, controller_id),
-        true_pred()
-    );
     temp_pred_equality(
         next_with_wf(cluster, controller_id).and(true_pred()),
         next_with_wf(cluster, controller_id)
     );
-    entails_and_n!(
-        pre,
-        next_with_wf(cluster, controller_id),
-        derived_invariants_since_beginning(controller_id, cluster, rabbitmq)
-    );
 
-    entails_and_n!(
-        pre,
-        stable_spec(cluster, controller_id),
-        invariants(controller_id, cluster, rabbitmq)
-    );
 }
 
 // Next and all the wf conditions.
@@ -290,7 +217,6 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
 pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(next_with_wf(cluster, controller_id))),
 {
-    always_p_is_stable(lift_action(cluster.next()));
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.api_server_next());
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.builtin_controllers_next());
     cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
@@ -298,21 +224,9 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
     assert(valid(stable(cluster.disable_crash().weak_fairness(controller_id)))) by {
         let split_always = always(lift_state(cluster.disable_crash().pre(controller_id))).implies(eventually(lift_action(cluster.disable_crash().forward(controller_id))));
-        always_p_is_stable::<ClusterState>(split_always);
     }
     Cluster::action_weak_fairness_is_stable(cluster.disable_req_drop());
     Cluster::action_weak_fairness_is_stable(cluster.disable_pod_monkey());
-    stable_and_n!(
-        always(lift_action(cluster.next())),
-        tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
-        tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
-        tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
-        tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
-        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))),
-        cluster.disable_crash().weak_fairness(controller_id),
-        cluster.disable_pod_monkey().weak_fairness(()),
-        cluster.disable_req_drop().weak_fairness(())
-    );
 }
 
 // This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
@@ -330,10 +244,6 @@ pub proof fn invariants_is_stable(controller_id: int, cluster: Cluster, rabbitmq
 {
     next_with_wf_is_stable(cluster, controller_id);
     derived_invariants_since_beginning_is_stable(controller_id, cluster, rabbitmq);
-    stable_and_n!(
-        next_with_wf(cluster, controller_id),
-        derived_invariants_since_beginning(controller_id, cluster, rabbitmq)
-    );
 }
 
 // The safety invariants that are required to prove liveness.
@@ -398,49 +308,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(controller_id: int, cl
         controller_id, key, cluster.reconcile_model(controller_id).done));
     let a_to_p_no_pending_error = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, cluster.reconcile_model(controller_id).error));
-    always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
-    always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
-    stable_and_always_n!(
-        lift_state(rmq_guarantee(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
-        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        tla_forall(a_to_p_1),
-        lift_state(Cluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
-
-        tla_forall(a_to_p_5),
-        lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
-        lift_state(helper_invariants::rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::etcd_objects_have_unique_uids()),
-        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
-        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
-        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),
-        tla_forall(a_to_p_key_unique),
-        tla_forall(a_to_p_no_pending),
-        tla_forall(a_to_p_pending_in_flight),
-        tla_forall(a_to_p_no_pending_done),
-        tla_forall(a_to_p_no_pending_error)
-    );
 }
 
 // The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
@@ -458,12 +325,6 @@ pub open spec fn invariants_since_phase_i(controller_id: int, rabbitmq: Rabbitmq
 pub proof fn invariants_since_phase_i_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_i(controller_id, rabbitmq))),
 {
-    stable_and_always_n!(
-        lift_state(Cluster::crash_disabled(controller_id)),
-        lift_state(Cluster::pod_monkey_disabled()),
-        lift_state(Cluster::req_drop_disabled()),
-        lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, rabbitmq))
-    );
 }
 
 // For now, phase II only contains one invariant, which is the object in reconcile has the same spec and uid as rabbitmq.
@@ -480,14 +341,6 @@ pub open spec fn invariants_since_phase_ii(controller_id: int, rabbitmq: Rabbitm
 pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_ii(controller_id, rabbitmq))),
 {
-    always_p_is_stable(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)));
-    always_p_is_stable(lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()));
-    always_p_is_stable(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref())));
-    stable_and_always_n!(
-        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, rabbitmq)),
-        lift_state(Cluster::no_pending_request_to_api_server_from_non_controllers()),
-        lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, rabbitmq.object_ref()))
-    );
 }
 
 pub open spec fn invariants_since_phase_iii(controller_id: int, rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
@@ -503,10 +356,6 @@ pub proof fn invariants_since_phase_iii_is_stable(controller_id: int, rabbitmq: 
     let a_to_p_1 = |sub_resource: SubResource| lift_state(Cluster::every_create_msg_sets_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(Cluster::every_create_msg_with_generate_name_matching_key_set_owner_references_as(get_request(sub_resource, rabbitmq).key, helper_invariants::owner_ref_is_current_cr_only(rabbitmq)));
     let a_to_p_3 = |sub_resource: SubResource| lift_state(helper_invariants::every_valid_resource_update_request_sets_owner_references_to_current_cr(controller_id, sub_resource, rabbitmq));
-    stable_and_always_n!(
-        tla_forall(a_to_p_1), tla_forall(a_to_p_2), tla_forall(a_to_p_3),
-        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, rabbitmq.object_ref()))
-    );
 }
 
 // Invariants since this phase ensure that certain objects only have owner references that point to current cr.
@@ -520,7 +369,6 @@ pub proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_iv(rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq));
-    always_p_is_stable(tla_forall(a_to_p_1));
 }
 
 // Invariants since phase V rely on the invariants since phase IV. When the objects starts to always have owner reference
@@ -533,7 +381,6 @@ pub open spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> Temp
 pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     ensures valid(stable(invariants_since_phase_v(rabbitmq))),
 {
-    always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_from_gc_in_flight(sub_resource, rabbitmq))));
 }
 
 #[verifier(spinoff_prover)]
@@ -568,7 +415,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
                 controller_id, cluster, spec, sub_resource, rabbitmq
             );
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_1);
     });
     RabbitmqReconcileState::marshal_preserves_integrity();
     cluster.lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, controller_id, rabbitmq.object_ref());
@@ -579,7 +425,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_5(sub_resource))) by {
             cluster.lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, get_request(sub_resource, rabbitmq).key);
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_5);
     });
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     cluster.lemma_always_there_is_no_request_msg_to_external_from_controller(spec, controller_id);
@@ -605,7 +450,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_key_unique(key))) by {
             cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, key);
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_key_unique);
     });
     let a_to_p_no_pending = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, at_step_closure(RabbitmqReconcileStep::Init)));
@@ -613,7 +457,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending(key))) by {
             sm_spec_entails_no_pending_msg_at_init(cluster, spec, controller_id, key);
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending);
     });
     let a_to_p_pending_in_flight = |step: (ObjectRef, ActionKind, SubResource)| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id, step.0, at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.1, step.2))));
@@ -621,7 +464,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         assert forall |step: (ObjectRef, ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p_pending_in_flight(step))) by {
             sm_spec_entails_pending_req_in_flight_at_after_k_request_step(cluster, spec, controller_id, step.0, step.1, step.2);
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_pending_in_flight);
     });
     let a_to_p_no_pending_done = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, cluster.reconcile_model(controller_id).done));
@@ -629,7 +471,6 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending_done(key))) by {
             sm_spec_entails_no_pending_msg_at_done(cluster, spec, controller_id, key);
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_done);
     });
     let a_to_p_no_pending_error = |key: ObjectRef| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
         controller_id, key, cluster.reconcile_model(controller_id).error));
@@ -637,50 +478,7 @@ pub proof fn sm_spec_entails_all_invariants(controller_id: int, cluster: Cluster
         assert forall |key: ObjectRef| spec.entails(always(#[trigger] a_to_p_no_pending_error(key))) by {
             sm_spec_entails_no_pending_msg_at_error(cluster, spec, controller_id, key);
         }
-        spec_entails_always_tla_forall_equality(spec, a_to_p_no_pending_error);
     });
-    entails_always_and_n!(
-        spec,
-        lift_state(rmq_guarantee(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
-        lift_state(Cluster::cr_states_are_unmarshallable::<RabbitmqReconcileState, RabbitmqClusterView>(controller_id)),
-        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<RabbitmqClusterView>()),
-        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        tla_forall(a_to_p_1),
-        lift_state(Cluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(controller_id, rabbitmq.object_ref())),
-
-        tla_forall(a_to_p_5),
-        lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::all_requests_from_builtin_controllers_are_api_delete_requests()),
-        lift_state(Cluster::every_in_flight_msg_from_controller_has_kind_as::<RabbitmqClusterView>(controller_id)),
-        lift_state(helper_invariants::rmq_self_rely_guarantee(controller_id, rabbitmq.object_ref())),
-        lift_state(Cluster::etcd_objects_have_unique_uids()),
-        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VStatefulSetView>()),
-        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
-        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<RabbitmqClusterView>(controller_id)),
-        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
-        lift_state(Cluster::every_in_flight_msg_has_no_replicas_and_has_unique_id()),
-        lift_state(helper_invariants::sts_in_etcd_with_rmq_key_match_rmq_selector(rabbitmq)),
-        tla_forall(a_to_p_key_unique),
-        tla_forall(a_to_p_no_pending),
-        tla_forall(a_to_p_pending_in_flight),
-        tla_forall(a_to_p_no_pending_done),
-        tla_forall(a_to_p_no_pending_error)
-    );
 }
 
 #[verifier(spinoff_prover)]
@@ -796,11 +594,6 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))) by {
                 assert(stable_spec.and(always(spec_before_phase_n(controller_id, 6, cluster, rabbitmq))).entails(
                     true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)))) by {
-                    entails_implies_leads_to(
-                        stable_spec,
-                        spec_before_phase_n(controller_id, 6, cluster, rabbitmq),
-                        assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq)
-                    );
                     temp_pred_equality(
                         true_pred().and(spec_before_phase_n(controller_id, 6, cluster, rabbitmq)),
                         spec_before_phase_n(controller_id, 6, cluster, rabbitmq)
@@ -815,10 +608,6 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 assert(always(spec_before_phase_n(controller_id, 6, cluster, rabbitmq)) == spec_before_phase_n(controller_id, 6, cluster, rabbitmq)) by {
                     assert(valid(stable(spec_before_phase_n(controller_id, 6, cluster, rabbitmq)))) by {
                         invariants_since_phase_v_is_stable(rabbitmq);
-                        stable_and(
-                            spec_before_phase_n(controller_id, 5, cluster, rabbitmq),
-                            invariants_since_phase_n(controller_id, 5, cluster, rabbitmq)
-                        );
                         temp_pred_equality(
                             spec_before_phase_n(controller_id, 5, cluster, rabbitmq).and(invariants_since_phase_n(controller_id, 5, cluster, rabbitmq)),
                             spec_before_phase_n(controller_id, 6, cluster, rabbitmq)
@@ -840,10 +629,6 @@ pub proof fn spec_entails_always_desired_state_is_leads_to_assumption_and_invari
                 stable_spec.and(spec_before_phase_n(controller_id, 1, cluster, rabbitmq))
             );
         }
-        stable_and(
-            stable_spec,
-            invariants(controller_id, cluster, rabbitmq)
-        );
         unpack_conditions_from_spec(
             stable_spec.and(invariants(controller_id, cluster, rabbitmq)),
             always(lift_state(Cluster::desired_state_is(rabbitmq))),
@@ -884,7 +669,6 @@ proof fn spec_before_phase_n_entails_true_leads_to_assumption_and_invariants_of_
     ensures
         spec.and(spec_before_phase_n(controller_id, i, cluster, rabbitmq)).entails(true_pred().leads_to(assumption_and_invariants_of_all_phases(controller_id, cluster, rabbitmq))),
 {
-    stable_and(spec, spec_before_phase_n(controller_id, i, cluster, rabbitmq));
     reveal_with_fuel(spec_before_phase_n, 9);
     temp_pred_equality(
         spec.and(spec_before_phase_n(controller_id, i + 1, cluster, rabbitmq)),

@@ -11,6 +11,8 @@ use vstd::{map::*, prelude::*, set_lib::*, set::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn has_pending_k8s_api_req_msg(controller_id: int, s: ClusterState, key: ObjectRef) -> bool {
@@ -336,7 +338,6 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
             })
     };
     temp_pred_equality(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr_key, current_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
-    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, current_state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
 
     let req_in_flight = Self::pending_req_in_flight_at_reconcile_state(controller_id, cr_key, current_state);
     let resp_in_flight = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state);
@@ -344,7 +345,6 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
     self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
     self.lemma_from_pending_req_in_flight_at_some_state_to_next_state(spec, controller_id, cr_key, current_state, next_state);
 
-    or_leads_to(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, next_state)));
     temp_pred_equality(lift_state(req_in_flight).or(lift_state(resp_in_flight)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
     leads_to_trans_n!(
         spec,
@@ -374,7 +374,6 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: T
         &&& Self::no_pending_req_msg(controller_id, s, cr_key)
     };
     temp_pred_equality(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr_key, init_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)).implies(lift_state(no_pending_req)));
-    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)), lift_state(no_pending_req));
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::crash_disabled(controller_id)(s)
@@ -415,7 +414,6 @@ pub proof fn lemma_from_no_pending_req_in_flight_at_some_state_to_next_state(sel
         &&& Self::no_pending_req_msg(controller_id, s, cr_key)
     };
     temp_pred_equality(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr_key, init_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)).implies(lift_state(no_pending_req)));
-    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr_key, init_state)), lift_state(no_pending_req));
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::crash_disabled(controller_id)(s)
@@ -516,7 +514,6 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         let input = (Some(msg), Some(cr_key));
         self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, resp_in_flight_state, post);
     };
-    leads_to_exists_intro(spec, known_resp_in_flight, lift_state(post));
     assert_by(
         tla_exists(known_resp_in_flight) == lift_state(pre),
         {
@@ -648,7 +645,6 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
         }
     }
     let msg_2_temp = |msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr_key, current_state, msg));
-    leads_to_exists_intro(spec, msg_2_temp, lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr_key, current_state)));
     assert_by(
         tla_exists(|msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(controller_id, cr_key, current_state, msg))) == lift_state(pre),
         {
@@ -691,7 +687,6 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
         &&& Self::desired_state_is(cr)(s_prime)
         &&& Self::there_is_the_controller_state(controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(Self::desired_state_is(cr)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
@@ -759,7 +754,6 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
             &&& stronger_next(s, s_prime)
             &&& Self::desired_state_is(cr)(s_prime)
         };
-        always_to_always_later(spec, lift_state(Self::desired_state_is(cr)));
         combine_spec_entails_always_n!(
             spec, lift_action(even_stronger_next),
             lift_action(stronger_next),
@@ -774,7 +768,6 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
         let input = (None, Some(cr.object_ref()));
         self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::RunScheduledReconcile, scheduled_and_not_reconcile, post);
     });
-    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(controller_id, cr)));
     let not_reconcile = Self::reconcile_idle(controller_id, cr.object_ref());
     or_leads_to_combine_and_equality!(
         spec, lift_state(not_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(not_scheduled_or_reconcile);
@@ -856,7 +849,6 @@ pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
         );
     }
     let has_reconcile_id = |reconcile_id| lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id));
-    leads_to_exists_intro(spec, has_reconcile_id, always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements))));
     assert_by(
         tla_exists(has_reconcile_id) == true_pred::<ClusterState>(),
         {
@@ -895,12 +887,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
     let stable_spec = always_spec.and(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1))))
                         .and(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))));
 
-    stable_and_always_n!(
-        lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements)),
-        lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
-        lift_state(Self::there_is_the_controller_state(controller_id)),
-        lift_action(self.next())
-    );
     self.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
 
     // Prove termination is stable.
@@ -935,20 +921,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
         }
     );
 
-    stable_and_n!(
-        always_spec, 
-        tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1))),
-        tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))
-    );
-    entails_and_n!(
-        spec,
-        always(lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements))),
-        always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
-        always(lift_state(Self::there_is_the_controller_state(controller_id))),
-        always(lift_action(self.next())),
-        tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1))),
-        tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))
-    );
 
     let spec_with_reconcile_id = stable_spec.and(lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id)));
     
@@ -976,11 +948,6 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
                         Self::reconcile_id_counter_is(controller_id, reconcile_id)(s)
                         && Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s)
                     };
-                    entails_and(
-                        spec_with_reconcile_id, 
-                        lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id)), 
-                        lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))
-                    );
                     temp_pred_equality(
                         lift_state(init),
                         lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id))
@@ -1008,17 +975,11 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
                 spec_with_reconcile_id, controller_id, reconcile_id
             );           
 
-            entails_preserved_by_always(
-                lift_state(invariant),
-                lift_state(Self::no_reconcile_before_reconcile_id_is_ongoing(controller_id, reconcile_id))
-                .implies(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)))
-            );
             entails_trans(
                 spec_with_reconcile_id, always(lift_state(invariant)),
                 always(lift_state(Self::no_reconcile_before_reconcile_id_is_ongoing(controller_id, reconcile_id))
                     .implies(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements))))
             );
-            always_implies_preserved_by_always(spec_with_reconcile_id, lift_state(Self::no_reconcile_before_reconcile_id_is_ongoing(controller_id, reconcile_id)), lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)));
             leads_to_weaken(
                 spec_with_reconcile_id,
                 true_pred(), always(lift_state(Self::no_reconcile_before_reconcile_id_is_ongoing(controller_id, reconcile_id))),
@@ -1133,20 +1094,13 @@ pub proof fn lemma_eventually_no_reconcile_before_reconcile_id_is_ongoing(
 
     // Now we merge all the cases on different numbers of reconciles together to get true_pred()
     assert_by(spec.entails(always(true_pred().implies(tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num)))))), {
-        assert forall |ex| #[trigger] spec.satisfied_by(ex) 
-            implies always(true_pred().implies(tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))))).satisfied_by(ex) by {
-            assert forall |i| spec.satisfied_by(ex) && #[trigger] true_pred().satisfied_by(ex.suffix(i)) implies tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))).satisfied_by(ex.suffix(i)) by {
-                let ongoing_reconciles = ex.suffix(i).head().ongoing_reconciles(controller_id);
-                let reconciles_before_id = ongoing_reconciles.dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, ex.suffix(i).head()));
-                let rec_num = reconciles_before_id.len();
-
-                assert(reconciles_before_id.subset_of(ongoing_reconciles.dom()));
-                lemma_len_subset(reconciles_before_id, ongoing_reconciles.dom());
-                assert(lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num)).satisfied_by(ex.suffix(i)));
-                assert((|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num)))(rec_num).satisfied_by(ex.suffix(i)));
-                assert(tla_exists(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num))).satisfied_by(ex.suffix(i)));
-            }
+        let a_to_p = |rec_num: nat| Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num);
+        let any_state = |s: ClusterState| true;
+        assert forall |s: ClusterState| #[trigger] any_state(s) implies exists |rec_num: nat| #[trigger] a_to_p(rec_num)(s) by {
+            let reconciles_before_id = s.ongoing_reconciles(controller_id).dom().filter(Self::reconcile_id_before(controller_id, reconcile_id, s));
+            assert(a_to_p(reconciles_before_id.len())(s));
         }
+        tla_exists_lift_state_equality(|rec_num| lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, rec_num)), a_to_p, |s: ClusterState| exists |a| #[trigger] a_to_p(a)(s));
     });
 
     always_implies_to_leads_to(
@@ -1201,7 +1155,6 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
             }
         });
 
-        entails_implies_leads_to(spec, lift_state(Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, 0)), lift_state(no_more_ongoing_reconciles));
     } else {
         // induction step
         let no_more_ongoing_reconciles = lift_state(Self::no_reconcile_before_reconcile_id_is_ongoing(controller_id, reconcile_id));
@@ -1220,9 +1173,6 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
                 spec, controller_id, reconcile_id, rec_num, key
             );
         }
-        leads_to_exists_intro(
-            spec, ongoing_reconciles_num_is_n_and_reconcile_ongoing, lift_state(Self::ongoing_reconciles_num_is_at_most_n(controller_id, reconcile_id, (rec_num - 1) as nat))
-        );
 
         // merge all the cases on different keys together
         assert_by(
@@ -1277,11 +1227,6 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
                     &&& Self::ongoing_reconciles_num_is_n(controller_id, reconcile_id, n)(s)
                     &&& n < rec_num
                 });
-                entails_implies_leads_to(
-                    spec, 
-                    lift_state(Self::ongoing_reconciles_num_is_at_most_n(controller_id, reconcile_id, (rec_num - 1) as nat)), 
-                    tla_exists(ongoing_reconciles_num_is_n_and_less_than_rec_num)
-                );
 
                 assert forall |n: nat| n < rec_num implies #[trigger] spec.entails(
                     ongoing_reconciles_num_is_n_and_less_than_rec_num(n)
@@ -1297,9 +1242,6 @@ pub proof fn lemma_ongoing_reconciles_num_is_n_leads_to_no_ongoing_reconciles(
                     );
                 }
 
-                leads_to_exists_intro(
-                    spec, ongoing_reconciles_num_is_n_and_less_than_rec_num, lift_state(Self::no_reconcile_before_reconcile_id_is_ongoing(controller_id, reconcile_id))
-                );
 
                 leads_to_trans(
                     spec,
@@ -1415,11 +1357,6 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
 
     // show spec |= []p ~> forward.
     spec_entails_tla_forall_apply(spec, |key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))), key);
-    entails_implies_leads_to(
-        spec,
-        always(lift_state(invariant)),
-        true_pred()
-    );
     leads_to_trans(
         spec,
         always(lift_state(invariant)),
@@ -1435,11 +1372,6 @@ pub proof fn lemma_ongoing_reconciles_num_decreases(
         lift_state(Self::ongoing_reconciles_num_is_at_most_n(controller_id, reconcile_id, (rec_num - 1) as nat))
     );
 
-    entails_implies_leads_to(
-        spec,
-        ongoing_reconciles_num_is_n_and_reconcile_ongoing(key),
-        lift_state(invariant)
-    );
     leads_to_trans(
         spec,
         ongoing_reconciles_num_is_n_and_reconcile_ongoing(key),

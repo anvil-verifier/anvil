@@ -19,6 +19,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // serve as trigger to make Verus happy
 pub open spec fn scale_down_old_vrs_rank_n(n: nat) -> spec_fn(ReconcileLocalState) -> bool {
     at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]
@@ -216,43 +218,9 @@ pub proof fn reconcile_eventually_terminates(
             spec, vd_with_key, cluster, controller_id
             );
         } else {
-            always_weaken(
-                spec, 
-                lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-            );
-
             let terminated_vd = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
-            assert forall |ex|
-            spec.entails(always(lift_state(terminated_vd)))
-            implies 
-                #[trigger] spec.implies(always(
-                true_pred().and(true_pred()).and(true_pred())
-                .implies(later(lift_state(terminated_vd)))
-                )).satisfied_by(ex) by {
-            if spec.satisfied_by(ex) {
-                assert forall |n: nat| 
-                spec.satisfied_by(ex)
-                && spec.entails(always(lift_state(terminated_vd)))
-                implies 
-                    #[trigger] true_pred().and(true_pred()).and(true_pred())
-                    .implies(later(lift_state(terminated_vd))).satisfied_by(ex.suffix(n)) by {
-                    assert(valid(spec.implies(always(lift_state(terminated_vd)))));
-                    assert(spec.implies(always(lift_state(terminated_vd))).satisfied_by(ex));
-                    assert(always(lift_state(terminated_vd)).satisfied_by(ex));
-                    assert(lift_state(terminated_vd).satisfied_by(ex.suffix(n + 1)));
-                }
-            }
-            }
-
-            entails_implies_leads_to(spec, always(true_pred()), true_pred());
-                wf1_variant(
-                spec,
-                true_pred(),
-                true_pred(),
-                true_pred(),
-                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
-            );
+            always_entails_leads_to_always(spec, true_pred(), lift_state(terminated_vd));
+            leads_to_eliminate_always(spec, true_pred(), lift_state(terminated_vd));
         }
     }
 
@@ -308,7 +276,6 @@ ensures
     cluster.lemma_reconcile_done_leads_to_reconcile_idle(spec, controller_id, vd.object_ref());
     temp_pred_equality(lift_state(lift_local(controller_id, vd, at_step_or![Error])), lift_state(reconcile_error));
     temp_pred_equality(lift_state(lift_local(controller_id, vd, at_step_or![Done])), lift_state(reconcile_done));
-    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
     // 2, AfterScaleDownOldVRS ~> reconcile_idle.
     // 2.1, AfterScaleDownOldVRS && state.old_vrs_index == 0 ~> reconcile_idle.
     // Done ~> idle && Error ~> idle => Done \/ Error ~> idle
@@ -349,10 +316,6 @@ ensures
             n > 0 implies spec.entails(lift_state(lift_local(controller_id, vd, #[trigger] scale_down_old_vrs_rank_n(n)))
                                        .leads_to(lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n((n - 1) as nat))))) by {
             // Error ~> n - 1
-            entails_implies_leads_to(spec,
-                lift_state(lift_local(controller_id, vd, at_step_or![Error])),
-                lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n((n - 1) as nat)))
-            );
             // n ~> n - 1
             lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
                 spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(n)
@@ -383,10 +346,6 @@ ensures
         );
     }
     // \A n | Error |= \E n | Error
-    leads_to_exists_intro(spec,
-        |n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
-        lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero)), Error]))
-    );
     // \E n | Error ~> idle
     leads_to_trans_n!(spec,
         tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n)))),
@@ -407,8 +366,6 @@ ensures
             }
         assert(spec.entails(p.leads_to(lift_state(reconcile_idle)))) by {
             // p ~> p(n)
-            entails_implies_leads_to(spec, p,
-                tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n)))));
             // p ~> p(n) ~> idle
             leads_to_trans_n!(spec,
                 p,
@@ -522,17 +479,5 @@ ensures
         controller_id, vd.object_ref(), at_step_or![(step, pred)]
     )))),
 {
-    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id, vd.object_ref(), at_step_or![step]
-    ));
-    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id, vd.object_ref(), at_step_or![(step, pred)]
-    ));
-    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
-        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
-        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
-        assert(always(pre).satisfied_by(ex));
-        assert(forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) ==> post.satisfied_by(ex.suffix(i)));
-    }
 }
 }

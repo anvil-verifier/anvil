@@ -9,6 +9,8 @@ use vstd::{prelude::*, utf8::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePred<ClusterState> {

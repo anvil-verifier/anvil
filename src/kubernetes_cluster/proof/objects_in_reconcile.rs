@@ -5,6 +5,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 impl Cluster {
 
 pub open spec fn each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id: int) -> StatePred<ClusterState> {

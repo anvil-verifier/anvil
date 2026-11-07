@@ -6,6 +6,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 enum Tid {
     A,
     B
@@ -155,7 +157,6 @@ proof fn both_threads_eventually_terminate(model: TempPred<ProgramState>)
         );
     }
 
-    or_leads_to(model, lift_state(ta_holding_tb_waiting), lift_state(tb_holding_ta_waiting), lift_state(both_threads_are_terminated()));
 
     temp_pred_equality(lift_state(ta_holding_tb_waiting).or(lift_state(tb_holding_ta_waiting)), lift_state(one_of_the_threads_is_holding));
 

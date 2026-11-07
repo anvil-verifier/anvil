@@ -24,6 +24,8 @@ use vstd::{multiset::*, prelude::*, string::*, utf8::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub proof fn rmq_with_different_key_implies_request_with_different_key(rabbitmq: RabbitmqClusterView, other_rmq: RabbitmqClusterView, sub_resource: SubResource)
 requires
     rabbitmq.object_ref() != other_rmq.object_ref()
@@ -1085,42 +1087,9 @@ pub proof fn rmq_rely_condition_equivalent_to_lifted_rmq_rely_condition(
         <==>
             spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id)))),
 {
-    let lhs =
-        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] rmq_rely(other_id)))));
-    let rhs = spec.entails(always(lift_state(rmq_rely_conditions(cluster, controller_id))));
-
-    assert_by(
-        lhs ==> rhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
-                lhs
-                && spec.satisfied_by(ex)
-                && cluster.controller_models.remove(controller_id).contains_key(other_id)
-                implies rmq_rely(other_id)(ex.suffix(n).head()) by {
-                assert(valid(spec.implies(always(lift_state(rmq_rely(other_id))))));
-                assert(spec.implies(always(lift_state(rmq_rely(other_id)))).satisfied_by(ex));
-                assert(always(lift_state(rmq_rely(other_id))).satisfied_by(ex));
-                assert(lift_state(rmq_rely(other_id)).satisfied_by(ex.suffix(n)));
-            }
-        }
-    );
-
-    assert_by(
-        rhs ==> lhs,
-        {
-            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
-                rhs
-                && spec.satisfied_by(ex)
-                && cluster.controller_models.remove(controller_id).contains_key(other_id)
-                implies rmq_rely(other_id)(ex.suffix(n).head()) by {
-                assert(valid(spec.implies(always(lift_state(rmq_rely_conditions(cluster, controller_id))))));
-                assert(spec.implies(always(lift_state(rmq_rely_conditions(cluster, controller_id)))).satisfied_by(ex));
-                assert(always(lift_state(rmq_rely_conditions(cluster, controller_id))).satisfied_by(ex));
-                assert(lift_state(rmq_rely_conditions(cluster, controller_id)).satisfied_by(ex.suffix(n)));
-            }
-        }
-    );
+    let a_to_p = |other_id: int| rmq_rely(other_id);
+    assert(forall |other_id: int| #[trigger] rmq_rely(other_id) == a_to_p(other_id));
+    spec_entails_always_lift_state_forall_within_domain_equality(spec, a_to_p, cluster.controller_models.remove(controller_id).dom().to_iset(), rmq_rely_conditions(cluster, controller_id));
 }
 
 // A sub resource name is "rabbitmq-" + the (ascii) rabbitmq name + a literal suffix, so it is ascii.

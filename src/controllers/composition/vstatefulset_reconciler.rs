@@ -15,6 +15,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 pub open spec fn vsts_controller_spec(id: int) -> ControllerSpec {
     ControllerSpec {
         esr: vsts_liveness::vsts_eventually_stable_reconciliation(),
@@ -73,7 +75,6 @@ pub proof fn vsts_singleton_core_holds(cluster: CoreCluster, id: int)
             tla_forall_apply(G_fn, c);
         }
     }
-    spec_entails_tla_forall(spec, G_fn);
 
     // env_rely is non-trivial for VSTS (pod monkey constraint). Thread R and env
     // through to the lemma; D is true_pred and collapses via temp_pred_equality later.
@@ -98,13 +99,10 @@ pub proof fn vsts_singleton_core_holds(cluster: CoreCluster, id: int)
             assert(ESR_fn(c) == vsts_liveness::vsts_eventually_stable_reconciliation());
         }
     }
-    spec_entails_tla_forall(spec_re, ESR_fn);
-    entails_implies(spec, assumption_re, tla_forall(ESR_fn));
 
     // Collapse D (true_pred) so the full assumption shape R.and(D).and(env) matches assumption_re.
     assert(spec.entails(tla_forall(G_fn).and(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn))))) by {
         temp_pred_equality(tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)), assumption_re);
-        entails_and(spec, tla_forall(G_fn), tla_forall(R_fn).and(s.liveness_dependency).and(tla_forall(env_fn)).implies(tla_forall(ESR_fn)));
     }
 }
 

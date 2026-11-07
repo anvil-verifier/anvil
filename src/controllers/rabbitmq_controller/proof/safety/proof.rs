@@ -21,6 +21,8 @@ use vstd::prelude::*;
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 proof fn safety_proof_forall_rabbitmq(controller_id: int, cluster: Cluster)
     requires
         cluster.type_is_installed_in_cluster::<RabbitmqClusterView>(),

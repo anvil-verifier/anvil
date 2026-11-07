@@ -17,6 +17,8 @@ use crate::vstd_ext::{set_lib::*, map_lib::*};
 
 verus! {
 
+broadcast use verus_temporal_logic::rules::group_tla_rules;
+
 // *** Rolling update ESR composition helpers ***
 // TODO: fix after every_vrs_in_etcd_has_one_controller_owner is removed
 
@@ -389,7 +391,6 @@ proof fn lemma_always_next_with_invariants(
     ensures
         spec.entails(always(lift_action(next_with_invariants(cluster, vd, controller_id)))),
 {
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(next_with_invariants(cluster, vd, controller_id)),
         lift_action(cluster.next()),
@@ -413,14 +414,7 @@ proof fn lemma_conjuncted_vrs_esr(spec: TempPred<ClusterState>, vrs_set: Set<VRe
         spec.entails(always(lift_state(desired_state_is_vrs(vrs))).leads_to(always(lift_state(current_state_matches_vrs(vrs))))) by {
         spec_entails_tla_forall_apply(spec, |vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs), vrs);
     }
-    assert(conjuncted_desired_state_is_vrs(vrs_set)
-        == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> desired_state_is_vrs(vrs)(s)));
-    assert(conjuncted_current_state_matches_vrs(vrs_set)
-        == |s: ClusterState| (forall |vrs| #[trigger] vrs_set.contains(vrs) ==> current_state_matches_vrs(vrs)(s)));
-    spec_entails_always_tla_forall_leads_to_always_tla_forall_within_domain(
-        spec, desired_state_is_vrs, current_state_matches_vrs, vrs_set,
-        conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set)
-    );
+    leads_to_always_lift_state_forall_pointwise_within_domain(spec, desired_state_is_vrs, current_state_matches_vrs, vrs_set, conjuncted_desired_state_is_vrs(vrs_set), conjuncted_current_state_matches_vrs(vrs_set));
 }
 
 // Ranking of iterative_esr never increases: returns the replicas diff of the new vrs in s_prime
@@ -514,22 +508,9 @@ proof fn ranking_decreases_after_vrs_esr(
         leads_to_trans(composed_spec, true_pred(), lift_state(init), post);
     }
     assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
-    always_p_is_stable(lifted_vd_rely_condition(cluster, controller_id));
-    always_p_is_stable(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
-    stable_and_n!(
-        assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
-        always(lifted_vd_rely_condition(cluster, controller_id)),
-        always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
-    );
     unpack_conditions_from_spec(stable_spec, assumption, true_pred(), post);
     temp_pred_equality(true_pred().and(assumption), assumption);
-    entails_and_n!(spec,
-        assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
-        always(lifted_vd_rely_condition(cluster, controller_id)),
-        always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id))
-    );
     entails_trans(spec, stable_spec, assumption.leads_to(post));
-    always_and_equality_n!(desired_vrs, inductive, current_vrs);
     temp_pred_equality(
         lift_state(desired_new_vrs_with_replicas_diff(vd, controller_id, new_vrs, new_vrs.object_ref(), diff)),
         desired_vrs.and(inductive)
@@ -567,11 +548,6 @@ proof fn lemma_new_vrs_eventually_matches_vd_replicas(
             }
         ));
         spec_entails_tla_forall_apply(spec, |vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs), vrs);
-        leads_to_self(always(lifted_p(n)));
-        always_leads_to_always_and(spec,
-            lift_state(vrs_liveness::desired_state_is(vrs)), lifted_p(n),
-            lift_state(vrs_liveness::current_state_matches(vrs)), lifted_p(n)
-        );
         temp_pred_equality(lift_state(vrs_liveness::desired_state_is(vrs)).and(lifted_p(n)), lifted_p(n));
         temp_pred_equality(lift_state(vrs_liveness::current_state_matches(vrs)).and(lifted_p(n)), q(n));
     }
@@ -902,15 +878,21 @@ proof fn lemma_always_inductive_current_state_matches_leads_to_always_composed_c
         inductive_current_state_matches(vd, controller_id, new_vrs_key)
     );
     let old_vrs_post = |old_vrs_set| lift_state(conjuncted_current_state_matches_vrs(old_vrs_set)).and(lift_state(old_vrs_pre(old_vrs_set)));
+    // [] inductive ~> inductive, used below to pick the witnesses from the current state
+    let inductive = inductive_current_state_matches(vd, controller_id, new_vrs_key);
+    let inductive_and_inv = |s: ClusterState| inductive(s) && inv(s);
+    always_entails_current(lift_state(inductive));
+    entails_implies_leads_to(spec, always_inductive, lift_state(inductive));
     assert(spec.entails(always_inductive.leads_to(tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set)))))) by {
-        assert forall |ex| #[trigger] always_inductive.and(lift_state(inv)).satisfied_by(ex)
-            implies tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))).satisfied_by(ex) by {
-            assert(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).satisfied_by(ex.suffix(0)));
-            let old_vrs_set = current_state_match_vd_implies_exists_old_vrs_set(vd, cluster, controller_id, new_vrs_key, ex.head());
-            assert((|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set)))(old_vrs_set).satisfied_by(ex));
+        assert forall |s: ClusterState| #[trigger] inductive_and_inv(s) implies exists |old_vrs_set| #[trigger] old_vrs_pre(old_vrs_set)(s) by {
+            let old_vrs_set = current_state_match_vd_implies_exists_old_vrs_set(vd, cluster, controller_id, new_vrs_key, s);
+            assert(old_vrs_pre(old_vrs_set)(s));
         }
-        entails_implies_leads_to(spec, always_inductive.and(lift_state(inv)), tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))));
-        leads_to_by_borrowing_inv(spec, always_inductive, tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))), lift_state(inv));
+        tla_exists_lift_state_equality(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set)), old_vrs_pre, |s: ClusterState| exists |a| #[trigger] old_vrs_pre(a)(s));
+        entails_trans(lift_state(inductive).and(lift_state(inv)), lift_state(inductive_and_inv), tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))));
+        entails_implies_leads_to(spec, lift_state(inductive).and(lift_state(inv)), tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))));
+        leads_to_by_borrowing_inv(spec, lift_state(inductive), tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))), lift_state(inv));
+        leads_to_trans(spec, always_inductive, lift_state(inductive), tla_exists(|old_vrs_set| lift_state(old_vrs_pre(old_vrs_set))));
     }
     assert forall |s, s_prime| (forall |old_vrs_set| #[trigger] old_vrs_pre(old_vrs_set)(s) && #[trigger] next_with_invariants(cluster, vd, controller_id)(s, s_prime) ==> old_vrs_pre(old_vrs_set)(s_prime)) by {
         assert forall |old_vrs_set| #[trigger] old_vrs_pre(old_vrs_set)(s) && next_with_invariants(cluster, vd, controller_id)(s, s_prime) implies old_vrs_pre(old_vrs_set)(s_prime) by {
@@ -939,18 +921,21 @@ proof fn lemma_always_inductive_current_state_matches_leads_to_always_composed_c
     let new_vrs_pre = |new_vrs: VReplicaSetView| lift_state(desired_new_vrs_with_replicas_diff(vd, controller_id, new_vrs, new_vrs_key, replicas_diff(vd, new_vrs)));
     let new_vrs_post = |new_vrs: VReplicaSetView| lift_state(desired_new_vrs_with_replicas_diff(vd, controller_id, new_vrs, new_vrs_key, 0)).and(lift_state(current_state_matches_vrs_with_replicas_diff_and_key(vd, new_vrs, new_vrs_key, 0)));
     assert(spec.entails(always_inductive.leads_to(tla_exists(new_vrs_pre)))) by {
-        assert forall |ex| #[trigger] always_inductive.and(lift_state(inv)).satisfied_by(ex) implies tla_exists(new_vrs_pre).satisfied_by(ex) by {
-            assert(lift_state(inductive_current_state_matches(vd, controller_id, new_vrs_key)).satisfied_by(ex.suffix(0)));
+        let new_vrs_pre_state = |new_vrs: VReplicaSetView| desired_new_vrs_with_replicas_diff(vd, controller_id, new_vrs, new_vrs_key, replicas_diff(vd, new_vrs));
+        assert forall |s: ClusterState| #[trigger] inductive_and_inv(s) implies exists |new_vrs: VReplicaSetView| #[trigger] new_vrs_pre_state(new_vrs)(s) by {
             // witness: the new vrs in etcd
-            let etcd_vrs = VReplicaSetView::unmarshal(ex.head().resources()[new_vrs_key])->Ok_0;
+            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs_key])->Ok_0;
             assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() == 1) by {
                 assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
                 assert(etcd_vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
             }
-            assert(new_vrs_pre(etcd_vrs).satisfied_by(ex));
+            assert(new_vrs_pre_state(etcd_vrs)(s));
         }
-        entails_implies_leads_to(spec, always_inductive.and(lift_state(inv)), tla_exists(new_vrs_pre));
-        leads_to_by_borrowing_inv(spec, always_inductive, tla_exists(new_vrs_pre), lift_state(inv));
+        tla_exists_lift_state_equality(new_vrs_pre, new_vrs_pre_state, |s: ClusterState| exists |a| #[trigger] new_vrs_pre_state(a)(s));
+        entails_trans(lift_state(inductive).and(lift_state(inv)), lift_state(inductive_and_inv), tla_exists(new_vrs_pre));
+        entails_implies_leads_to(spec, lift_state(inductive).and(lift_state(inv)), tla_exists(new_vrs_pre));
+        leads_to_by_borrowing_inv(spec, lift_state(inductive), tla_exists(new_vrs_pre), lift_state(inv));
+        leads_to_trans(spec, always_inductive, lift_state(inductive), tla_exists(new_vrs_pre));
     }
     assert forall |new_vrs: VReplicaSetView| #[trigger] spec.entails(new_vrs_pre(new_vrs).leads_to(always(new_vrs_post(new_vrs)))) by {
         if new_vrs.object_ref() == new_vrs_key {
@@ -1010,42 +995,21 @@ pub proof fn rolling_update_leads_to_composed_current_state_matches_vd(
         .and(always(lifted_vd_rely_condition(cluster, controller_id)))
         .and(always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)))
         .and(desired_vd.leads_to(aip));
-    entails_and_n!(provided_spec,
-        vd_esr,
-        vrs_liveness::vrs_eventually_stable_reconciliation(),
-        always(lifted_vd_rely_condition(cluster, controller_id)),
-        always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
-        desired_vd.leads_to(aip)
-    );
     assert(valid(stable(stable_spec))) by {
         let desired_vrs = |vrs| always(lift_state(vrs_liveness::desired_state_is(vrs)));
         let current_vrs = |vrs| always(lift_state(vrs_liveness::current_state_matches(vrs)));
         tla_forall_a_p_a_leads_to_q_a_is_stable(desired_vrs, current_vrs);
         tla_forall_p_tla_forall_q_equality(|vrs| vrs_liveness::vrs_eventually_stable_reconciliation_per_cr(vrs), |vrs| desired_vrs(vrs).leads_to(current_vrs(vrs)));
-        leads_to_is_stable(desired_vd, tla_exists(always_inductive));
-        always_p_is_stable(lifted_vd_rely_condition(cluster, controller_id));
-        always_p_is_stable(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id));
-        leads_to_is_stable(desired_vd, aip);
-        stable_and_n!(
-            vd_esr,
-            vrs_liveness::vrs_eventually_stable_reconciliation(),
-            always(lifted_vd_rely_condition(cluster, controller_id)),
-            always(lifted_vd_reconcile_request_only_interferes_with_itself(controller_id)),
-            desired_vd.leads_to(aip)
-        );
     }
     let spec = stable_spec.and(aip);
     assert forall |new_vrs_key: ObjectRef| spec.entails(always(lift_state(#[trigger] inductive_current_state_matches(vd, controller_id, new_vrs_key))).leads_to(composed_vd)) by {
         lemma_always_inductive_current_state_matches_leads_to_always_composed_current_state_matches(spec, vd, controller_id, cluster, new_vrs_key);
     }
-    leads_to_exists_intro(spec, always_inductive, composed_vd);
     leads_to_trans(spec, desired_vd, tla_exists(always_inductive), composed_vd);
     // stable_spec |= [] desired_state_is ~> [] desired_state_is /\ aip ~> [] composed_current_state_matches
     unpack_conditions_from_spec(stable_spec, aip, desired_vd, composed_vd);
     assumption_and_invariants_of_all_phases_is_stable(vd, cluster, controller_id);
     stable_to_always(aip);
-    leads_to_self(desired_vd);
-    leads_to_always_and(stable_spec, desired_vd, lift_state(desired_state_is(vd)), aip);
     leads_to_trans(stable_spec, desired_vd, desired_vd.and(aip), composed_vd);
     entails_trans(provided_spec, stable_spec, desired_vd.leads_to(composed_vd));
 }
