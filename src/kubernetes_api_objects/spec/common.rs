@@ -8,6 +8,10 @@ verus! {
 // make Uid an int, instead of String, so that it is easy to compare in spec/proof
 pub type Uid = int;
 
+// The model's Uid of the uid string the API server assigns to an object. It is uninterpreted:
+// the model only compares uids, and the API server gives distinct objects distinct uid strings.
+pub uninterp spec fn uid_view(uid: Seq<char>) -> Uid;
+
 // make ResourceVersion an int, instead of String, so that it is easy to compare in spec/proof
 pub type ResourceVersion = int;
 

@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::exec::{owner_reference::*, resource::*};
-use crate::kubernetes_api_objects::spec::object_meta::*;
+use crate::kubernetes_api_objects::spec::{common::*, object_meta::*};
 use crate::vstd_ext::{string_map::*, string_view::*};
 use vstd::prelude::*;
 
@@ -144,6 +144,15 @@ impl ObjectMeta {
         ensures self@.uid is Some == b,
     {
         self.inner.uid.is_some()
+    }
+
+    #[verifier(external_body)]
+    pub fn uid(&self) -> (uid: Option<String>)
+        ensures
+            self@.uid is Some == uid is Some,
+            uid is Some ==> self@.uid->0 == uid_view(uid->0@),
+    {
+        self.inner.uid.clone()
     }
 
     // We need this seemingly redundant function for the same

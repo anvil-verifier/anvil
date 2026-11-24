@@ -95,28 +95,6 @@ macro_rules! implement_object_wrapper_type {
 pub use implement_object_wrapper_type;
 
 #[macro_export]
-macro_rules! implement_custom_object_wrapper_type {
-    ($t:ident, $it:ty, $vt:ty) => {
-        implement_object_wrapper_type!($t, $it, $vt);
-
-        verus! {
-
-        impl $t {
-            #[verifier(external_body)]
-            pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-                ensures owner_reference@ == self@.controller_owner_ref(),
-            {
-                OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
-            }
-        }
-
-        }
-    };
-}
-
-pub use implement_custom_object_wrapper_type;
-
-#[macro_export]
 macro_rules! implement_view_trait {
     ($t:ty, $vt:ty) => {
         verus! {
