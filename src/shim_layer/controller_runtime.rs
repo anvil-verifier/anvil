@@ -31,6 +31,20 @@ use vstd::string::*;
 // which is required by the kube-rs framework to build a controller,
 // on top of reconcile_core, which is provided by the developer.
 
+pub fn wrap_listed_dynamic_object(
+    mut obj: kube::api::DynamicObject,
+    api_resource: &crate::kubernetes_api_objects::exec::api_resource::ApiResource,
+) -> DynamicObject {
+    if obj.types.is_none() {
+        let ar = api_resource.as_kube_ref();
+        obj.types = Some(kube::core::TypeMeta {
+            api_version: ar.api_version.clone(),
+            kind: ar.kind.clone(),
+        });
+    }
+    DynamicObject::from_kube(obj)
+}
+
 // run_controller prepares and runs the controller. It requires:
 // K: the custom resource type
 // R: the reconciler type
@@ -267,7 +281,12 @@ where
                                         res: Ok(obj_list
                                             .items
                                             .into_iter()
-                                            .map(|obj| DynamicObject::from_kube(obj))
+                                            .map(|obj| {
+                                                wrap_listed_dynamic_object(
+                                                    obj,
+                                                    &list_req.api_resource,
+                                                )
+                                            })
                                             .collect()),
                                     });
                                     info!("{} List {} done", log_header, key);
