@@ -4945,6 +4945,12 @@ ensures
                     }
                     assert(next_local_state.reconcile_step == Error || next_local_state.reconcile_step == Done);
                 },
+                AfterCreatePVC | SkipPVC | AfterUpdateNeeded => {
+                    // trigger: the next needed pod exists, so the next step is not CreateNeeded
+                    if local_state.needed_index < local_state.needed.len() {
+                        assert(local_state.needed[local_state.needed_index as int]->0.metadata.name is Some);
+                    }
+                },
                 _ => {}
             }
         } else { // same controller, different cr
