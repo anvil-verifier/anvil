@@ -302,4 +302,17 @@ ensures is_ascii_chars(vsts.metadata.name->0),
     assert(Cluster::etcd_object_is_weakly_well_formed(vsts.object_ref())(s));
 }
 
+// A pod that the controller makes from the template matches the template: the controller never
+// takes a pod it has just created for an outdated one during a rolling update. pod_spec_matches
+// compares the pod's spec with the template's as they are, without normalizing either.
+pub proof fn lemma_make_pod_matches_pod_spec_matches(vsts: VStatefulSetView, ordinal: nat)
+    requires vsts.spec.template.spec is Some,
+    ensures pod_spec_matches(vsts, make_pod(vsts, ordinal)),
+{
+    let pod = make_pod(vsts, ordinal);
+    assert(pod.spec is Some);
+    assert(pod.spec->0.without_volumes().without_hostname().without_subdomain()
+        == vsts.spec.template.spec->0.without_volumes().without_hostname().without_subdomain());
+}
+
 }
