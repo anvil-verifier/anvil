@@ -1338,6 +1338,20 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
                 && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas),
     );
 
+    proof {
+        let pred = |pod: PodView|
+            model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
+                && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas;
+        seq_filter_is_a_subset_of_original_seq(pods.deep_view(), pred);
+        assert forall |i: int| #![trigger condemned@[i]] 0 <= i < condemned@.len() implies {
+            &&& condemned@[i]@.metadata.name is Some
+            &&& model_reconciler::get_ordinal(parent_name@, condemned@[i]@.metadata.name->0) is Some
+        } by {
+            assert(condemned.deep_view()[i] == condemned@[i]@);
+            let j = choose |j: int| 0 <= j < pods.deep_view().len() && pods.deep_view()[j] == condemned.deep_view()[i];
+            assert(pods@[j].deep_view().metadata.name is Some);
+        }
+    }
     sort_pods_by_ord(&parent_name, &mut condemned);
 
     (needed, condemned)
