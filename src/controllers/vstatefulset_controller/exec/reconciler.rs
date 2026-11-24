@@ -7,6 +7,7 @@ use crate::vstatefulset_controller::model::reconciler::*;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
+use crate::vstatefulset_controller::trusted::reconciler::has_ordinal;
 use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStep;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
@@ -1325,8 +1326,12 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
             ensures b == (model_reconciler::get_ordinal(parent_name@, pod.deep_view().metadata.name->0) is Some
                 && model_reconciler::get_ordinal(parent_name@, pod.deep_view().metadata.name->0)->0 >= replicas)
         {
-            let ordinal = get_ordinal(&parent_name, &pod.metadata().name().unwrap());
-            ordinal.is_some() && ordinal.unwrap() >= replicas
+            let pod_name = pod.metadata().name().unwrap();
+            has_ordinal(&parent_name, &pod_name)
+                && match get_ordinal(&parent_name, &pod_name) {
+                    Some(ord) => ord >= replicas,
+                    None => true,
+                }
         },
         Ghost(|pod: PodView|
             model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
@@ -1445,7 +1450,7 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
             pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
             && vsts.metadata().name().is_some()
             && pod.metadata().name().is_some()
-            && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap()).is_some()
+            && trusted_reconciler::has_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap())
         },
         Ghost(model_reconciler::pod_filter(vsts@)),
     )
