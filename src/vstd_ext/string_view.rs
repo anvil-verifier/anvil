@@ -31,20 +31,39 @@ pub fn usize_to_string(i: usize) -> (s: String)
     i.to_string()
 }
 
-// The inverse of usize_to_string: Some(i) iff s is the canonical decimal representation of i.
-// Trusted for the same reason as usize_to_string, as int_to_string_view is uninterpreted. The None
-// case also assumes no such number exceeds usize::MAX, as storing one in a usize already does.
+// The inverse of usize_to_string: Some(i) iff s is the canonical decimal representation of a
+// usize value i; None iff no usize value has canonical decimal representation s (including when s
+// is a canonical decimal integer above usize::MAX).
 #[verifier(external_body)]
 pub fn parse_usize(s: &str) -> (res: Option<usize>)
     ensures
         res is Some ==> s@ == int_to_string_view(res->0 as int),
-        res is None ==> forall |i: nat| s@ != #[trigger] int_to_string_view(i as int),
+        res is None ==> forall |i: usize| s@ != #[trigger] int_to_string_view(i as int),
 {
     // the round trip rejects what parse accepts but to_string never produces, e.g. "+1" and "007"
     match s.parse::<usize>() {
         Ok(i) if i.to_string() == s => Some(i),
         _ => None,
     }
+}
+
+#[verifier(external_body)]
+pub fn is_canonical_decimal_nat(s: &str) -> (res: bool)
+    ensures
+        res == (exists |i: nat| s@ == #[trigger] int_to_string_view(i as int)),
+{
+    let bytes = s.as_bytes();
+    if bytes.is_empty() || (bytes.len() > 1 && bytes[0] == b'0') {
+        return false;
+    }
+    let mut idx = 0;
+    while idx < bytes.len() {
+        if bytes[idx] < b'0' || bytes[idx] > b'9' {
+            return false;
+        }
+        idx += 1;
+    }
+    true
 }
 
 #[verifier(external_body)]
