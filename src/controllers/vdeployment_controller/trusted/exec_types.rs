@@ -12,7 +12,7 @@ use vstd::prelude::*;
 
 verus! {
 
-implement_custom_object_wrapper_type!(
+implement_object_wrapper_type!(
     VDeployment,
     crate::crds::VDeployment,
     spec_types::VDeploymentView
@@ -24,6 +24,16 @@ impl VDeployment {
         ensures spec@ == self@.spec,
     {
         VDeploymentSpec { inner: self.inner.spec.clone() }
+    }
+
+    #[verifier(external_body)]
+    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        ensures owner_reference@ == self@.controller_owner_ref(),
+    {
+        // We can safely unwrap here because the trait method implementation always returns a Some(...)
+        let mut oref = self.inner.controller_owner_ref(&()).unwrap();
+        oref.block_owner_deletion = Some(true);
+        OwnerReference::from_kube(oref)
     }
 
     #[verifier(external_body)]
