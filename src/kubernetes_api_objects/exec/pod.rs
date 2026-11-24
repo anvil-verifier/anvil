@@ -12,7 +12,6 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use tracing::{error, info, warn};
 use k8s_openapi::api::core::v1 as k8s_types;
-use kube_quantity;
 
 verus! {
 
@@ -68,19 +67,445 @@ impl Pod {
 }
 
 #[verifier::external]
-fn normalize_and_compare_resources(r1: &k8s_types::ResourceRequirements, r2: &k8s_types::ResourceRequirements) -> bool {
-    
-    let normalize_map = |m: &Option<std::collections::BTreeMap<String, k8s_openapi::apimachinery::pkg::api::resource::Quantity>>| {
-        m
-        .clone()
-        .unwrap_or_default()
-        .iter()
-        .map(|(k, v)| (k.clone(), kube_quantity::ParsedQuantity::try_from(v).ok()))
-        .collect::<std::collections::BTreeMap<_, _>>()
+#[verifier::external]
+fn eq_opt_string(a: &Option<String>, b: &Option<String>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(sa), Some(sb)) => sa == sb,
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_string_vec(a: &Vec<String>, b: &Vec<String>) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i: usize = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+#[verifier::external]
+fn eq_opt_string_vec(a: &Option<Vec<String>>, b: &Option<Vec<String>>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => eq_string_vec(va, vb),
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_field_ref(
+    a: &Option<k8s_types::ObjectFieldSelector>,
+    b: &Option<k8s_types::ObjectFieldSelector>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(fa), Some(fb)) => {
+            fa.field_path == fb.field_path && eq_opt_string(&fa.api_version, &fb.api_version)
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_exec_action(
+    a: &Option<k8s_types::ExecAction>,
+    b: &Option<k8s_types::ExecAction>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(ea), Some(eb)) => eq_opt_string_vec(&ea.command, &eb.command),
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_int_or_string(
+    a: &k8s_openapi::apimachinery::pkg::util::intstr::IntOrString,
+    b: &k8s_openapi::apimachinery::pkg::util::intstr::IntOrString,
+) -> bool {
+    match (a, b) {
+        (
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(ia),
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(ib),
+        ) => *ia == *ib,
+        (
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(sa),
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(sb),
+        ) => sa == sb,
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_probe(a: &Option<k8s_types::Probe>, b: &Option<k8s_types::Probe>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(pa), Some(pb)) => {
+            eq_opt_exec_action(&pa.exec, &pb.exec)
+                && pa.failure_threshold == pb.failure_threshold
+                && pa.initial_delay_seconds == pb.initial_delay_seconds
+                && pa.period_seconds == pb.period_seconds
+                && pa.success_threshold == pb.success_threshold
+                && pa.timeout_seconds == pb.timeout_seconds
+                && match (&pa.tcp_socket, &pb.tcp_socket) {
+                    (None, None) => true,
+                    (Some(ta), Some(tb)) => {
+                        eq_opt_string(&ta.host, &tb.host) && eq_int_or_string(&ta.port, &tb.port)
+                    }
+                    _ => false,
+                }
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_env_vars(a: &Option<Vec<k8s_types::EnvVar>>, b: &Option<Vec<k8s_types::EnvVar>>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                let e1 = &va[i];
+                let e2 = &vb[i];
+                let vf_eq = match (&e1.value_from, &e2.value_from) {
+                    (None, None) => true,
+                    (Some(vf1), Some(vf2)) => eq_opt_field_ref(&vf1.field_ref, &vf2.field_ref),
+                    _ => false,
+                };
+                if e1.name != e2.name || !eq_opt_string(&e1.value, &e2.value) || !vf_eq {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_ports(
+    a: &Option<Vec<k8s_types::ContainerPort>>,
+    b: &Option<Vec<k8s_types::ContainerPort>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                let p1 = &va[i];
+                let p2 = &vb[i];
+                if p1.container_port != p2.container_port
+                    || !eq_opt_string(&p1.name, &p2.name)
+                    || !eq_opt_string(&p1.protocol, &p2.protocol)
+                {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_volume_mounts(
+    a: &Option<Vec<k8s_types::VolumeMount>>,
+    b: &Option<Vec<k8s_types::VolumeMount>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                let m1 = &va[i];
+                let m2 = &vb[i];
+                if m1.mount_path != m2.mount_path
+                    || m1.name != m2.name
+                    || m1.read_only != m2.read_only
+                    || !eq_opt_string(&m1.sub_path, &m2.sub_path)
+                    || !eq_opt_string(&m1.mount_propagation, &m2.mount_propagation)
+                {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_lifecycle(a: &Option<k8s_types::Lifecycle>, b: &Option<k8s_types::Lifecycle>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(l1), Some(l2)) => match (&l1.pre_stop, &l2.pre_stop) {
+            (None, None) => true,
+            (Some(ps1), Some(ps2)) => eq_opt_exec_action(&ps1.exec, &ps2.exec),
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_resources(
+    a: &Option<k8s_types::ResourceRequirements>,
+    b: &Option<k8s_types::ResourceRequirements>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(r1), Some(r2)) => r1.limits == r2.limits && r1.requests == r2.requests,
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_container(c1: &k8s_types::Container, c2: &k8s_types::Container) -> bool {
+    c1.name == c2.name
+        && eq_opt_string(&c1.image, &c2.image)
+        && eq_opt_string_vec(&c1.command, &c2.command)
+        && eq_opt_string_vec(&c1.args, &c2.args)
+        && eq_opt_string(&c1.image_pull_policy, &c2.image_pull_policy)
+        && (c1.security_context.is_some() == c2.security_context.is_some())
+        && eq_opt_env_vars(&c1.env, &c2.env)
+        && eq_opt_ports(&c1.ports, &c2.ports)
+        && eq_opt_volume_mounts(&c1.volume_mounts, &c2.volume_mounts)
+        && eq_opt_lifecycle(&c1.lifecycle, &c2.lifecycle)
+        && eq_opt_resources(&c1.resources, &c2.resources)
+        && eq_opt_probe(&c1.readiness_probe, &c2.readiness_probe)
+        && eq_opt_probe(&c1.liveness_probe, &c2.liveness_probe)
+}
+
+#[verifier::external]
+fn eq_containers(a: &Vec<k8s_types::Container>, b: &Vec<k8s_types::Container>) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i: usize = 0;
+    while i < a.len() {
+        if !eq_container(&a[i], &b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+#[verifier::external]
+fn eq_opt_containers(
+    a: &Option<Vec<k8s_types::Container>>,
+    b: &Option<Vec<k8s_types::Container>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => eq_containers(va, vb),
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_key_to_paths(
+    a: &Option<Vec<k8s_types::KeyToPath>>,
+    b: &Option<Vec<k8s_types::KeyToPath>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                if va[i].key != vb[i].key || va[i].path != vb[i].path {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_downward_items(
+    a: &Option<Vec<k8s_types::DownwardAPIVolumeFile>>,
+    b: &Option<Vec<k8s_types::DownwardAPIVolumeFile>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                if va[i].path != vb[i].path
+                    || !eq_opt_field_ref(&va[i].field_ref, &vb[i].field_ref)
+                {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_volume_projections(
+    a: &Option<Vec<k8s_types::VolumeProjection>>,
+    b: &Option<Vec<k8s_types::VolumeProjection>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                let s1 = &va[i];
+                let s2 = &vb[i];
+                let cm_eq = match (&s1.config_map, &s2.config_map) {
+                    (None, None) => true,
+                    (Some(c1), Some(c2)) => {
+                        eq_opt_string(&c1.name, &c2.name)
+                            && eq_opt_key_to_paths(&c1.items, &c2.items)
+                    }
+                    _ => false,
+                };
+                let sec_eq = match (&s1.secret, &s2.secret) {
+                    (None, None) => true,
+                    (Some(c1), Some(c2)) => {
+                        eq_opt_string(&c1.name, &c2.name)
+                            && eq_opt_key_to_paths(&c1.items, &c2.items)
+                    }
+                    _ => false,
+                };
+                if !cm_eq || !sec_eq {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_volume(v1: &k8s_types::Volume, v2: &k8s_types::Volume) -> bool {
+    let hp_eq = match (&v1.host_path, &v2.host_path) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.path == b.path,
+        _ => false,
     };
-    r1.claims == r2.claims 
-    && normalize_map(&r1.limits) == normalize_map(&r2.limits)
-    && normalize_map(&r1.requests) == normalize_map(&r2.requests)
+    let cm_eq = match (&v1.config_map, &v2.config_map) {
+        (None, None) => true,
+        (Some(a), Some(b)) => eq_opt_string(&a.name, &b.name),
+        _ => false,
+    };
+    let sec_eq = match (&v1.secret, &v2.secret) {
+        (None, None) => true,
+        (Some(a), Some(b)) => eq_opt_string(&a.secret_name, &b.secret_name),
+        _ => false,
+    };
+    let ed_eq = match (&v1.empty_dir, &v2.empty_dir) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            eq_opt_string(&a.medium, &b.medium)
+                && match (&a.size_limit, &b.size_limit) {
+                    (None, None) => true,
+                    (Some(qa), Some(qb)) => qa.0 == qb.0,
+                    _ => false,
+                }
+        }
+        _ => false,
+    };
+    let pvc_eq = match (&v1.persistent_volume_claim, &v2.persistent_volume_claim) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.claim_name == b.claim_name && a.read_only == b.read_only,
+        _ => false,
+    };
+    let da_eq = match (&v1.downward_api, &v2.downward_api) {
+        (None, None) => true,
+        (Some(a), Some(b)) => eq_opt_downward_items(&a.items, &b.items),
+        _ => false,
+    };
+    let proj_eq = match (&v1.projected, &v2.projected) {
+        (None, None) => true,
+        (Some(a), Some(b)) => eq_opt_volume_projections(&a.sources, &b.sources),
+        _ => false,
+    };
+    v1.name == v2.name && hp_eq && cm_eq && sec_eq && ed_eq && pvc_eq && da_eq && proj_eq
+}
+
+#[verifier::external]
+fn eq_opt_volumes(a: &Option<Vec<k8s_types::Volume>>, b: &Option<Vec<k8s_types::Volume>>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => {
+            if va.len() != vb.len() {
+                return false;
+            }
+            let mut i: usize = 0;
+            while i < va.len() {
+                if !eq_volume(&va[i], &vb[i]) {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_tolerations_len(
+    a: &Option<Vec<k8s_types::Toleration>>,
+    b: &Option<Vec<k8s_types::Toleration>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => va.len() == vb.len(),
+        _ => false,
+    }
+}
+
+#[verifier::external]
+fn eq_opt_local_obj_refs_len(
+    a: &Option<Vec<k8s_types::LocalObjectReference>>,
+    b: &Option<Vec<k8s_types::LocalObjectReference>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(va), Some(vb)) => va.len() == vb.len(),
+        _ => false,
+    }
 }
 
 impl PodSpec {
@@ -254,24 +679,36 @@ impl PodSpec {
     pub fn eq_spec(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
-        let container_comp = |c1: &k8s_types::Container, c2: &k8s_types::Container| {
-            let images_match = c1.image == c2.image;
-            let resources_match = match (&c1.resources, &c2.resources) {
-                (None, None) => true,
-                (Some(r1), Some(r2)) => normalize_and_compare_resources(r1, r2),
-                _ => false
-            };
-            images_match && resources_match
-        };
-
-        self.inner.volumes == other.inner.volumes
-        && self.inner.affinity == other.inner.affinity
-        && self.inner.containers.len() == other.inner.containers.len()
-        && self.inner.tolerations == other.inner.tolerations
-        && self.inner.containers
-            .iter()
-            .zip(other.inner.containers.iter())
-            .all(|(c1, c2)| container_comp(c1, c2))
+        (self.inner.affinity.is_some() == other.inner.affinity.is_some())
+            && eq_containers(&self.inner.containers, &other.inner.containers)
+            && eq_opt_volumes(&self.inner.volumes, &other.inner.volumes)
+            && eq_opt_containers(&self.inner.init_containers, &other.inner.init_containers)
+            && eq_opt_string(
+                &self.inner.service_account_name,
+                &other.inner.service_account_name,
+            )
+            && eq_opt_tolerations_len(&self.inner.tolerations, &other.inner.tolerations)
+            && self.inner.node_selector == other.inner.node_selector
+            && eq_opt_string(
+                &self.inner.runtime_class_name,
+                &other.inner.runtime_class_name,
+            )
+            && eq_opt_string(&self.inner.dns_policy, &other.inner.dns_policy)
+            && eq_opt_string(
+                &self.inner.priority_class_name,
+                &other.inner.priority_class_name,
+            )
+            && eq_opt_string(&self.inner.scheduler_name, &other.inner.scheduler_name)
+            && (self.inner.security_context.is_some() == other.inner.security_context.is_some())
+            && self.inner.host_network == other.inner.host_network
+            && self.inner.termination_grace_period_seconds
+                == other.inner.termination_grace_period_seconds
+            && eq_opt_local_obj_refs_len(
+                &self.inner.image_pull_secrets,
+                &other.inner.image_pull_secrets,
+            )
+            && eq_opt_string(&self.inner.hostname, &other.inner.hostname)
+            && eq_opt_string(&self.inner.subdomain, &other.inner.subdomain)
     }
 }
 
