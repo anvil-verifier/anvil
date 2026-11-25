@@ -62,7 +62,9 @@ impl VReplicaSet {
         ensures owner_reference@ == self@.controller_owner_ref(),
     {
         // We can safely unwrap here because the trait method implementation always returns a Some(...)
-        OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
+        let mut oref = self.inner.controller_owner_ref(&()).unwrap();
+        oref.block_owner_deletion = Some(true);
+        OwnerReference::from_kube(oref)
     }
 
     #[verifier(external_body)]
