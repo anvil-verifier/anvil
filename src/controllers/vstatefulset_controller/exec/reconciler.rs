@@ -1475,9 +1475,6 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-// NOTE: this function calls the trusted normalize_pod_spec function
-// which is a hack to deal with the mismatch between our model of the API server
-// and the real Kubernetes API server
 pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
     ensures res == liveness_theorem::pod_spec_matches(vsts@, pod@)
@@ -1490,8 +1487,7 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
         vsts_spec.unset_volumes();
         vsts_spec.unset_hostname();
         vsts_spec.unset_subdomain();
-        let normalized_spec = normalize_pod_spec(&vsts_spec);
-        return spec.eq_spec(&normalized_spec);
+        return spec.eq_spec(&vsts_spec);
     } else {
         return false;
     }
