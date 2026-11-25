@@ -12,7 +12,7 @@ use vstd::prelude::*;
 
 verus! {
 
-implement_custom_object_wrapper_type!(
+implement_object_wrapper_type!(
     VDeployment,
     crate::crds::VDeployment,
     spec_types::VDeploymentView
@@ -24,6 +24,23 @@ impl VDeployment {
         ensures spec@ == self@.spec,
     {
         VDeploymentSpec { inner: self.inner.spec.clone() }
+    }
+
+    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        requires
+            self@.metadata.name is Some,
+            self@.metadata.uid is Some,
+        ensures owner_reference@ == self@.controller_owner_ref(),
+    {
+        proof { crate::kubernetes_api_objects::spec::owner_reference::lemma_owner_reference_kind_view_of_crds(); }
+        let metadata = self.metadata();
+        OwnerReference::new_controller_owner_ref(
+            "anvil.dev/v1".to_string(),
+            "VDeployment".to_string(),
+            metadata.name().unwrap(),
+            metadata.uid().unwrap(),
+            Some(true),
+        )
     }
 
     #[verifier(external_body)]

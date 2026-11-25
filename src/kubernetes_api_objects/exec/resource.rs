@@ -56,7 +56,12 @@ macro_rules! implement_object_wrapper_type {
             pub fn marshal(self) -> (obj: DynamicObject)
                 ensures obj@ == self@.marshal(),
             {
-                DynamicObject::from_kube(k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
+                DynamicObject::from_kube(
+                    k8s_openapi::serde_json::from_value(
+                        k8s_openapi::serde_json::to_value(&self.inner).unwrap(),
+                    )
+                    .unwrap(),
+                )
             }
 
             #[verifier(external_body)]
@@ -65,7 +70,15 @@ macro_rules! implement_object_wrapper_type {
                     res is Ok == $vt::unmarshal(obj@) is Ok,
                     res is Ok ==> res->Ok_0@ == $vt::unmarshal(obj@)->Ok_0,
             {
-                let parse_result = obj.into_kube().try_parse::<$it>();
+                let kube_obj = obj.into_kube();
+                let ar = kube::api::ApiResource::erase::<$it>(&());
+                if !crate::kubernetes_api_objects::exec::resource::dynamic_object_matches_resource(
+                    &kube_obj,
+                    &ar,
+                ) {
+                    return Err(());
+                }
+                let parse_result = kube_obj.try_parse::<$it>();
                 if parse_result.is_ok() {
                     let res = Self { inner: parse_result.unwrap() };
                     Ok(res)
@@ -80,28 +93,6 @@ macro_rules! implement_object_wrapper_type {
 }
 
 pub use implement_object_wrapper_type;
-
-#[macro_export]
-macro_rules! implement_custom_object_wrapper_type {
-    ($t:ident, $it:ty, $vt:ty) => {
-        implement_object_wrapper_type!($t, $it, $vt);
-
-        verus! {
-
-        impl $t {
-            #[verifier(external_body)]
-            pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-                ensures owner_reference@ == self@.controller_owner_ref(),
-            {
-                OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
-            }
-        }
-
-        }
-    };
-}
-
-pub use implement_custom_object_wrapper_type;
 
 #[macro_export]
 macro_rules! implement_view_trait {
@@ -233,3 +224,22 @@ macro_rules! implement_resource_wrapper_trait {
 }
 
 pub use implement_resource_wrapper_trait;
+
+pub fn dynamic_object_matches_resource(
+    kube_obj: &kube::api::DynamicObject,
+    ar: &kube::api::ApiResource,
+) -> bool {
+    let types_match = match &kube_obj.types {
+        Some(tm) => tm.api_version == ar.api_version && tm.kind == ar.kind,
+        None => false,
+    };
+    let clean_data = match kube_obj.data.as_object() {
+        Some(m) => {
+            !m.contains_key("apiVersion")
+                && !m.contains_key("kind")
+                && !m.contains_key("metadata")
+        }
+        None => false,
+    };
+    types_match && clean_data
+}

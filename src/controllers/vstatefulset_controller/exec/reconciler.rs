@@ -7,6 +7,7 @@ use crate::vstatefulset_controller::model::reconciler::*;
 use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use crate::vstatefulset_controller::trusted::spec_types::VStatefulSetView;
 use crate::vstatefulset_controller::trusted::reconciler::get_ordinal;
+use crate::vstatefulset_controller::trusted::reconciler::has_ordinal;
 use crate::vstatefulset_controller::trusted::reconciler::sort_pods_by_ord;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStep;
 use crate::vstatefulset_controller::trusted::step::VStatefulSetReconcileStepView;
@@ -1325,14 +1326,32 @@ pub fn partition_pods(parent_name: String, replicas: usize, pods: Vec<Pod>) -> (
             ensures b == (model_reconciler::get_ordinal(parent_name@, pod.deep_view().metadata.name->0) is Some
                 && model_reconciler::get_ordinal(parent_name@, pod.deep_view().metadata.name->0)->0 >= replicas)
         {
-            let ordinal = get_ordinal(&parent_name, &pod.metadata().name().unwrap());
-            ordinal.is_some() && ordinal.unwrap() >= replicas
+            let pod_name = pod.metadata().name().unwrap();
+            has_ordinal(&parent_name, &pod_name)
+                && match get_ordinal(&parent_name, &pod_name) {
+                    Some(ord) => ord >= replicas,
+                    None => true,
+                }
         },
         Ghost(|pod: PodView|
             model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
                 && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas),
     );
 
+    proof {
+        let pred = |pod: PodView|
+            model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0) is Some
+                && model_reconciler::get_ordinal(parent_name@, pod.metadata.name->0)->0 >= replicas;
+        seq_filter_is_a_subset_of_original_seq(pods.deep_view(), pred);
+        assert forall |i: int| #![trigger condemned@[i]] 0 <= i < condemned@.len() implies {
+            &&& condemned@[i]@.metadata.name is Some
+            &&& model_reconciler::get_ordinal(parent_name@, condemned@[i]@.metadata.name->0) is Some
+        } by {
+            assert(condemned.deep_view()[i] == condemned@[i]@);
+            let j = choose |j: int| 0 <= j < pods.deep_view().len() && pods.deep_view()[j] == condemned.deep_view()[i];
+            assert(pods@[j].deep_view().metadata.name is Some);
+        }
+    }
     sort_pods_by_ord(&parent_name, &mut condemned);
 
     (needed, condemned)
@@ -1445,7 +1464,7 @@ pub fn filter_pods(pods: Vec<Pod>, vsts: &VStatefulSet) -> (filtered: Vec<Pod>)
             pod.metadata().owner_references_contains(&vsts.controller_owner_ref())
             && vsts.metadata().name().is_some()
             && pod.metadata().name().is_some()
-            && trusted_reconciler::get_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap()).is_some()
+            && trusted_reconciler::has_ordinal(&vsts.metadata().name().unwrap(), &pod.metadata().name().unwrap())
         },
         Ghost(model_reconciler::pod_filter(vsts@)),
     )
@@ -1475,9 +1494,6 @@ pub fn pvc_name(pvc_template_name: String, vsts_name: String, ordinal: usize) ->
     prefix.concat(pvc_template_name.as_str()).concat("-").concat(pod_name_without_vsts_prefix(vsts_name, ordinal).as_str())
 }
 
-// NOTE: this function calls the trusted normalize_pod_spec function
-// which is a hack to deal with the mismatch between our model of the API server
-// and the real Kubernetes API server
 pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool) 
     requires vsts@.well_formed()
     ensures res == liveness_theorem::pod_spec_matches(vsts@, pod@)
@@ -1490,8 +1506,7 @@ pub fn pod_spec_matches(vsts: &VStatefulSet, pod: Pod) -> (res: bool)
         vsts_spec.unset_volumes();
         vsts_spec.unset_hostname();
         vsts_spec.unset_subdomain();
-        let normalized_spec = normalize_pod_spec(&vsts_spec);
-        return spec.eq_spec(&normalized_spec);
+        return spec.eq_spec(&vsts_spec);
     } else {
         return false;
     }

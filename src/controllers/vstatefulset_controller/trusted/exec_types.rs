@@ -42,13 +42,21 @@ impl VStatefulSet {
         self.inner.spec = spec.into_kube()
     }
 
-    // TODO: move controller_owner_ref to implement_object_wrapper_type
-    #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        requires
+            self@.metadata.name is Some,
+            self@.metadata.uid is Some,
         ensures owner_reference@ == self@.controller_owner_ref(),
     {
-        // We can safely unwrap here because the trait method implementation always returns a Some(...)
-        OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
+        proof { crate::kubernetes_api_objects::spec::owner_reference::lemma_owner_reference_kind_view_of_crds(); }
+        let metadata = self.metadata();
+        OwnerReference::new_controller_owner_ref(
+            "anvil.dev/v1".to_string(),
+            "VStatefulSet".to_string(),
+            metadata.name().unwrap(),
+            metadata.uid().unwrap(),
+            Some(true),
+        )
     }
 }
 

@@ -53,13 +53,30 @@ impl View for RabbitmqReconcileState {
     }
 }
 
-implement_custom_object_wrapper_type!(
+implement_object_wrapper_type!(
     RabbitmqCluster,
     crate::crds::RabbitmqCluster,
     spec_types::RabbitmqClusterView
 );
 
 impl RabbitmqCluster {
+    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        requires
+            self@.metadata.name is Some,
+            self@.metadata.uid is Some,
+        ensures owner_reference@ == self@.controller_owner_ref(),
+    {
+        proof { crate::kubernetes_api_objects::spec::owner_reference::lemma_owner_reference_kind_view_of_crds(); }
+        let metadata = self.metadata();
+        OwnerReference::new_controller_owner_ref(
+            "anvil.dev/v1".to_string(),
+            "RabbitmqCluster".to_string(),
+            metadata.name().unwrap(),
+            metadata.uid().unwrap(),
+            None,
+        )
+    }
+
     #[verifier(external_body)]
     pub fn well_formed(&self) -> (b: bool)
         ensures b == self@.well_formed(),
